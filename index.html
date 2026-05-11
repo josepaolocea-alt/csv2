@@ -394,6 +394,16 @@
     #settings-dlg { display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 500; width: 280px; }
     #settings-dlg.open { display: block; }
 
+    /* ── Confirm dialog overlay ── */
+    #confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
+    #confirm-overlay.open { display: flex; }
+    #confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
+    .snap-action-row { display: flex; gap: 2px; margin-top: 3px; }
+    .snap-action-row .tbtn { flex: 1; justify-content: center; font-size: 10px; padding: 1px 4px; }
+
     /* Print */
     @media print {
       #sidebar, #toolbar, #menubar, #titlebar, #statusbar, .fbar, .pager, #panel-snap, #view-banner, .tbtn { display: none !important; }
@@ -484,7 +494,11 @@
         <select id="slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
         <div style="display:flex;gap:2px;margin-top:2px">
           <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processSnapshot()">▶ Process</button>
-          <button class="tbtn" onclick="document.getElementById('snap-ta').value=''">✕</button>
+          <button class="tbtn" onclick="document.getElementById('snap-ta').value=''" title="Clear text area">✕</button>
+        </div>
+        <div class="snap-action-row" style="margin-top:4px">
+          <button class="tbtn" onclick="undoLastSnapshot()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
+          <button class="tbtn" style="color:#880000" onclick="openResetConfirm()" title="Delete ALL snapshots for today and start fresh">🔄 Reset Today</button>
         </div>
       </div>
     </div>
@@ -700,6 +714,26 @@
   </div>
 </div>
 
+<!-- Confirm Reset Dialog -->
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div class="dlg-tb"><span>⚠ Confirm Reset</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">🔄</div>
+      <div class="dlg-text">
+        <strong>Reset Today's Data?</strong><br><br>
+        This will permanently delete <strong>all snapshots</strong> saved today from Firestore.<br><br>
+        The view will return to blank — as if the day never started.<br><br>
+        <span style="color:#880000">This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmResetToday()">Yes, Reset</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeResetConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading -->
 <div id="loading">
   <div class="win-dialog" style="min-width:280px">
@@ -718,7 +752,7 @@
 ════════════════════════════════════════════════ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, getDocs, setDoc, doc,
+  getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc,
   query, orderBy, where, onSnapshot, Timestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -746,7 +780,7 @@ let alertFilter = 'all', clientFilter = 'all';
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
-const PG = 50;
+let PG = 500;
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all';
 
@@ -952,6 +986,51 @@ window.processSnapshot = async() => {
     refreshAll(); toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
   } catch(e){toast('Save error: '+e.message,'err');}
   finally{setLoading(false);}
+};
+
+/* ════════════════════════════════════════════════
+   UNDO LAST SNAPSHOT
+════════════════════════════════════════════════ */
+window.undoLastSnapshot = async () => {
+  if (!todaySnaps.length) { toast('No snapshots to undo.', 'err'); return; }
+  const last = todaySnaps[todaySnaps.length - 1];
+  setLoading(true, 'Removing last snapshot…');
+  try {
+    if (fbOk && last.id) await deleteDoc(doc(db, 'snapshots', last.id));
+    todaySnaps.pop();
+    viewingIdx = null;
+    latestSnap = todaySnaps.length ? todaySnaps[todaySnaps.length - 1] : null;
+    refreshAll();
+    toast(todaySnaps.length
+      ? `✓ Undone — rolled back to ${fmt12(latestSnap.time_slot)}`
+      : '✓ All snapshots removed — view is now blank', 'ok');
+  } catch(e) { toast('Undo error: ' + e.message, 'err'); }
+  finally { setLoading(false); }
+};
+
+/* ════════════════════════════════════════════════
+   RESET TODAY
+════════════════════════════════════════════════ */
+window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
+window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
+
+window.confirmResetToday = async () => {
+  closeResetConfirm();
+  if (!todaySnaps.length) { toast('Nothing to reset — no snapshots today.', 'err'); return; }
+  setLoading(true, 'Resetting today\'s data…');
+  try {
+    if (fbOk) {
+      // Delete all today's docs from Firestore in a batch
+      const batch = writeBatch(db);
+      todaySnaps.forEach(s => { if (s.id) batch.delete(doc(db, 'snapshots', s.id)); });
+      await batch.commit();
+    }
+    todaySnaps = []; latestSnap = null; viewingIdx = null;
+    document.getElementById('view-banner').classList.remove('visible');
+    refreshAll();
+    toast('✓ Today\'s data cleared — ready for a fresh start', 'ok');
+  } catch(e) { toast('Reset error: ' + e.message, 'err'); }
+  finally { setLoading(false); }
 };
 
 /* ════════════════════════════════════════════════
@@ -1205,11 +1284,17 @@ document.addEventListener('click',e=>{
 ════════════════════════════════════════════════ */
 function renderPager(id,page,pages,fn){
   const el=document.getElementById(id);if(!el)return;
-  if(pages<=1){el.innerHTML='';return;}
+  const pgSel=`<select class="win-sel" style="margin-left:8px" onchange="setPG(this.value)" title="Rows per page">
+    <option value="500" ${PG===500?'selected':''}>500 / page</option>
+    <option value="700" ${PG===700?'selected':''}>700 / page</option>
+    <option value="1000" ${PG===1000?'selected':''}>1000 / page</option>
+  </select>`;
+  if(pages<=1){el.innerHTML=pgSel;return;}
   el.innerHTML=`<button class="tbtn" ${page===0?'disabled':''} onclick="${fn}(${page-1})">◄ Prev</button>
     <span>Page ${page+1} of ${pages}</span>
-    <button class="tbtn" ${page>=pages-1?'disabled':''} onclick="${fn}(${page+1})">Next ►</button>`;
+    <button class="tbtn" ${page>=pages-1?'disabled':''} onclick="${fn}(${page+1})">Next ►</button>${pgSel}`;
 }
+window.setPG = v => { PG=parseInt(v)||500; alertPage=0; clientPage=0; renderAlerts(); window.renderClients(); };
 
 /* ════════════════════════════════════════════════
    CSV WIZARD
