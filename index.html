@@ -1325,7 +1325,7 @@ window.renderWizard=()=>{
   if(wStep===2&&wCsvData){
     const OPTS=['carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','(skip)'];
     c.innerHTML=`
-      <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. <b>carrier_name</b> and <b>amnt_receivable</b> required.</p>
+      <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
       <div class="map-grid" style="margin-bottom:8px">
         ${wHeaders.map((h,i)=>{
           const auto=autoMap(h);
@@ -1343,12 +1343,15 @@ window.renderWizard=()=>{
   }
   if(wStep===3){
     const vis=wDiffF==='all'?wChanges:wChanges.filter(ch=>ch.type.toLowerCase()===wDiffF);
-    const counts={new:0,changed:0,missing:0,unchanged:0};
+    const counts={new:0,changed:0,missing:0};
     wChanges.forEach(ch=>{const k=ch.type.toLowerCase();if(counts[k]!==undefined)counts[k]++;});
     const tabs=[['all','All',wChanges.length],['new','New',counts.new],['changed','Changed',counts.changed],['missing','Missing',counts.missing]]
       .map(([f,l,n])=>`<button class="fltbtn ${wDiffF===f?'active':''}" onclick="setWDiffF('${f}')">${l} (${n})</button>`).join('');
+    const unchangedNote=wUnchanged.length
+      ? `<span style="color:#006600;margin-left:8px">✓ ${wUnchanged.length} already up-to-date in Firestore (no changes needed)</span>`
+      : '';
     c.innerHTML=`
-      <p style="margin-bottom:4px;color:#444">${wChanges.length} changes detected.</p>
+      <p style="margin-bottom:4px;color:#444">${wChanges.length} changes detected.${unchangedNote}</p>
       <div class="fbar">${tabs}</div>
       <div class="lv-wrap" style="max-height:250px">
         <table>
@@ -1398,11 +1401,13 @@ window.handleFile=file=>{
   if(!file?.name.endsWith('.csv')){toast('Please select a .csv file','err');return;}
   Papa.parse(file,{header:true,skipEmptyLines:true,complete:res=>{
     wCsvData=res.data;wHeaders=Object.keys(res.data[0]||{});
-    const matched=res.data.filter(r=>clientsMeta[r.CarrierName||r.carrier_name]).length;
+    const nameKey=Object.keys(res.data[0]||{}).find(k=>k.toLowerCase().replace(/[\s_]+/g,'')==='carriername')||'carrier_name';
+    const matched=res.data.filter(r=>clientsMeta[r[nameKey]]).length;
+    const isNew=res.data.length-matched;
     document.getElementById('csv-sum').innerHTML=`
       <div style="background:#fff;padding:8px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;font-size:11px">
         <b>${esc(file.name)}</b> — ${res.data.length} rows · ${wHeaders.length} cols · ${(file.size/1024).toFixed(1)} KB<br>
-        <span style="color:#006600">${matched} match existing</span> · <span style="color:#000080">${res.data.length-matched} new</span>
+        <span style="color:#000080">📥 ${isNew} new clients</span>${matched?` · <span style="color:#006600">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
       </div>
       <div style="margin-top:6px"><button class="tbtn primary" onclick="wizGo(2)">Next: Map Columns ►</button></div>`;
   },error:e=>toast('CSV error: '+e.message,'err')});
@@ -1410,22 +1415,45 @@ window.handleFile=file=>{
 window.applyMapping=()=>{
   wMapping={};
   wHeaders.forEach((h,i)=>{const s=document.getElementById('wm'+i);if(s?.value&&s.value!=='(skip)')wMapping[h]=s.value;});
-  if(!Object.values(wMapping).includes('carrier_name')){toast('carrier_name mapping required','err');return;}
-  if(!Object.values(wMapping).includes('amnt_receivable')){toast('amnt_receivable mapping required','err');return;}
+  if(!Object.values(wMapping).includes('carrier_name')){toast('carrier_name mapping is required','err');return;}
   buildDiff();wStep=3;renderWizard();
 };
+let wUnchanged=[];  // tracks clients already in Firestore with identical data
 function buildDiff(){
-  wChanges=[];wChecked={};let id=0;const inCsv=new Set();
+  wChanges=[];wChecked=[];wUnchanged=[];let id=0;const inCsv=new Set();
   wCsvData.forEach(raw=>{
     const m={};
-    for(const[csvCol,fsField] of Object.entries(wMapping)) m[fsField]=raw[csvCol];
+    for(const[csvCol,fsField] of Object.entries(wMapping)) m[fsField]=raw[csvCol]??'';
     if(!m.carrier_name) return;
     inCsv.add(m.carrier_name);
     const ex=clientsMeta[m.carrier_name];
-    if(!ex){const _id=`c${id++}`;wChanges.push({_id,client:m.carrier_name,type:'New',field:'all',before:null,after:JSON.stringify(m)});wChecked[_id]=true;}
-    else{for(const[f,v] of Object.entries(m)){if(f==='carrier_name')continue;if(String(ex[f]??'')!==String(v??'')){const _id=`c${id++}`;wChanges.push({_id,client:m.carrier_name,type:'Changed',field:f,before:ex[f],after:v});wChecked[_id]=true;}}}
+    if(!ex){
+      // Brand new client
+      const _id=`c${id++}`;
+      wChanges.push({_id,client:m.carrier_name,type:'New',field:'all',before:null,after:JSON.stringify(m)});
+      wChecked[_id]=true;
+    } else {
+      // Existing client — collect changed fields
+      const diffs=[];
+      for(const[f,v] of Object.entries(m)){
+        if(f==='carrier_name') continue;
+        if(String(ex[f]??'')!==String(v??'')){
+          const _id=`c${id++}`;
+          wChanges.push({_id,client:m.carrier_name,type:'Changed',field:f,before:ex[f],after:v});
+          wChecked[_id]=true;
+          diffs.push(f);
+        }
+      }
+      if(diffs.length===0) wUnchanged.push(m.carrier_name);  // already identical in Firestore
+    }
   });
-  Object.keys(clientsMeta).forEach(name=>{if(!inCsv.has(name)){const _id=`c${id++}`;wChanges.push({_id,client:name,type:'Missing',field:'carrier_name',before:name,after:null});wChecked[_id]=false;}});
+  Object.keys(clientsMeta).forEach(name=>{
+    if(!inCsv.has(name)){
+      const _id=`c${id++}`;
+      wChanges.push({_id,client:name,type:'Missing',field:'carrier_name',before:name,after:null});
+      wChecked[_id]=false;
+    }
+  });
 }
 window.checkAll=chk=>{wChanges.forEach(c=>{if(wDiffF==='all'||c.type.toLowerCase()===wDiffF)wChecked[c._id]=chk.checked;});renderWizard();};
 window.saveWizard=async()=>{
@@ -1435,21 +1463,26 @@ window.saveWizard=async()=>{
   try{
     let nNew=0,nUpd=0,nRem=0;
     if(fbOk){
-      const batch=writeBatch(db);
+      // Firestore batch limit = 500 ops — chunk if needed
+      const BATCH_MAX=490;
+      let batch=writeBatch(db), batchCount=0;
+      const commitIfFull=async()=>{if(batchCount>=BATCH_MAX){await batch.commit();batch=writeBatch(db);batchCount=0;}};
       for(const ch of toSave){
+        await commitIfFull();
         const docId=ch.client.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
         const ref=doc(db,'clients',docId);
-        if(ch.type==='New'){const dd=JSON.parse(ch.after);batch.set(ref,{...dd,carrier_name:ch.client,is_active:true,created_at:Timestamp.now(),updated_at:Timestamp.now()});clientsMeta[ch.client]=dd;nNew++;}
-        else if(ch.type==='Changed'){batch.update(ref,{[ch.field]:ch.after,updated_at:Timestamp.now()});if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=ch.after;nUpd++;}
-        else if(ch.type==='Missing'){batch.update(ref,{is_active:false,updated_at:Timestamp.now()});nRem++;}
+        if(ch.type==='New'){const dd=JSON.parse(ch.after);batch.set(ref,{...dd,carrier_name:ch.client,is_active:true,created_at:Timestamp.now(),updated_at:Timestamp.now()});clientsMeta[ch.client]=dd;nNew++;batchCount++;}
+        else if(ch.type==='Changed'){batch.update(ref,{[ch.field]:ch.after,updated_at:Timestamp.now()});if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=ch.after;nUpd++;batchCount++;}
+        else if(ch.type==='Missing'){batch.update(ref,{is_active:false,updated_at:Timestamp.now()});nRem++;batchCount++;}
       }
-      await batch.commit();
+      if(batchCount>0) await batch.commit();
       await addDoc(collection(db,'csv_imports'),{filename:'csv_upload',imported_at:Timestamp.now(),total_rows:wCsvData.length,new_clients:nNew,updated_clients:nUpd,removed:nRem,skipped:wChanges.length-toSave.length});
     } else {
       toSave.forEach(ch=>{if(ch.type==='New'){clientsMeta[ch.client]=JSON.parse(ch.after);nNew++;}if(ch.type==='Changed'){if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=ch.after;nUpd++;}});
     }
-    toast(`✓ ${toSave.length} changes saved`,'ok');
-    wStep=1;wCsvData=null;wChanges=[];wHeaders=[];
+    const unchangedMsg=wUnchanged.length?` · ${wUnchanged.length} already up-to-date`:'';
+    toast(`✓ ${nNew} new · ${nUpd} updated · ${nRem} removed${unchangedMsg}`,'ok');
+    wStep=1;wCsvData=null;wChanges=[];wHeaders=[];wUnchanged=[];
     renderWizard();renderImpHist();refreshAll();
   }catch(e){toast('Save failed: '+e.message,'err');}
   finally{setLoading(false);}
