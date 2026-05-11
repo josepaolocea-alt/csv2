@@ -511,18 +511,17 @@
             <div class="stat-row">
               <div class="stat-box">       <div class="sv" id="st-total">—</div><div class="sl">Total clients</div></div>
               <div class="stat-box s-green"><div class="sv" id="st-active">—</div><div class="sl">Active</div></div>
-              <div class="stat-box s-green"><div class="sv" id="st-near">—</div><div class="sl">Near target</div></div>
+              <div class="stat-box s-green"><div class="sv" id="st-safe">—</div><div class="sl">Safe</div></div>
             </div>
             <div class="stat-row">
-              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">High alerts</div></div>
-              <div class="stat-box s-medium"><div class="sv" id="st-medium">—</div><div class="sl">Medium alerts</div></div>
-              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">Light alerts</div></div>
+              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">🔴 Critical (at limit)</div></div>
+              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">⚠ Warning (near limit)</div></div>
+              <div class="stat-box">         <div class="sv" id="st-none">—</div><div class="sl">No threshold set</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
-              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>On target</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cccc00"></div>Light (0 to −50)</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cc6600"></div>Medium (−51 to −100)</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>High (&lt; −100)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>✓ Safe — balance below Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#cccc00"></div>⚠ Warning — balance reached Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>🔴 Critical — balance reached/passed Critical Balance (allowable limit)</div>
             </div>
           </div>
         </div>
@@ -545,10 +544,10 @@
           <div class="groupbox-title">🚨 Alert Panel</div>
           <div class="tab-bar" id="alert-tabs">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
-            <div class="tab" onclick="setAlertFilter('high',this)">High</div>
-            <div class="tab" onclick="setAlertFilter('medium',this)">Medium</div>
-            <div class="tab" onclick="setAlertFilter('light',this)">Light</div>
-            <div class="tab" onclick="setAlertFilter('target',this)">On target</div>
+            <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
+            <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
+            <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
+            <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap">
@@ -556,11 +555,11 @@
                 <thead><tr>
                   <th onclick="sortAlert('carrier_name')">Client ▲</th>
                   <th onclick="sortAlert('amnt_receivable')" style="text-align:right">Amnt Receivable</th>
-                  <th onclick="sortAlert('usage_30min')">30-min Usage</th>
-                  <th onclick="sortAlert('total_usage')" style="text-align:right">Total Usage</th>
+                  <th onclick="sortAlert('credit_limit')" style="text-align:right">Credit Limit</th>
+                  <th onclick="sortAlert('critical_balance')" style="text-align:right">Critical Balance</th>
+                  <th>Balance Bar</th>
                   <th onclick="sortAlert('_level')">Alert</th>
                   <th>Notes</th>
-                  <th onclick="sortAlert('credit_limit')" style="text-align:right">Credit Limit</th>
                 </tr></thead>
                 <tbody id="alert-tbody"></tbody>
               </table>
@@ -675,12 +674,12 @@
     <div style="padding:12px">
       <div style="display:grid;gap:6px">
         <div style="display:flex;align-items:center;gap:6px">
-          <label style="min-width:130px">Light alert max:</label>
-          <input class="win-inp" id="set-light" type="number" value="-50" style="width:70px" onchange="saveSettings()">
+          <label style="min-width:130px">Fallback warning:</label>
+          <input class="win-inp" id="set-light" type="number" value="-10" style="width:70px" onchange="saveSettings()" title="Used when a client has no Credit Limit set">
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <label style="min-width:130px">Medium alert max:</label>
-          <input class="win-inp" id="set-medium" type="number" value="-100" style="width:70px" onchange="saveSettings()">
+          <label style="min-width:130px">Fallback critical:</label>
+          <input class="win-inp" id="set-medium" type="number" value="-1" style="width:70px" onchange="saveSettings()" title="Used when a client has no Critical Balance set">
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <label style="min-width:130px">Near-target %:</label>
@@ -769,7 +768,7 @@ const NUM_KEYS = new Set(['credit_limit','prev_balance','pay_adj','current_usage
 /* ════════════════════════════════════════════════
    SETTINGS
 ════════════════════════════════════════════════ */
-let S = { lightMax:-50, mediumMax:-100, nearPct:5, shift:'7AM-7PM' };
+let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM' };
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
   document.getElementById('set-light').value  = S.lightMax;
@@ -854,22 +853,40 @@ function populateSlots() {
 /* ════════════════════════════════════════════════
    ALERT LOGIC
 ════════════════════════════════════════════════ */
+function getThreshold(meta, row, field, fallback) {
+  const mv = meta[field];
+  if (mv !== undefined && mv !== null && mv !== '') { const n=parseFloat(mv); if (!isNaN(n)) return n; }
+  const rv = row[field];
+  if (rv !== undefined && rv !== null && rv !== '' && rv !== 0) { const n=parseFloat(rv); if (!isNaN(n)) return n; }
+  return fallback;
+}
+// Returns true if the client has at least one explicitly set threshold (meta or row data)
+function hasClientThreshold(row) {
+  const meta = clientsMeta[row.carrier_name] || {};
+  const fields = ['critical_balance','credit_limit'];
+  return fields.some(f => {
+    const mv = meta[f]; if (mv !== undefined && mv !== null && mv !== '') { const n=parseFloat(mv); if (!isNaN(n)) return true; }
+    const rv = row[f];  if (rv !== undefined && rv !== null && rv !== '' && rv !== 0) { const n=parseFloat(rv); if (!isNaN(n)) return true; }
+    return false;
+  });
+}
+
 function alertLevel(row) {
-  const u=row.usage_30min??0, m=clientsMeta[row.carrier_name]||{};
-  const lm=m.alert_threshold_light??S.lightMax, mm=m.alert_threshold_medium??S.mediumMax;
-  if (u>=0) return 'none';
-  if (u>=lm) return 'light';
-  if (u>=mm) return 'medium';
-  return 'high';
+  const bal = row.amnt_receivable ?? 0;
+  const meta = clientsMeta[row.carrier_name] || {};
+  // credit_limit     = WARNING threshold  (e.g. -10) — alert before hitting allowable balance
+  // critical_balance = CRITICAL threshold / allowable balance (e.g. -1) — alert when at/past the limit
+  // Higher (less negative) value = worse. Alert fires when balance RISES to or above threshold.
+  const critBal = getThreshold(meta, row, 'critical_balance', S.mediumMax);
+  const credLim = getThreshold(meta, row, 'credit_limit',     S.lightMax);
+  if (critBal !== null && bal >= critBal) return 'high';   // at/past allowable balance
+  if (credLim !== null && bal >= credLim) return 'light';  // approaching limit — early warning
+  return 'none';
 }
-function levelOrd(l) { return {high:4,medium:3,light:2,target:1,none:0}[l]??0; }
-function nearTarget(row) {
-  const t=(clientsMeta[row.carrier_name]||{}).target_balance;
-  return t ? Math.abs(row.amnt_receivable-t)/Math.abs(t)<=S.nearPct/100 : false;
-}
+function levelOrd(l) { return {high:3, light:2, none:0}[l] ?? 0; }
 function chipInfo(row, lvl) {
-  if (lvl==='none') return nearTarget(row) ? ['target','On target'] : ['none','—'];
-  return [lvl, {high:'⚠ High',medium:'! Medium',light:'~ Light'}[lvl]||lvl];
+  if (lvl==='none') return ['none','✓ Safe'];
+  return [lvl, {high:'🔴 Critical', light:'⚠ Warning'}[lvl]||lvl];
 }
 
 /* ════════════════════════════════════════════════
@@ -994,25 +1011,24 @@ function updateSync() {
 ════════════════════════════════════════════════ */
 function renderStats() {
   const data=activeData(), rows=data.map(r=>({...r,_lvl:alertLevel(r)}));
-  const total=Math.max(Object.keys(clientsMeta).length,data.length);
-  const active=rows.filter(r=>r.usage_30min!==0).length;
-  const near=rows.filter(r=>nearTarget(r)).length;
-  const high=rows.filter(r=>r._lvl==='high').length;
-  const med=rows.filter(r=>r._lvl==='medium').length;
-  const lite=rows.filter(r=>r._lvl==='light').length;
-  document.getElementById('st-total').textContent=total;
-  document.getElementById('st-active').textContent=active;
-  document.getElementById('st-near').textContent=near;
-  document.getElementById('st-high').textContent=high;
-  document.getElementById('st-medium').textContent=med;
-  document.getElementById('st-light').textContent=lite;
-  const onT=rows.filter(r=>r._lvl==='none').length;
+  const total  = Math.max(Object.keys(clientsMeta).length, data.length);
+  const active = rows.filter(r=>r.usage_30min!==0).length;
+  const high   = rows.filter(r=>r._lvl==='high').length;
+  const lite   = rows.filter(r=>r._lvl==='light').length;
+  const safe   = rows.filter(r=>r._lvl==='none').length;
+  const noThresh = rows.filter(r=>!hasClientThreshold(r)).length;
+  document.getElementById('st-total').textContent  = total;
+  document.getElementById('st-active').textContent = active;
+  document.getElementById('st-safe').textContent   = safe;
+  document.getElementById('st-high').textContent   = high;
+  document.getElementById('st-light').textContent  = lite;
+  document.getElementById('st-none').textContent   = noThresh;
   const tabs=document.querySelectorAll('#alert-tabs .tab');
   if(tabs[0]) tabs[0].textContent=`All (${rows.length})`;
-  if(tabs[1]) tabs[1].textContent=`High (${high})`;
-  if(tabs[2]) tabs[2].textContent=`Medium (${med})`;
-  if(tabs[3]) tabs[3].textContent=`Light (${lite})`;
-  if(tabs[4]) tabs[4].textContent=`On target (${onT})`;
+  if(tabs[1]) tabs[1].textContent=`🔴 Critical (${high})`;
+  if(tabs[2]) tabs[2].textContent=`⚠ Warning (${lite})`;
+  if(tabs[3]) tabs[3].textContent=`✓ Safe (${safe})`;
+  if(tabs[4]) tabs[4].textContent=`No threshold (${noThresh})`;
 }
 
 /* ════════════════════════════════════════════════
@@ -1071,12 +1087,23 @@ window.sortAlert = col => {
 window.alertPageTo = p => {alertPage=p;renderAlerts();};
 
 function renderAlerts() {
-  const data=activeData().map(r=>({...r,_level:alertLevel(r),notes:r.notes||clientsMeta[r.carrier_name]?.notes||'',credit_limit:r.credit_limit??clientsMeta[r.carrier_name]?.credit_limit??0}));
+  const data=activeData().map(r=>{
+    const meta=clientsMeta[r.carrier_name]||{};
+    const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
+    const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
+    return {
+      ...r,
+      _level: alertLevel(r),
+      notes: r.notes||meta.notes||'',
+      credit_limit: credLim,
+      critical_balance: critBal,
+    };
+  });
   let rows=data;
-  if(alertFilter==='high')   rows=data.filter(r=>r._level==='high');
-  if(alertFilter==='medium') rows=data.filter(r=>r._level==='medium');
-  if(alertFilter==='light')  rows=data.filter(r=>r._level==='light');
-  if(alertFilter==='target') rows=data.filter(r=>r._level==='none');
+  if(alertFilter==='high')     rows=data.filter(r=>r._level==='high');
+  if(alertFilter==='light')    rows=data.filter(r=>r._level==='light');
+  if(alertFilter==='none')     rows=data.filter(r=>r._level==='none');
+  if(alertFilter==='nothresh') rows=data.filter(r=>!hasClientThreshold(r));
   rows.sort((a,b)=>{
     let av=a[alertSortCol],bv=b[alertSortCol];
     if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -1087,19 +1114,31 @@ function renderAlerts() {
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
   document.getElementById('alert-tbody').innerHTML=page.map(r=>{
-    const bw=Math.min(Math.abs(r.usage_30min||0)/Math.abs(S.mediumMax)*100,100).toFixed(0);
+    // Balance bar: how close is current balance to critical threshold?
+    const critBal = r.critical_balance;
+    const credLim = r.credit_limit;
+    const bal     = r.amnt_receivable;
+    let bw = 0;
+    if (critBal !== null && credLim !== null) {
+      // Range from credit_limit to critical_balance; fill shows how far into warning zone
+      const range = critBal - credLim;
+      const pos   = bal - credLim;
+      bw = range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
+    }
     const[cls,lbl]=chipInfo(r,r._level);
     return `<tr>
       <td>${esc(r.carrier_name)}</td>
-      <td class="num ${r.amnt_receivable<0?'neg':''}">${fmt(r.amnt_receivable)}</td>
-      <td><div class="ubar-wrap"><div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw}%"></div></div>
-        <span style="font-family:'Courier New',monospace;font-size:10px;${r.usage_30min<0?'color:#cc0000':''}">${fmt(r.usage_30min)}</span></div></td>
-      <td class="num ${r.total_usage<0?'neg':''}">${fmt(r.total_usage)}</td>
+      <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
+      <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
+      <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
+      <td><div class="ubar-wrap">
+        <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(0)}%"></div></div>
+        <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(0)}%</span>
+      </div></td>
       <td><span class="badge ${cls}">${lbl}</span></td>
-      <td style="color:#666;max-width:160px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
-      <td class="num">${fmt(r.credit_limit)}</td>
+      <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">No alerts in this category</td></tr>`;
+  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
 
