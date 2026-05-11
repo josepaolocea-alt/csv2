@@ -225,7 +225,7 @@
     }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th {
-      position: sticky; top: 0;
+      position: sticky; top: 0; z-index: 2;
       background: #c0c0c0; padding: 3px 6px; text-align: left;
       font-weight: 700; white-space: nowrap; cursor: pointer;
       border-right: 1px solid #808080; border-bottom: 2px solid #808080;
@@ -592,7 +592,7 @@
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
-            <button class="fltbtn" id="btn-show-inactive" onclick="toggleShowInactive()">Show inactive</button>
+            <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Show inactive</button>
             <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
