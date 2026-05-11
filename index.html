@@ -556,12 +556,13 @@
       <div class="view" id="view-alerts">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">🚨 Alert Panel</div>
-          <div class="tab-bar" id="alert-tabs">
+          <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
             <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
             <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
+            <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap">
@@ -777,7 +778,7 @@ try {
    STATE
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
-let alertFilter = 'all', clientFilter = 'all', showInactive = false;
+let alertFilter = 'all', clientFilter = 'all', showInactive = false, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
@@ -1183,13 +1184,14 @@ function renderAlerts() {
       notes: r.notes||meta.notes||'',
       credit_limit: credLim,
       critical_balance: critBal,
+      _inactive: meta.is_active===false,
     };
   });
-  let rows=data;
-  if(alertFilter==='high')     rows=data.filter(r=>r._level==='high');
-  if(alertFilter==='light')    rows=data.filter(r=>r._level==='light');
-  if(alertFilter==='none')     rows=data.filter(r=>r._level==='none');
-  if(alertFilter==='nothresh') rows=data.filter(r=>!hasClientThreshold(r));
+  let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
+  if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
+  if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
+  if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
+  if(alertFilter==='nothresh') rows=rows.filter(r=>!hasClientThreshold(r));
   rows.sort((a,b)=>{
     let av=a[alertSortCol],bv=b[alertSortCol];
     if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -1248,12 +1250,18 @@ window.toggleShowInactive=()=>{
   if(btn) btn.classList.toggle('active',showInactive);
   renderClients();
 };
+window.toggleAlertShowInactive=()=>{
+  alertShowInactive=!alertShowInactive;
+  const btn=document.getElementById('btn-alert-show-inactive');
+  if(btn) btn.classList.toggle('active',alertShowInactive);
+  renderAlerts();
+};
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
   let rows=activeData().map(r=>({...r,_level:alertLevel(r),notes:r.notes||clientsMeta[r.carrier_name]?.notes||'',_inactive:clientsMeta[r.carrier_name]?.is_active===false}));
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
-  if(clientFilter==='active')  rows=rows.filter(r=>r.usage_30min!==0);
+  if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
   if(clientFilter==='near')    rows=rows.filter(r=>nearTarget(r));
   rows.sort((a,b)=>{
