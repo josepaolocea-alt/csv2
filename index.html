@@ -889,7 +889,7 @@ function fmt12(hhmm) {
 }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function populateSlots() {
-  const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift), next=nextSlot();
+  const sel=document.getElementById('slot-sel'), slots=shiftSlots('24H'), next=nextSlot();
   sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===next?'selected':''}>${fmt12(s)}</option>`).join('');
 }
 
