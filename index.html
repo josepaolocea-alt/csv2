@@ -593,6 +593,7 @@
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
+            <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Show inactive</button>
             <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
             <div class="col-wrap">
@@ -703,9 +704,10 @@
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <label style="min-width:130px">Default shift:</label>
-          <select class="win-sel" id="set-shift" style="width:100px" onchange="saveSettings()">
+          <select class="win-sel" id="set-shift" style="width:130px" onchange="saveSettings()">
             <option value="7AM-7PM">7AM–7PM</option>
             <option value="7PM-7AM">7PM–7AM</option>
+            <option value="24H">24 Hours (All Day)</option>
           </select>
         </div>
       </div>
@@ -867,6 +869,11 @@ function setSbSync(s)   { document.getElementById('sb-sync').textContent = s; }
    TIME HELPERS
 ════════════════════════════════════════════════ */
 function shiftSlots(shift) {
+  if (shift==='24H') {
+    const out=[];
+    for (let h=0;h<24;h++){const hh=h.toString().padStart(2,'0');out.push(`${hh}:00`,`${hh}:30`);}
+    return out;
+  }
   const [s,e] = shift==='7AM-7PM' ? [7,19] : [19,31];
   const out = [];
   for (let h=s; h<e; h++) { const hh=(h%24).toString().padStart(2,'0'); out.push(`${hh}:00`,`${hh}:30`); }
@@ -1264,6 +1271,7 @@ window.renderClients=()=>{
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
   if(clientFilter==='near')    rows=rows.filter(r=>nearTarget(r));
+  if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientsMeta[r.carrier_name]?.critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
   rows.sort((a,b)=>{
     let av=a[clientSortCol],bv=b[clientSortCol];
     if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
