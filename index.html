@@ -592,6 +592,7 @@
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
+            <button class="fltbtn" id="btn-show-inactive" onclick="toggleShowInactive()">Show inactive</button>
             <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
@@ -776,7 +777,7 @@ try {
    STATE
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
-let alertFilter = 'all', clientFilter = 'all';
+let alertFilter = 'all', clientFilter = 'all', showInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
@@ -947,7 +948,13 @@ const FMAP = {
   'current usage':'current_usage',currentusage:'current_usage',
   'amnt receivable':'amnt_receivable',amntreceivable:'amnt_receivable',
   notes:'notes',
+  status:'is_active',isactive:'is_active','is active':'is_active',
 };
+function parseBoolField(v){
+  if(typeof v==='boolean') return v;
+  return ['true','yes','1','active'].includes(String(v).toLowerCase().trim());
+}
+function fmtBool(v){return v===true||v==='true'?'Active':'Inactive';}
 const NUM_FIELDS=['credit_limit','critical_balance','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable'];
 
 function parseText(text) {
@@ -1235,9 +1242,16 @@ window.sortClients=col=>{
 };
 window.clientPageTo=p=>{clientPage=p;renderClients();};
 
+window.toggleShowInactive=()=>{
+  showInactive=!showInactive;
+  const btn=document.getElementById('btn-show-inactive');
+  if(btn) btn.classList.toggle('active',showInactive);
+  renderClients();
+};
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
-  let rows=activeData().map(r=>({...r,_level:alertLevel(r),notes:r.notes||clientsMeta[r.carrier_name]?.notes||''}));
+  let rows=activeData().map(r=>({...r,_level:alertLevel(r),notes:r.notes||clientsMeta[r.carrier_name]?.notes||'',_inactive:clientsMeta[r.carrier_name]?.is_active===false}));
+  if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>r.usage_30min!==0);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
@@ -1253,16 +1267,17 @@ window.renderClients=()=>{
   const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
   const vc=COLS.filter(c=>c.vis);
   document.getElementById('clients-thead').innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
-  document.getElementById('clients-tbody').innerHTML=page.map((r,ri)=>
-    `<tr>${vc.map(c=>{
+  document.getElementById('clients-tbody').innerHTML=page.map((r,ri)=>{
+    const rowStyle=r._inactive?'opacity:0.45;':'';
+    return `<tr style="${rowStyle}">${vc.map(c=>{
       if(c.key==='idx') return `<td style="color:#888">${clientPage*PG+ri+1}</td>`;
-      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong></td>`;
+      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
-    }).join('')}</tr>`
-  ).join('')||`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`;
+    }).join('')}</tr>`;
+  }).join('')||`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`;
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
   buildColDD();
 };
@@ -1323,7 +1338,7 @@ window.renderWizard=()=>{
       <div id="csv-sum" style="margin-top:6px"></div>`;
   }
   if(wStep===2&&wCsvData){
-    const OPTS=['carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','(skip)'];
+    const OPTS=['carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','is_active','(skip)'];
     c.innerHTML=`
       <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
       <div class="map-grid" style="margin-bottom:8px">
@@ -1366,7 +1381,7 @@ window.renderWizard=()=>{
               <td>${esc(ch.client)}</td>
               <td><span class="badge ${bc}">${ch.type}</span></td>
               <td style="font-family:'Courier New',monospace;font-size:10px">${esc(ch.field)}</td>
-              <td style="font-family:'Courier New',monospace;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(String(ch.before??'—'))} → ${esc(String(ch.after??'—'))}</td>
+              <td style="font-family:'Courier New',monospace;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${ch.field==='is_active'?`${fmtBool(ch.before)} → ${fmtBool(ch.after)}`:esc(String(ch.before??'—'))+' → '+esc(String(ch.after??'—'))}</td>
               <td><button class="tbtn" style="padding:0 6px;font-size:10px" onclick="skipChange('${ch._id}')">Skip</button></td>
             </tr>`;
           }).join('')||`<tr><td colspan="6" style="text-align:center;padding:12px;color:#666">None in this category</td></tr>`}</tbody>
@@ -1394,7 +1409,7 @@ window.renderWizard=()=>{
 
 function autoMap(h){
   const k=h.toLowerCase().replace(/[\s_&]+/g,'');
-  return{carriername:'carrier_name',allowbal:'allow_balance',creditlimit:'credit_limit',criticalbalance:'critical_balance',billingcycle:'billing_cycle',isprepay:'is_prepay',invupto:'inv_upto',prevbalance:'prev_balance',payadj:'pay_adj',currentusage:'current_usage',amntreceivable:'amnt_receivable',notes:'notes',targetbalance:'target_balance'}[k]||'(skip)';
+  return{carriername:'carrier_name',allowbal:'allow_balance',creditlimit:'credit_limit',criticalbalance:'critical_balance',billingcycle:'billing_cycle',isprepay:'is_prepay',invupto:'inv_upto',prevbalance:'prev_balance',payadj:'pay_adj',currentusage:'current_usage',amntreceivable:'amnt_receivable',notes:'notes',targetbalance:'target_balance',status:'is_active',isactive:'is_active'}[k]||'(skip)';
 }
 window.handleDrop=e=>{e.preventDefault();e.currentTarget.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);};
 window.handleFile=file=>{
@@ -1437,9 +1452,11 @@ function buildDiff(){
       const diffs=[];
       for(const[f,v] of Object.entries(m)){
         if(f==='carrier_name') continue;
-        if(String(ex[f]??'')!==String(v??'')){
+        let csvVal=v, exVal=ex[f];
+        if(f==='is_active'){csvVal=parseBoolField(v);exVal=ex[f]!==false;}
+        if(String(exVal??'')!==String(csvVal??'')){
           const _id=`c${id++}`;
-          wChanges.push({_id,client:m.carrier_name,type:'Changed',field:f,before:ex[f],after:v});
+          wChanges.push({_id,client:m.carrier_name,type:'Changed',field:f,before:exVal,after:csvVal});
           wChecked[_id]=true;
           diffs.push(f);
         }
@@ -1472,7 +1489,7 @@ window.saveWizard=async()=>{
         const docId=ch.client.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
         const ref=doc(db,'clients',docId);
         if(ch.type==='New'){const dd=JSON.parse(ch.after);batch.set(ref,{...dd,carrier_name:ch.client,is_active:true,created_at:Timestamp.now(),updated_at:Timestamp.now()});clientsMeta[ch.client]=dd;nNew++;batchCount++;}
-        else if(ch.type==='Changed'){batch.update(ref,{[ch.field]:ch.after,updated_at:Timestamp.now()});if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=ch.after;nUpd++;batchCount++;}
+        else if(ch.type==='Changed'){const val=ch.field==='is_active'?Boolean(ch.after):ch.after;batch.update(ref,{[ch.field]:val,updated_at:Timestamp.now()});if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=val;nUpd++;batchCount++;}
         else if(ch.type==='Missing'){batch.update(ref,{is_active:false,updated_at:Timestamp.now()});nRem++;batchCount++;}
       }
       if(batchCount>0) await batch.commit();
@@ -1510,9 +1527,10 @@ async function renderImpHist(){
    TEMPLATE / EXPORT
 ════════════════════════════════════════════════ */
 window.downloadTemplate=()=>{
-  const csv=['CarrierName,Allow Bal,Credit Limit,Critical Balance,Billing Cycle,IsPrepay,Inv Upto,Prev Balance,Pay&Adj,Current Usage,Amnt Receivable,Notes',
-    'EXAMPLE CLIENT A,Block once debit,1000,500,Prepay,Yes,45772,-500.00,100.00,600.00,200.00,Sample note',
-    'EXAMPLE CLIENT B,,0,0,Postpay,No,,,,,0.00,'].join('\n');
+  const csv=['CarrierName,Allow Bal,Credit Limit,Critical Balance,Billing Cycle,IsPrepay,Inv Upto,Prev Balance,Pay&Adj,Current Usage,Amnt Receivable,Notes,Status',
+    'EXAMPLE CLIENT A,Block once debit,1000,500,Prepay,Yes,45772,-500.00,100.00,600.00,200.00,Sample note,Active',
+    'EXAMPLE CLIENT B,,0,0,Postpay,No,,,,,0.00,,Active',
+    'EXAMPLE CLIENT C,,0,0,Prepay,Yes,,,,,0.00,,Inactive'].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   const a=document.createElement('a');a.href=url;a.download='balance_monitor_template.csv';a.click();
   URL.revokeObjectURL(url);toast('✓ Template downloaded','ok');
