@@ -1130,7 +1130,7 @@ function renderStats() {
 ════════════════════════════════════════════════ */
 function renderTimeline() {
   const el=document.getElementById('timeline'); if(!el) return;
-  const slots=shiftSlots(S.shift);
+  const slots=shiftSlots('24H');
   const now=new Date();
   const cur=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes()<30?'00':'30'}`;
   const bySlot={};
