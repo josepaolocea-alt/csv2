@@ -792,7 +792,7 @@ const COLS = [
   { key:'idx',             lbl:'#',               vis:true },
   { key:'carrier_name',    lbl:'Carrier Name',    vis:true },
   { key:'notes',           lbl:'Notes',           vis:true },
-  { key:'credit_limit',    lbl:'Credit Limit',    vis:true },
+  { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:true },
   { key:'prev_balance',    lbl:'Prev Balance',    vis:true },
   { key:'pay_adj',         lbl:'Pay & Adj',       vis:true },
   { key:'current_usage',   lbl:'Current Usage',   vis:true },
@@ -801,7 +801,7 @@ const COLS = [
   { key:'total_usage',     lbl:'Total Usage',     vis:true },
   { key:'_level',          lbl:'Status',          vis:true },
 ];
-const NUM_KEYS = new Set(['credit_limit','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
+const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
 
 /* ════════════════════════════════════════════════
    SETTINGS
@@ -1265,7 +1265,7 @@ window.toggleAlertShowInactive=()=>{
 };
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
-  let rows=activeData().map(r=>({...r,_level:alertLevel(r),notes:r.notes||clientsMeta[r.carrier_name]?.notes||'',_inactive:clientsMeta[r.carrier_name]?.is_active===false}));
+  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:meta.is_active===false,_meta_critbal:isNaN(cb)?null:cb};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
@@ -1290,6 +1290,7 @@ window.renderClients=()=>{
       if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
+      if(c.key==='_meta_critbal') return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
