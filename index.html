@@ -422,12 +422,29 @@
     #settings-dlg.open { display: block; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open { display: flex; }
-    #confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+    #confirm-overlay, #undo-confirm-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
+    #confirm-overlay.open, #undo-confirm-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
       box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
+
+    /* ── Client detail popup ── */
+    #client-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 850; align-items: center; justify-content: center; }
+    #client-detail-overlay.open { display: flex; }
+    #client-detail-box { background: #c0c0c0; min-width: 360px; max-width: 480px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
+    .detail-row { display: flex; align-items: center; padding: 2px 0; border-bottom: 1px solid #d8d8d8; }
+    .detail-lbl { font-size: 11px; font-weight: 700; min-width: 150px; padding: 3px 8px; white-space: nowrap; }
+    .detail-val { font-size: 11px; padding: 3px 6px; }
+
+    /* ── Dismiss sound button (hidden by default) ── */
+    #snd-dismiss-btn { display: none; }
+    #snd-dismiss-btn.active { display: inline-flex; animation: critFlash 0.9s ease-in-out infinite; }
+
     .snap-action-row { display: flex; gap: 2px; margin-top: 3px; }
     .snap-action-row .tbtn { flex: 1; justify-content: center; font-size: 10px; padding: 1px 4px; }
 
@@ -483,6 +500,7 @@
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">📤 Export</button>
     <div class="tsep"></div>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
+    <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -524,7 +542,7 @@
           <button class="tbtn" onclick="document.getElementById('snap-ta').value=''" title="Clear text area">✕</button>
         </div>
         <div class="snap-action-row" style="margin-top:4px">
-          <button class="tbtn" onclick="undoLastSnapshot()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
+          <button class="tbtn" onclick="openUndoConfirm()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
           <button class="tbtn" style="color:#880000" onclick="openResetConfirm()" title="Delete ALL snapshots for today and start fresh">🔄 Reset Today</button>
         </div>
       </div>
@@ -776,6 +794,42 @@
   </div>
 </div>
 
+<!-- Confirm Undo Dialog -->
+<div id="undo-confirm-overlay">
+  <div id="undo-confirm-box">
+    <div class="dlg-tb"><span>⚠ Confirm Undo</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">🗑</div>
+      <div class="dlg-text">
+        <strong>Undo Last Snapshot?</strong><br><br>
+        This will remove the most recently saved snapshot and roll back to the previous one.<br><br>
+        <span style="color:#880000">This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmUndoLast()">Yes, Undo</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeUndoConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client Detail Popup -->
+<div id="client-detail-overlay">
+  <div id="client-detail-box">
+    <div class="dlg-tb" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
+      <span id="client-detail-title" style="color:#fff;font-size:11px;font-weight:700;padding-left:4px">Client Details</span>
+      <div class="tb-btn" onclick="closeClientDetail()" style="color:#000;margin-left:4px">✕</div>
+    </div>
+    <div id="client-detail-body" style="padding:10px 12px;max-height:400px;overflow-y:auto;background:#fff;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;margin:8px 12px 4px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
+      <button class="tbtn" id="btn-edit-client" onclick="startEditClient()">✏ Edit</button>
+      <button class="tbtn" id="btn-save-client" style="display:none;background:#000080;color:#fff" onclick="saveClientEdit()">💾 Save</button>
+      <button class="tbtn" id="btn-cancel-edit" style="display:none" onclick="cancelClientEdit()">Cancel</button>
+      <button class="tbtn" id="btn-close-detail" onclick="closeClientDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading -->
 <div id="loading">
   <div class="win-dialog" style="min-width:280px">
@@ -886,7 +940,7 @@ window.switchView = name => {
   document.getElementById('tnav-'+name)?.classList.add('active');
   document.getElementById('snav-'+name)?.classList.add('active');
   setSbStatus('Viewing: '+name.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()));
-  if (name==='alerts')        renderAlerts();
+  if (name==='alerts')        { stopAlertSound(); renderAlerts(); }
   if (name==='all-clients')   renderClients();
   if (name==='client-manager'){ renderWizard(); renderImpHist(); }
 };
@@ -938,22 +992,39 @@ function populateSlots() {
 /* ════════════════════════════════════════════════
    CRITICAL ALERT NOTIFICATIONS
 ════════════════════════════════════════════════ */
+let _alertSoundCtx = null, _alertSoundTimer = null;
+
 function playAlertSound() {
+  stopAlertSound(); // stop any previous before starting new
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Three rising beeps
-    [[0, 660],[0.22, 880],[0.44, 1100]].forEach(([t, freq]) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine'; osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.35, ctx.currentTime + t);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.18);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.2);
-    });
+    _alertSoundCtx = ctx;
+    const pattern = [[0,660],[0.22,880],[0.44,1100]]; // three rising beeps
+    const repInterval = 1.6; // seconds between repetitions
+    const reps = 8;           // ~13 seconds total
+    for (let rep = 0; rep < reps; rep++) {
+      pattern.forEach(([t, freq]) => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.value = freq;
+        const at = ctx.currentTime + rep * repInterval + t;
+        gain.gain.setValueAtTime(0.35, at);
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.18);
+        osc.start(at); osc.stop(at + 0.2);
+      });
+    }
+    document.getElementById('snd-dismiss-btn')?.classList.add('active');
+    // auto-clean up after all beeps finish
+    _alertSoundTimer = setTimeout(() => stopAlertSound(), (reps * repInterval + 0.5) * 1000);
   } catch(e) { console.warn('Sound alert failed:', e); }
 }
+
+function stopAlertSound() {
+  if (_alertSoundTimer) { clearTimeout(_alertSoundTimer); _alertSoundTimer = null; }
+  document.getElementById('snd-dismiss-btn')?.classList.remove('active');
+  try { if (_alertSoundCtx) { _alertSoundCtx.close(); _alertSoundCtx = null; } } catch(e) {}
+}
+window.stopAlertSound = stopAlertSound;
 
 window.requestNotifPermission = async () => {
   if (!('Notification' in window)) { toast('Browser does not support notifications','err'); return; }
@@ -1168,6 +1239,117 @@ window.undoLastSnapshot = async () => {
 window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
 window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
 
+/* ════════════════════════════════════════════════
+   UNDO CONFIRM DIALOG
+════════════════════════════════════════════════ */
+window.openUndoConfirm  = () => {
+  if (!todaySnaps.length) { toast('No snapshots to undo.', 'err'); return; }
+  document.getElementById('undo-confirm-overlay').classList.add('open');
+};
+window.closeUndoConfirm = () => document.getElementById('undo-confirm-overlay').classList.remove('open');
+window.confirmUndoLast  = async () => { closeUndoConfirm(); await undoLastSnapshot(); };
+
+/* ════════════════════════════════════════════════
+   CLIENT DETAIL POPUP
+════════════════════════════════════════════════ */
+let _editingClient = null;
+
+window.openClientPopup = name => {
+  _editingClient = name;
+  document.getElementById('client-detail-title').textContent = name;
+  document.getElementById('btn-edit-client').style.display = '';
+  document.getElementById('btn-save-client').style.display = 'none';
+  document.getElementById('btn-cancel-edit').style.display = 'none';
+  document.getElementById('btn-close-detail').style.display = '';
+  renderClientDetailBody(false);
+  document.getElementById('client-detail-overlay').classList.add('open');
+};
+
+function renderClientDetailBody(editMode) {
+  const name = _editingClient;
+  const meta = clientsMeta[name] || {};
+  const snap = (latestSnap?.data || []).find(r => r.carrier_name === name) || {};
+  const statusVal = meta.is_active !== undefined
+    ? fmtBool(meta.is_active)
+    : (snap.is_active !== undefined ? fmtBool(snap.is_active) : 'Active');
+  const fields = [
+    { label:'Carrier Name',     key:'carrier_name',    value: name,                                                          editable: false },
+    { label:'Status',           key:'is_active',       value: statusVal,                                                     editable: true,  type:'select', opts:['Active','Inactive'] },
+    { label:'Credit Limit',     key:'credit_limit',    value: meta.credit_limit     ?? snap.credit_limit     ?? '',          editable: true,  type:'number' },
+    { label:'Critical Balance', key:'critical_balance',value: meta.critical_balance ?? snap.critical_balance ?? '',          editable: true,  type:'number' },
+    { label:'Notes',            key:'notes',           value: meta.notes            ?? snap.notes            ?? '',          editable: true,  type:'text' },
+    { label:'Billing Cycle',    key:'billing_cycle',   value: meta.billing_cycle    ?? snap.billing_cycle    ?? '—',         editable: false },
+    { label:'Amnt Receivable',  key:'amnt_receivable', value: snap.amnt_receivable  !== undefined ? fmt(snap.amnt_receivable): '—', editable: false },
+    { label:'30m Usage',        key:'usage_30min',     value: snap.usage_30min      !== undefined ? fmt(snap.usage_30min)    : '—', editable: false },
+    { label:'Total Usage',      key:'total_usage',     value: snap.total_usage      !== undefined ? fmt(snap.total_usage)    : '—', editable: false },
+  ];
+  const rows = fields.map(f => {
+    let valHtml;
+    if (editMode && f.editable) {
+      if (f.type === 'select') {
+        valHtml = `<select class="win-sel" id="cde-${f.key}" style="width:140px">
+          ${(f.opts||[]).map(o=>`<option ${String(f.value)===o?'selected':''}>${esc(o)}</option>`).join('')}
+        </select>`;
+      } else if (f.type === 'number') {
+        valHtml = `<input class="win-inp" id="cde-${f.key}" type="number" step="0.01" value="${esc(String(f.value))}" style="width:130px">`;
+      } else {
+        valHtml = `<input class="win-inp" id="cde-${f.key}" type="text" value="${esc(String(f.value))}" style="width:220px">`;
+      }
+    } else {
+      valHtml = `<span style="color:${f.key==='is_active'&&f.value==='Inactive'?'#888':'#000'}">${esc(String(f.value??'—'))}</span>`;
+    }
+    return `<div class="detail-row"><div class="detail-lbl">${esc(f.label)}</div><div class="detail-val">${valHtml}</div></div>`;
+  });
+  document.getElementById('client-detail-body').innerHTML = rows.join('');
+}
+
+window.startEditClient = () => {
+  renderClientDetailBody(true);
+  document.getElementById('btn-edit-client').style.display = 'none';
+  document.getElementById('btn-save-client').style.display = '';
+  document.getElementById('btn-cancel-edit').style.display = '';
+  document.getElementById('btn-close-detail').style.display = 'none';
+};
+
+window.cancelClientEdit = () => {
+  renderClientDetailBody(false);
+  document.getElementById('btn-edit-client').style.display = '';
+  document.getElementById('btn-save-client').style.display = 'none';
+  document.getElementById('btn-cancel-edit').style.display = 'none';
+  document.getElementById('btn-close-detail').style.display = '';
+};
+
+window.saveClientEdit = async () => {
+  const name = _editingClient; if (!name) return;
+  const updates = {};
+  const isActEl = document.getElementById('cde-is_active');
+  if (isActEl) updates.is_active = isActEl.value === 'Active';
+  const clEl = document.getElementById('cde-credit_limit');
+  if (clEl && clEl.value !== '') updates.credit_limit = parseFloat(clEl.value) || 0;
+  const cbEl = document.getElementById('cde-critical_balance');
+  if (cbEl && cbEl.value !== '') updates.critical_balance = parseFloat(cbEl.value) || 0;
+  const nEl = document.getElementById('cde-notes');
+  if (nEl) updates.notes = nEl.value;
+  setLoading(true, 'Saving client…');
+  try {
+    if (fbOk) {
+      const docId = name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+      await setDoc(doc(db,'clients',docId), {...updates, carrier_name:name, updated_at:Timestamp.now()}, {merge:true});
+    }
+    if (!clientsMeta[name]) clientsMeta[name] = {};
+    Object.assign(clientsMeta[name], updates);
+    refreshAll();
+    toast('✓ Client updated', 'ok');
+    closeClientDetail();
+  } catch(e) { toast('Save error: ' + e.message, 'err'); }
+  finally { setLoading(false); }
+};
+
+window.closeClientDetail = () => {
+  document.getElementById('client-detail-overlay').classList.remove('open');
+  _editingClient = null;
+};
+
 window.confirmResetToday = async () => {
   closeResetConfirm();
   if (!todaySnaps.length) { toast('Nothing to reset — no snapshots today.', 'err'); return; }
@@ -1378,7 +1560,7 @@ function renderAlerts() {
     }
     const[cls,lbl]=chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
-    return `<tr class="${r._isNew?'row-new-crit':''}">
+    return `<tr class="${r._isNew?'row-new-crit':''}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
@@ -1397,6 +1579,14 @@ function renderAlerts() {
 /* ════════════════════════════════════════════════
    ALL CLIENTS TABLE
 ════════════════════════════════════════════════ */
+function isClientInactive(meta) {
+  const v = meta.is_active;
+  if (v === undefined || v === null || v === '') return false; // no status = treat as active
+  if (typeof v === 'boolean') return !v;
+  const s = String(v).toLowerCase().trim();
+  return s === 'false' || s === 'inactive' || s === '0' || s === 'no';
+}
+
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
@@ -1422,7 +1612,7 @@ window.toggleAlertShowInactive=()=>{
 };
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
-  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:meta.is_active===false,_meta_critbal:isNaN(cb)?null:cb};});
+  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
@@ -1442,7 +1632,7 @@ window.renderClients=()=>{
   document.getElementById('clients-thead').innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
   document.getElementById('clients-tbody').innerHTML=page.map((r,ri)=>{
     const rowStyle=r._inactive?'opacity:0.45;':'';
-    return `<tr style="${rowStyle}">${vc.map(c=>{
+    return `<tr style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
       if(c.key==='idx') return `<td style="color:#888">${clientPage*PG+ri+1}</td>`;
       if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
@@ -1729,6 +1919,7 @@ window.exportCsv=()=>{
 ════════════════════════════════════════════════ */
 function fmt(v){if(v===null||v===undefined)return '—';return Number(v).toFixed(2);}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
 /* ════════════════════════════════════════════════
    INIT
