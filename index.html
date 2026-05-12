@@ -699,7 +699,7 @@
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
-            <button class="tbtn active" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
+            <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
             <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
@@ -2091,7 +2091,16 @@ window.clientPageTo=p=>{clientPage=p;renderClients();};
 window.toggleShowInactive=()=>{
   showInactive=!showInactive;
   const btn=document.getElementById('btn-show-inactive');
-  if(btn) { btn.classList.toggle('active',showInactive); btn.textContent=showInactive?'Hide inactive':'Show inactive'; }
+  if(btn) { btn.classList.toggle('active',!showInactive); btn.textContent=showInactive?'Hide inactive':'Show inactive'; }
+  renderClients();
+};
+window.resetClientsFilter=()=>{
+  clientFilter='all'; clientPage=0; showInactive=true;
+  document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
+  const btn=document.getElementById('btn-show-inactive');
+  if(btn){btn.classList.remove('active');btn.textContent='Hide inactive';}
+  const s=document.getElementById('clients-search');if(s)s.value='';
   renderClients();
 };
 window.toggleAlertShowInactive=()=>{
@@ -2140,7 +2149,9 @@ window.renderClients=()=>{
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
-  }).join('')||`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`;
+  }).join('')||(activeData().length===0
+    ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
+    : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
   buildColDD();
 };
