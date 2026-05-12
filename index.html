@@ -2345,8 +2345,11 @@ function nearTarget(row) {
 }
 
 function isDebitBalance(row) {
-  const bal = Number(row.amnt_receivable);
-  return Number.isFinite(bal) && bal < 0;
+  const raw = row.amnt_receivable;
+  const bal = typeof raw === 'number'
+    ? raw
+    : parseFloat(String(raw ?? '').replace(/[$,\s]/g, ''));
+  return Number.isFinite(bal) && bal >= 0.00000001 && bal <= 999999999;
 }
 
 function clientMetaFor(name) {
