@@ -1717,6 +1717,10 @@ function parseText(text) {
   return accepted;
 }
 
+function snapshotDocId(sessionDate, timeSlot) {
+  return `${sessionDate}_${timeSlot}`.toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+}
+
 /* ════════════════════════════════════════════════
    PROCESS SNAPSHOT
 ════════════════════════════════════════════════ */
@@ -1749,8 +1753,9 @@ window.processSnapshot = async() => {
   if(fbOk){
     setLoading(true,'Saving to Firestore…');
     try {
-      const ref=await addDoc(collection(db,'snapshots'),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
-      snap.id=ref.id;
+      const snapId=snapshotDocId(snap.session_date, snap.time_slot);
+      await setDoc(doc(db,'snapshots',snapId),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
+      snap.id=snapId;
       toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
     } catch(e){toast('Firestore error (data kept locally): '+e.message,'err',6000);}
     finally{setLoading(false);}
@@ -3231,7 +3236,7 @@ async function init(){
     Notification.requestPermission();
   }
   setLoading(true,'Connecting to Firestore…');
-  await Promise.all([loadSnaps(), loadPrevDaySnap(), loadClients()]);
+  await Promise.all([loadPrevDaySnap(), loadClients()]);
   cleanupOldSnapshots(); // runs in background, no await needed
   setLoading(false);
   refreshAll();
