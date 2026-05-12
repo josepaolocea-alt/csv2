@@ -315,9 +315,39 @@
     }
     tr.row-new-crit { background:#fff8e8 !important; }
     tr.row-new-crit:hover { background:#fff0cc !important; }
+    /* Shift summary */
+    .sum-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:6px; }
+    .sum-card { background:#fff; border-top:2px solid #808080; border-left:2px solid #808080; border-right:2px solid #fff; border-bottom:2px solid #fff; padding:6px 8px; }
+    .sum-card .sc-val { font-size:18px; font-weight:700; font-family:'Courier New',monospace; color:#000080; }
+    .sum-card .sc-lbl { font-size:9px; color:#666; margin-top:1px; }
+    .sum-card.sc-red .sc-val { color:#cc0000; }
+    .sum-card.sc-green .sc-val { color:#006600; }
+    .sum-card.sc-orange .sc-val { color:#cc6600; }
+    .sum-movers { font-size:11px; }
+    .sum-movers td { padding:2px 6px; }
+    /* Sparkline */
+    .sparkline-wrap { margin-bottom:8px; padding:4px; background:#fff; border-top:2px solid #808080; border-left:2px solid #808080; border-right:2px solid #fff; border-bottom:2px solid #fff; }
+    /* Bulk edit */
+    .bulk-edit-inp { width:80px; font-size:10px; font-family:inherit; padding:1px 3px; background:#ffffcc; border-top:1px solid #808080; border-left:1px solid #808080; border-right:1px solid #fff; border-bottom:1px solid #fff; }
+    td.bulk-changed { background:#fffacc !important; }
+    #bulk-save-bar { display:none; padding:4px 6px; background:#fffacc; border-bottom:1px solid #cc9900; font-size:11px; align-items:center; gap:6px; }
+    #bulk-save-bar.visible { display:flex; }
+
     /* ETA approaching-critical row highlight */
     tr.row-eta-warn td { background: #fffae8 !important; }
     tr.row-eta-warn:hover td { background: #000080 !important; color: #fff !important; }
+
+    /* Band-critical row blink */
+    @keyframes rowBlink {
+      0%,100% { background: #ffcccc !important; }
+      50%      { background: #ffaaaa !important; }
+    }
+    tr.band-critical td { animation: rowBlink 0.9s ease-in-out infinite; }
+    tr.band-critical:hover td { background: #000080 !important; color: #fff !important; animation: none !important; }
+
+    /* Clipboard detect bar */
+    #clip-detect-bar { display: none; padding: 3px 10px; background: #fffacc; border-bottom: 1px solid #cc9900; font-size: 11px; align-items: center; gap: 6px; flex-shrink: 0; }
+    #clip-detect-bar.visible { display: flex; }
     /* Operators status pane */
     #sb-operators { flex:1; font-size:10px; color:#000080; font-style:italic; }
 
@@ -507,7 +537,15 @@
     <div class="tsep"></div>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
+    <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
     <span id="sync-label">No data loaded</span>
+  </div>
+
+  <!-- Clipboard detect bar -->
+  <div id="clip-detect-bar">
+    📋 New clipboard data detected! &nbsp;
+    <button class="tbtn primary" style="padding:1px 8px" onclick="processClipNow()">▶ Process Now</button>
+    <button class="tbtn" style="padding:1px 8px" onclick="dismissClipDetect()">✕ Dismiss</button>
   </div>
 
   <!-- App body -->
@@ -579,9 +617,10 @@
               <div class="stat-box s-green"><div class="sv" id="st-safe">—</div><div class="sl">Safe</div></div>
             </div>
             <div class="stat-row">
-              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">🔴 Critical (at limit)</div></div>
-              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">⚠ Warning (near limit)</div></div>
-              <div class="stat-box">         <div class="sv" id="st-none">—</div><div class="sl">No threshold set</div></div>
+              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">🔴 Critical</div></div>
+              <div class="stat-box s-medium"><div class="sv" id="st-medium">—</div><div class="sl">🟠 Medium</div></div>
+              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">⚠ Warning</div></div>
+              <div class="stat-box">         <div class="sv" id="st-none">—</div><div class="sl">No threshold</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
               <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>✓ Safe — balance below Credit Limit</div>
@@ -601,6 +640,17 @@
             <div class="timeline-strip" id="timeline"></div>
           </div>
         </div>
+
+        <!-- Shift Summary -->
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">📋 Today's Shift Summary</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body" id="shift-summary-body">
+            <div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ ALERTS ════════════════════════════════ -->
@@ -610,6 +660,7 @@
           <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
             <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
+            <div class="tab" onclick="setAlertFilter('medium',this)">🟠 Medium</div>
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
             <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
@@ -654,6 +705,12 @@
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
               <div class="col-dd" id="col-dd"></div>
             </div>
+            <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" style="margin-left:4px" title="Edit Credit Limit & Critical Balance for multiple clients at once">✏ Bulk Edit</button>
+          </div>
+          <div id="bulk-save-bar">
+            ⚠ <span id="bulk-change-count">0</span> unsaved change(s) —
+            <button class="tbtn primary" style="padding:1px 8px" onclick="saveBulkEdits()">💾 Save All</button>
+            <button class="tbtn" style="padding:1px 8px" onclick="cancelBulkEdit()">✕ Discard</button>
           </div>
           <div class="lv-wrap">
             <table id="clients-tbl">
@@ -786,6 +843,38 @@
           <label for="set-notif">🖥 Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">📊 Usage Band Thresholds</div>
+        <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without per-client thresholds set. Bands apply to Amnt Receivable.</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="set-usebands" onchange="saveSettings()" style="margin:0">
+          <label for="set-usebands">Enable usage bands</label>
+        </div>
+        <div style="display:grid;gap:4px;margin-top:6px;padding-left:18px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="min-width:140px;color:#884400">🟠 Medium starts at:</label>
+            <input class="win-inp" id="set-band-medium" type="number" value="-50" style="width:70px" onchange="saveSettings()" title="Balance at or below this → Medium warning">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="min-width:140px;color:#cc0000">🔴 High starts at:</label>
+            <input class="win-inp" id="set-band-high" type="number" value="-101" style="width:70px" onchange="saveSettings()" title="Balance at or below this → High (red critical)">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="min-width:140px;color:#cc0000;font-weight:700">⚡ Blink starts at:</label>
+            <input class="win-inp" id="set-band-crit" type="number" value="-151" style="width:70px" onchange="saveSettings()" title="Balance at or below this → row blinks red">
+          </div>
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">🔒 PIN Protection</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="set-pin-enabled" onchange="saveSettings()" style="margin:0">
+          <label for="set-pin-enabled">Require PIN on startup</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+          <label style="min-width:140px">PIN (4–8 digits):</label>
+          <input class="win-inp" id="set-pin" type="password" maxlength="8" style="width:100px" placeholder="Enter new PIN…" onchange="saveSettings()">
+          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="clearPin()">Clear</button>
+        </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
         <button class="tbtn" style="min-width:72px" onclick="toggleSettings()">OK</button>
@@ -866,6 +955,22 @@
   </div>
 </div>
 
+<!-- PIN Login Dialog -->
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2001;align-items:center;justify-content:center">
+  <div class="win-dialog" style="min-width:260px;max-width:300px">
+    <div class="dlg-tb"><span>🔒 BalanceMonitor — PIN Required</span></div>
+    <div style="padding:16px">
+      <div style="font-size:11px;margin-bottom:10px;text-align:center">Enter your PIN to access BalanceMonitor:</div>
+      <input class="win-inp" id="pin-inp" type="password" maxlength="8" style="width:100%;text-align:center;font-size:18px;letter-spacing:6px;margin-bottom:6px"
+        placeholder="••••" onkeydown="if(event.key==='Enter')submitPin()">
+      <div id="pin-error" style="font-size:11px;color:#cc0000;text-align:center;min-height:16px;margin-bottom:8px"></div>
+      <div style="display:flex;justify-content:center">
+        <button class="tbtn primary" style="min-width:90px" onclick="submitPin()">🔓 Unlock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Loading -->
 <div id="loading">
   <div class="win-dialog" style="min-width:280px">
@@ -924,6 +1029,7 @@ const COLS = [
   { key:'_eta',            lbl:'ETA',             vis:true },
   { key:'carrier_name',    lbl:'Carrier Name',    vis:true },
   { key:'notes',           lbl:'Notes',           vis:true },
+  { key:'_meta_credlim',   lbl:'Credit Limit',    vis:true },
   { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:true },
   { key:'prev_balance',    lbl:'Prev Balance',    vis:false },
   { key:'pay_adj',         lbl:'Pay & Adj',       vis:true },
@@ -938,16 +1044,26 @@ const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usag
 /* ════════════════════════════════════════════════
    SETTINGS
 ════════════════════════════════════════════════ */
-let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM', soundAlert:true, browserNotif:true, retentionDays:30 };
+let S = {
+  lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM',
+  soundAlert:true, browserNotif:true, retentionDays:30,
+  useBands:false, bandMedium:-50, bandHigh:-101, bandCritical:-151,
+  pinEnabled:false, pin:''
+};
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
-  document.getElementById('set-light').value    = S.lightMax;
-  document.getElementById('set-medium').value   = S.mediumMax;
-  document.getElementById('set-tgt').value      = S.nearPct;
-  document.getElementById('set-shift').value    = S.shift;
-  document.getElementById('set-sound').checked  = S.soundAlert;
-  document.getElementById('set-notif').checked  = S.browserNotif;
-  document.getElementById('set-retention').value = S.retentionDays;
+  document.getElementById('set-light').value       = S.lightMax;
+  document.getElementById('set-medium').value      = S.mediumMax;
+  document.getElementById('set-tgt').value         = S.nearPct;
+  document.getElementById('set-shift').value       = S.shift;
+  document.getElementById('set-sound').checked     = S.soundAlert;
+  document.getElementById('set-notif').checked     = S.browserNotif;
+  document.getElementById('set-retention').value   = S.retentionDays;
+  document.getElementById('set-usebands').checked  = S.useBands;
+  document.getElementById('set-band-medium').value = S.bandMedium;
+  document.getElementById('set-band-high').value   = S.bandHigh;
+  document.getElementById('set-band-crit').value   = S.bandCritical;
+  document.getElementById('set-pin-enabled').checked = S.pinEnabled;
 }
 window.saveSettings = () => {
   S.lightMax      = +document.getElementById('set-light').value  || -50;
@@ -957,8 +1073,22 @@ window.saveSettings = () => {
   S.soundAlert    = document.getElementById('set-sound').checked;
   S.browserNotif  = document.getElementById('set-notif').checked;
   S.retentionDays = +document.getElementById('set-retention').value;
+  S.useBands      = document.getElementById('set-usebands').checked;
+  S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
+  S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
+  S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
+  S.pinEnabled    = document.getElementById('set-pin-enabled').checked;
+  const pinVal    = document.getElementById('set-pin').value.trim();
+  if (pinVal) S.pin = pinVal;
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
+};
+window.clearPin = () => {
+  S.pin = ''; S.pinEnabled = false;
+  document.getElementById('set-pin').value = '';
+  document.getElementById('set-pin-enabled').checked = false;
+  localStorage.setItem('bm_s98', JSON.stringify(S));
+  toast('✓ PIN cleared', 'ok');
 };
 
 /* ════════════════════════════════════════════════
@@ -1088,7 +1218,99 @@ function sendCriticalNotification(criticalRows) {
 function updateAlertTabFlash(hasCritical) {
   document.getElementById('tnav-alerts')?.classList.toggle('critical-flash', hasCritical);
   document.getElementById('snav-alerts')?.classList.toggle('critical-flash', hasCritical);
+  updatePageTitle(hasCritical);
 }
+
+/* ── Page title blink ── */
+let _titleBlinkTimer = null;
+function updatePageTitle(hasCritical) {
+  if (hasCritical) {
+    if (!_titleBlinkTimer) {
+      let flip = false;
+      _titleBlinkTimer = setInterval(() => {
+        document.title = flip ? '🔴 CRITICAL ALERT!' : 'BalanceMonitor';
+        flip = !flip;
+      }, 1000);
+    }
+  } else {
+    if (_titleBlinkTimer) {
+      clearInterval(_titleBlinkTimer);
+      _titleBlinkTimer = null;
+      document.title = 'BalanceMonitor';
+    }
+  }
+}
+
+/* ── Clipboard watcher ── */
+let _clipWatchTimer = null, _lastClipText = '', _clipNewData = null;
+
+window.toggleClipWatch = () => {
+  if (_clipWatchTimer) {
+    clearInterval(_clipWatchTimer);
+    _clipWatchTimer = null;
+    document.getElementById('btn-clip-watch')?.classList.remove('active');
+    toast('📋 Clipboard watch stopped', '', 2000);
+  } else {
+    document.getElementById('btn-clip-watch')?.classList.add('active');
+    toast('📋 Clipboard watch active — will auto-detect CSV data', 'ok', 3000);
+    _clipWatchTimer = setInterval(checkClipboard, 3000);
+    checkClipboard(); // immediate first check
+  }
+};
+
+async function checkClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text || text === _lastClipText) return;
+    // Must look like tabular data: multiple lines with tabs or commas
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return;
+    const hasDelim = text.includes('\t') || (lines[0].match(/,/g) || []).length >= 2;
+    if (!hasDelim) return;
+    _lastClipText = text;
+    _clipNewData = text;
+    document.getElementById('clip-detect-bar')?.classList.add('visible');
+  } catch(e) {
+    // Permission denied or API unavailable — stop watching
+    if (_clipWatchTimer) {
+      clearInterval(_clipWatchTimer); _clipWatchTimer = null;
+      document.getElementById('btn-clip-watch')?.classList.remove('active');
+    }
+    toast('📋 Clipboard access denied. Enable clipboard permission in browser settings.', 'err', 5000);
+  }
+}
+
+window.processClipNow = () => {
+  if (!_clipNewData) return;
+  document.getElementById('snap-ta').value = _clipNewData;
+  document.getElementById('clip-detect-bar')?.classList.remove('visible');
+  _clipNewData = null;
+  window.processSnapshot();
+};
+window.dismissClipDetect = () => {
+  document.getElementById('clip-detect-bar')?.classList.remove('visible');
+  _clipNewData = null;
+};
+
+/* ── PIN login ── */
+function checkPin() {
+  if (!S.pinEnabled || !S.pin) return;
+  if (sessionStorage.getItem('bm_authed') === '1') return;
+  const overlay = document.getElementById('pin-overlay');
+  if (overlay) { overlay.style.display = 'flex'; setTimeout(() => document.getElementById('pin-inp')?.focus(), 50); }
+}
+window.submitPin = () => {
+  const entered = document.getElementById('pin-inp')?.value || '';
+  if (entered === String(S.pin)) {
+    sessionStorage.setItem('bm_authed', '1');
+    document.getElementById('pin-overlay').style.display = 'none';
+  } else {
+    const err = document.getElementById('pin-error');
+    if (err) err.textContent = '✗ Incorrect PIN — try again';
+    const inp = document.getElementById('pin-inp');
+    if (inp) { inp.value = ''; inp.focus(); }
+  }
+};
 
 // isNewSnapshot = true  → all 4 effects
 // isNewSnapshot = false → tab flash only (called on every refresh)
@@ -1146,16 +1368,23 @@ function hasClientThreshold(row) {
 function alertLevel(row) {
   const bal = row.amnt_receivable ?? 0;
   const meta = clientsMeta[row.carrier_name] || {};
-  // credit_limit     = WARNING threshold  (e.g. -10) — alert before hitting allowable balance
-  // critical_balance = CRITICAL threshold / allowable balance (e.g. -1) — alert when at/past the limit
-  // Higher (less negative) value = worse. Alert fires when balance RISES to or above threshold.
   const critBal = getThreshold(meta, row, 'critical_balance', S.mediumMax);
   const credLim = getThreshold(meta, row, 'credit_limit',     S.lightMax);
-  if (critBal !== null && bal >= critBal) return 'high';   // at/past allowable balance
-  if (credLim !== null && bal >= credLim) return 'light';  // approaching limit — early warning
+  if (critBal !== null && bal >= critBal) return 'high';
+  if (credLim !== null && bal >= credLim) return 'light';
+  // Usage band fallback — only applies when client has no per-client thresholds
+  if (S.useBands && !hasClientThreshold(row)) {
+    if (bal <= S.bandHigh)   return 'high';
+    if (bal <= S.bandMedium) return 'medium';
+    if (bal < 0)             return 'light';
+  }
   return 'none';
 }
-function levelOrd(l) { return {high:3, light:2, none:0}[l] ?? 0; }
+function isBandCritical(row) {
+  if (!S.useBands || hasClientThreshold(row)) return false;
+  return (row.amnt_receivable ?? 0) <= S.bandCritical;
+}
+function levelOrd(l) { return {high:4, medium:3, light:2, none:0}[l] ?? 0; }
 
 /* ETA — how many minutes until this client hits Critical Balance at current burn rate */
 function etaMinutes(row) {
@@ -1206,7 +1435,7 @@ function updateNewCriticalTab(newCount) {
 }
 function chipInfo(row, lvl) {
   if (lvl==='none') return ['none','✓ Safe'];
-  return [lvl, {high:'🔴 Critical', light:'⚠ Warning'}[lvl]||lvl];
+  return [lvl, {high:'🔴 Critical', medium:'🟠 Medium', light:'⚠ Warning'}[lvl]||lvl];
 }
 
 /* ════════════════════════════════════════════════
@@ -1436,6 +1665,7 @@ function renderClientDetailBody(editMode) {
     { label:'30m Usage',        key:'usage_30min',     value: snap.usage_30min      !== undefined ? fmt(snap.usage_30min)    : '—', editable: false },
     { label:'Total Usage',      key:'total_usage',     value: snap.total_usage      !== undefined ? fmt(snap.total_usage)    : '—', editable: false },
   ];
+  const chartHtml = `<div class="sparkline-wrap">${buildSparkline(name)}</div>`;
   const rows = fields.map(f => {
     let valHtml;
     if (editMode && f.editable) {
@@ -1453,7 +1683,7 @@ function renderClientDetailBody(editMode) {
     }
     return `<div class="detail-row"><div class="detail-lbl">${esc(f.label)}</div><div class="detail-val">${valHtml}</div></div>`;
   });
-  document.getElementById('client-detail-body').innerHTML = rows.join('');
+  document.getElementById('client-detail-body').innerHTML = chartHtml + rows.join('');
 }
 
 window.startEditClient = () => {
@@ -1598,7 +1828,7 @@ function activeData() {
 }
 
 function refreshAll() {
-  updateSync(); renderStats(); renderTimeline();
+  updateSync(); renderStats(); renderTimeline(); renderShiftSummary();
   if(document.getElementById('view-alerts').classList.contains('active'))      renderAlerts();
   if(document.getElementById('view-all-clients').classList.contains('active')) renderClients();
   checkAndNotify(activeData(), false); // keep tab flash in sync on every refresh
@@ -1618,24 +1848,27 @@ function updateSync() {
 ════════════════════════════════════════════════ */
 function renderStats() {
   const data=activeData(), rows=data.map(r=>({...r,_lvl:alertLevel(r)}));
-  const total  = Math.max(Object.keys(clientsMeta).length, data.length);
-  const active = rows.filter(r=>r.usage_30min!==0).length;
-  const high   = rows.filter(r=>r._lvl==='high').length;
-  const lite   = rows.filter(r=>r._lvl==='light').length;
-  const safe   = rows.filter(r=>r._lvl==='none').length;
+  const total    = Math.max(Object.keys(clientsMeta).length, data.length);
+  const active   = rows.filter(r=>r.usage_30min!==0).length;
+  const high     = rows.filter(r=>r._lvl==='high').length;
+  const medium   = rows.filter(r=>r._lvl==='medium').length;
+  const lite     = rows.filter(r=>r._lvl==='light').length;
+  const safe     = rows.filter(r=>r._lvl==='none').length;
   const noThresh = rows.filter(r=>!hasClientThreshold(r)).length;
   document.getElementById('st-total').textContent  = total;
   document.getElementById('st-active').textContent = active;
   document.getElementById('st-safe').textContent   = safe;
   document.getElementById('st-high').textContent   = high;
+  document.getElementById('st-medium').textContent = medium;
   document.getElementById('st-light').textContent  = lite;
   document.getElementById('st-none').textContent   = noThresh;
   const tabs=document.querySelectorAll('#alert-tabs .tab');
   if(tabs[0]) tabs[0].textContent=`All (${rows.length})`;
   if(tabs[1]) tabs[1].textContent=`🔴 Critical (${high})`;
-  if(tabs[2]) tabs[2].textContent=`⚠ Warning (${lite})`;
-  if(tabs[3]) tabs[3].textContent=`✓ Safe (${safe})`;
-  if(tabs[4]) tabs[4].textContent=`No threshold (${noThresh})`;
+  if(tabs[2]) tabs[2].textContent=`🟠 Medium (${medium})`;
+  if(tabs[3]) tabs[3].textContent=`⚠ Warning (${lite})`;
+  if(tabs[4]) tabs[4].textContent=`✓ Safe (${safe})`;
+  if(tabs[5]) tabs[5].textContent=`No threshold (${noThresh})`;
 }
 
 /* ════════════════════════════════════════════════
@@ -1721,6 +1954,7 @@ function renderAlerts() {
 
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
+  if(alertFilter==='medium')   rows=rows.filter(r=>r._level==='medium');
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
   if(alertFilter==='nothresh') rows=rows.filter(r=>!hasClientThreshold(r));
@@ -1764,7 +1998,7 @@ function renderAlerts() {
     const ackCell  = r._ack
       ? `<span style="font-size:10px;color:#006600;white-space:nowrap">✓ ${esc(r._ack.operator)}<br><span style="color:#888">${fmt12(r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0'))}</span></span>`
       : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">✓ Ack</button>`;
-    const rowClass = [r._isNew?'row-new-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':''].filter(Boolean).join(' ');
+    const rowClass = [r._isNew?'row-new-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
@@ -1819,7 +2053,7 @@ window.toggleAlertShowInactive=()=>{
 };
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
-  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb};});
+  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
@@ -1839,12 +2073,20 @@ window.renderClients=()=>{
   document.getElementById('clients-thead').innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
   document.getElementById('clients-tbody').innerHTML=page.map((r,ri)=>{
     const rowStyle=r._inactive?'opacity:0.45;':'';
-    return `<tr style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
+    const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
+    return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
       if(c.key==='idx') return `<td style="color:#888">${clientPage*PG+ri+1}</td>`;
       if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
-      if(c.key==='_meta_critbal') return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+      if(c.key==='_meta_credlim'){
+        if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.credit_limit;const v=pv!==undefined?pv:(r._meta_credlim!==null?r._meta_credlim:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','credit_limit',this.value)"></td>`;}
+        return `<td class="num" style="color:#666">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
+      }
+      if(c.key==='_meta_critbal'){
+        if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.critical_balance;const v=pv!==undefined?pv:(r._meta_critbal!==null?r._meta_critbal:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','critical_balance',this.value)"></td>`;}
+        return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+      }
       if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
@@ -2130,10 +2372,161 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
 /* ════════════════════════════════════════════════
+   BULK THRESHOLD EDIT
+════════════════════════════════════════════════ */
+let bulkEditMode = false, bulkEdits = {};
+
+window.toggleBulkEdit = () => {
+  bulkEditMode = !bulkEditMode; bulkEdits = {};
+  document.getElementById('btn-bulk-edit').classList.toggle('active', bulkEditMode);
+  document.getElementById('bulk-save-bar').classList.remove('visible');
+  renderClients();
+};
+window.cancelBulkEdit = () => {
+  bulkEditMode = false; bulkEdits = {};
+  document.getElementById('btn-bulk-edit').classList.remove('active');
+  document.getElementById('bulk-save-bar').classList.remove('visible');
+  renderClients();
+};
+window.setBulkEdit = (name, field, val) => {
+  if (!bulkEdits[name]) bulkEdits[name] = {};
+  bulkEdits[name][field] = val === '' ? null : parseFloat(val);
+  const count = Object.values(bulkEdits).filter(e => Object.keys(e).length > 0).length;
+  document.getElementById('bulk-change-count').textContent = count;
+  document.getElementById('bulk-save-bar').classList.toggle('visible', count > 0);
+};
+window.saveBulkEdits = async () => {
+  const entries = Object.entries(bulkEdits).filter(([,v]) => Object.keys(v).length > 0);
+  if (!entries.length) return;
+  setLoading(true, 'Saving bulk changes…');
+  try {
+    if (fbOk) {
+      let batch = writeBatch(db), count = 0;
+      for (const [name, fields] of entries) {
+        const ref = doc(db,'clients', name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+        const upd = { carrier_name:name, updated_at:Timestamp.now() };
+        if (fields.critical_balance != null) upd.critical_balance = fields.critical_balance;
+        if (fields.credit_limit     != null) upd.credit_limit     = fields.credit_limit;
+        batch.set(ref, upd, { merge:true });
+        if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count > 0) await batch.commit();
+    }
+    for (const [name, fields] of entries) {
+      if (!clientsMeta[name]) clientsMeta[name] = {};
+      Object.assign(clientsMeta[name], fields);
+    }
+    toast(`✓ ${entries.length} client(s) updated`, 'ok');
+    bulkEditMode = false; bulkEdits = {};
+    document.getElementById('btn-bulk-edit').classList.remove('active');
+    document.getElementById('bulk-save-bar').classList.remove('visible');
+    refreshAll();
+  } catch(e) { toast('Save error: '+e.message,'err'); }
+  finally { setLoading(false); }
+};
+
+/* ════════════════════════════════════════════════
+   SPARKLINE CHART
+════════════════════════════════════════════════ */
+function buildSparkline(name) {
+  const points = todaySnaps.map(s => {
+    const r = s.data.find(r => r.carrier_name === name);
+    return r ? { slot: s.time_slot, val: r.amnt_receivable } : null;
+  }).filter(Boolean);
+  if (points.length < 2) return `<div style="font-size:10px;color:#888;padding:4px">Not enough snapshots today for a trend chart.</div>`;
+
+  const W=360, H=70, PL=4, PR=44, PT=8, PB=16;
+  const vals = points.map(p => p.val);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const meta = clientsMeta[name] || {};
+  const critBal = parseFloat(meta.critical_balance);
+  const credLim = parseFloat(meta.credit_limit);
+
+  // Expand y-range to include thresholds if they're nearby
+  const allV = [...vals, ...(!isNaN(critBal)?[critBal]:[]), ...(!isNaN(credLim)?[credLim]:[])];
+  const lo = Math.min(...allV), hi = Math.max(...allV);
+  const range = hi - lo || 1;
+
+  const xS = i => PL + (i / (points.length - 1)) * (W - PL - PR);
+  const yS = v => PT + (1 - (v - lo) / range) * (H - PT - PB);
+
+  const polyline = points.map((p,i) => `${xS(i).toFixed(1)},${yS(p.val).toFixed(1)}`).join(' ');
+  const lastX = xS(points.length-1), lastY = yS(points[points.length-1].val);
+  const lastVal = points[points.length-1].val;
+  const dotColor = lastVal >= (!isNaN(critBal)?critBal:Infinity) ? '#cc0000' : lastVal >= (!isNaN(credLim)?credLim:Infinity) ? '#cc6600' : '#006600';
+
+  let thresh = '';
+  if (!isNaN(critBal) && critBal >= lo && critBal <= hi) {
+    const y = yS(critBal).toFixed(1);
+    thresh += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#cc0000" stroke-width="1" stroke-dasharray="3,2"/>
+    <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="#cc0000">Crit</text>`;
+  }
+  if (!isNaN(credLim) && credLim >= lo && credLim <= hi) {
+    const y = yS(credLim).toFixed(1);
+    thresh += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#cc6600" stroke-width="1" stroke-dasharray="2,3"/>
+    <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="#cc6600">Warn</text>`;
+  }
+  // x-axis labels: first and last slot
+  const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="#888">${fmt12(points[0].slot).replace(' ','')}</text>
+    <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="#888" text-anchor="end">${fmt12(points[points.length-1].slot).replace(' ','')}</text>`;
+
+  return `<svg width="${W}" height="${H}" style="display:block;overflow:visible">
+    ${thresh}
+    <polyline points="${polyline}" fill="none" stroke="#000080" stroke-width="1.5" stroke-linejoin="round"/>
+    ${points.map((p,i)=>`<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${i===points.length-1?3:1.5}" fill="${i===points.length-1?dotColor:'#000080'}"/>`).join('')}
+    <text x="${(lastX+4).toFixed(0)}" y="${(lastY+3).toFixed(0)}" font-size="8" fill="${dotColor}" font-weight="bold">${fmt(lastVal)}</text>
+    ${xLabels}
+  </svg>`;
+}
+
+/* ════════════════════════════════════════════════
+   SHIFT SUMMARY
+════════════════════════════════════════════════ */
+function renderShiftSummary() {
+  const el = document.getElementById('shift-summary-body'); if (!el) return;
+  if (!todaySnaps.length) { el.innerHTML = '<div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>'; return; }
+
+  // Clients that hit critical at any point today
+  const critEver = new Set();
+  todaySnaps.forEach(s => s.data.forEach(r => { if (alertLevel(r) === 'high') critEver.add(r.carrier_name); }));
+
+  const current = activeData();
+  const currentCrit   = new Set(current.filter(r => alertLevel(r) === 'high').map(r => r.carrier_name));
+  const currentWarn   = current.filter(r => alertLevel(r) === 'light').length;
+  const recovered     = [...critEver].filter(n => !currentCrit.has(n));
+  const stillCrit     = [...critEver].filter(n =>  currentCrit.has(n));
+
+  // Top 5 movers: biggest positive change in amnt_receivable from first to latest snapshot
+  const firstSnap = todaySnaps[0];
+  const movers = current.map(r => {
+    const first = firstSnap.data.find(x => x.carrier_name === r.carrier_name);
+    return { name: r.carrier_name, change: first ? r.amnt_receivable - first.amnt_receivable : 0 };
+  }).filter(x => x.change > 0).sort((a,b) => b.change - a.change).slice(0, 5);
+
+  const first = todaySnaps[0], last = todaySnaps[todaySnaps.length-1];
+  const rangeStr = `${fmt12(first.time_slot)} – ${fmt12(last.time_slot)}`;
+
+  el.innerHTML = `
+    <div class="sum-grid">
+      <div class="sum-card"><div class="sc-val">${todaySnaps.length}</div><div class="sc-lbl">Snapshots today</div></div>
+      <div class="sum-card ${critEver.size?'sc-red':'sc-green'}"><div class="sc-val">${critEver.size}</div><div class="sc-lbl">Hit critical today</div></div>
+      <div class="sum-card ${recovered.length?'sc-green':''}"><div class="sc-val">${recovered.length}</div><div class="sc-lbl">Recovered</div></div>
+      <div class="sum-card ${currentWarn?'sc-orange':''}"><div class="sc-val">${currentWarn}</div><div class="sc-lbl">Currently warning</div></div>
+    </div>
+    <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
+    ${stillCrit.length ? `<div style="font-size:11px;margin-bottom:4px"><span style="color:#cc0000;font-weight:700">🔴 Still critical:</span> ${stillCrit.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
+    ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
+    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px">📈 Top movers (balance increase since first snapshot):</div>
+    <table class="sum-movers" style="width:100%">
+      ${movers.map((m,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:#cc0000;font-family:'Courier New',monospace">+${fmt(m.change)}</td></tr>`).join('')}
+    </table>` : ''}`;
+}
+
+/* ════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); populateSlots(); renderWizard(); renderClients();
+  loadSettings(); checkPin(); populateSlots(); renderWizard(); renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
