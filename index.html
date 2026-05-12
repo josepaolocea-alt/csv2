@@ -531,7 +531,7 @@
   <div id="toolbar">
     <button class="tbtn active" id="tnav-summary"     onclick="switchView('summary')">📊 Summary</button>
     <button class="tbtn"        id="tnav-alerts"      onclick="switchView('alerts')">🚨 Alerts</button>
-    <button class="tbtn"        id="tnav-all-clients" onclick="switchView('all-clients')">👥 All Clients</button>
+    <button class="tbtn"        id="tnav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">👥 All Clients</button>
     <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">📂 Client Manager</button>
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">📤 Export</button>
     <div class="tsep"></div>
@@ -562,7 +562,7 @@
         <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#cc0000" stroke-width="2"/><rect x="7" y="4" width="2" height="5" fill="#cc0000"/><rect x="7" y="10" width="2" height="2" fill="#cc0000"/></svg>
         Alerts
       </div>
-      <div class="nav-item" id="snav-all-clients" onclick="switchView('all-clients')">
+      <div class="nav-item" id="snav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">
         <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="5" cy="5" r="3" fill="#000080"/><path d="M0 14c0-3 2-5 5-5s5 2 5 5" fill="#000080"/><circle cx="12" cy="5" r="2" fill="#808080"/><path d="M10 14c0-2 1-4 4-4" fill="#808080"/></svg>
         All Clients
       </div>
@@ -693,6 +693,9 @@
       <div class="view" id="view-all-clients">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title" id="clients-title">👥 All Clients</div>
+          <div id="clients-debug" style="font-size:10px;color:#444;background:#fff;border-top:1px solid #808080;border-left:1px solid #808080;border-right:1px solid #fff;border-bottom:1px solid #fff;padding:3px 5px;margin-bottom:4px">
+            Waiting for snapshot data...
+          </div>
           <div class="fbar">
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
@@ -1665,6 +1668,7 @@ window.processSnapshot = async() => {
   document.getElementById('snap-ta').value='';
   clearAcks();
   refreshAll();
+  window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
   if(fbOk){
     setLoading(true,'Saving to Firestore…');
@@ -2361,6 +2365,12 @@ window.renderClients=()=>{
   try {
     const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
     const sourceRows = allClientRows();
+    const debug=document.getElementById('clients-debug');
+    if(debug) {
+      debug.innerHTML =
+        `active=${activeData().length} · local=${lastProcessedSnap?.data?.length||0} · todaySnaps=${todaySnaps.length} · ` +
+        `parsed=${lastParseInfo.parsedRows||0} accepted=${lastParseInfo.acceptedRows||0} headerLine=${lastParseInfo.headerLine||0}`;
+    }
     const title=document.getElementById('clients-title');
     if(title) title.textContent = `👥 All Clients (${sourceRows.length})`;
     let rows=sourceRows.map(r=>{
