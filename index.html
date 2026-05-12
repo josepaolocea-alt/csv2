@@ -709,6 +709,7 @@
             <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
+            <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">⬇ Export View</button>
             <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
@@ -784,6 +785,18 @@
               <label><input type="checkbox" id="inc-all" checked> All clients</label>
               <label style="margin-left:6px"><input type="checkbox" id="inc-alerts"> Alerts only</label>
               <label style="margin-left:6px"><input type="checkbox" id="inc-usage"> Usage summary</label>
+            </div>
+            <div class="exp-row">
+              <span class="exp-lbl">Rows</span>
+              <select class="win-sel" id="exp-source">
+                <option value="current">Current All Clients button</option>
+                <option value="all">All clients</option>
+                <option value="active">Active only</option>
+                <option value="alerts">Alerts only</option>
+                <option value="debitOnlyDirect">Debit only</option>
+                <option value="critbal">Crit Bal only</option>
+              </select>
+              <label style="margin-left:6px"><input type="checkbox" id="exp-include-inactive" checked> Include inactive</label>
             </div>
             <div class="exp-row" style="margin-top:4px">
               <button class="tbtn primary" onclick="exportCsv()">⬇ Export CSV</button>
@@ -2919,14 +2932,68 @@ window.toggleDateRange=()=>{
   document.getElementById('exp-from').style.display=c?'':'none';
   document.getElementById('exp-to').style.display=c?'':'none';
 };
-window.exportCsv=()=>{
-  const data=activeData();if(!data.length){toast('No data to export','err');return;}
-  const h=['CarrierName','Prev Balance','Pay&Adj','Current Usage','Amnt Receivable','30m Usage','Total Usage','Alert Level','Notes','Credit Limit'];
-  const rows=data.map(r=>[r.carrier_name,r.prev_balance,r.pay_adj,r.current_usage,r.amnt_receivable,r.usage_30min,r.total_usage,alertLevel(r),clientsMeta[r.carrier_name]?.notes||'',r.credit_limit??'']);
-  const csv=[h,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+function exportFilterLabel(filter) {
+  return ({
+    all:'all_clients',
+    active:'active_only',
+    alerts:'alerts_only',
+    debitOnlyDirect:'debit_only',
+    critbal:'crit_bal_only'
+  })[filter] || 'current_view';
+}
+function clientRowsForExport(filter, includeInactive, includeSearch=false) {
+  const sourceRows = filter === 'debitOnlyDirect' ? debitCandidateRows() : allClientRows();
+  const search = includeSearch ? getClientSearch() : '';
+  let rows = sourceRows.filter(r=>r?.carrier_name).map(r=>{
+    const meta=clientMetaFor(r.carrier_name);
+    const cb=parseFloat(meta.critical_balance);
+    const cl=parseFloat(meta.credit_limit);
+    return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+  });
+  if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
+  if(filter==='active') rows=rows.filter(r=>!r._inactive);
+  if(filter==='alerts') rows=rows.filter(r=>r._level!=='none');
+  if(filter==='debitOnlyDirect') rows=rows.filter(isDebitBalance);
+  if(filter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+  if(!includeInactive && filter!=='active') rows=rows.filter(r=>!r._inactive);
+  rows.sort((a,b)=>{
+    let av=a[clientSortCol],bv=b[clientSortCol];
+    if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
+    if(typeof av==='string') return av.localeCompare(bv)*clientSortDir;
+    return((av??0)-(bv??0))*clientSortDir;
+  });
+  return rows;
+}
+function downloadClientRowsCsv(rows, label) {
+  if(!rows.length){toast('No data to export','err');return;}
+  const h=['CarrierName','Prev Balance','Pay&Adj','Current Usage','Amnt Receivable','30m Usage','Total Usage','Alert Level','Notes','Credit Limit','Critical Balance','Status'];
+  const csvRows=rows.map(r=>[
+    r.carrier_name,
+    r.prev_balance,
+    r.pay_adj,
+    r.current_usage,
+    r.amnt_receivable,
+    r.usage_30min,
+    r.total_usage,
+    r._level||alertLevel(r),
+    r.notes||clientMetaFor(r.carrier_name).notes||'',
+    r.credit_limit ?? r._meta_credlim ?? '',
+    r.critical_balance ?? r._meta_critbal ?? '',
+    r._inactive ? 'Inactive' : 'Active'
+  ]);
+  const csv=[h,...csvRows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  const a=document.createElement('a');a.href=url;a.download=`balance_monitor_${todayStr()}.csv`;a.click();
-  URL.revokeObjectURL(url);toast('✓ CSV exported','ok');
+  const a=document.createElement('a');a.href=url;a.download=`balance_monitor_${label}_${todayStr()}.csv`;a.click();
+  URL.revokeObjectURL(url);toast(`✓ Exported ${rows.length} row(s)`,'ok');
+}
+window.exportCurrentClientView=()=>{
+  downloadClientRowsCsv(clientRowsForExport(clientFilter, showInactive, true), exportFilterLabel(clientFilter));
+};
+window.exportCsv=()=>{
+  const selected=document.getElementById('exp-source')?.value || 'current';
+  const filter=selected==='current' ? clientFilter : selected;
+  const includeInactive=document.getElementById('exp-include-inactive')?.checked ?? true;
+  downloadClientRowsCsv(clientRowsForExport(filter, includeInactive, false), exportFilterLabel(filter));
 };
 
 /* ════════════════════════════════════════════════
