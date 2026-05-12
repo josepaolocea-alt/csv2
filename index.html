@@ -711,6 +711,9 @@
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
             <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">⬇ Export View</button>
             <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
+            <select class="win-sel" id="clients-manager-filter" onchange="setClientManagerFilter(this.value)" title="Filter by account manager" style="height:22px;max-width:160px">
+              <option value="all">All managers</option>
+            </select>
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
               <div class="col-dd" id="col-dd"></div>
@@ -1104,7 +1107,7 @@ let prevDaySnap = null; // last snapshot from the previous session day
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
 let operatorName = localStorage.getItem('bm_operator') || '';
 let ackMap = {}; // carrier_name → { operator, time }
-let alertFilter = 'all', clientFilter = 'all', showInactive = true, alertShowInactive = false;
+let alertFilter = 'all', clientFilter = 'all', clientManagerFilter = 'all', showInactive = true, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
@@ -1116,6 +1119,7 @@ const COLS = [
   { key:'idx',             lbl:'#',               vis:true },
   { key:'_eta',            lbl:'ETA',             vis:true },
   { key:'carrier_name',    lbl:'Carrier Name',    vis:true },
+  { key:'account_manager', lbl:'Account Manager', vis:true },
   { key:'notes',           lbl:'Notes',           vis:true },
   { key:'_meta_credlim',   lbl:'Credit Limit',    vis:true },
   { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:true },
@@ -1569,6 +1573,8 @@ function computeUsage(cur, prev) {
 const FMAP = {
   carriername:'carrier_name','carrier name':'carrier_name',carrier:'carrier_name',client:'carrier_name','client name':'carrier_name',
   customer:'carrier_name','customer name':'carrier_name',name:'carrier_name',
+  'account manager':'account_manager',accountmanager:'account_manager','acct manager':'account_manager',acctmanager:'account_manager',
+  'account mgr':'account_manager',accountmgr:'account_manager',manager:'account_manager',am:'account_manager',
   'allow bal':'allow_balance',allowbal:'allow_balance','allow balance':'allow_balance',
   'credit limit':'credit_limit',creditlimit:'credit_limit','credit line':'credit_limit',
   'critical balance':'critical_balance',criticalbalance:'critical_balance','crit balance':'critical_balance','crit bal':'critical_balance',
@@ -1737,13 +1743,15 @@ window.processSnapshot = async() => {
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
   latestSnap=snap; lastProcessedSnap=snap; todaySnaps=normalizeTodaySnaps([...todaySnaps, snap]); viewingIdx=null;
-  clientFilter='all'; clientPage=0; showInactive=true;
+  clientFilter='all'; clientManagerFilter='all'; clientPage=0; showInactive=true;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
     const showBtn=document.getElementById('btn-show-inactive');
     if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
     const search=document.getElementById('clients-search');
     if(search) search.value='';
+    const managerSel=document.getElementById('clients-manager-filter');
+    if(managerSel) managerSel.value='all';
   try { localStorage.setItem('bm_last_processed_snap', JSON.stringify(snap)); } catch(e) {}
   document.getElementById('snap-ta').value='';
   clearAcks();
@@ -1911,6 +1919,7 @@ function renderClientDetailBody(editMode) {
   const fields = [
     { label:'Carrier Name',     key:'carrier_name',    value: name,                                                          editable: false },
     { label:'Status',           key:'is_active',       value: statusVal,                                                     editable: true,  type:'select', opts:['Active','Inactive'] },
+    { label:'Account Manager',  key:'account_manager', value: meta.account_manager ?? snap.account_manager ?? '',            editable: true,  type:'text' },
     { label:'Credit Limit',     key:'credit_limit',    value: meta.credit_limit     ?? snap.credit_limit     ?? '',          editable: true,  type:'number' },
     { label:'Critical Balance', key:'critical_balance',value: meta.critical_balance ?? snap.critical_balance ?? '',          editable: true,  type:'number' },
     { label:'Notes',            key:'notes',           value: meta.notes            ?? snap.notes            ?? '',          editable: true,  type:'text' },
@@ -1967,6 +1976,8 @@ window.saveClientEdit = async () => {
   if (cbEl && cbEl.value !== '') updates.critical_balance = parseFloat(cbEl.value) || 0;
   const nEl = document.getElementById('cde-notes');
   if (nEl) updates.notes = nEl.value;
+  const amEl = document.getElementById('cde-account_manager');
+  if (amEl) updates.account_manager = amEl.value.trim();
   setLoading(true, 'Saving client…');
   try {
     if (fbOk) {
@@ -2016,12 +2027,14 @@ window.confirmResetToday = async () => {
     viewingIdx = null;
     alertFilter = 'all';
     clientFilter = 'all';
+    clientManagerFilter = 'all';
     alertPage = 0;
     clientPage = 0;
     showInactive = true;
     alertShowInactive = false;
     document.getElementById('snap-ta').value = '';
     const cs = document.getElementById('clients-search'); if (cs) cs.value = '';
+    const managerSel = document.getElementById('clients-manager-filter'); if (managerSel) managerSel.value = 'all';
     document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
     document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
     document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
@@ -2429,6 +2442,59 @@ function isClientInactive(meta) {
   return s === 'false' || s === 'inactive' || s === '0' || s === 'no';
 }
 
+function accountManagerFor(rowOrName) {
+  const name = typeof rowOrName === 'string' ? rowOrName : rowOrName?.carrier_name;
+  const rowValue = typeof rowOrName === 'object' ? rowOrName?.account_manager : '';
+  const meta = clientMetaFor(name);
+  return String(meta.account_manager ?? rowValue ?? '').trim();
+}
+
+function managerFilterLabel(value) {
+  return value === '__unassigned__' ? 'Unassigned' : value;
+}
+
+function buildManagerOptions() {
+  const managers = new Set();
+  let hasUnassigned = false;
+  Object.values(clientsMeta).forEach(m => {
+    const v = String(m?.account_manager ?? '').trim();
+    if (v) managers.add(v); else hasUnassigned = true;
+  });
+  allClientRows().forEach(r => {
+    const v = accountManagerFor(r);
+    if (v) managers.add(v); else hasUnassigned = true;
+  });
+  return { managers: Array.from(managers).sort((a,b)=>a.localeCompare(b)), hasUnassigned };
+}
+
+function syncManagerFilterDropdown() {
+  const sel = document.getElementById('clients-manager-filter');
+  if (!sel) return;
+  const current = clientManagerFilter || sel.value || 'all';
+  const { managers, hasUnassigned } = buildManagerOptions();
+  const opts = ['<option value="all">All managers</option>'];
+  if (hasUnassigned || current === '__unassigned__') opts.push('<option value="__unassigned__">Unassigned</option>');
+  managers.forEach(m => opts.push(`<option value="${esc(m)}">${esc(m)}</option>`));
+  if (current !== 'all' && current !== '__unassigned__' && !managers.includes(current)) {
+    opts.push(`<option value="${esc(current)}">${esc(current)}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+  sel.value = current === '__unassigned__' || current === 'all' || managers.includes(current) ? current : 'all';
+  clientManagerFilter = sel.value;
+}
+
+function matchesManagerFilter(row) {
+  if (clientManagerFilter === 'all') return true;
+  const manager = accountManagerFor(row);
+  return clientManagerFilter === '__unassigned__' ? !manager : manager === clientManagerFilter;
+}
+
+window.setClientManagerFilter = value => {
+  clientManagerFilter = value || 'all';
+  clientPage = 0;
+  window.renderClients();
+};
+
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
@@ -2459,12 +2525,13 @@ window.toggleShowInactive=()=>{
   window.renderClients();
 };
 window.resetClientsFilter=()=>{
-  clientFilter='all'; clientPage=0; showInactive=true;
+  clientFilter='all'; clientManagerFilter='all'; clientPage=0; showInactive=true;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
   const btn=document.getElementById('btn-show-inactive');
   if(btn){btn.classList.remove('active');btn.textContent='Hide inactive';}
   const s=document.getElementById('clients-search');if(s)s.value='';
+  const managerSel=document.getElementById('clients-manager-filter');if(managerSel)managerSel.value='all';
   window.renderClients();
 };
 window.toggleAlertShowInactive=()=>{
@@ -2480,9 +2547,11 @@ window.toggleAlertShowInactive=()=>{
 function renderClientsLegacy(){
   const search=getClientSearch();
   const sourceRows = allClientRows();
-  let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
+  syncManagerFilterDropdown();
+  let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
+  rows=rows.filter(matchesManagerFilter);
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
   if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
@@ -2504,6 +2573,7 @@ function renderClientsLegacy(){
     return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
       if(c.key==='idx') return `<td style="color:#888">${clientPage*PG+ri+1}</td>`;
       if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
+      if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
       if(c.key==='_meta_credlim'){
@@ -2528,6 +2598,7 @@ function renderClientsLegacy(){
 function clientCell(r,c,rowNum){
   if(c.key==='idx') return `<td style="color:#888">${rowNum}</td>`;
   if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
+  if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
   if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
   if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
   if(c.key==='_meta_credlim'){
@@ -2563,14 +2634,16 @@ function renderDebitOnlyClientsTable() {
   }
   const vc=COLS.filter(c=>c.vis);
   try {
+    syncManagerFilterDropdown();
     const sourceRows=debitCandidateRows();
     let rows=sourceRows.filter(r=>r?.carrier_name).map(r=>{
       const meta=clientMetaFor(r.carrier_name);
       const cb=parseFloat(meta.critical_balance);
       const cl=parseFloat(meta.credit_limit);
-      return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+      return {...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
     }).filter(isDebitBalance);
     if(!showInactive) rows=rows.filter(r=>!r._inactive);
+    rows=rows.filter(matchesManagerFilter);
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
       if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -2581,7 +2654,10 @@ function renderDebitOnlyClientsTable() {
     clientPage=Math.min(clientPage,pages-1);
     const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
     const title=document.getElementById('clients-title');
-    if(title) title.textContent = `👥 All Clients - Debit Only (${rows.length})`;
+    if(title) {
+      const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
+      title.textContent = `👥 All Clients - Debit Only${managerTitle} (${rows.length})`;
+    }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
     tbody.innerHTML=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
@@ -2624,6 +2700,7 @@ window.renderClients=()=>{
   try {
     const search=getClientSearch();
     const sourceRows = allClientRows();
+    syncManagerFilterDropdown();
     const debug=document.getElementById('clients-debug');
     if(debug) {
       debug.innerHTML =
@@ -2636,14 +2713,19 @@ window.renderClients=()=>{
       const meta=clientMetaFor(r.carrier_name);
       const cb=parseFloat(meta.critical_balance);
       const cl=parseFloat(meta.credit_limit);
-      return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+      return {...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
     });
     if(!showInactive) rows=rows.filter(r=>!r._inactive);
     if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
+    rows=rows.filter(matchesManagerFilter);
     if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
     if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
     if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
     if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+    if(title) {
+      const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
+      title.textContent = `ðŸ‘¥ All Clients${managerTitle} (${rows.length})`;
+    }
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
       if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -2654,7 +2736,7 @@ window.renderClients=()=>{
     clientPage=Math.min(clientPage,pages-1);
     const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
     if(debug) {
-      debug.innerHTML += ` Â· afterFilter=${rows.length} page=${page.length} cols=${vc.length} search="${esc(search)}" filter=${clientFilter}`;
+      debug.innerHTML += ` Â· afterFilter=${rows.length} page=${page.length} cols=${vc.length} search="${esc(search)}" filter=${clientFilter} manager="${esc(managerFilterLabel(clientManagerFilter))}"`;
     }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
     tbody.innerHTML=page.map((r,ri)=>{
@@ -2729,7 +2811,7 @@ window.renderWizard=()=>{
       <div id="csv-sum" style="margin-top:6px"></div>`;
   }
   if(wStep===2&&wCsvData){
-    const OPTS=['carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','is_active','(skip)'];
+    const OPTS=['carrier_name','account_manager','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','is_active','(skip)'];
     c.innerHTML=`
       <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
       <div class="map-grid" style="margin-bottom:8px">
@@ -2800,7 +2882,7 @@ window.renderWizard=()=>{
 
 function autoMap(h){
   const k=h.toLowerCase().replace(/[\s_&]+/g,'');
-  return{carriername:'carrier_name',allowbal:'allow_balance',creditlimit:'credit_limit',criticalbalance:'critical_balance',billingcycle:'billing_cycle',isprepay:'is_prepay',invupto:'inv_upto',prevbalance:'prev_balance',payadj:'pay_adj',currentusage:'current_usage',amntreceivable:'amnt_receivable',notes:'notes',targetbalance:'target_balance',status:'is_active',isactive:'is_active'}[k]||'(skip)';
+  return{carriername:'carrier_name',accountmanager:'account_manager',acctmanager:'account_manager',accountmgr:'account_manager',manager:'account_manager',am:'account_manager',allowbal:'allow_balance',creditlimit:'credit_limit',criticalbalance:'critical_balance',billingcycle:'billing_cycle',isprepay:'is_prepay',invupto:'inv_upto',prevbalance:'prev_balance',payadj:'pay_adj',currentusage:'current_usage',amntreceivable:'amnt_receivable',notes:'notes',targetbalance:'target_balance',status:'is_active',isactive:'is_active'}[k]||'(skip)';
 }
 window.handleDrop=e=>{e.preventDefault();e.currentTarget.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);};
 window.handleFile=file=>{
@@ -2924,10 +3006,10 @@ async function renderImpHist(){
    TEMPLATE / EXPORT
 ════════════════════════════════════════════════ */
 window.downloadTemplate=()=>{
-  const csv=['CarrierName,Allow Bal,Credit Limit,Critical Balance,Billing Cycle,IsPrepay,Inv Upto,Prev Balance,Pay&Adj,Current Usage,Amnt Receivable,Notes,Status',
-    'EXAMPLE CLIENT A,Block once debit,1000,500,Prepay,Yes,45772,-500.00,100.00,600.00,200.00,Sample note,Active',
-    'EXAMPLE CLIENT B,,0,0,Postpay,No,,,,,0.00,,Active',
-    'EXAMPLE CLIENT C,,0,0,Prepay,Yes,,,,,0.00,,Inactive'].join('\n');
+  const csv=['CarrierName,Account Manager,Allow Bal,Credit Limit,Critical Balance,Billing Cycle,IsPrepay,Inv Upto,Prev Balance,Pay&Adj,Current Usage,Amnt Receivable,Notes,Status',
+    'EXAMPLE CLIENT A,Jason Cruz,Block once debit,1000,500,Prepay,Yes,45772,-500.00,100.00,600.00,200.00,Sample note,Active',
+    'EXAMPLE CLIENT B,Jason Cruz,,0,0,Postpay,No,,,,,0.00,,Active',
+    'EXAMPLE CLIENT C,,,0,0,Prepay,Yes,,,,,0.00,,Inactive'].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   const a=document.createElement('a');a.href=url;a.download='balance_monitor_template.csv';a.click();
   URL.revokeObjectURL(url);toast('✓ Template downloaded','ok');
@@ -2953,9 +3035,10 @@ function clientRowsForExport(filter, includeInactive, includeSearch=false) {
     const meta=clientMetaFor(r.carrier_name);
     const cb=parseFloat(meta.critical_balance);
     const cl=parseFloat(meta.credit_limit);
-    return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+    return {...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
   });
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
+  if(includeSearch) rows=rows.filter(matchesManagerFilter);
   if(filter==='active') rows=rows.filter(r=>!r._inactive);
   if(filter==='alerts') rows=rows.filter(r=>r._level!=='none');
   if(filter==='debitOnlyDirect') rows=rows.filter(isDebitBalance);
@@ -2971,9 +3054,10 @@ function clientRowsForExport(filter, includeInactive, includeSearch=false) {
 }
 function downloadClientRowsCsv(rows, label) {
   if(!rows.length){toast('No data to export','err');return;}
-  const h=['CarrierName','Prev Balance','Pay&Adj','Current Usage','Amnt Receivable','30m Usage','Total Usage','Alert Level','Notes','Credit Limit','Critical Balance','Status'];
+  const h=['CarrierName','Account Manager','Prev Balance','Pay&Adj','Current Usage','Amnt Receivable','30m Usage','Total Usage','Alert Level','Notes','Credit Limit','Critical Balance','Status'];
   const csvRows=rows.map(r=>[
     r.carrier_name,
+    r.account_manager ?? accountManagerFor(r),
     r.prev_balance,
     r.pay_adj,
     r.current_usage,
@@ -2998,7 +3082,7 @@ window.exportCsv=()=>{
   const selected=document.getElementById('exp-source')?.value || 'current';
   const filter=selected==='current' ? clientFilter : selected;
   const includeInactive=document.getElementById('exp-include-inactive')?.checked ?? true;
-  downloadClientRowsCsv(clientRowsForExport(filter, includeInactive, false), exportFilterLabel(filter));
+  downloadClientRowsCsv(clientRowsForExport(filter, includeInactive, selected==='current'), exportFilterLabel(filter));
 };
 
 /* ════════════════════════════════════════════════
