@@ -692,7 +692,7 @@
       <!-- ═══ ALL CLIENTS ════════════════════════════ -->
       <div class="view" id="view-all-clients">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">👥 All Clients</div>
+          <div class="groupbox-title" id="clients-title">👥 All Clients</div>
           <div class="fbar">
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
@@ -1033,6 +1033,7 @@ try {
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let prevDaySnap = null; // last snapshot from the previous session day
+let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
 let operatorName = localStorage.getItem('bm_operator') || '';
 let ackMap = {}; // carrier_name → { operator, time }
 let alertFilter = 'all', clientFilter = 'all', showInactive = true, alertShowInactive = false;
@@ -1083,6 +1084,17 @@ function loadSettings() {
   document.getElementById('set-band-high').value   = S.bandHigh;
   document.getElementById('set-band-crit').value   = S.bandCritical;
   document.getElementById('set-pin-enabled').checked = S.pinEnabled;
+}
+function loadLastProcessedSnap() {
+  try {
+    const v = localStorage.getItem('bm_last_processed_snap');
+    if (!v) return;
+    const snap = JSON.parse(v);
+    if (!snap?.data?.length) return;
+    snap.timestamp = snap.timestamp ? new Date(snap.timestamp) : new Date();
+    lastProcessedSnap = snap;
+    if (!latestSnap) latestSnap = snap;
+  } catch(e) {}
 }
 window.saveSettings = () => {
   S.lightMax      = +document.getElementById('set-light').value  || -50;
@@ -1513,13 +1525,57 @@ function parseBoolField(v){
 }
 function fmtBool(v){return v===true||v==='true'?'Active':'Inactive';}
 const NUM_FIELDS=['credit_limit','critical_balance','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable'];
+let lastParseInfo = { rawLines:0, headerLine:0, parsedRows:0, acceptedRows:0 };
+
+function splitDelimitedLine(line, delim) {
+  const out=[]; let cur='', inQuotes=false;
+  for (let i=0;i<line.length;i++) {
+    const ch=line[i], next=line[i+1];
+    if (ch === '"' && inQuotes && next === '"') { cur += '"'; i++; continue; }
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (ch === delim && !inQuotes) { out.push(cur); cur=''; continue; }
+    cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+function fallbackParseDelimited(text, delim) {
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if (!lines.length) return { data:[] };
+  const headers=splitDelimitedLine(lines[0], delim).map(h=>h.trim());
+  const data=lines.slice(1).map(line=>{
+    const vals=splitDelimitedLine(line, delim);
+    const row={};
+    headers.forEach((h,i)=>{ row[h]=vals[i] ?? ''; });
+    return row;
+  });
+  return { data };
+}
+
+function findSnapshotHeaderLine(lines) {
+  const isHeader = line => {
+    const norm = normHeaderKey(line);
+    const hasClient = /\b(carrier|client|customer|name)\b/.test(norm);
+    const hasBalance = /\b(amnt receivable|amount receivable|amt receivable|receivable|current balance|balance)\b/.test(norm);
+    return hasClient && hasBalance;
+  };
+  const idx = lines.findIndex(isHeader);
+  return idx >= 0 ? idx : 0;
+}
 
 function parseText(text) {
   text=text.trim(); if(!text) return null;
-  const delim=text.split('\n')[0].includes('\t')?'\t':',';
-  const res=Papa.parse(text,{header:true,delimiter:delim,skipEmptyLines:true,transformHeader:h=>h.trim()});
+  const lines=text.split(/\r?\n/);
+  const headerLine=findSnapshotHeaderLine(lines);
+  const parseText=lines.slice(headerLine).join('\n');
+  const first=parseText.split(/\r?\n/)[0] || '';
+  const delim=first.includes('\t')?'\t':',';
+  const res=window.Papa?.parse
+    ? window.Papa.parse(parseText,{header:true,delimiter:delim,skipEmptyLines:true,transformHeader:h=>h.trim()})
+    : fallbackParseDelimited(parseText, delim);
   if(!res.data?.length) return null;
-  return res.data.map(raw=>{
+  const mapped = res.data.map(raw=>{
     const row={};
     for(const[k,v] of Object.entries(raw)){
       const cleanKey = normHeaderKey(k);
@@ -1529,7 +1585,10 @@ function parseText(text) {
     NUM_FIELDS.forEach(f=>{ if(row[f]!==undefined) row[f]=parseFloat(String(row[f]).replace(/[$,]/g,''))||0; });
     if(row.is_prepay!==undefined) row.is_prepay=['yes','true','1'].includes(String(row.is_prepay).toLowerCase());
     return row;
-  }).filter(r=>r.carrier_name);
+  });
+  const accepted = mapped.filter(r=>r.carrier_name);
+  lastParseInfo = { rawLines:lines.length, headerLine:headerLine+1, parsedRows:mapped.length, acceptedRows:accepted.length };
+  return accepted;
 }
 
 /* ════════════════════════════════════════════════
@@ -1537,14 +1596,18 @@ function parseText(text) {
 ════════════════════════════════════════════════ */
 window.processSnapshot = async() => {
   const rows=parseText(document.getElementById('snap-ta').value);
-  if(!rows?.length){toast('No valid data found. Check pasted text.','err');return;}
+  if(!rows?.length){
+    toast(`No valid data found. Header line ${lastParseInfo.headerLine||1}, parsed ${lastParseInfo.parsedRows||0} row(s), accepted 0 client row(s).`,'err',7000);
+    return;
+  }
   const timeSlot=document.getElementById('slot-sel').value;
   const prevMap={};
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
-  latestSnap=snap; todaySnaps.push(snap); viewingIdx=null;
+  latestSnap=snap; lastProcessedSnap=snap; todaySnaps.push(snap); viewingIdx=null;
+  try { localStorage.setItem('bm_last_processed_snap', JSON.stringify(snap)); } catch(e) {}
   document.getElementById('snap-ta').value='';
   clearAcks();
   refreshAll();
@@ -1811,7 +1874,13 @@ async function loadSnaps() {
     const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
     const s=await getDocs(q);
     todaySnaps=s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()}));
-    if(todaySnaps.length) latestSnap=todaySnaps[todaySnaps.length-1];
+    if(todaySnaps.length) {
+      const loadedLatest=todaySnaps[todaySnaps.length-1];
+      latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
+    } else if (lastProcessedSnap?.data?.length) {
+      todaySnaps=[lastProcessedSnap];
+      latestSnap=lastProcessedSnap;
+    }
   } catch(e){console.warn('loadSnaps:',e);}
 }
 async function cleanupOldSnapshots() {
@@ -1878,7 +1947,7 @@ async function loadImpHist() {
 ════════════════════════════════════════════════ */
 function activeData() {
   if(viewingIdx!==null&&todaySnaps[viewingIdx]) return todaySnaps[viewingIdx].data;
-  return latestSnap?.data||[];
+  return latestSnap?.data?.length ? latestSnap.data : (lastProcessedSnap?.data || []);
 }
 
 function allClientRows() {
@@ -2227,6 +2296,8 @@ window.renderClients=()=>{
   try {
     const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
     const sourceRows = allClientRows();
+    const title=document.getElementById('clients-title');
+    if(title) title.textContent = `👥 All Clients (${sourceRows.length})`;
     let rows=sourceRows.map(r=>{
       const meta=clientMetaFor(r.carrier_name);
       const cb=parseFloat(meta.critical_balance);
@@ -2765,7 +2836,7 @@ window.confirmRollback = async () => {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); checkPin(); populateSlots(); renderWizard(); renderClients();
+  loadSettings(); loadLastProcessedSnap(); checkPin(); populateSlots(); renderWizard(); renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
@@ -2783,7 +2854,13 @@ async function init(){
       const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
       onSnapshot(q,snap=>{
         todaySnaps=snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()}));
-        if(todaySnaps.length&&viewingIdx===null) latestSnap=todaySnaps[todaySnaps.length-1];
+        if(todaySnaps.length&&viewingIdx===null) {
+          const loadedLatest=todaySnaps[todaySnaps.length-1];
+          latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
+        } else if(!todaySnaps.length && lastProcessedSnap?.data?.length) {
+          todaySnaps=[lastProcessedSnap];
+          if(viewingIdx===null) latestSnap=lastProcessedSnap;
+        }
         refreshAll();
       });
     }catch(e){console.warn('onSnapshot:',e);}
