@@ -1928,6 +1928,50 @@ window.confirmResetToday = async () => {
 /* ════════════════════════════════════════════════
    FIRESTORE
 ════════════════════════════════════════════════ */
+window.confirmResetToday = async () => {
+  closeResetConfirm();
+  const hasLocalData = todaySnaps.length || latestSnap?.data?.length || lastProcessedSnap?.data?.length;
+  if (!hasLocalData && !fbOk) { toast('Nothing to reset - no snapshots today.', 'err'); return; }
+  setLoading(true, 'Resetting today data...');
+  try {
+    let deletedCount = 0;
+
+    // Clear local fallback first so listeners cannot repopulate the UI from cached snapshot data.
+    todaySnaps = [];
+    latestSnap = null;
+    lastProcessedSnap = null;
+    viewingIdx = null;
+    try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+
+    if (fbOk) {
+      // Delete all today's docs from Firestore by query, not only what is currently loaded in memory.
+      const q = query(collection(db, 'snapshots'), where('session_date', '==', todayStr()));
+      const s = await getDocs(q);
+      const BATCH_MAX = 490;
+      let batch = writeBatch(db), count = 0;
+      for (const d of s.docs) {
+        batch.delete(doc(db, 'snapshots', d.id));
+        deletedCount++;
+        if (++count >= BATCH_MAX) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) await batch.commit();
+    }
+
+    document.getElementById('view-banner').classList.remove('visible');
+    refreshAll();
+    window.renderClients();
+    toast(`Today data cleared${fbOk ? ` - deleted ${deletedCount} Firestore snapshot(s)` : ''}`, 'ok');
+  } catch(e) {
+    toast('Reset error: ' + e.message, 'err');
+  } finally {
+    setLoading(false);
+  }
+};
+
 async function loadSnaps() {
   if(!fbOk) return;
   try {
