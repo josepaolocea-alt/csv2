@@ -458,9 +458,9 @@
     #settings-dlg.open { display: block; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open { display: flex; }
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open { display: flex; }
     #confirm-box, #undo-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
@@ -587,7 +587,8 @@
         </div>
         <div class="snap-action-row" style="margin-top:4px">
           <button class="tbtn" onclick="openUndoConfirm()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
-          <button class="tbtn" style="color:#880000" onclick="openResetConfirm()" title="Delete ALL snapshots for today and start fresh">🔄 Reset Today</button>
+          <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">🔄 Reset View</button>
+          <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm()" title="Permanently delete ALL snapshots for today">🧨 Delete Today</button>
         </div>
       </div>
     </div>
@@ -883,22 +884,40 @@
   </div>
 </div>
 
-<!-- Confirm Reset Dialog -->
+<!-- Confirm Reset View Dialog -->
 <div id="confirm-overlay">
   <div id="confirm-box">
-    <div class="dlg-tb"><span>⚠ Confirm Reset</span></div>
+    <div class="dlg-tb"><span>Confirm Reset View</span></div>
     <div class="dlg-body">
-      <div class="dlg-ico">🔄</div>
+      <div class="dlg-ico">↻</div>
       <div class="dlg-text">
-        <strong>Reset Today's Data?</strong><br><br>
-        This will permanently delete <strong>all snapshots</strong> saved today from Firestore.<br><br>
-        The view will return to blank — as if the day never started.<br><br>
-        <span style="color:#880000">This cannot be undone.</span>
+        <strong>Reset the current view?</strong><br><br>
+        This clears local filters, search, selected timeline view, and pasted text only.<br><br>
+        Stored snapshots stay in Firestore, so New Critical comparisons are preserved.
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmResetToday()">Yes, Reset</button>
+      <button class="tbtn primary" style="min-width:72px" onclick="confirmResetToday()">Reset View</button>
       <button class="tbtn" style="min-width:72px" onclick="closeResetConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Today Snapshots Dialog -->
+<div id="delete-today-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center">
+  <div id="delete-today-box" style="width:390px;background:#c0c0c0;border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #404040;border-bottom:2px solid #404040;box-shadow:2px 2px 8px rgba(0,0,0,.5)">
+    <div class="dlg-tb"><span>⚠ Delete Today Snapshots</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text">
+        <strong>Permanently delete today's snapshots?</strong><br><br>
+        This removes today's saved snapshots from Firestore and can remove the history needed by New Critical.<br><br>
+        <span style="color:#880000">Use this only when you truly want to wipe today's snapshot history.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:110px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeDeleteTodayConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1794,6 +1813,8 @@ async function clearAcks() {
 
 window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
 window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
+window.openDeleteTodayConfirm  = () => document.getElementById('delete-today-overlay').classList.add('open');
+window.closeDeleteTodayConfirm = () => document.getElementById('delete-today-overlay').classList.remove('open');
 
 /* ════════════════════════════════════════════════
    UNDO CONFIRM DIALOG
@@ -1931,13 +1952,37 @@ async function confirmResetTodayLegacy() {
 ════════════════════════════════════════════════ */
 window.confirmResetToday = async () => {
   closeResetConfirm();
-  const hasLocalData = todaySnaps.length || latestSnap?.data?.length || lastProcessedSnap?.data?.length;
-  if (!hasLocalData && !fbOk) { toast('Nothing to reset - no snapshots today.', 'err'); return; }
-  setLoading(true, 'Resetting today data...');
+  setLoading(true, 'Resetting view...');
+  try {
+    viewingIdx = null;
+    alertFilter = 'all';
+    clientFilter = 'all';
+    alertPage = 0;
+    clientPage = 0;
+    showInactive = true;
+    alertShowInactive = false;
+    document.getElementById('snap-ta').value = '';
+    const cs = document.getElementById('clients-search'); if (cs) cs.value = '';
+    document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
+    document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector('#alert-tabs .tab')?.classList.add('active');
+    document.getElementById('view-banner').classList.remove('visible');
+    refreshAll();
+    window.renderClients();
+    toast('View reset - snapshots preserved for New Critical', 'ok');
+  } catch(e) {
+    toast('Reset view error: ' + e.message, 'err');
+  } finally {
+    setLoading(false);
+  }
+};
+
+window.confirmDeleteTodaySnapshots = async () => {
+  closeDeleteTodayConfirm();
+  setLoading(true, 'Deleting today snapshots...');
   try {
     let deletedCount = 0;
-
-    // Clear local fallback first so listeners cannot repopulate the UI from cached snapshot data.
     todaySnaps = [];
     latestSnap = null;
     lastProcessedSnap = null;
@@ -1945,7 +1990,6 @@ window.confirmResetToday = async () => {
     try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
 
     if (fbOk) {
-      // Delete all today's docs from Firestore by query, not only what is currently loaded in memory.
       const q = query(collection(db, 'snapshots'), where('session_date', '==', todayStr()));
       const s = await getDocs(q);
       const BATCH_MAX = 490;
@@ -1965,9 +2009,9 @@ window.confirmResetToday = async () => {
     document.getElementById('view-banner').classList.remove('visible');
     refreshAll();
     window.renderClients();
-    toast(`Today data cleared${fbOk ? ` - deleted ${deletedCount} Firestore snapshot(s)` : ''}`, 'ok');
+    toast(`Deleted ${deletedCount} today snapshot(s)`, 'ok');
   } catch(e) {
-    toast('Reset error: ' + e.message, 'err');
+    toast('Delete error: ' + e.message, 'err');
   } finally {
     setLoading(false);
   }
