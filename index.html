@@ -703,7 +703,7 @@
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
-            <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
+            <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
               <div class="col-dd" id="col-dd"></div>
@@ -2295,7 +2295,7 @@ window.toggleAlertShowInactive=()=>{
   renderAlerts();
 };
 function renderClientsLegacy(){
-  const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
+  const search=getClientSearch();
   const sourceRows = allClientRows();
   let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
@@ -2360,6 +2360,17 @@ function clientCell(r,c,rowNum){
   return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
 }
 
+function getClientSearch() {
+  const el=document.getElementById('clients-search');
+  let value=(el?.value||'').trim().toLowerCase();
+  // Browser autofill can put the operator email into this generic search box.
+  if(value.includes('@')) {
+    if(el) el.value='';
+    value='';
+  }
+  return value;
+}
+
 window.renderClients=()=>{
   const thead=document.getElementById('clients-thead');
   const tbody=document.getElementById('clients-tbody');
@@ -2372,7 +2383,7 @@ window.renderClients=()=>{
   const vc=COLS.filter(c=>c.vis);
   if(fallback) fallback.style.display='none';
   try {
-    const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
+    const search=getClientSearch();
     const sourceRows = allClientRows();
     const debug=document.getElementById('clients-debug');
     if(debug) {
