@@ -1483,20 +1483,30 @@ function computeUsage(cur, prev) {
    PARSE TEXT
 ════════════════════════════════════════════════ */
 const FMAP = {
-  carriername:'carrier_name','carrier name':'carrier_name',carrier_name:'carrier_name',
-  'allow bal':'allow_balance',allowbal:'allow_balance',
-  'credit limit':'credit_limit',creditlimit:'credit_limit',
-  'critical balance':'critical_balance',criticalbalance:'critical_balance',
+  carriername:'carrier_name','carrier name':'carrier_name',carrier:'carrier_name',client:'carrier_name','client name':'carrier_name',
+  customer:'carrier_name','customer name':'carrier_name',name:'carrier_name',
+  'allow bal':'allow_balance',allowbal:'allow_balance','allow balance':'allow_balance',
+  'credit limit':'credit_limit',creditlimit:'credit_limit','credit line':'credit_limit',
+  'critical balance':'critical_balance',criticalbalance:'critical_balance','crit balance':'critical_balance','crit bal':'critical_balance',
   'billing cycle':'billing_cycle',billingcycle:'billing_cycle',
-  isprepay:'is_prepay','is prepay':'is_prepay',
-  'inv upto':'inv_upto',invupto:'inv_upto',
-  'prev balance':'prev_balance',prevbalance:'prev_balance',
-  'pay&adj':'pay_adj',payadj:'pay_adj','pay adj':'pay_adj',
-  'current usage':'current_usage',currentusage:'current_usage',
-  'amnt receivable':'amnt_receivable',amntreceivable:'amnt_receivable',
+  isprepay:'is_prepay','is prepay':'is_prepay','is pre paid':'is_prepay',prepay:'is_prepay',
+  'inv upto':'inv_upto',invupto:'inv_upto','invoice upto':'inv_upto','invoice up to':'inv_upto',
+  'prev balance':'prev_balance',prevbalance:'prev_balance','previous balance':'prev_balance',
+  payadj:'pay_adj','pay adj':'pay_adj','pay adjustment':'pay_adj','pay adjustments':'pay_adj',
+  'current usage':'current_usage',currentusage:'current_usage',usage:'current_usage',
+  'amnt receivable':'amnt_receivable',amntreceivable:'amnt_receivable','amount receivable':'amnt_receivable',
+  'amt receivable':'amnt_receivable',receivable:'amnt_receivable','current balance':'amnt_receivable',balance:'amnt_receivable',
   notes:'notes',
   status:'is_active',isactive:'is_active','is active':'is_active',
 };
+function normHeaderKey(k){
+  return String(k??'')
+    .replace(/^\uFEFF/, '')
+    .toLowerCase()
+    .replace(/[$()]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
 function parseBoolField(v){
   if(typeof v==='boolean') return v;
   return ['true','yes','1','active'].includes(String(v).toLowerCase().trim());
@@ -1512,7 +1522,8 @@ function parseText(text) {
   return res.data.map(raw=>{
     const row={};
     for(const[k,v] of Object.entries(raw)){
-      const key=FMAP[k.toLowerCase().replace(/[\s_&]+/g,' ').trim()]||k;
+      const cleanKey = normHeaderKey(k);
+      const key=FMAP[cleanKey]||cleanKey.replace(/\s+/g,'_');
       row[key]=v;
     }
     NUM_FIELDS.forEach(f=>{ if(row[f]!==undefined) row[f]=parseFloat(String(row[f]).replace(/[$,]/g,''))||0; });
@@ -1846,7 +1857,11 @@ async function loadClients() {
   try {
     const s=await getDocs(collection(db,'clients'));
     clientsMeta={};
-    s.docs.forEach(d=>{const dd=d.data();clientsMeta[dd.carrier_name]=dd;});
+    s.docs.forEach(d=>{
+      const dd=d.data();
+      const carrierName = dd.carrier_name || d.id;
+      clientsMeta[carrierName]={...dd, carrier_name:carrierName};
+    });
   } catch(e){console.warn('loadClients:',e);}
 }
 async function loadImpHist() {
@@ -1864,6 +1879,31 @@ async function loadImpHist() {
 function activeData() {
   if(viewingIdx!==null&&todaySnaps[viewingIdx]) return todaySnaps[viewingIdx].data;
   return latestSnap?.data||[];
+}
+
+function allClientRows() {
+  const rowsByName = new Map();
+  activeData().forEach(r => {
+    if (r?.carrier_name) rowsByName.set(r.carrier_name, r);
+  });
+  Object.entries(clientsMeta).forEach(([name, meta]) => {
+    const carrierName = meta?.carrier_name || name;
+    if (!carrierName || rowsByName.has(carrierName)) return;
+    rowsByName.set(carrierName, {
+      carrier_name: carrierName,
+      notes: meta?.notes || '',
+      credit_limit: meta?.credit_limit ?? 0,
+      critical_balance: meta?.critical_balance ?? 0,
+      prev_balance: 0,
+      pay_adj: 0,
+      current_usage: 0,
+      amnt_receivable: 0,
+      usage_30min: 0,
+      total_usage: 0,
+      _metaOnly: true
+    });
+  });
+  return Array.from(rowsByName.values());
 }
 
 function refreshAll() {
@@ -2111,7 +2151,8 @@ window.toggleAlertShowInactive=()=>{
 };
 window.renderClients=()=>{
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
-  let rows=activeData().map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
+  const sourceRows = allClientRows();
+  let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
   if(!showInactive) rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
@@ -2149,7 +2190,7 @@ window.renderClients=()=>{
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
-  }).join('')||(activeData().length===0
+  }).join('')||(sourceRows.length===0
     ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
     : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
