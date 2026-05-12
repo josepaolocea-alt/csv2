@@ -315,6 +315,12 @@
     }
     tr.row-new-crit { background:#fff8e8 !important; }
     tr.row-new-crit:hover { background:#fff0cc !important; }
+    /* ETA approaching-critical row highlight */
+    tr.row-eta-warn td { background: #fffae8 !important; }
+    tr.row-eta-warn:hover td { background: #000080 !important; color: #fff !important; }
+    /* Operators status pane */
+    #sb-operators { flex:1; font-size:10px; color:#000080; font-style:italic; }
+
     .badge-isnew { display:inline-block; background:#cc4400; color:#fff;
       font-size:9px; font-weight:700; padding:0 4px; margin-left:4px;
       border:1px solid #882200; vertical-align:middle; }
@@ -620,6 +626,8 @@
                   <th onclick="sortAlert('critical_balance')" style="text-align:right">Critical Balance</th>
                   <th>Balance Bar</th>
                   <th onclick="sortAlert('_level')">Alert</th>
+                  <th onclick="sortAlert('_eta')" style="white-space:nowrap">⏱ ETA to Critical</th>
+                  <th>Ack</th>
                   <th>Notes</th>
                 </tr></thead>
                 <tbody id="alert-tbody"></tbody>
@@ -726,7 +734,8 @@
   <div id="statusbar">
     <div class="sb-pane" id="sb-status">Ready</div>
     <div class="sb-pane" id="sb-sync">No data</div>
-    <div class="sb-pane" id="sb-right">BalanceMonitor v1.0</div>
+    <div class="sb-pane" id="sb-operators"></div>
+    <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name">👤 <span id="sb-opname">Set name…</span></div>
   </div>
 </div><!-- /#win -->
 
@@ -801,6 +810,22 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmResetToday()">Yes, Reset</button>
       <button class="tbtn" style="min-width:72px" onclick="closeResetConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Operator Name Dialog -->
+<div id="operator-dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center">
+  <div class="win-dialog" style="min-width:300px">
+    <div class="dlg-tb"><span>👤 Operator Identity</span></div>
+    <div style="padding:14px">
+      <div style="font-size:11px;margin-bottom:8px">Enter your name so other operators can see who acknowledged alerts:</div>
+      <input class="win-inp" id="operator-name-inp" type="text" placeholder="Your name…" style="width:100%;margin-bottom:12px" maxlength="30"
+        onkeydown="if(event.key==='Enter')setOperatorName()">
+      <div style="display:flex;justify-content:flex-end;gap:4px">
+        <button class="tbtn primary" style="min-width:60px" onclick="setOperatorName()">OK</button>
+        <button class="tbtn" onclick="skipOperatorName()">Skip</button>
+      </div>
     </div>
   </div>
 </div>
@@ -884,6 +909,8 @@ try {
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let prevDaySnap = null; // last snapshot from the previous session day
+let operatorName = localStorage.getItem('bm_operator') || '';
+let ackMap = {}; // carrier_name → { operator, time }
 let alertFilter = 'all', clientFilter = 'all', showInactive = false, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
@@ -894,6 +921,7 @@ let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wCh
 
 const COLS = [
   { key:'idx',             lbl:'#',               vis:true },
+  { key:'_eta',            lbl:'ETA',             vis:true },
   { key:'carrier_name',    lbl:'Carrier Name',    vis:true },
   { key:'notes',           lbl:'Notes',           vis:true },
   { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:true },
@@ -1129,6 +1157,30 @@ function alertLevel(row) {
 }
 function levelOrd(l) { return {high:3, light:2, none:0}[l] ?? 0; }
 
+/* ETA — how many minutes until this client hits Critical Balance at current burn rate */
+function etaMinutes(row) {
+  const meta = clientsMeta[row.carrier_name] || {};
+  const critBal = getThreshold(meta, row, 'critical_balance', S.mediumMax);
+  const bal     = row.amnt_receivable ?? 0;
+  const u30     = row.usage_30min ?? 0;
+  if (u30 <= 0 || critBal === null || bal >= critBal) return null;
+  const remaining = critBal - bal;
+  if (remaining <= 0) return null;
+  return Math.round((remaining / u30) * 30);
+}
+function fmtEta(mins) {
+  if (mins === null) return '—';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+function etaColor(mins) {
+  if (mins === null) return '#999';
+  if (mins < 60)  return '#cc0000';
+  if (mins < 120) return '#cc6600';
+  return '#886600';
+}
+
 /* ════════════════════════════════════════════════
    NEW CRITICAL DETECTION
 ════════════════════════════════════════════════ */
@@ -1223,6 +1275,7 @@ window.processSnapshot = async() => {
     if(fbOk) await addDoc(collection(db,'snapshots'),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
     latestSnap=snap; todaySnaps.push(snap); viewingIdx=null;
     document.getElementById('snap-ta').value='';
+    clearAcks(); // new snapshot = fresh slate for acknowledgments
     refreshAll();
     checkAndNotify(data, true); // fire all 4 alert effects for new snapshot
     toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
@@ -1253,6 +1306,89 @@ window.undoLastSnapshot = async () => {
 /* ════════════════════════════════════════════════
    RESET TODAY
 ════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════
+   OPERATOR IDENTITY & PRESENCE
+════════════════════════════════════════════════ */
+window.showOperatorDialog = () => {
+  const dlg = document.getElementById('operator-dlg');
+  dlg.style.display = 'flex';
+  const inp = document.getElementById('operator-name-inp');
+  inp.value = operatorName;
+  setTimeout(() => inp.focus(), 50);
+};
+window.skipOperatorName = () => {
+  document.getElementById('operator-dlg').style.display = 'none';
+};
+window.setOperatorName = () => {
+  const v = document.getElementById('operator-name-inp').value.trim();
+  if (!v) return;
+  operatorName = v;
+  localStorage.setItem('bm_operator', v);
+  document.getElementById('operator-dlg').style.display = 'none';
+  document.getElementById('sb-opname').textContent = v;
+  updatePresence();
+};
+
+async function updatePresence() {
+  if (!fbOk || !operatorName) return;
+  try {
+    const id = operatorName.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    await setDoc(doc(db,'presence',id), { operator:operatorName, last_seen:Timestamp.now(), session_date:todayStr() }, { merge:true });
+  } catch(e) {}
+}
+
+function subscribePresence() {
+  if (!fbOk) return;
+  try {
+    onSnapshot(collection(db,'presence'), snap => {
+      const cutoff = new Date(Date.now() - 5*60*1000);
+      const others = snap.docs.map(d=>d.data())
+        .filter(d => d.operator !== operatorName && d.last_seen?.toDate() > cutoff);
+      const el = document.getElementById('sb-operators');
+      if (el) el.textContent = others.length ? `👥 Also online: ${others.map(o=>o.operator).join(', ')}` : '';
+    });
+  } catch(e) {}
+}
+
+/* ════════════════════════════════════════════════
+   ALERT ACKNOWLEDGMENT
+════════════════════════════════════════════════ */
+window.acknowledgeAlert = async name => {
+  if (!operatorName) { showOperatorDialog(); return; }
+  const entry = { operator: operatorName, time: new Date() };
+  ackMap[name] = entry;
+  if (document.getElementById('view-alerts').classList.contains('active')) renderAlerts();
+  if (fbOk) {
+    try {
+      const id = name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+      await setDoc(doc(db,'acknowledgments',id), { carrier_name:name, operator:operatorName, ack_time:Timestamp.now(), snap_slot:latestSnap?.time_slot||'' });
+    } catch(e) { toast('Ack failed: '+e.message,'err'); }
+  }
+};
+
+function subscribeAcks() {
+  if (!fbOk) return;
+  try {
+    onSnapshot(collection(db,'acknowledgments'), snap => {
+      ackMap = {};
+      snap.docs.forEach(d => { const dd=d.data(); ackMap[dd.carrier_name]={ operator:dd.operator, time:dd.ack_time?.toDate()||new Date() }; });
+      if (document.getElementById('view-alerts').classList.contains('active')) renderAlerts();
+    });
+  } catch(e) {}
+}
+
+async function clearAcks() {
+  ackMap = {};
+  if (!fbOk) return;
+  try {
+    const s = await getDocs(collection(db,'acknowledgments'));
+    if (!s.docs.length) return;
+    const batch = writeBatch(db);
+    s.docs.forEach(d => batch.delete(doc(db,'acknowledgments',d.id)));
+    await batch.commit();
+  } catch(e) {}
+}
+
 window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
 window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
 
@@ -1570,10 +1706,12 @@ function renderAlerts() {
       ...r,
       _level: level,
       _isNew,
+      _eta:  etaMinutes(r),
+      _ack:  ackMap[r.carrier_name] || null,
       notes: r.notes||meta.notes||'',
       credit_limit: credLim,
       critical_balance: critBal,
-      _inactive: meta.is_active===false,
+      _inactive: isClientInactive(meta),
     };
   });
 
@@ -1590,6 +1728,7 @@ function renderAlerts() {
   rows.sort((a,b)=>{
     let av=a[alertSortCol],bv=b[alertSortCol];
     if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
+    if(alertSortCol==='_eta'){av=a._eta??Infinity;bv=b._eta??Infinity;}
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
@@ -1599,12 +1738,12 @@ function renderAlerts() {
 
   // Header note for 'new' filter — explain what "new" means
   const noPrevNote = alertFilter==='new' && prevCritSet===null
-    ? `<tr><td colspan="7" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+    ? `<tr><td colspan="9" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
   const usingYestNote = alertFilter==='new' && prevDaySnap && prevSnap === prevDaySnap
-    ? `<tr><td colspan="7" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
+    ? `<tr><td colspan="9" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
         📅 Comparing against yesterday's last snapshot — ${prevDaySnap.session_date} · ${fmt12(prevDaySnap.time_slot)}
        </td></tr>` : '';
 
@@ -1620,7 +1759,13 @@ function renderAlerts() {
     }
     const[cls,lbl]=chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
-    return `<tr class="${r._isNew?'row-new-crit':''}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
+    const etaMins  = r._eta;
+    const etaTxt   = etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
+    const ackCell  = r._ack
+      ? `<span style="font-size:10px;color:#006600;white-space:nowrap">✓ ${esc(r._ack.operator)}<br><span style="color:#888">${fmt12(r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0'))}</span></span>`
+      : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">✓ Ack</button>`;
+    const rowClass = [r._isNew?'row-new-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':''].filter(Boolean).join(' ');
+    return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
@@ -1630,9 +1775,11 @@ function renderAlerts() {
         <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(0)}%</span>
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}</td>
+      <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
+      <td style="text-align:center">${ackCell}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
 
@@ -1698,6 +1845,7 @@ window.renderClients=()=>{
       if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
       if(c.key==='_meta_critbal') return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+      if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
       const v=r[c.key],isN=typeof v==='number';
       return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
@@ -1986,6 +2134,9 @@ function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'
 ════════════════════════════════════════════════ */
 async function init(){
   loadSettings(); populateSlots(); renderWizard(); renderClients();
+  // operator identity
+  if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
+  else showOperatorDialog();
   // Silently request notification permission on first load
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
@@ -2008,7 +2159,11 @@ async function init(){
     toast('Firebase not configured — demo mode. Fill in firebaseConfig to connect.','',8000);
     setSbStatus('Demo mode — Firebase not configured');
   }
-  setInterval(populateSlots,60000);
+  setInterval(populateSlots, 60000);
+  setInterval(updatePresence, 60000); // heartbeat every minute
+  updatePresence();
+  subscribePresence();
+  subscribeAcks();
 }
 
 init();
