@@ -849,7 +849,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc,
-  query, orderBy, where, onSnapshot, Timestamp, writeBatch
+  query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -872,6 +872,7 @@ try {
    STATE
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
+let prevDaySnap = null; // last snapshot from the previous session day
 let alertFilter = 'all', clientFilter = 'all', showInactive = false, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
@@ -1119,10 +1120,13 @@ function levelOrd(l) { return {high:3, light:2, none:0}[l] ?? 0; }
    NEW CRITICAL DETECTION
 ════════════════════════════════════════════════ */
 function getPrevSnapshot() {
-  // When viewing a past snap → compare against the one before it
-  // When on live view       → compare latest against second-to-last
-  if (viewingIdx !== null) return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : null;
-  return todaySnaps.length >= 2 ? todaySnaps[todaySnaps.length - 2] : null;
+  if (viewingIdx !== null) {
+    // viewing a past snap: compare against the one before it, or yesterday if it's the first today
+    return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : prevDaySnap;
+  }
+  if (todaySnaps.length >= 2) return todaySnaps[todaySnaps.length - 2];
+  if (todaySnaps.length === 1) return prevDaySnap; // first snap of the day → compare vs yesterday's last
+  return null;
 }
 function getPrevCriticalSet() {
   const prev = getPrevSnapshot();
@@ -1381,6 +1385,24 @@ async function loadSnaps() {
     if(todaySnaps.length) latestSnap=todaySnaps[todaySnaps.length-1];
   } catch(e){console.warn('loadSnaps:',e);}
 }
+async function loadPrevDaySnap() {
+  if (!fbOk) return;
+  try {
+    const d = new Date(); d.setDate(d.getDate() - 1);
+    const yest = d.toISOString().slice(0, 10);
+    const q = query(
+      collection(db, 'snapshots'),
+      where('session_date', '==', yest),
+      orderBy('time_slot', 'desc'),
+      limit(1)
+    );
+    const s = await getDocs(q);
+    if (s.docs.length) {
+      prevDaySnap = { id: s.docs[0].id, ...s.docs[0].data(), timestamp: s.docs[0].data().timestamp?.toDate() };
+    }
+  } catch(e) { console.warn('loadPrevDaySnap:', e); }
+}
+
 async function loadClients() {
   if(!fbOk) return;
   try {
@@ -1547,8 +1569,13 @@ function renderAlerts() {
     ? `<tr><td colspan="7" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
+  const prevSnap = getPrevSnapshot();
+  const usingYestNote = alertFilter==='new' && prevDaySnap && prevSnap === prevDaySnap
+    ? `<tr><td colspan="7" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
+        📅 Comparing against yesterday's last snapshot — ${prevDaySnap.session_date} · ${fmt12(prevDaySnap.time_slot)}
+       </td></tr>` : '';
 
-  document.getElementById('alert-tbody').innerHTML= noPrevNote + page.map(r=>{
+  document.getElementById('alert-tbody').innerHTML= noPrevNote + usingYestNote + page.map(r=>{
     const critBal = r.critical_balance;
     const credLim = r.credit_limit;
     const bal     = r.amnt_receivable;
@@ -1931,7 +1958,7 @@ async function init(){
     Notification.requestPermission();
   }
   setLoading(true,'Connecting to Firestore…');
-  await Promise.all([loadSnaps(),loadClients()]);
+  await Promise.all([loadSnaps(), loadPrevDaySnap(), loadClients()]);
   setLoading(false);
   refreshAll();
   if(fbOk){
