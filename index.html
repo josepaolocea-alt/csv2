@@ -693,9 +693,6 @@
       <div class="view" id="view-all-clients">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title" id="clients-title">👥 All Clients</div>
-          <div id="clients-debug" style="font-size:10px;color:#444;background:#fff;border-top:1px solid #808080;border-left:1px solid #808080;border-right:1px solid #fff;border-bottom:1px solid #fff;padding:3px 5px;margin-bottom:4px">
-            Waiting for snapshot data...
-          </div>
           <div class="fbar">
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
@@ -1111,6 +1108,10 @@ function loadSettings() {
   document.getElementById('set-pin-enabled').checked = S.pinEnabled;
 }
 function loadLastProcessedSnap() {
+  if (fbOk) {
+    try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+    return;
+  }
   try {
     const v = localStorage.getItem('bm_last_processed_snap');
     if (!v) return;
@@ -1906,7 +1907,7 @@ window.closeClientDetail = () => {
   _editingClient = null;
 };
 
-window.confirmResetToday = async () => {
+async function confirmResetTodayLegacy() {
   closeResetConfirm();
   if (!todaySnaps.length) { toast('Nothing to reset — no snapshots today.', 'err'); return; }
   setLoading(true, 'Resetting today\'s data…');
@@ -2058,23 +2059,6 @@ function allClientRows() {
   const rowsByName = new Map();
   activeData().forEach(r => {
     if (r?.carrier_name) rowsByName.set(r.carrier_name, r);
-  });
-  Object.entries(clientsMeta).forEach(([name, meta]) => {
-    const carrierName = meta?.carrier_name || name;
-    if (!carrierName || rowsByName.has(carrierName)) return;
-    rowsByName.set(carrierName, {
-      carrier_name: carrierName,
-      notes: meta?.notes || '',
-      credit_limit: meta?.credit_limit ?? 0,
-      critical_balance: meta?.critical_balance ?? 0,
-      prev_balance: 0,
-      pay_adj: 0,
-      current_usage: 0,
-      amnt_receivable: 0,
-      usage_30min: 0,
-      total_usage: 0,
-      _metaOnly: true
-    });
   });
   return Array.from(rowsByName.values());
 }
