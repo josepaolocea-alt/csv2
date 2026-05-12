@@ -2346,7 +2346,7 @@ function nearTarget(row) {
 
 function isDebitBalance(row) {
   const bal = Number(row.amnt_receivable);
-  return Number.isFinite(bal) && bal > 0;
+  return Number.isFinite(bal) && bal < 0;
 }
 
 function clientMetaFor(name) {
