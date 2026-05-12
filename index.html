@@ -221,7 +221,7 @@
       background: #fff;
       border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      overflow: auto; flex: 1;
+      overflow: auto; flex: 1; min-height: 180px;
     }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th {
@@ -721,6 +721,7 @@
               <tbody id="clients-tbody"></tbody>
             </table>
           </div>
+          <div id="clients-fallback-list" style="display:none;background:#fff;border-top:1px solid #808080;border-left:1px solid #808080;border-right:1px solid #fff;border-bottom:1px solid #fff;margin-top:4px;max-height:260px;overflow:auto;font-size:11px"></div>
           <div class="pager" id="clients-pager"></div>
         </div>
       </div>
@@ -1662,8 +1663,10 @@ window.processSnapshot = async() => {
   clientFilter='all'; clientPage=0; showInactive=true;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
-  const showBtn=document.getElementById('btn-show-inactive');
-  if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
+    const showBtn=document.getElementById('btn-show-inactive');
+    if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
+    const search=document.getElementById('clients-search');
+    if(search) search.value='';
   try { localStorage.setItem('bm_last_processed_snap', JSON.stringify(snap)); } catch(e) {}
   document.getElementById('snap-ta').value='';
   clearAcks();
@@ -2360,8 +2363,14 @@ function clientCell(r,c,rowNum){
 window.renderClients=()=>{
   const thead=document.getElementById('clients-thead');
   const tbody=document.getElementById('clients-tbody');
+  const fallback=document.getElementById('clients-fallback-list');
   if(!thead||!tbody) return;
+  if(!COLS.some(c=>c.vis)) {
+    const carrierCol = COLS.find(c=>c.key==='carrier_name');
+    if(carrierCol) carrierCol.vis = true;
+  }
   const vc=COLS.filter(c=>c.vis);
+  if(fallback) fallback.style.display='none';
   try {
     const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
     const sourceRows = allClientRows();
@@ -2394,6 +2403,9 @@ window.renderClients=()=>{
     const pages=Math.max(1,Math.ceil(rows.length/PG));
     clientPage=Math.min(clientPage,pages-1);
     const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
+    if(debug) {
+      debug.innerHTML += ` Â· afterFilter=${rows.length} page=${page.length} cols=${vc.length} search="${esc(search)}" filter=${clientFilter}`;
+    }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
     tbody.innerHTML=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
@@ -2402,12 +2414,23 @@ window.renderClients=()=>{
     }).join('')||(sourceRows.length===0
       ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
       : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
+    if(page.length && fallback) {
+      fallback.innerHTML = page.slice(0,100).map((r,ri)=>
+        `<div style="display:grid;grid-template-columns:42px 1fr 120px 110px;gap:8px;padding:3px 6px;border-bottom:1px solid #e8e8e8">
+          <span style="color:#888">${clientPage*PG+ri+1}</span>
+          <strong>${esc(r.carrier_name)}</strong>
+          <span style="text-align:right;font-family:'Courier New',monospace">${fmt(r.amnt_receivable)}</span>
+          <span style="text-align:right;font-family:'Courier New',monospace">${fmt(r.usage_30min)}</span>
+        </div>`).join('');
+      fallback.style.display='block';
+    }
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
     buildColDD();
   } catch(e) {
     console.error('renderClients failed:', e);
     thead.innerHTML=vc.map(c=>`<th>${c.lbl}</th>`).join('');
     tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#880000">All Clients render error: ${esc(e.message||e)}</td></tr>`;
+    if(fallback) fallback.style.display='none';
   }
 };
 
