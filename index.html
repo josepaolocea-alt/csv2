@@ -1102,6 +1102,7 @@ try {
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let prevDaySnap = null; // last snapshot from the previous session day
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
+let comparisonSnapOverride = null; // previous snapshot captured before same-slot overwrite
 let snapsLoaded = false, snapsReadyResolve = null;
 const snapsReadyPromise = new Promise(resolve => { snapsReadyResolve = resolve; });
 let operatorName = localStorage.getItem('bm_operator') || '';
@@ -1537,6 +1538,7 @@ function getPrevSnapshot() {
     // viewing a past snap: compare against the one before it, or yesterday if it's the first today
     return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : prevDaySnap;
   }
+  if (comparisonSnapOverride?.data?.length) return comparisonSnapOverride;
   if (todaySnaps.length >= 2) return todaySnaps[todaySnaps.length - 2];
   if (todaySnaps.length === 1) return prevDaySnap; // first snap of the day → compare vs yesterday's last
   return null;
@@ -1750,6 +1752,7 @@ window.processSnapshot = async() => {
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
+  comparisonSnapOverride = latestSnap?.data?.length ? latestSnap : getPrevSnapshot();
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
   latestSnap=snap; lastProcessedSnap=snap; todaySnaps=normalizeTodaySnaps([...todaySnaps, snap]); viewingIdx=null;
   clientFilter='all'; clientPage=0; showInactive=true;
