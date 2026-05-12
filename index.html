@@ -1102,9 +1102,6 @@ try {
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let prevDaySnap = null; // last snapshot from the previous session day
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
-let comparisonSnapOverride = null; // previous snapshot captured before same-slot overwrite
-let snapsLoaded = false, snapsReadyResolve = null;
-const snapsReadyPromise = new Promise(resolve => { snapsReadyResolve = resolve; });
 let operatorName = localStorage.getItem('bm_operator') || '';
 let ackMap = {}; // carrier_name → { operator, time }
 let alertFilter = 'all', clientFilter = 'all', showInactive = true, alertShowInactive = false;
@@ -1443,7 +1440,7 @@ function checkAndNotify(data, isNewSnapshot = false) {
   if (isNewSnapshot && hasCritical) {
     // Determine if any are newly critical (not in previous snapshot)
     const prevCritSet = getPrevCriticalSet();
-    const newlyCritical = prevCritSet === null ? [] : critical.filter(r => !prevCritSet.has(r.carrier_name));
+    const newlyCritical = critical.filter(r => prevCritSet === null || !prevCritSet.has(r.carrier_name));
 
     // 2. Sound alert
     if (S.soundAlert) playAlertSound();
@@ -1538,7 +1535,6 @@ function getPrevSnapshot() {
     // viewing a past snap: compare against the one before it, or yesterday if it's the first today
     return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : prevDaySnap;
   }
-  if (comparisonSnapOverride?.data?.length) return comparisonSnapOverride;
   if (todaySnaps.length >= 2) return todaySnaps[todaySnaps.length - 2];
   if (todaySnaps.length === 1) return prevDaySnap; // first snap of the day → compare vs yesterday's last
   return null;
@@ -1547,18 +1543,6 @@ function getPrevCriticalSet() {
   const prev = getPrevSnapshot();
   if (!prev) return null; // null = no prior reference this session
   return new Set(prev.data.filter(r => alertLevel(r) === 'high').map(r => r.carrier_name));
-}
-function markSnapsLoaded() {
-  snapsLoaded = true;
-  if (snapsReadyResolve) { snapsReadyResolve(); snapsReadyResolve = null; }
-}
-async function waitForSnapsLoaded() {
-  if (!fbOk || snapsLoaded) return;
-  setLoading(true, 'Loading existing snapshots...');
-  await Promise.race([
-    snapsReadyPromise,
-    new Promise(resolve => setTimeout(resolve, 5000))
-  ]);
 }
 function updateNewCriticalTab(newCount) {
   const tab = document.getElementById('tab-new-critical');
@@ -1746,13 +1730,11 @@ window.processSnapshot = async() => {
     toast(`No valid data found. Header line ${lastParseInfo.headerLine||1}, parsed ${lastParseInfo.parsedRows||0} row(s), accepted 0 client row(s).`,'err',7000);
     return;
   }
-  await waitForSnapsLoaded();
   const timeSlot=document.getElementById('slot-sel').value;
   const prevMap={};
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
-  comparisonSnapOverride = latestSnap?.data?.length ? latestSnap : getPrevSnapshot();
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
   latestSnap=snap; lastProcessedSnap=snap; todaySnaps=normalizeTodaySnaps([...todaySnaps, snap]); viewingIdx=null;
   clientFilter='all'; clientPage=0; showInactive=true;
@@ -2330,8 +2312,8 @@ function renderAlerts() {
     const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
     const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
     const level   = alertLevel(r);
-    // _isNew: critical now and not critical in the prior reference snapshot.
-    const _isNew  = level==='high' && prevCritSet!==null && !prevCritSet.has(r.carrier_name);
+    // _isNew: critical NOW and either no prior snapshot OR was not critical before
+    const _isNew  = level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
     return {
       ...r,
       _level: level,
@@ -2370,7 +2352,7 @@ function renderAlerts() {
   // Header note for 'new' filter — explain what "new" means
   const noPrevNote = alertFilter==='new' && prevCritSet===null
     ? `<tr><td colspan="9" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
-        ⓘ No previous snapshot to compare — New Critical will appear after the next snapshot.
+        ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
   const usingYestNote = alertFilter==='new' && prevDaySnap && prevSnap === prevDaySnap
@@ -3263,7 +3245,6 @@ async function init(){
       const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
       onSnapshot(q,snap=>{
         todaySnaps=normalizeTodaySnaps(snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
-        markSnapsLoaded();
         if(todaySnaps.length&&viewingIdx===null) {
           const loadedLatest=todaySnaps[todaySnaps.length-1];
           latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
@@ -3273,9 +3254,8 @@ async function init(){
         }
         refreshAll();
       });
-    }catch(e){console.warn('onSnapshot:',e); markSnapsLoaded();}
+    }catch(e){console.warn('onSnapshot:',e);}
   } else {
-    markSnapsLoaded();
     toast('Firebase not configured — demo mode. Fill in firebaseConfig to connect.','',8000);
     setSbStatus('Demo mode — Firebase not configured');
   }
