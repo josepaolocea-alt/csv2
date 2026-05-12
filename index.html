@@ -699,7 +699,7 @@
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" onclick="setClientsFilter('near',this)">Near target</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
-            <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Show inactive</button>
+            <button class="tbtn active" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
             <input class="win-search" id="clients-search" type="text" placeholder="Search carrier…" oninput="renderClients()">
             <div class="col-wrap">
               <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
@@ -1035,7 +1035,7 @@ let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let prevDaySnap = null; // last snapshot from the previous session day
 let operatorName = localStorage.getItem('bm_operator') || '';
 let ackMap = {}; // carrier_name → { operator, time }
-let alertFilter = 'all', clientFilter = 'all', showInactive = false, alertShowInactive = false;
+let alertFilter = 'all', clientFilter = 'all', showInactive = true, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
@@ -2085,7 +2085,7 @@ window.clientPageTo=p=>{clientPage=p;renderClients();};
 window.toggleShowInactive=()=>{
   showInactive=!showInactive;
   const btn=document.getElementById('btn-show-inactive');
-  if(btn) btn.classList.toggle('active',showInactive);
+  if(btn) { btn.classList.toggle('active',showInactive); btn.textContent=showInactive?'Hide inactive':'Show inactive'; }
   renderClients();
 };
 window.toggleAlertShowInactive=()=>{
