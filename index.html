@@ -1002,6 +1002,28 @@
 <!-- Toasts -->
 <div id="toasts"></div>
 
+<script>
+window.addEventListener('error', function(e) {
+  const tbody = document.getElementById('clients-tbody');
+  const thead = document.getElementById('clients-thead');
+  if (!tbody || !document.getElementById('view-all-clients')?.classList.contains('active')) return;
+  if (thead && !thead.innerHTML) thead.innerHTML = '<th>Runtime Error</th>';
+  tbody.innerHTML = '<tr><td style="padding:16px;color:#880000;text-align:center">Runtime error: ' +
+    String(e.message || e.error || e).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) +
+    '</td></tr>';
+});
+window.addEventListener('unhandledrejection', function(e) {
+  const tbody = document.getElementById('clients-tbody');
+  const thead = document.getElementById('clients-thead');
+  if (!tbody || !document.getElementById('view-all-clients')?.classList.contains('active')) return;
+  const reason = e.reason?.message || e.reason || 'Promise rejected';
+  if (thead && !thead.innerHTML) thead.innerHTML = '<th>Runtime Error</th>';
+  tbody.innerHTML = '<tr><td style="padding:16px;color:#880000;text-align:center">Runtime error: ' +
+    String(reason).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) +
+    '</td></tr>';
+});
+</script>
+
 <script type="module">
 /* ════════════════════════════════════════════════
    FIREBASE INIT
@@ -1148,8 +1170,8 @@ window.switchView = name => {
   document.getElementById('snav-'+name)?.classList.add('active');
   setSbStatus('Viewing: '+name.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()));
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); }
-  if (name==='all-clients')   renderClients();
-  if (name==='client-manager'){ renderWizard(); renderImpHist(); }
+  if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
+  if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
 };
 
 window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
@@ -1377,7 +1399,7 @@ function checkAndNotify(data, isNewSnapshot = false) {
     if (S.browserNotif) sendCriticalNotification(newlyCritical.length ? newlyCritical : critical);
 
     // 4. Auto-switch: prefer 🆕 New Critical tab if there are new ones, else 🔴 Critical
-    switchView('alerts');
+    window.switchView('alerts');
     if (newlyCritical.length > 0) {
       const newTab = document.getElementById('tab-new-critical');
       if (newTab) setAlertFilter('new', newTab);
@@ -1553,27 +1575,54 @@ function fallbackParseDelimited(text, delim) {
   return { data };
 }
 
+const SNAPSHOT_FIELD_ORDER = [
+  'carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay',
+  'inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','is_active'
+];
+
+function fallbackParseHeaderless(text, delim) {
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  return { data: lines.map(line=>{
+    const vals=splitDelimitedLine(line, delim);
+    const row={};
+    SNAPSHOT_FIELD_ORDER.forEach((h,i)=>{ row[h]=vals[i] ?? ''; });
+    return row;
+  }) };
+}
+
+function isSnapshotHeaderLine(line) {
+  const norm = normHeaderKey(line);
+  const compact = norm.replace(/\s+/g, '');
+  const hasClient = /(carriername|clientname|customername)/.test(compact) || /\b(carrier|client|customer|name)\b/.test(norm);
+  const hasBalance = /(amntreceivable|amountreceivable|amtreceivable|currentbalance)/.test(compact) ||
+    /\b(amnt receivable|amount receivable|amt receivable|receivable|current balance|balance)\b/.test(norm);
+  return hasClient && hasBalance;
+}
+
 function findSnapshotHeaderLine(lines) {
-  const isHeader = line => {
-    const norm = normHeaderKey(line);
-    const hasClient = /\b(carrier|client|customer|name)\b/.test(norm);
-    const hasBalance = /\b(amnt receivable|amount receivable|amt receivable|receivable|current balance|balance)\b/.test(norm);
-    return hasClient && hasBalance;
-  };
-  const idx = lines.findIndex(isHeader);
+  return lines.findIndex(isSnapshotHeaderLine);
+}
+
+function findFirstDataLine(lines, delim) {
+  const idx=lines.findIndex(line => splitDelimitedLine(line, delim).filter(v=>v.trim() !== '').length >= 4);
   return idx >= 0 ? idx : 0;
 }
 
 function parseText(text) {
   text=text.trim(); if(!text) return null;
   const lines=text.split(/\r?\n/);
-  const headerLine=findSnapshotHeaderLine(lines);
+  const globalDelim=text.includes('\t')?'\t':',';
+  const foundHeaderLine=findSnapshotHeaderLine(lines);
+  const hasHeader=foundHeaderLine >= 0;
+  const headerLine=hasHeader ? foundHeaderLine : findFirstDataLine(lines, globalDelim);
   const parseText=lines.slice(headerLine).join('\n');
   const first=parseText.split(/\r?\n/)[0] || '';
-  const delim=first.includes('\t')?'\t':',';
-  const res=window.Papa?.parse
+  const delim=first.includes('\t')?'\t':globalDelim;
+  const res=hasHeader && window.Papa?.parse
     ? window.Papa.parse(parseText,{header:true,delimiter:delim,skipEmptyLines:true,transformHeader:h=>h.trim()})
-    : fallbackParseDelimited(parseText, delim);
+    : hasHeader
+      ? fallbackParseDelimited(parseText, delim)
+      : fallbackParseHeaderless(parseText, delim);
   if(!res.data?.length) return null;
   const mapped = res.data.map(raw=>{
     const row={};
@@ -1607,11 +1656,16 @@ window.processSnapshot = async() => {
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
   latestSnap=snap; lastProcessedSnap=snap; todaySnaps.push(snap); viewingIdx=null;
+  clientFilter='all'; clientPage=0; showInactive=true;
+  document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
+  const showBtn=document.getElementById('btn-show-inactive');
+  if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
   try { localStorage.setItem('bm_last_processed_snap', JSON.stringify(snap)); } catch(e) {}
   document.getElementById('snap-ta').value='';
   clearAcks();
   refreshAll();
-  checkAndNotify(data, true);
+  safeRender('Snapshot notifications', () => checkAndNotify(data, true));
   if(fbOk){
     setLoading(true,'Saving to Firestore…');
     try {
@@ -1975,11 +2029,22 @@ function allClientRows() {
   return Array.from(rowsByName.values());
 }
 
+function safeRender(label, fn) {
+  try { fn(); }
+  catch(e) {
+    console.error(`${label} failed:`, e);
+    setSbStatus(`${label} error: ${e.message || e}`);
+  }
+}
+
 function refreshAll() {
-  updateSync(); renderStats(); renderTimeline(); renderShiftSummary();
-  if(document.getElementById('view-alerts').classList.contains('active'))      renderAlerts();
-  if(document.getElementById('view-all-clients').classList.contains('active')) renderClients();
-  checkAndNotify(activeData(), false); // keep tab flash in sync on every refresh
+  safeRender('Sync', updateSync);
+  safeRender('Stats', renderStats);
+  safeRender('Timeline', renderTimeline);
+  safeRender('Shift summary', renderShiftSummary);
+  if(document.getElementById('view-alerts').classList.contains('active'))      safeRender('Alerts', renderAlerts);
+  if(document.getElementById('view-all-clients').classList.contains('active')) safeRender('All Clients', window.renderClients);
+  safeRender('Notifications', () => checkAndNotify(activeData(), false)); // keep tab flash in sync on every refresh
 }
 
 function updateSync() {
@@ -2193,19 +2258,19 @@ function isClientInactive(meta) {
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');renderClients();
+  btn.classList.add('active');window.renderClients();
 };
 window.sortClients=col=>{
   clientSortDir=clientSortCol===col?clientSortDir*-1:1;
-  clientSortCol=col;renderClients();
+  clientSortCol=col;window.renderClients();
 };
-window.clientPageTo=p=>{clientPage=p;renderClients();};
+window.clientPageTo=p=>{clientPage=p;window.renderClients();};
 
 window.toggleShowInactive=()=>{
   showInactive=!showInactive;
   const btn=document.getElementById('btn-show-inactive');
   if(btn) { btn.classList.toggle('active',!showInactive); btn.textContent=showInactive?'Hide inactive':'Show inactive'; }
-  renderClients();
+  window.renderClients();
 };
 window.resetClientsFilter=()=>{
   clientFilter='all'; clientPage=0; showInactive=true;
@@ -2214,7 +2279,7 @@ window.resetClientsFilter=()=>{
   const btn=document.getElementById('btn-show-inactive');
   if(btn){btn.classList.remove('active');btn.textContent='Hide inactive';}
   const s=document.getElementById('clients-search');if(s)s.value='';
-  renderClients();
+  window.renderClients();
 };
 window.toggleAlertShowInactive=()=>{
   alertShowInactive=!alertShowInactive;
@@ -2341,7 +2406,7 @@ function buildColDD(){
     `<div class="col-item" onclick="toggleCol(${i})"><input type="checkbox" ${c.vis?'checked':''} onclick="event.stopPropagation();toggleCol(${i})"> ${esc(c.lbl)}</div>`
   ).join('');
 }
-window.toggleCol=i=>{COLS[i].vis=!COLS[i].vis;renderClients();};
+window.toggleCol=i=>{COLS[i].vis=!COLS[i].vis;window.renderClients();};
 window.toggleColDD=()=>document.getElementById('col-dd').classList.toggle('open');
 document.addEventListener('click',e=>{
   const dd=document.getElementById('col-dd');
@@ -2486,7 +2551,7 @@ window.applyMapping=()=>{
   wMapping={};
   wHeaders.forEach((h,i)=>{const s=document.getElementById('wm'+i);if(s?.value&&s.value!=='(skip)')wMapping[h]=s.value;});
   if(!Object.values(wMapping).includes('carrier_name')){toast('carrier_name mapping is required','err');return;}
-  buildDiff();wStep=3;renderWizard();
+  buildDiff();wStep=3;window.renderWizard();
 };
 let wUnchanged=[];  // tracks clients already in Firestore with identical data
 function buildDiff(){
@@ -2527,7 +2592,7 @@ function buildDiff(){
     }
   });
 }
-window.checkAll=chk=>{wChanges.forEach(c=>{if(wDiffF==='all'||c.type.toLowerCase()===wDiffF)wChecked[c._id]=chk.checked;});renderWizard();};
+window.checkAll=chk=>{wChanges.forEach(c=>{if(wDiffF==='all'||c.type.toLowerCase()===wDiffF)wChecked[c._id]=chk.checked;});window.renderWizard();};
 window.saveWizard=async()=>{
   const toSave=wChanges.filter(c=>wChecked[c._id]!==false);
   if(!toSave.length){toast('No changes selected','err');return;}
@@ -2556,7 +2621,7 @@ window.saveWizard=async()=>{
     const unchangedMsg=wUnchanged.length?` · ${wUnchanged.length} already up-to-date`:'';
     toast(`✓ ${nNew} new · ${nUpd} updated · ${nRem} removed${unchangedMsg}`,'ok');
     wStep=1;wCsvData=null;wChanges=[];wHeaders=[];wUnchanged=[];wFilename='';
-    renderWizard();renderImpHist();refreshAll();
+    window.renderWizard();renderImpHist();refreshAll();
   }catch(e){toast('Save failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
@@ -2626,13 +2691,13 @@ window.toggleBulkEdit = () => {
   bulkEditMode = !bulkEditMode; bulkEdits = {};
   document.getElementById('btn-bulk-edit').classList.toggle('active', bulkEditMode);
   document.getElementById('bulk-save-bar').classList.remove('visible');
-  renderClients();
+  window.renderClients();
 };
 window.cancelBulkEdit = () => {
   bulkEditMode = false; bulkEdits = {};
   document.getElementById('btn-bulk-edit').classList.remove('active');
   document.getElementById('bulk-save-bar').classList.remove('visible');
-  renderClients();
+  window.renderClients();
 };
 window.setBulkEdit = (name, field, val) => {
   if (!bulkEdits[name]) bulkEdits[name] = {};
@@ -2836,7 +2901,7 @@ window.confirmRollback = async () => {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadLastProcessedSnap(); checkPin(); populateSlots(); renderWizard(); renderClients();
+  loadSettings(); loadLastProcessedSnap(); checkPin(); populateSlots(); window.renderWizard(); window.renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
