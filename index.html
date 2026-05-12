@@ -458,9 +458,9 @@
     #settings-dlg.open { display: block; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open { display: flex; }
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open { display: flex; }
     #confirm-box, #undo-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
@@ -938,6 +938,25 @@
   </div>
 </div>
 
+<!-- Rollback Import Dialog -->
+<div id="rollback-overlay">
+  <div id="rollback-box" style="background:#c0c0c0;min-width:280px;max-width:360px;border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #404040;border-bottom:2px solid #404040;box-shadow:4px 4px 10px rgba(0,0,0,.6)">
+    <div class="dlg-tb"><span>↩ Rollback Import</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">↩</div>
+      <div class="dlg-text">
+        <strong>Undo this import?</strong><br><br>
+        <span id="rollback-dlg-info"></span><br><br>
+        <span style="color:#880000">Client data will be restored to its state before this import. This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmRollback()">Yes, Rollback</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeRollbackConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- Client Detail Popup -->
 <div id="client-detail-overlay">
   <div id="client-detail-box">
@@ -990,7 +1009,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc,
-  query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit
+  query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1022,7 +1041,7 @@ let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
 
-let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all';
+let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
 const COLS = [
   { key:'idx',             lbl:'#',               vis:true },
@@ -1079,8 +1098,12 @@ window.saveSettings = () => {
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
   S.pinEnabled    = document.getElementById('set-pin-enabled').checked;
   const pinVal    = document.getElementById('set-pin').value.trim();
-  if (pinVal) S.pin = pinVal;
-  localStorage.setItem('bm_s98', JSON.stringify(S));
+  if (pinVal) {
+    hashPin(pinVal).then(h => { S.pin = h; localStorage.setItem('bm_s98', JSON.stringify(S)); });
+    document.getElementById('set-pin').value = '';
+  } else {
+    localStorage.setItem('bm_s98', JSON.stringify(S));
+  }
   populateSlots(); refreshAll();
 };
 window.clearPin = () => {
@@ -1157,7 +1180,7 @@ function fmt12(hhmm) {
 }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function populateSlots() {
-  const sel=document.getElementById('slot-sel'), slots=shiftSlots('24H'), next=nextSlot();
+  const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift), next=nextSlot();
   sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===next?'selected':''}>${fmt12(s)}</option>`).join('');
 }
 
@@ -1299,9 +1322,18 @@ function checkPin() {
   const overlay = document.getElementById('pin-overlay');
   if (overlay) { overlay.style.display = 'flex'; setTimeout(() => document.getElementById('pin-inp')?.focus(), 50); }
 }
-window.submitPin = () => {
+window.submitPin = async () => {
   const entered = document.getElementById('pin-inp')?.value || '';
-  if (entered === String(S.pin)) {
+  // Detect legacy plaintext PINs (not a 64-char hex SHA-256 hash) and migrate automatically
+  const isHashed = /^[a-f0-9]{64}$/.test(S.pin);
+  let ok = false;
+  if (isHashed) {
+    ok = (await hashPin(entered)) === S.pin;
+  } else {
+    ok = entered === String(S.pin);
+    if (ok) { S.pin = await hashPin(entered); localStorage.setItem('bm_s98', JSON.stringify(S)); }
+  }
+  if (ok) {
     sessionStorage.setItem('bm_authed', '1');
     document.getElementById('pin-overlay').style.display = 'none';
   } else {
@@ -1399,6 +1431,7 @@ function etaMinutes(row) {
 }
 function fmtEta(mins) {
   if (mins === null) return '—';
+  if (mins > 99 * 60) return '> 99h';
   if (mins < 60) return `${mins}m`;
   const h = Math.floor(mins / 60), m = mins % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
@@ -1813,7 +1846,7 @@ async function loadClients() {
 async function loadImpHist() {
   if(!fbOk) return [];
   try {
-    const q=query(collection(db,'csv_imports'),orderBy('imported_at','desc'));
+    const q=query(collection(db,'csv_imports'),orderBy('imported_at','desc'),limit(10));
     const s=await getDocs(q);
     return s.docs.map(d=>({id:d.id,...d.data(),imported_at:d.data().imported_at?.toDate()}));
   } catch(e){return [];}
@@ -2020,6 +2053,16 @@ function renderAlerts() {
 /* ════════════════════════════════════════════════
    ALL CLIENTS TABLE
 ════════════════════════════════════════════════ */
+function nearTarget(row) {
+  const meta = clientsMeta[row.carrier_name] || {};
+  const tgt = meta.target_balance ?? row.target_balance;
+  if (tgt === undefined || tgt === null || tgt === '') return false;
+  const t = parseFloat(tgt);
+  if (isNaN(t) || t === 0) return false;
+  const diff = Math.abs((row.amnt_receivable ?? 0) - t);
+  return diff / Math.abs(t) <= (S.nearPct / 100);
+}
+
 function isClientInactive(meta) {
   const v = meta.is_active;
   if (v === undefined || v === null || v === '') return false; // no status = treat as active
@@ -2228,6 +2271,7 @@ function autoMap(h){
 window.handleDrop=e=>{e.preventDefault();e.currentTarget.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);};
 window.handleFile=file=>{
   if(!file?.name.endsWith('.csv')){toast('Please select a .csv file','err');return;}
+  wFilename=file.name;
   Papa.parse(file,{header:true,skipEmptyLines:true,complete:res=>{
     wCsvData=res.data;wHeaders=Object.keys(res.data[0]||{});
     const nameKey=Object.keys(res.data[0]||{}).find(k=>k.toLowerCase().replace(/[\s_]+/g,'')==='carriername')||'carrier_name';
@@ -2249,7 +2293,7 @@ window.applyMapping=()=>{
 };
 let wUnchanged=[];  // tracks clients already in Firestore with identical data
 function buildDiff(){
-  wChanges=[];wChecked=[];wUnchanged=[];let id=0;const inCsv=new Set();
+  wChanges=[];wChecked={};wUnchanged=[];let id=0;const inCsv=new Set();
   wCsvData.forEach(raw=>{
     const m={};
     for(const[csvCol,fsField] of Object.entries(wMapping)) m[fsField]=raw[csvCol]??'';
@@ -2307,13 +2351,14 @@ window.saveWizard=async()=>{
         else if(ch.type==='Missing'){batch.update(ref,{is_active:false,updated_at:Timestamp.now()});nRem++;batchCount++;}
       }
       if(batchCount>0) await batch.commit();
-      await addDoc(collection(db,'csv_imports'),{filename:'csv_upload',imported_at:Timestamp.now(),total_rows:wCsvData.length,new_clients:nNew,updated_clients:nUpd,removed:nRem,skipped:wChanges.length-toSave.length});
+      const before_state=toSave.map(ch=>({type:ch.type,client:ch.client,field:ch.field,before:ch.before??null}));
+      await addDoc(collection(db,'csv_imports'),{filename:wFilename||'csv_upload',imported_at:Timestamp.now(),total_rows:wCsvData.length,new_clients:nNew,updated_clients:nUpd,removed:nRem,skipped:wChanges.length-toSave.length,before_state});
     } else {
       toSave.forEach(ch=>{if(ch.type==='New'){clientsMeta[ch.client]=JSON.parse(ch.after);nNew++;}if(ch.type==='Changed'){if(!clientsMeta[ch.client])clientsMeta[ch.client]={};clientsMeta[ch.client][ch.field]=ch.after;nUpd++;}});
     }
     const unchangedMsg=wUnchanged.length?` · ${wUnchanged.length} already up-to-date`:'';
     toast(`✓ ${nNew} new · ${nUpd} updated · ${nRem} removed${unchangedMsg}`,'ok');
-    wStep=1;wCsvData=null;wChanges=[];wHeaders=[];wUnchanged=[];
+    wStep=1;wCsvData=null;wChanges=[];wHeaders=[];wUnchanged=[];wFilename='';
     renderWizard();renderImpHist();refreshAll();
   }catch(e){toast('Save failed: '+e.message,'err');}
   finally{setLoading(false);}
@@ -2322,17 +2367,21 @@ window.saveWizard=async()=>{
 /* ════════════════════════════════════════════════
    IMPORT HISTORY
 ════════════════════════════════════════════════ */
+let _importHistory = [];
 async function renderImpHist(){
   const el=document.getElementById('imp-hist-list');
   const list=await loadImpHist();
+  _importHistory=list;
   if(!list.length){el.innerHTML='<div style="padding:8px;font-size:11px;color:#666">No imports yet.</div>';return;}
-  el.innerHTML=list.slice(0,10).map(imp=>{
+  el.innerHTML=list.map((imp,i)=>{
     const dt=imp.imported_at instanceof Date?imp.imported_at:new Date(imp.imported_at||0);
+    const canRollback=imp.before_state?.length>0&&!imp.rolled_back;
     return `<div class="imp-row">
       <span class="imp-fn">${esc(imp.filename||'(unknown)')}</span>
       <span style="color:#666">${dt.toLocaleDateString()} ${fmt12(dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0'))}</span>
       <span style="color:#006600">${imp.new_clients||0}↑ ${imp.updated_clients||0}✎ ${imp.removed||0}✗</span>
-      <span class="badge target">Applied ✓</span>
+      ${imp.rolled_back?'<span class="badge none">Rolled back</span>':'<span class="badge target">Applied ✓</span>'}
+      ${canRollback?`<button class="tbtn" style="font-size:10px;padding:0 6px;color:#880000" onclick="promptRollback(${i})">↩ Rollback</button>`:''}
     </div>`;
   }).join('');
 }
@@ -2516,11 +2565,75 @@ function renderShiftSummary() {
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${stillCrit.length ? `<div style="font-size:11px;margin-bottom:4px"><span style="color:#cc0000;font-weight:700">🔴 Still critical:</span> ${stillCrit.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
-    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px">📈 Top movers (balance increase since first snapshot):</div>
+    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px">⚠ Biggest balance growth since shift start (higher = more credit consumed):</div>
     <table class="sum-movers" style="width:100%">
       ${movers.map((m,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:#cc0000;font-family:'Courier New',monospace">+${fmt(m.change)}</td></tr>`).join('')}
     </table>` : ''}`;
 }
+
+/* ════════════════════════════════════════════════
+   PIN HASHING
+════════════════════════════════════════════════ */
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(pin)));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ════════════════════════════════════════════════
+   IMPORT ROLLBACK
+════════════════════════════════════════════════ */
+let _pendingRollback = null;
+
+window.promptRollback = idx => {
+  const imp = _importHistory[idx];
+  if (!imp || !imp.before_state?.length) return;
+  _pendingRollback = imp;
+  document.getElementById('rollback-dlg-info').textContent =
+    `"${imp.filename||'csv_upload'}" — ${imp.before_state.length} change(s) will be reversed.`;
+  document.getElementById('rollback-overlay').classList.add('open');
+};
+window.closeRollbackConfirm = () => {
+  document.getElementById('rollback-overlay').classList.remove('open');
+  _pendingRollback = null;
+};
+window.confirmRollback = async () => {
+  const imp = _pendingRollback;
+  closeRollbackConfirm();
+  if (!imp) return;
+  setLoading(true, 'Rolling back import…');
+  try {
+    if (fbOk) {
+      const BATCH_MAX = 490;
+      let batch = writeBatch(db), count = 0;
+      const commitIfFull = async () => { if (count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; } };
+      for (const ch of imp.before_state) {
+        await commitIfFull();
+        const docId = ch.client.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+        const ref = doc(db, 'clients', docId);
+        if (ch.type === 'New') {
+          batch.delete(ref);
+          delete clientsMeta[ch.client];
+        } else if (ch.type === 'Changed') {
+          const val = (ch.before === null || ch.before === undefined) ? deleteField() : ch.before;
+          batch.update(ref, { [ch.field]: val, updated_at: Timestamp.now() });
+          if (clientsMeta[ch.client]) {
+            if (ch.before === null || ch.before === undefined) delete clientsMeta[ch.client][ch.field];
+            else clientsMeta[ch.client][ch.field] = ch.before;
+          }
+        } else if (ch.type === 'Missing') {
+          batch.update(ref, { is_active: true, updated_at: Timestamp.now() });
+          if (clientsMeta[ch.client]) clientsMeta[ch.client].is_active = true;
+        }
+        count++;
+      }
+      if (count > 0) await batch.commit();
+      await setDoc(doc(db, 'csv_imports', imp.id), { rolled_back: true, rolled_back_at: Timestamp.now() }, { merge: true });
+    }
+    toast('✓ Import rolled back successfully', 'ok');
+    renderImpHist(); refreshAll();
+  } catch(e) { toast('Rollback error: ' + e.message, 'err'); }
+  finally { setLoading(false); }
+};
 
 /* ════════════════════════════════════════════════
    INIT
