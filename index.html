@@ -1532,17 +1532,23 @@ window.processSnapshot = async() => {
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
-  setLoading(true,'Saving snapshot…');
-  try {
-    if(fbOk) await addDoc(collection(db,'snapshots'),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
-    latestSnap=snap; todaySnaps.push(snap); viewingIdx=null;
-    document.getElementById('snap-ta').value='';
-    clearAcks(); // new snapshot = fresh slate for acknowledgments
-    refreshAll();
-    checkAndNotify(data, true); // fire all 4 alert effects for new snapshot
+  // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
+  latestSnap=snap; todaySnaps.push(snap); viewingIdx=null;
+  document.getElementById('snap-ta').value='';
+  clearAcks();
+  refreshAll();
+  checkAndNotify(data, true);
+  if(fbOk){
+    setLoading(true,'Saving to Firestore…');
+    try {
+      const ref=await addDoc(collection(db,'snapshots'),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
+      snap.id=ref.id;
+      toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
+    } catch(e){toast('Firestore error (data kept locally): '+e.message,'err',6000);}
+    finally{setLoading(false);}
+  } else {
     toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
-  } catch(e){toast('Save error: '+e.message,'err');}
-  finally{setLoading(false);}
+  }
 };
 
 /* ════════════════════════════════════════════════
