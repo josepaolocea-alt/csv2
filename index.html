@@ -1616,13 +1616,39 @@ const SNAPSHOT_FIELD_ORDER = [
   'carrier_name','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay',
   'inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','is_active'
 ];
+const SNAPSHOT_FIELD_ORDER_NO_BILLING = [
+  'carrier_name','allow_balance','credit_limit','critical_balance','is_prepay',
+  'inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','is_active'
+];
+const SNAPSHOT_FIELD_ORDER_NO_ALLOW = [
+  'carrier_name','credit_limit','critical_balance','billing_cycle','is_prepay',
+  'inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','is_active'
+];
+const SNAPSHOT_FIELD_ORDER_NO_ALLOW_NO_BILLING = [
+  'carrier_name','credit_limit','critical_balance','is_prepay',
+  'inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','is_active'
+];
+
+function looksPrepayFlag(v) {
+  return /^(yes|no|true|false)$/i.test(String(v ?? '').trim());
+}
+function looksBillingCycle(v) {
+  return /^(prepay|prepaid|pre paid|postpay|postpaid|post paid)$/i.test(String(v ?? '').trim());
+}
+function headerlessFieldOrder(vals) {
+  if (looksPrepayFlag(vals[3])) return SNAPSHOT_FIELD_ORDER_NO_ALLOW_NO_BILLING;
+  if (looksBillingCycle(vals[3])) return SNAPSHOT_FIELD_ORDER_NO_ALLOW;
+  if (looksPrepayFlag(vals[4])) return SNAPSHOT_FIELD_ORDER_NO_BILLING;
+  return SNAPSHOT_FIELD_ORDER;
+}
 
 function fallbackParseHeaderless(text, delim) {
   const lines=text.split(/\r?\n/).filter(l=>l.trim());
   return { data: lines.map(line=>{
     const vals=splitDelimitedLine(line, delim);
+    const fieldOrder=headerlessFieldOrder(vals);
     const row={};
-    SNAPSHOT_FIELD_ORDER.forEach((h,i)=>{ row[h]=vals[i] ?? ''; });
+    fieldOrder.forEach((h,i)=>{ row[h]=vals[i] ?? ''; });
     return row;
   }) };
 }
@@ -1670,6 +1696,7 @@ function parseText(text) {
     }
     NUM_FIELDS.forEach(f=>{ if(row[f]!==undefined) row[f]=parseFloat(String(row[f]).replace(/[$,]/g,''))||0; });
     if(row.is_prepay!==undefined) row.is_prepay=['yes','true','1'].includes(String(row.is_prepay).toLowerCase());
+    if((row.billing_cycle===undefined || row.billing_cycle==='') && row.is_prepay!==undefined) row.billing_cycle=row.is_prepay?'Prepay':'Postpay';
     return row;
   });
   const accepted = mapped.filter(r=>r.carrier_name);
