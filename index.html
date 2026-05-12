@@ -304,6 +304,20 @@
     #tnav-alerts.critical-flash { animation: critFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
     #snav-alerts.critical-flash { animation: navFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
     #snav-alerts.critical-flash svg * { stroke:#fff !important; fill:#fff !important; }
+
+    /* ── New Critical tab & row styles ── */
+    #tab-new-critical { color:#cc4400; font-weight:700; }
+    #tab-new-critical.active { color:#cc4400; }
+    #tab-new-critical.has-new { background:#fff0d0; color:#aa2200; font-weight:700;
+      border-top:2px solid #ffaa00; animation:newCritPulse 1.4s ease-in-out infinite; }
+    @keyframes newCritPulse {
+      0%,100% { background:#fff0d0; } 50% { background:#ffe090; }
+    }
+    tr.row-new-crit { background:#fff8e8 !important; }
+    tr.row-new-crit:hover { background:#fff0cc !important; }
+    .badge-isnew { display:inline-block; background:#cc4400; color:#fff;
+      font-size:9px; font-weight:700; padding:0 4px; margin-left:4px;
+      border:1px solid #882200; vertical-align:middle; }
     .win-search {
       height: 20px; font-size: 11px; font-family: inherit; padding: 0 4px;
       background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
@@ -575,6 +589,7 @@
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
             <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
+            <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
@@ -972,16 +987,25 @@ function checkAndNotify(data, isNewSnapshot = false) {
   updateAlertTabFlash(hasCritical);
 
   if (isNewSnapshot && hasCritical) {
+    // Determine if any are newly critical (not in previous snapshot)
+    const prevCritSet = getPrevCriticalSet();
+    const newlyCritical = critical.filter(r => prevCritSet === null || !prevCritSet.has(r.carrier_name));
+
     // 2. Sound alert
     if (S.soundAlert) playAlertSound();
 
-    // 3. Browser notification
-    if (S.browserNotif) sendCriticalNotification(critical);
+    // 3. Browser notification — mention if newly critical
+    if (S.browserNotif) sendCriticalNotification(newlyCritical.length ? newlyCritical : critical);
 
-    // 4. Auto-switch to 🔴 Critical filter
+    // 4. Auto-switch: prefer 🆕 New Critical tab if there are new ones, else 🔴 Critical
     switchView('alerts');
-    const critTab = document.querySelector('#alert-tabs .tab:nth-child(2)');
-    if (critTab) setAlertFilter('high', critTab);
+    if (newlyCritical.length > 0) {
+      const newTab = document.getElementById('tab-new-critical');
+      if (newTab) setAlertFilter('new', newTab);
+    } else {
+      const critTab = document.querySelector('#alert-tabs .tab:nth-child(2)');
+      if (critTab) setAlertFilter('high', critTab);
+    }
   }
 }
 
@@ -1019,6 +1043,27 @@ function alertLevel(row) {
   return 'none';
 }
 function levelOrd(l) { return {high:3, light:2, none:0}[l] ?? 0; }
+
+/* ════════════════════════════════════════════════
+   NEW CRITICAL DETECTION
+════════════════════════════════════════════════ */
+function getPrevSnapshot() {
+  // When viewing a past snap → compare against the one before it
+  // When on live view       → compare latest against second-to-last
+  if (viewingIdx !== null) return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : null;
+  return todaySnaps.length >= 2 ? todaySnaps[todaySnaps.length - 2] : null;
+}
+function getPrevCriticalSet() {
+  const prev = getPrevSnapshot();
+  if (!prev) return null; // null = no prior reference this session
+  return new Set(prev.data.filter(r => alertLevel(r) === 'high').map(r => r.carrier_name));
+}
+function updateNewCriticalTab(newCount) {
+  const tab = document.getElementById('tab-new-critical');
+  if (!tab) return;
+  tab.textContent = newCount > 0 ? `🆕 New Critical (${newCount})` : '🆕 New Critical';
+  tab.classList.toggle('has-new', newCount > 0);
+}
 function chipInfo(row, lvl) {
   if (lvl==='none') return ['none','✓ Safe'];
   return [lvl, {high:'🔴 Critical', light:'⚠ Warning'}[lvl]||lvl];
@@ -1276,24 +1321,35 @@ window.sortAlert = col => {
 window.alertPageTo = p => {alertPage=p;renderAlerts();};
 
 function renderAlerts() {
+  const prevCritSet = getPrevCriticalSet(); // null = no prior snapshot to compare
   const data=activeData().map(r=>{
     const meta=clientsMeta[r.carrier_name]||{};
     const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
     const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
+    const level   = alertLevel(r);
+    // _isNew: critical NOW and either no prior snapshot OR was not critical before
+    const _isNew  = level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
     return {
       ...r,
-      _level: alertLevel(r),
+      _level: level,
+      _isNew,
       notes: r.notes||meta.notes||'',
       credit_limit: credLim,
       critical_balance: critBal,
       _inactive: meta.is_active===false,
     };
   });
+
+  // Update 🆕 New Critical tab label + pulse
+  const newCount = data.filter(r=>r._isNew && !r._inactive).length;
+  updateNewCriticalTab(newCount);
+
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
   if(alertFilter==='nothresh') rows=rows.filter(r=>!hasClientThreshold(r));
+  if(alertFilter==='new')      rows=rows.filter(r=>r._isNew);
   rows.sort((a,b)=>{
     let av=a[alertSortCol],bv=b[alertSortCol];
     if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -1303,20 +1359,26 @@ function renderAlerts() {
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
-  document.getElementById('alert-tbody').innerHTML=page.map(r=>{
-    // Balance bar: how close is current balance to critical threshold?
+
+  // Header note for 'new' filter — explain what "new" means
+  const noPrevNote = alertFilter==='new' && prevCritSet===null
+    ? `<tr><td colspan="7" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+        ⓘ No previous snapshot to compare — showing all current critical clients as new.
+       </td></tr>` : '';
+
+  document.getElementById('alert-tbody').innerHTML= noPrevNote + page.map(r=>{
     const critBal = r.critical_balance;
     const credLim = r.credit_limit;
     const bal     = r.amnt_receivable;
     let bw = 0;
     if (critBal !== null && credLim !== null) {
-      // Range from credit_limit to critical_balance; fill shows how far into warning zone
       const range = critBal - credLim;
       const pos   = bal - credLim;
       bw = range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
     }
     const[cls,lbl]=chipInfo(r,r._level);
-    return `<tr>
+    const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
+    return `<tr class="${r._isNew?'row-new-crit':''}">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
@@ -1325,7 +1387,7 @@ function renderAlerts() {
         <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(0)}%"></div></div>
         <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(0)}%</span>
       </div></td>
-      <td><span class="badge ${cls}">${lbl}</span></td>
+      <td><span class="badge ${cls}">${lbl}</span>${newBadge}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
   }).join('')||`<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
