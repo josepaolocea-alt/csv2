@@ -756,6 +756,17 @@
             <option value="24H">24 Hours (All Day)</option>
           </select>
         </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="min-width:130px">Keep snapshots:</label>
+          <select class="win-sel" id="set-retention" style="width:130px" onchange="saveSettings()">
+            <option value="7">7 days</option>
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+            <option value="0">Keep forever</option>
+          </select>
+        </div>
         <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
         <div style="display:flex;align-items:center;gap:6px">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
@@ -899,7 +910,7 @@ const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usag
 /* ════════════════════════════════════════════════
    SETTINGS
 ════════════════════════════════════════════════ */
-let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM', soundAlert:true, browserNotif:true };
+let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM', soundAlert:true, browserNotif:true, retentionDays:30 };
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
   document.getElementById('set-light').value    = S.lightMax;
@@ -908,6 +919,7 @@ function loadSettings() {
   document.getElementById('set-shift').value    = S.shift;
   document.getElementById('set-sound').checked  = S.soundAlert;
   document.getElementById('set-notif').checked  = S.browserNotif;
+  document.getElementById('set-retention').value = S.retentionDays;
 }
 window.saveSettings = () => {
   S.lightMax      = +document.getElementById('set-light').value  || -50;
@@ -916,6 +928,7 @@ window.saveSettings = () => {
   S.shift         = document.getElementById('set-shift').value;
   S.soundAlert    = document.getElementById('set-sound').checked;
   S.browserNotif  = document.getElementById('set-notif').checked;
+  S.retentionDays = +document.getElementById('set-retention').value;
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
 };
@@ -1385,6 +1398,26 @@ async function loadSnaps() {
     if(todaySnaps.length) latestSnap=todaySnaps[todaySnaps.length-1];
   } catch(e){console.warn('loadSnaps:',e);}
 }
+async function cleanupOldSnapshots() {
+  if (!fbOk || !S.retentionDays) return; // 0 = keep forever
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - S.retentionDays);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const q = query(collection(db, 'snapshots'), where('session_date', '<', cutoffStr));
+    const s = await getDocs(q);
+    if (!s.docs.length) return;
+    const BATCH_MAX = 490;
+    let batch = writeBatch(db), count = 0;
+    for (const d of s.docs) {
+      batch.delete(doc(db, 'snapshots', d.id));
+      if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+    toast(`🗑 Removed ${s.docs.length} snapshot(s) older than ${S.retentionDays} days`, 'ok', 5000);
+  } catch(e) { console.warn('Cleanup error:', e); }
+}
+
 async function loadPrevDaySnap() {
   if (!fbOk) return;
   try {
@@ -1959,6 +1992,7 @@ async function init(){
   }
   setLoading(true,'Connecting to Firestore…');
   await Promise.all([loadSnaps(), loadPrevDaySnap(), loadClients()]);
+  cleanupOldSnapshots(); // runs in background, no await needed
   setLoading(false);
   refreshAll();
   if(fbOk){
