@@ -2109,6 +2109,10 @@ function nearTarget(row) {
   return diff / Math.abs(t) <= (S.nearPct / 100);
 }
 
+function clientMetaFor(name) {
+  return clientsMeta[name] || Object.values(clientsMeta).find(m => m?.carrier_name === name) || {};
+}
+
 function isClientInactive(meta) {
   const v = meta.is_active;
   if (v === undefined || v === null || v === '') return false; // no status = treat as active
@@ -2149,7 +2153,7 @@ window.toggleAlertShowInactive=()=>{
   if(btn) btn.classList.toggle('active',alertShowInactive);
   renderAlerts();
 };
-window.renderClients=()=>{
+function renderClientsLegacy(){
   const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
   const sourceRows = allClientRows();
   let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
@@ -2195,6 +2199,70 @@ window.renderClients=()=>{
     : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
   buildColDD();
+}
+
+function clientCell(r,c,rowNum){
+  if(c.key==='idx') return `<td style="color:#888">${rowNum}</td>`;
+  if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
+  if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
+  if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
+  if(c.key==='_meta_credlim'){
+    if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.credit_limit;const v=pv!==undefined?pv:(r._meta_credlim!==null?r._meta_credlim:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','credit_limit',this.value)"></td>`;}
+    return `<td class="num" style="color:#666">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
+  }
+  if(c.key==='_meta_critbal'){
+    if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.critical_balance;const v=pv!==undefined?pv:(r._meta_critbal!==null?r._meta_critbal:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','critical_balance',this.value)"></td>`;}
+    return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+  }
+  if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
+  const v=r[c.key],isN=typeof v==='number';
+  return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
+}
+
+window.renderClients=()=>{
+  const thead=document.getElementById('clients-thead');
+  const tbody=document.getElementById('clients-tbody');
+  if(!thead||!tbody) return;
+  const vc=COLS.filter(c=>c.vis);
+  try {
+    const search=document.getElementById('clients-search')?.value.toLowerCase()||'';
+    const sourceRows = allClientRows();
+    let rows=sourceRows.map(r=>{
+      const meta=clientMetaFor(r.carrier_name);
+      const cb=parseFloat(meta.critical_balance);
+      const cl=parseFloat(meta.credit_limit);
+      return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+    });
+    if(!showInactive) rows=rows.filter(r=>!r._inactive);
+    if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
+    if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
+    if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
+    if(clientFilter==='near')    rows=rows.filter(r=>nearTarget(r));
+    if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+    rows.sort((a,b)=>{
+      let av=a[clientSortCol],bv=b[clientSortCol];
+      if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
+      if(typeof av==='string') return av.localeCompare(bv)*clientSortDir;
+      return((av??0)-(bv??0))*clientSortDir;
+    });
+    const pages=Math.max(1,Math.ceil(rows.length/PG));
+    clientPage=Math.min(clientPage,pages-1);
+    const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
+    thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
+    tbody.innerHTML=page.map((r,ri)=>{
+      const rowStyle=r._inactive?'opacity:0.45;':'';
+      const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
+      return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
+    }).join('')||(sourceRows.length===0
+      ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
+      : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
+    renderPager('clients-pager',clientPage,pages,'clientPageTo');
+    buildColDD();
+  } catch(e) {
+    console.error('renderClients failed:', e);
+    thead.innerHTML=vc.map(c=>`<th>${c.lbl}</th>`).join('');
+    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#880000">All Clients render error: ${esc(e.message||e)}</td></tr>`;
+  }
 };
 
 function buildColDD(){
