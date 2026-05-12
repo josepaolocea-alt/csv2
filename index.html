@@ -291,6 +291,19 @@
     }
     .fltbtn.active { border-color: #808080 #fff #fff #808080; background: #d4d0c8; font-weight: 700; }
     .fltbtn:hover { background: #d8d8d8; }
+
+    /* ── Critical alert flash on tab / nav-item ── */
+    @keyframes critFlash {
+      0%,100% { background:#cc0000; color:#fff; border-color:#ff6666 #880000 #880000 #ff6666; }
+      50%      { background:#ff2222; color:#fff; border-color:#ff9999 #aa0000 #aa0000 #ff9999; }
+    }
+    @keyframes navFlash {
+      0%,100% { background:#cc0000; color:#fff; }
+      50%      { background:#ff2222; color:#fff; }
+    }
+    #tnav-alerts.critical-flash { animation: critFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
+    #snav-alerts.critical-flash { animation: navFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
+    #snav-alerts.critical-flash svg * { stroke:#fff !important; fill:#fff !important; }
     .win-search {
       height: 20px; font-size: 11px; font-family: inherit; padding: 0 4px;
       background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
@@ -710,6 +723,16 @@
             <option value="24H">24 Hours (All Day)</option>
           </select>
         </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
+          <label for="set-sound">🔔 Sound alert on critical</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
+          <label for="set-notif">🖥 Browser notification on critical</label>
+          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
+        </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
         <button class="tbtn" style="min-width:72px" onclick="toggleSettings()">OK</button>
@@ -806,19 +829,23 @@ const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usag
 /* ════════════════════════════════════════════════
    SETTINGS
 ════════════════════════════════════════════════ */
-let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM' };
+let S = { lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM', soundAlert:true, browserNotif:true };
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
-  document.getElementById('set-light').value  = S.lightMax;
-  document.getElementById('set-medium').value = S.mediumMax;
-  document.getElementById('set-tgt').value    = S.nearPct;
-  document.getElementById('set-shift').value  = S.shift;
+  document.getElementById('set-light').value    = S.lightMax;
+  document.getElementById('set-medium').value   = S.mediumMax;
+  document.getElementById('set-tgt').value      = S.nearPct;
+  document.getElementById('set-shift').value    = S.shift;
+  document.getElementById('set-sound').checked  = S.soundAlert;
+  document.getElementById('set-notif').checked  = S.browserNotif;
 }
 window.saveSettings = () => {
-  S.lightMax  = +document.getElementById('set-light').value  || -50;
-  S.mediumMax = +document.getElementById('set-medium').value || -100;
-  S.nearPct   = +document.getElementById('set-tgt').value    || 5;
-  S.shift     = document.getElementById('set-shift').value;
+  S.lightMax      = +document.getElementById('set-light').value  || -50;
+  S.mediumMax     = +document.getElementById('set-medium').value || -100;
+  S.nearPct       = +document.getElementById('set-tgt').value    || 5;
+  S.shift         = document.getElementById('set-shift').value;
+  S.soundAlert    = document.getElementById('set-sound').checked;
+  S.browserNotif  = document.getElementById('set-notif').checked;
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
 };
@@ -891,6 +918,71 @@ function todayStr() { return new Date().toISOString().slice(0,10); }
 function populateSlots() {
   const sel=document.getElementById('slot-sel'), slots=shiftSlots('24H'), next=nextSlot();
   sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===next?'selected':''}>${fmt12(s)}</option>`).join('');
+}
+
+/* ════════════════════════════════════════════════
+   CRITICAL ALERT NOTIFICATIONS
+════════════════════════════════════════════════ */
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Three rising beeps
+    [[0, 660],[0.22, 880],[0.44, 1100]].forEach(([t, freq]) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.35, ctx.currentTime + t);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.18);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.2);
+    });
+  } catch(e) { console.warn('Sound alert failed:', e); }
+}
+
+window.requestNotifPermission = async () => {
+  if (!('Notification' in window)) { toast('Browser does not support notifications','err'); return; }
+  const result = await Notification.requestPermission();
+  toast(result === 'granted' ? '✓ Notifications allowed' : '✗ Notifications blocked — check browser settings', result === 'granted' ? 'ok' : 'err');
+};
+
+function sendCriticalNotification(criticalRows) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const names = criticalRows.slice(0, 3).map(r => r.carrier_name).join(', ');
+  const extra  = criticalRows.length > 3 ? ` +${criticalRows.length - 3} more` : '';
+  new Notification('🔴 BalanceMonitor — Critical Alert', {
+    body: `${criticalRows.length} client(s) hit Critical Balance:\n${names}${extra}`,
+    tag : 'bm-critical',
+    requireInteraction: true,
+  });
+}
+
+function updateAlertTabFlash(hasCritical) {
+  document.getElementById('tnav-alerts')?.classList.toggle('critical-flash', hasCritical);
+  document.getElementById('snav-alerts')?.classList.toggle('critical-flash', hasCritical);
+}
+
+// isNewSnapshot = true  → all 4 effects
+// isNewSnapshot = false → tab flash only (called on every refresh)
+function checkAndNotify(data, isNewSnapshot = false) {
+  const critical = data.filter(r => alertLevel(r) === 'high');
+  const hasCritical = critical.length > 0;
+
+  // 1. Always keep tab highlight in sync
+  updateAlertTabFlash(hasCritical);
+
+  if (isNewSnapshot && hasCritical) {
+    // 2. Sound alert
+    if (S.soundAlert) playAlertSound();
+
+    // 3. Browser notification
+    if (S.browserNotif) sendCriticalNotification(critical);
+
+    // 4. Auto-switch to 🔴 Critical filter
+    switchView('alerts');
+    const critTab = document.querySelector('#alert-tabs .tab:nth-child(2)');
+    if (critTab) setAlertFilter('high', critTab);
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -998,7 +1090,9 @@ window.processSnapshot = async() => {
     if(fbOk) await addDoc(collection(db,'snapshots'),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
     latestSnap=snap; todaySnaps.push(snap); viewingIdx=null;
     document.getElementById('snap-ta').value='';
-    refreshAll(); toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
+    refreshAll();
+    checkAndNotify(data, true); // fire all 4 alert effects for new snapshot
+    toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
   } catch(e){toast('Save error: '+e.message,'err');}
   finally{setLoading(false);}
 };
@@ -1089,6 +1183,7 @@ function refreshAll() {
   updateSync(); renderStats(); renderTimeline();
   if(document.getElementById('view-alerts').classList.contains('active'))      renderAlerts();
   if(document.getElementById('view-all-clients').classList.contains('active')) renderClients();
+  checkAndNotify(activeData(), false); // keep tab flash in sync on every refresh
 }
 
 function updateSync() {
@@ -1578,6 +1673,10 @@ function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 ════════════════════════════════════════════════ */
 async function init(){
   loadSettings(); populateSlots(); renderWizard(); renderClients();
+  // Silently request notification permission on first load
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
   setLoading(true,'Connecting to Firestore…');
   await Promise.all([loadSnaps(),loadClients()]);
   setLoading(false);
