@@ -706,7 +706,7 @@
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
-            <button class="fltbtn" onclick="setClientsFilter('debit',this)">Debit only</button>
+            <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
             <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
@@ -2386,14 +2386,20 @@ function isClientInactive(meta) {
 
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
-  if(f==='debit') {
-    showInactive=true;
-    const search=document.getElementById('clients-search'); if(search) search.value='';
-    const showBtn=document.getElementById('btn-show-inactive');
-    if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
-  }
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');window.renderClients();
+};
+window.showDebitOnlyClients=(btn)=>{
+  clientFilter='debitOnly';
+  clientPage=0;
+  showInactive=true;
+  const search=document.getElementById('clients-search');
+  if(search) search.value='';
+  const showBtn=document.getElementById('btn-show-inactive');
+  if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
+  document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
+  (btn || document.getElementById('btn-debit-only'))?.classList.add('active');
+  window.renderClients();
 };
 window.sortClients=col=>{
   clientSortDir=clientSortCol===col?clientSortDir*-1:1;
@@ -2434,7 +2440,7 @@ function renderClientsLegacy(){
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
-  if(clientFilter==='debit')   rows=rows.filter(isDebitBalance);
+  if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
   if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientsMeta[r.carrier_name]?.critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
   rows.sort((a,b)=>{
     let av=a[clientSortCol],bv=b[clientSortCol];
@@ -2533,7 +2539,7 @@ window.renderClients=()=>{
     if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
     if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
     if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
-    if(clientFilter==='debit')   rows=rows.filter(isDebitBalance);
+    if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
     if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
