@@ -454,8 +454,17 @@
     .exp-lbl { font-size: 11px; min-width: 70px; }
 
     /* ── Settings dialog ── */
-    #settings-dlg { display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 500; width: 280px; }
+    #settings-dlg { display: none; position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 500; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 80px); }
     #settings-dlg.open { display: block; }
+    #settings-dlg .win-dialog { width: 100%; max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
+    #settings-dlg .settings-body { padding: 12px; overflow-y: auto; }
+    .settings-grid { display: grid; gap: 6px; }
+    .settings-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(90px, 150px); gap: 8px; align-items: center; }
+    .settings-row label { min-width: 0 !important; white-space: normal; line-height: 1.2; }
+    .settings-row .win-inp, .settings-row .win-sel { width: 100% !important; min-width: 0; }
+    .settings-check { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: center; }
+    .settings-band { display: grid; gap: 4px; margin-top: 6px; padding-left: 18px; }
+    .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
 
     /* ── Confirm dialog overlay ── */
     #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay {
@@ -588,7 +597,6 @@
         <div class="snap-action-row" style="margin-top:4px">
           <button class="tbtn" onclick="openUndoConfirm()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
           <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">🔄 Reset View</button>
-          <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm()" title="Permanently delete ALL snapshots for today">🧨 Delete Today</button>
         </div>
       </div>
     </div>
@@ -801,21 +809,21 @@
 <div id="settings-dlg">
   <div class="win-dialog">
     <div class="dlg-tb"><span>⚙ Settings</span></div>
-    <div style="padding:12px">
-      <div style="display:grid;gap:6px">
-        <div style="display:flex;align-items:center;gap:6px">
+    <div class="settings-body">
+      <div class="settings-grid">
+        <div class="settings-row">
           <label style="min-width:130px">Fallback warning:</label>
           <input class="win-inp" id="set-light" type="number" value="-10" style="width:70px" onchange="saveSettings()" title="Used when a client has no Credit Limit set">
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-row">
           <label style="min-width:130px">Fallback critical:</label>
           <input class="win-inp" id="set-medium" type="number" value="-1" style="width:70px" onchange="saveSettings()" title="Used when a client has no Critical Balance set">
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-row">
           <label style="min-width:130px">Near-target %:</label>
           <input class="win-inp" id="set-tgt" type="number" value="5" style="width:70px" onchange="saveSettings()">
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-row">
           <label style="min-width:130px">Default shift:</label>
           <select class="win-sel" id="set-shift" style="width:130px" onchange="saveSettings()">
             <option value="7AM-7PM">7AM–7PM</option>
@@ -823,7 +831,7 @@
             <option value="24H">24 Hours (All Day)</option>
           </select>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-row">
           <label style="min-width:130px">Keep snapshots:</label>
           <select class="win-sel" id="set-retention" style="width:130px" onchange="saveSettings()">
             <option value="7">7 days</option>
@@ -835,11 +843,11 @@
           </select>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-check">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
           <label for="set-sound">🔔 Sound alert on critical</label>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-check">
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
           <label for="set-notif">🖥 Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
@@ -847,34 +855,40 @@
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">📊 Usage Band Thresholds</div>
         <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without per-client thresholds set. Bands apply to Amnt Receivable.</div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-check">
           <input type="checkbox" id="set-usebands" onchange="saveSettings()" style="margin:0">
           <label for="set-usebands">Enable usage bands</label>
         </div>
-        <div style="display:grid;gap:4px;margin-top:6px;padding-left:18px">
-          <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-band">
+          <div class="settings-row">
             <label style="min-width:140px;color:#884400">🟠 Medium starts at:</label>
             <input class="win-inp" id="set-band-medium" type="number" value="-50" style="width:70px" onchange="saveSettings()" title="Balance at or below this → Medium warning">
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
+          <div class="settings-row">
             <label style="min-width:140px;color:#cc0000">🔴 High starts at:</label>
             <input class="win-inp" id="set-band-high" type="number" value="-101" style="width:70px" onchange="saveSettings()" title="Balance at or below this → High (red critical)">
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
+          <div class="settings-row">
             <label style="min-width:140px;color:#cc0000;font-weight:700">⚡ Blink starts at:</label>
             <input class="win-inp" id="set-band-crit" type="number" value="-151" style="width:70px" onchange="saveSettings()" title="Balance at or below this → row blinks red">
           </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">🔒 PIN Protection</div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div class="settings-check">
           <input type="checkbox" id="set-pin-enabled" onchange="saveSettings()" style="margin:0">
           <label for="set-pin-enabled">Require PIN on startup</label>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+        <div class="settings-row" style="grid-template-columns:minmax(140px,1fr) minmax(90px,120px) auto;margin-top:4px">
           <label style="min-width:140px">PIN (4–8 digits):</label>
           <input class="win-inp" id="set-pin" type="password" maxlength="8" style="width:100px" placeholder="Enter new PIN…" onchange="saveSettings()">
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="clearPin()">Clear</button>
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
+        <div class="settings-danger">
+          <div style="margin-bottom:5px">Delete today's stored snapshots only if you intentionally want to remove today's history. This can affect New Critical comparisons.</div>
+          <button class="tbtn" style="color:#880000" onclick="toggleSettings(); openDeleteTodayConfirm()">Delete Today Snapshots</button>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
