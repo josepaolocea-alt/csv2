@@ -2390,7 +2390,7 @@ window.setClientsFilter=(f,btn)=>{
   btn.classList.add('active');window.renderClients();
 };
 window.showDebitOnlyClients=(btn)=>{
-  clientFilter='debitOnly';
+  clientFilter='debitOnlyDirect';
   clientPage=0;
   showInactive=true;
   const search=document.getElementById('clients-search');
@@ -2498,6 +2498,59 @@ function clientCell(r,c,rowNum){
   return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
 }
 
+function debitCandidateRows() {
+  const candidates = [
+    lastProcessedSnap?.data,
+    activeData(),
+    latestSnap?.data,
+    todaySnaps[todaySnaps.length - 1]?.data
+  ].filter(rows => Array.isArray(rows) && rows.length);
+  return candidates.find(rows => rows.some(isDebitBalance)) || candidates[0] || [];
+}
+
+function renderDebitOnlyClientsTable() {
+  const thead=document.getElementById('clients-thead');
+  const tbody=document.getElementById('clients-tbody');
+  if(!thead||!tbody) return;
+  if(!COLS.some(c=>c.vis)) {
+    const carrierCol = COLS.find(c=>c.key==='carrier_name');
+    if(carrierCol) carrierCol.vis = true;
+  }
+  const vc=COLS.filter(c=>c.vis);
+  try {
+    const sourceRows=debitCandidateRows();
+    let rows=sourceRows.filter(r=>r?.carrier_name).map(r=>{
+      const meta=clientMetaFor(r.carrier_name);
+      const cb=parseFloat(meta.critical_balance);
+      const cl=parseFloat(meta.credit_limit);
+      return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
+    }).filter(isDebitBalance);
+    rows.sort((a,b)=>{
+      let av=a[clientSortCol],bv=b[clientSortCol];
+      if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
+      if(typeof av==='string') return av.localeCompare(bv)*clientSortDir;
+      return((av??0)-(bv??0))*clientSortDir;
+    });
+    const pages=Math.max(1,Math.ceil(rows.length/PG));
+    clientPage=Math.min(clientPage,pages-1);
+    const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
+    const title=document.getElementById('clients-title');
+    if(title) title.textContent = `👥 All Clients - Debit Only (${rows.length})`;
+    thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
+    tbody.innerHTML=page.map((r,ri)=>{
+      const rowStyle=r._inactive?'opacity:0.45;':'';
+      const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
+      return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
+    }).join('')||`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No debit clients found. Debit only uses Amnt Receivable from 0.00000001 to 999999999. Loaded ${sourceRows.length} client(s).</td></tr>`;
+    renderPager('clients-pager',clientPage,pages,'clientPageTo');
+    buildColDD();
+  } catch(e) {
+    console.error('renderDebitOnlyClientsTable failed:', e);
+    thead.innerHTML=vc.map(c=>`<th>${c.lbl}</th>`).join('');
+    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#880000">Debit only render error: ${esc(e.message||e)}</td></tr>`;
+  }
+}
+
 function getClientSearch() {
   const el=document.getElementById('clients-search');
   let value=(el?.value||'').trim().toLowerCase();
@@ -2516,6 +2569,10 @@ window.renderClients=()=>{
   if(!COLS.some(c=>c.vis)) {
     const carrierCol = COLS.find(c=>c.key==='carrier_name');
     if(carrierCol) carrierCol.vis = true;
+  }
+  if(clientFilter==='debitOnlyDirect') {
+    renderDebitOnlyClientsTable();
+    return;
   }
   const vc=COLS.filter(c=>c.vis);
   try {
