@@ -2152,7 +2152,10 @@ function updateSync() {
    STATS
 ════════════════════════════════════════════════ */
 function renderStats() {
-  const data=activeData(), rows=data.map(r=>({...r,_lvl:alertLevel(r)}));
+  const data=activeData(), rows=data.map(r=>{
+    const meta=clientsMeta[r.carrier_name]||{};
+    return {...r,_lvl:alertLevel(r),_inactive:isClientInactive(meta)};
+  });
   const total    = Math.max(Object.keys(clientsMeta).length, data.length);
   const active   = rows.filter(r=>r.usage_30min!==0).length;
   const high     = rows.filter(r=>r._lvl==='high').length;
@@ -2167,13 +2170,19 @@ function renderStats() {
   document.getElementById('st-medium').textContent = medium;
   document.getElementById('st-light').textContent  = lite;
   document.getElementById('st-none').textContent   = noThresh;
+  const tabRows=alertShowInactive?rows:rows.filter(r=>!r._inactive);
+  const tabHigh=tabRows.filter(r=>r._lvl==='high').length;
+  const tabMedium=tabRows.filter(r=>r._lvl==='medium').length;
+  const tabLite=tabRows.filter(r=>r._lvl==='light').length;
+  const tabSafe=tabRows.filter(r=>r._lvl==='none').length;
+  const tabNoThresh=tabRows.filter(r=>!hasClientThreshold(r)).length;
   const tabs=document.querySelectorAll('#alert-tabs .tab');
-  if(tabs[0]) tabs[0].textContent=`All (${rows.length})`;
-  if(tabs[1]) tabs[1].textContent=`🔴 Critical (${high})`;
-  if(tabs[2]) tabs[2].textContent=`🟠 Medium (${medium})`;
-  if(tabs[3]) tabs[3].textContent=`⚠ Warning (${lite})`;
-  if(tabs[4]) tabs[4].textContent=`✓ Safe (${safe})`;
-  if(tabs[5]) tabs[5].textContent=`No threshold (${noThresh})`;
+  if(tabs[0]) tabs[0].textContent=`All (${tabRows.length})`;
+  if(tabs[1]) tabs[1].textContent=`🔴 Critical (${tabHigh})`;
+  if(tabs[2]) tabs[2].textContent=`🟠 Medium (${tabMedium})`;
+  if(tabs[3]) tabs[3].textContent=`⚠ Warning (${tabLite})`;
+  if(tabs[4]) tabs[4].textContent=`✓ Safe (${tabSafe})`;
+  if(tabs[5]) tabs[5].textContent=`No threshold (${tabNoThresh})`;
 }
 
 /* ════════════════════════════════════════════════
@@ -2376,7 +2385,11 @@ window.resetClientsFilter=()=>{
 window.toggleAlertShowInactive=()=>{
   alertShowInactive=!alertShowInactive;
   const btn=document.getElementById('btn-alert-show-inactive');
-  if(btn) btn.classList.toggle('active',alertShowInactive);
+  if(btn) {
+    btn.classList.toggle('active',alertShowInactive);
+    btn.textContent=alertShowInactive?'Hide inactive':'Show inactive';
+  }
+  renderStats();
   renderAlerts();
 };
 function renderClientsLegacy(){
