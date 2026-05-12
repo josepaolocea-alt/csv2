@@ -2552,6 +2552,7 @@ function renderDebitOnlyClientsTable() {
       const cl=parseFloat(meta.credit_limit);
       return {...r,_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
     }).filter(isDebitBalance);
+    if(!showInactive) rows=rows.filter(r=>!r._inactive);
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
       if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
