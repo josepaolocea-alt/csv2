@@ -1692,7 +1692,7 @@ window.processSnapshot = async() => {
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
-  latestSnap=snap; lastProcessedSnap=snap; todaySnaps.push(snap); viewingIdx=null;
+  latestSnap=snap; lastProcessedSnap=snap; todaySnaps=normalizeTodaySnaps([...todaySnaps, snap]); viewingIdx=null;
   clientFilter='all'; clientPage=0; showInactive=true;
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   document.querySelector('#view-all-clients .fltbtn')?.classList.add('active');
@@ -2036,7 +2036,7 @@ async function loadSnaps() {
   try {
     const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
     const s=await getDocs(q);
-    todaySnaps=s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()}));
+    todaySnaps=normalizeTodaySnaps(s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
     if(todaySnaps.length) {
       const loadedLatest=todaySnaps[todaySnaps.length-1];
       latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
@@ -2111,6 +2111,26 @@ async function loadImpHist() {
 function activeData() {
   if(viewingIdx!==null&&todaySnaps[viewingIdx]) return todaySnaps[viewingIdx].data;
   return latestSnap?.data?.length ? latestSnap.data : (lastProcessedSnap?.data || []);
+}
+
+function snapshotTimeMs(s) {
+  if (!s?.timestamp) return 0;
+  if (s.timestamp instanceof Date) return s.timestamp.getTime();
+  if (typeof s.timestamp.toDate === 'function') return s.timestamp.toDate().getTime();
+  const ms = new Date(s.timestamp).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function normalizeTodaySnaps(snaps) {
+  const bySlot = new Map();
+  snaps.filter(Boolean).forEach(s => {
+    const key = s.time_slot || '';
+    const prev = bySlot.get(key);
+    if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) bySlot.set(key, s);
+  });
+  return Array.from(bySlot.values()).sort((a,b) =>
+    String(a.time_slot || '').localeCompare(String(b.time_slot || '')) || snapshotTimeMs(a) - snapshotTimeMs(b)
+  );
 }
 
 function allClientRows() {
@@ -2366,6 +2386,12 @@ function isClientInactive(meta) {
 
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
+  if(f==='debit') {
+    showInactive=true;
+    const search=document.getElementById('clients-search'); if(search) search.value='';
+    const showBtn=document.getElementById('btn-show-inactive');
+    if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
+  }
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');window.renderClients();
 };
@@ -3055,7 +3081,7 @@ async function init(){
     try{
       const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
       onSnapshot(q,snap=>{
-        todaySnaps=snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()}));
+        todaySnaps=normalizeTodaySnaps(snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
         if(todaySnaps.length&&viewingIdx===null) {
           const loadedLatest=todaySnaps[todaySnaps.length-1];
           latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
