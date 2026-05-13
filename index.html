@@ -516,6 +516,63 @@
     ::-webkit-scrollbar-button { background: #c0c0c0; height: 16px; width: 16px; display: block; }
     ::-webkit-scrollbar-corner { background: #c0c0c0; }
 
+    /* Motion polish */
+    @keyframes viewIn {
+      from { opacity: .72; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes winPop {
+      from { opacity: 0; transform: translateY(6px) scale(.985); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateX(0); }
+      to   { opacity: 0; transform: translateX(12px); }
+    }
+    .view.active { animation: viewIn .14s ease-out; }
+    .tbtn, .fltbtn, .tab, .nav-item, .tslot, .col-item {
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
+    }
+    .tbtn:active, .fltbtn:active, .tab:active, .col-item:active {
+      transform: translate(1px,1px);
+    }
+    td, th, .groupbox, .stat-box, .sum-card, .win-inp, .win-sel, .win-search, #snap-ta {
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
+    }
+    #settings-dlg.open .win-dialog,
+    #operator-overlay.open .win-dialog,
+    #pin-overlay.open .win-dialog,
+    #loading.on .win-dialog,
+    #confirm-overlay.open #confirm-box,
+    #undo-confirm-overlay.open #undo-confirm-box,
+    #rollback-overlay.open #rollback-box,
+    #delete-today-overlay.open #delete-today-box,
+    #client-detail-overlay.open #client-detail-box {
+      animation: winPop .14s ease-out;
+    }
+    #clip-detect-bar.visible,
+    #view-banner.visible,
+    #bulk-save-bar.visible {
+      animation: slideDown .14s ease-out;
+    }
+    .toast { animation: toastIn .16s ease-out; }
+    .toast.leaving { animation: toastOut .16s ease-in forwards; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
     /* Night Mode: dark Win98 workstation */
     body.night-mode {
       background: #071010;
@@ -693,6 +750,65 @@
       background:#351818;
       border-color:#884444;
       color:#ffb0b0;
+    }
+    body.night-mode a,
+    body.night-mode [style*="color:#000080"],
+    body.night-mode [style*="color: #000080"] {
+      color:#9fc2ff !important;
+    }
+    body.night-mode .tb-btn[style*="color:#000"],
+    body.night-mode .tb-btn[style*="color: #000"] {
+      color:#f0f0f0 !important;
+    }
+    body.night-mode [style*="color:#444"],
+    body.night-mode [style*="color: #444"],
+    body.night-mode [style*="color:#666"],
+    body.night-mode [style*="color: #666"],
+    body.night-mode [style*="color:#808080"],
+    body.night-mode [style*="color: #808080"] {
+      color:#c8d8d8 !important;
+    }
+    body.night-mode [style*="color:#888"],
+    body.night-mode [style*="color: #888"],
+    body.night-mode [style*="color:#999"],
+    body.night-mode [style*="color: #999"] {
+      color:#b0bcbc !important;
+    }
+    body.night-mode [style*="color:#884400"],
+    body.night-mode [style*="color: #884400"],
+    body.night-mode [style*="color:#cc6600"],
+    body.night-mode [style*="color: #cc6600"],
+    body.night-mode [style*="color:#cc4400"],
+    body.night-mode [style*="color: #cc4400"],
+    body.night-mode [style*="color:#aa2200"],
+    body.night-mode [style*="color: #aa2200"] {
+      color:#ffbd72 !important;
+    }
+    body.night-mode [style*="color:#888800"],
+    body.night-mode [style*="color: #888800"] {
+      color:#eeee88 !important;
+    }
+    body.night-mode [style*="color:#006600"],
+    body.night-mode [style*="color: #006600"],
+    body.night-mode [style*="color:#003300"],
+    body.night-mode [style*="color: #003300"] {
+      color:#78e690 !important;
+    }
+    body.night-mode [style*="color:#880000"],
+    body.night-mode [style*="color: #880000"],
+    body.night-mode [style*="color:#cc0000"],
+    body.night-mode [style*="color: #cc0000"],
+    body.night-mode [style*="color:#660000"],
+    body.night-mode [style*="color: #660000"] {
+      color:#ff8585 !important;
+    }
+    body.night-mode #tab-new-critical,
+    body.night-mode #tab-new-critical.active {
+      color:#ffbd72;
+    }
+    body.night-mode #tab-new-critical.has-new {
+      background:#3a2710;
+      color:#ffd090;
     }
     body.night-mode .col-item:hover,
     body.night-mode .nav-item:hover,
@@ -885,10 +1001,10 @@
           <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
             <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
-            <div class="tab" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
             <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
+            <div class="tab" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
           </div>
@@ -1469,7 +1585,11 @@ const setLoading = (on, msg='Loading…') => {
 };
 function toast(msg, type='', ms=3500) {
   const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg;
-  document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(),ms);
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{
+    t.classList.add('leaving');
+    setTimeout(()=>t.remove(),180);
+  },ms);
 }
 function setSbStatus(s) { document.getElementById('sb-status').textContent = s; }
 function setSbSync(s)   { document.getElementById('sb-sync').textContent = s; }
@@ -2508,10 +2628,10 @@ function renderStats() {
   const tabs=document.querySelectorAll('#alert-tabs .tab');
   if(tabs[0]) tabs[0].textContent=`All (${tabRows.length})`;
   if(tabs[1]) tabs[1].textContent=`🔴 Critical (${tabHigh})`;
-  if(tabs[2]) tabs[2].textContent=`Usage (${tabUsage})`;
-  if(tabs[3]) tabs[3].textContent=`⚠ Warning (${tabLite})`;
-  if(tabs[4]) tabs[4].textContent=`✓ Safe (${tabSafe})`;
-  if(tabs[5]) tabs[5].textContent=`No threshold (${tabNoThresh})`;
+  if(tabs[2]) tabs[2].textContent=`⚠ Warning (${tabLite})`;
+  if(tabs[3]) tabs[3].textContent=`✓ Safe (${tabSafe})`;
+  if(tabs[4]) tabs[4].textContent=`No threshold (${tabNoThresh})`;
+  if(tabs[5]) tabs[5].textContent=`Usage (${tabUsage})`;
 }
 
 /* ════════════════════════════════════════════════
