@@ -121,9 +121,14 @@
     .nav-item.active { background: #000080; color: #fff; }
     .nav-item .nav-ico { width: 16px; height: 16px; flex-shrink: 0; }
     .nav-divider { height: 1px; background: #808080; border-bottom: 1px solid #fff; margin: 3px 0; }
+    #sidebar > .sidebar-section-label,
+    #sidebar > .nav-item,
+    #sidebar > .nav-divider {
+      display: none;
+    }
 
     /* Sidebar snap area */
-    #sidebar-snap { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 4px; }
+    #sidebar-snap { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 6px 4px 4px; }
     .snap-label { font-size: 10px; font-weight: 700; color: #000080; margin-bottom: 2px; }
     #snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
@@ -510,6 +515,217 @@
     ::-webkit-scrollbar-thumb { background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
     ::-webkit-scrollbar-button { background: #c0c0c0; height: 16px; width: 16px; display: block; }
     ::-webkit-scrollbar-corner { background: #c0c0c0; }
+
+    /* Night Mode: dark Win98 workstation */
+    body.night-mode {
+      background: #071010;
+      background-image: radial-gradient(ellipse at 20% 30%, #123030 0%, transparent 52%),
+                        radial-gradient(ellipse at 80% 70%, #101020 0%, transparent 52%);
+      color: #e8e8e8;
+    }
+    body.night-mode #win,
+    body.night-mode #toolbar,
+    body.night-mode #menubar,
+    body.night-mode #sidebar,
+    body.night-mode #content,
+    body.night-mode #statusbar,
+    body.night-mode .win-dialog,
+    body.night-mode #confirm-box,
+    body.night-mode #undo-confirm-box,
+    body.night-mode #client-detail-box,
+    body.night-mode #rollback-box,
+    body.night-mode #delete-today-box,
+    body.night-mode .toast,
+    body.night-mode .col-dd {
+      background: #303030 !important;
+      color: #e8e8e8;
+      border-top-color: #666 !important;
+      border-left-color: #666 !important;
+      border-right-color: #111 !important;
+      border-bottom-color: #111 !important;
+    }
+    body.night-mode #titlebar,
+    body.night-mode .dlg-tb {
+      background: linear-gradient(to right, #001050, #005060);
+    }
+    body.night-mode .tb-btn,
+    body.night-mode .tbtn,
+    body.night-mode .fltbtn,
+    body.night-mode .tab,
+    body.night-mode .tslot,
+    body.night-mode .wstep {
+      background: #3a3a3a;
+      color: #e8e8e8;
+      border-top-color: #707070;
+      border-left-color: #707070;
+      border-right-color: #111;
+      border-bottom-color: #111;
+    }
+    body.night-mode .tbtn:hover,
+    body.night-mode .fltbtn:hover,
+    body.night-mode .tab:not(.active),
+    body.night-mode .tslot.has-data:hover {
+      background: #484848;
+    }
+    body.night-mode .tbtn.active,
+    body.night-mode .fltbtn.active,
+    body.night-mode .tab.active,
+    body.night-mode .tslot.current {
+      background: #222;
+      color: #fff;
+      border-color: #111 #707070 #707070 #111;
+    }
+    body.night-mode .tbtn.primary,
+    body.night-mode .wstep.active {
+      background: #003078;
+      color: #fff;
+    }
+    body.night-mode .wstep.done { background:#005020; color:#fff; }
+    body.night-mode #sync-label,
+    body.night-mode .sidebar-section-label,
+    body.night-mode .snap-label,
+    body.night-mode .groupbox-title,
+    body.night-mode .legend,
+    body.night-mode .stime,
+    body.night-mode .caret,
+    body.night-mode .stat-box .sl,
+    body.night-mode .sum-card .sc-lbl,
+    body.night-mode .map-arrow,
+    body.night-mode .exp-lbl,
+    body.night-mode label {
+      color: #c8d8d8 !important;
+    }
+    body.night-mode .groupbox,
+    body.night-mode .tab-content,
+    body.night-mode .lv-wrap,
+    body.night-mode .stat-box,
+    body.night-mode .sum-card,
+    body.night-mode .sparkline-wrap,
+    body.night-mode .progress-wrap,
+    body.night-mode .drop-zone,
+    body.night-mode #client-detail-body {
+      background: #181818 !important;
+      color: #e8e8e8 !important;
+      border-top-color: #111 !important;
+      border-left-color: #111 !important;
+      border-right-color: #606060 !important;
+      border-bottom-color: #606060 !important;
+    }
+    body.night-mode #snap-ta,
+    body.night-mode #slot-sel,
+    body.night-mode .win-inp,
+    body.night-mode .win-sel,
+    body.night-mode .win-ta,
+    body.night-mode .win-search,
+    body.night-mode .bulk-edit-inp {
+      background: #101010 !important;
+      color: #f0f0f0 !important;
+      border-top-color: #111 !important;
+      border-left-color: #111 !important;
+      border-right-color: #666 !important;
+      border-bottom-color: #666 !important;
+    }
+    body.night-mode #snap-ta::placeholder,
+    body.night-mode .win-search::placeholder,
+    body.night-mode .win-inp::placeholder {
+      color: #888;
+    }
+    body.night-mode th {
+      background: #303030;
+      color: #f0f0f0;
+      border-top-color: #666;
+      border-left-color: #666;
+      border-right-color: #111;
+      border-bottom-color: #111;
+    }
+    body.night-mode th:hover { background:#444; }
+    body.night-mode td {
+      background: #141414;
+      color: #e8e8e8;
+      border-bottom-color: #303030;
+      border-right-color: #303030;
+    }
+    body.night-mode tr:nth-child(even) td,
+    body.night-mode .imp-row:nth-child(even) {
+      background: #1f2424;
+    }
+    body.night-mode tr:hover td {
+      background: #003078 !important;
+      color: #fff !important;
+    }
+    body.night-mode td.neg { color:#ff7777; }
+    body.night-mode td.pos { color:#66dd88; }
+    body.night-mode .imp-row,
+    body.night-mode .detail-row {
+      background: #181818;
+      color: #e8e8e8;
+      border-bottom-color: #333;
+    }
+    body.night-mode .stat-box .sv,
+    body.night-mode .sum-card .sc-val,
+    body.night-mode #sb-operators {
+      color: #8fb8ff;
+    }
+    body.night-mode .stat-box.s-high .sv,
+    body.night-mode .sum-card.sc-red .sc-val { color:#ff7777; }
+    body.night-mode .stat-box.s-medium .sv,
+    body.night-mode .sum-card.sc-orange .sc-val { color:#ffb066; }
+    body.night-mode .stat-box.s-light .sv { color:#dddd66; }
+    body.night-mode .stat-box.s-green .sv,
+    body.night-mode .sum-card.sc-green .sc-val { color:#66dd88; }
+    body.night-mode .badge.high { background:#4a1515; color:#ff9999; }
+    body.night-mode .badge.medium { background:#4a2b12; color:#ffc080; }
+    body.night-mode .badge.light { background:#3f3f18; color:#eeee88; }
+    body.night-mode .badge.target { background:#163f20; color:#8df0a2; }
+    body.night-mode .badge.none { background:#333; color:#bbb; }
+    body.night-mode .scnt { background:#222; color:#ccc; border-color:#111 #666 #666 #111; }
+    body.night-mode .scnt.g { background:#12351c; color:#8df0a2; }
+    body.night-mode .scnt.a { background:#3d3510; color:#eadb72; }
+    body.night-mode .scnt.r { background:#451818; color:#ff9090; }
+    body.night-mode #view-banner,
+    body.night-mode #clip-detect-bar,
+    body.night-mode #bulk-save-bar {
+      background:#2f2a16 !important;
+      color:#ffe8a0 !important;
+      border-color:#665a22 !important;
+    }
+    body.night-mode .settings-danger {
+      background:#351818;
+      border-color:#884444;
+      color:#ffb0b0;
+    }
+    body.night-mode .col-item:hover,
+    body.night-mode .nav-item:hover,
+    body.night-mode .nav-item.active {
+      background:#003078;
+      color:#fff;
+    }
+    body.night-mode ::-webkit-scrollbar-track,
+    body.night-mode ::-webkit-scrollbar-button,
+    body.night-mode ::-webkit-scrollbar-corner {
+      background:#242424;
+    }
+    body.night-mode ::-webkit-scrollbar-thumb {
+      background:#3a3a3a;
+      border-top-color:#666;
+      border-left-color:#666;
+      border-right-color:#111;
+      border-bottom-color:#111;
+    }
+    @media print {
+      body.night-mode,
+      body.night-mode #win,
+      body.night-mode #content,
+      body.night-mode .view,
+      body.night-mode .groupbox,
+      body.night-mode .lv-wrap,
+      body.night-mode table,
+      body.night-mode th,
+      body.night-mode td {
+        background:#fff !important;
+        color:#000 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -860,6 +1076,10 @@
             <option value="0">Keep forever</option>
           </select>
         </div>
+        <div class="settings-check">
+          <input type="checkbox" id="set-night" onchange="saveSettings()" style="margin:0">
+          <label for="set-night">Night mode</label>
+        </div>
         <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
         <div class="settings-check">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
@@ -1142,10 +1362,14 @@ let S = {
   lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM',
   soundAlert:true, browserNotif:true, retentionDays:30,
   useBands:false, bandMedium:-50, bandHigh:-101, bandCritical:-151,
-  pinEnabled:false, pin:''
+  pinEnabled:false, pin:'', nightMode:false
 };
+function applyNightMode() {
+  document.body.classList.toggle('night-mode', !!S.nightMode);
+}
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
+  applyNightMode();
   document.getElementById('set-light').value       = S.lightMax;
   document.getElementById('set-medium').value      = S.mediumMax;
   document.getElementById('set-tgt').value         = S.nearPct;
@@ -1158,6 +1382,7 @@ function loadSettings() {
   document.getElementById('set-band-high').value   = S.bandHigh;
   document.getElementById('set-band-crit').value   = S.bandCritical;
   document.getElementById('set-pin-enabled').checked = S.pinEnabled;
+  document.getElementById('set-night').checked     = !!S.nightMode;
 }
 function loadLastProcessedSnap() {
   if (fbOk) {
@@ -1187,6 +1412,8 @@ window.saveSettings = () => {
   S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
   S.pinEnabled    = document.getElementById('set-pin-enabled').checked;
+  S.nightMode     = document.getElementById('set-night').checked;
+  applyNightMode();
   const pinVal    = document.getElementById('set-pin').value.trim();
   if (pinVal) {
     hashPin(pinVal).then(h => { S.pin = h; localStorage.setItem('bm_s98', JSON.stringify(S)); });
