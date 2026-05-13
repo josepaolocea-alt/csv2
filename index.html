@@ -705,6 +705,7 @@
           <div class="fbar">
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
+            <button class="fltbtn" onclick="setClientsFilter('inactive',this)">Inactive only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
             <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
@@ -795,6 +796,7 @@
                 <option value="current">Current All Clients button</option>
                 <option value="all">All clients</option>
                 <option value="active">Active only</option>
+                <option value="inactive">Inactive only</option>
                 <option value="alerts">Alerts only</option>
                 <option value="debitOnlyDirect">Debit only</option>
                 <option value="critbal">Crit Bal only</option>
@@ -2497,6 +2499,11 @@ window.setClientManagerFilter = value => {
 
 window.setClientsFilter=(f,btn)=>{
   clientFilter=f;clientPage=0;
+  if(f==='inactive') {
+    showInactive=true;
+    const showBtn=document.getElementById('btn-show-inactive');
+    if(showBtn){showBtn.classList.remove('active');showBtn.textContent='Hide inactive';}
+  }
   document.querySelectorAll('#view-all-clients .fltbtn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');window.renderClients();
 };
@@ -2519,6 +2526,13 @@ window.sortClients=col=>{
 window.clientPageTo=p=>{clientPage=p;window.renderClients();};
 
 window.toggleShowInactive=()=>{
+  if(clientFilter==='inactive') {
+    showInactive=true;
+    const btn=document.getElementById('btn-show-inactive');
+    if(btn){btn.classList.remove('active');btn.textContent='Hide inactive';}
+    window.renderClients();
+    return;
+  }
   showInactive=!showInactive;
   const btn=document.getElementById('btn-show-inactive');
   if(btn) { btn.classList.toggle('active',!showInactive); btn.textContent=showInactive?'Hide inactive':'Show inactive'; }
@@ -2549,10 +2563,11 @@ function renderClientsLegacy(){
   const sourceRows = allClientRows();
   syncManagerFilterDropdown();
   let rows=sourceRows.map(r=>{const meta=clientsMeta[r.carrier_name]||{};const cb=parseFloat(meta.critical_balance);const cl=parseFloat(meta.credit_limit);return{...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};});
-  if(!showInactive) rows=rows.filter(r=>!r._inactive);
+  if(!showInactive && clientFilter!=='inactive') rows=rows.filter(r=>!r._inactive);
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   rows=rows.filter(matchesManagerFilter);
   if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
+  if(clientFilter==='inactive') rows=rows.filter(r=>r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
   if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
   if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientsMeta[r.carrier_name]?.critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
@@ -2715,16 +2730,18 @@ window.renderClients=()=>{
       const cl=parseFloat(meta.credit_limit);
       return {...r,account_manager:accountManagerFor(r),_level:alertLevel(r),notes:r.notes||meta.notes||'',_inactive:isClientInactive(meta),_meta_critbal:isNaN(cb)?null:cb,_meta_credlim:isNaN(cl)?null:cl};
     });
-    if(!showInactive) rows=rows.filter(r=>!r._inactive);
+    if(!showInactive && clientFilter!=='inactive') rows=rows.filter(r=>!r._inactive);
     if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
     rows=rows.filter(matchesManagerFilter);
     if(clientFilter==='active')  rows=rows.filter(r=>!r._inactive);
+    if(clientFilter==='inactive') rows=rows.filter(r=>r._inactive);
     if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
     if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
     if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
     if(title) {
       const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
-      title.textContent = `ðŸ‘¥ All Clients${managerTitle} (${rows.length})`;
+      const filterTitle = ({active:' - Active only', inactive:' - Inactive only', alerts:' - Alerts only', critbal:' - Crit Bal only'})[clientFilter] || '';
+      title.textContent = `ðŸ‘¥ All Clients${filterTitle}${managerTitle} (${rows.length})`;
     }
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
@@ -3023,6 +3040,7 @@ function exportFilterLabel(filter) {
   return ({
     all:'all_clients',
     active:'active_only',
+    inactive:'inactive_only',
     alerts:'alerts_only',
     debitOnlyDirect:'debit_only',
     critbal:'crit_bal_only'
@@ -3040,10 +3058,11 @@ function clientRowsForExport(filter, includeInactive, includeSearch=false) {
   if(search) rows=rows.filter(r=>r.carrier_name?.toLowerCase().includes(search));
   if(includeSearch) rows=rows.filter(matchesManagerFilter);
   if(filter==='active') rows=rows.filter(r=>!r._inactive);
+  if(filter==='inactive') rows=rows.filter(r=>r._inactive);
   if(filter==='alerts') rows=rows.filter(r=>r._level!=='none');
   if(filter==='debitOnlyDirect') rows=rows.filter(isDebitBalance);
   if(filter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
-  if(!includeInactive && filter!=='active') rows=rows.filter(r=>!r._inactive);
+  if(!includeInactive && filter!=='active' && filter!=='inactive') rows=rows.filter(r=>!r._inactive);
   rows.sort((a,b)=>{
     let av=a[clientSortCol],bv=b[clientSortCol];
     if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
