@@ -885,7 +885,7 @@
           <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
             <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
-            <div class="tab" onclick="setAlertFilter('medium',this)">🟠 Medium</div>
+            <div class="tab" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
             <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
@@ -898,6 +898,7 @@
                 <thead><tr>
                   <th onclick="sortAlert('carrier_name')">Client ▲</th>
                   <th onclick="sortAlert('amnt_receivable')" style="text-align:right">Amnt Receivable</th>
+                  <th onclick="sortAlert('usage_30min')" style="text-align:right">30m Usage</th>
                   <th onclick="sortAlert('credit_limit')" style="text-align:right">Credit Limit</th>
                   <th onclick="sortAlert('critical_balance')" style="text-align:right">Critical Balance</th>
                   <th>Balance Bar</th>
@@ -1802,6 +1803,21 @@ function computeUsage(cur, prev) {
   return { usage_30min:u30, total_usage:prev?(prev.total_usage||0)+u30:0 };
 }
 
+function usageAlertLevel(row) {
+  const u30 = Number(row?.usage_30min ?? 0);
+  if (!Number.isFinite(u30)) return null;
+  if (u30 >= 150) return 'high';
+  if (u30 >= 100) return 'medium';
+  if (u30 >= 50) return 'light';
+  return null;
+}
+
+function usageChipInfo(row) {
+  const lvl = usageAlertLevel(row);
+  if (!lvl) return ['none', 'No usage alert'];
+  return [lvl, {high:'High usage', medium:'Medium usage', light:'Light usage'}[lvl]];
+}
+
 /* ════════════════════════════════════════════════
    PARSE TEXT
 ════════════════════════════════════════════════ */
@@ -2485,14 +2501,14 @@ function renderStats() {
   document.getElementById('st-none').textContent   = noThresh;
   const tabRows=alertShowInactive?rows:rows.filter(r=>!r._inactive);
   const tabHigh=tabRows.filter(r=>r._lvl==='high').length;
-  const tabMedium=tabRows.filter(r=>r._lvl==='medium').length;
+  const tabUsage=tabRows.filter(r=>usageAlertLevel(r)).length;
   const tabLite=tabRows.filter(r=>r._lvl==='light').length;
   const tabSafe=tabRows.filter(r=>r._lvl==='none').length;
   const tabNoThresh=tabRows.filter(r=>!hasClientThreshold(r)).length;
   const tabs=document.querySelectorAll('#alert-tabs .tab');
   if(tabs[0]) tabs[0].textContent=`All (${tabRows.length})`;
   if(tabs[1]) tabs[1].textContent=`🔴 Critical (${tabHigh})`;
-  if(tabs[2]) tabs[2].textContent=`🟠 Medium (${tabMedium})`;
+  if(tabs[2]) tabs[2].textContent=`Usage (${tabUsage})`;
   if(tabs[3]) tabs[3].textContent=`⚠ Warning (${tabLite})`;
   if(tabs[4]) tabs[4].textContent=`✓ Safe (${tabSafe})`;
   if(tabs[5]) tabs[5].textContent=`No threshold (${tabNoThresh})`;
@@ -2544,6 +2560,7 @@ window.backToLive = () => {
 ════════════════════════════════════════════════ */
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
+  if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active'); renderAlerts();
 };
@@ -2581,7 +2598,7 @@ function renderAlerts() {
 
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
-  if(alertFilter==='medium')   rows=rows.filter(r=>r._level==='medium');
+  if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
   if(alertFilter==='nothresh') rows=rows.filter(r=>!hasClientThreshold(r));
@@ -2599,12 +2616,12 @@ function renderAlerts() {
 
   // Header note for 'new' filter — explain what "new" means
   const noPrevNote = alertFilter==='new' && prevCritSet===null
-    ? `<tr><td colspan="9" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
   const usingYestNote = alertFilter==='new' && prevDaySnap && prevSnap === prevDaySnap
-    ? `<tr><td colspan="9" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
+    ? `<tr><td colspan="10" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
         📅 Comparing against yesterday's last snapshot — ${prevDaySnap.session_date} · ${fmt12(prevDaySnap.time_slot)}
        </td></tr>` : '';
 
@@ -2618,7 +2635,7 @@ function renderAlerts() {
       const pos   = bal - credLim;
       bw = range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
     }
-    const[cls,lbl]=chipInfo(r,r._level);
+    const[cls,lbl]=alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
     const etaMins  = r._eta;
     const etaTxt   = etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
@@ -2629,6 +2646,7 @@ function renderAlerts() {
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
+      <td class="num ${r.usage_30min<0?'neg':r.usage_30min>0?'pos':''}">${fmt(r.usage_30min || 0)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
@@ -2640,7 +2658,7 @@ function renderAlerts() {
       <td style="text-align:center">${ackCell}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
+  }).join('')||`<tr><td colspan="10" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
 
