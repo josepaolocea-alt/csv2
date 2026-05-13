@@ -708,7 +708,7 @@
             <button class="fltbtn" onclick="setClientsFilter('inactive',this)">Inactive only</button>
             <button class="fltbtn" onclick="setClientsFilter('alerts',this)">Alerts only</button>
             <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
-            <button class="fltbtn" onclick="setClientsFilter('critbal',this)">Crit Bal only</button>
+            <button class="fltbtn" onclick="setClientsFilter('usage',this)">Usage only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
             <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">⬇ Export View</button>
             <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
@@ -799,7 +799,7 @@
                 <option value="inactive">Inactive only</option>
                 <option value="alerts">Alerts only</option>
                 <option value="debitOnlyDirect">Debit only</option>
-                <option value="critbal">Crit Bal only</option>
+                <option value="usage">Usage only</option>
               </select>
               <label style="margin-left:6px"><input type="checkbox" id="exp-include-inactive" checked> Include inactive</label>
             </div>
@@ -2438,6 +2438,12 @@ function isDebitBalance(row) {
   return Number.isFinite(bal) && bal >= 0.00000001 && bal <= 999999999;
 }
 
+function hasUsageData(row) {
+  const u30 = Number(row?.usage_30min ?? 0);
+  const total = Number(row?.total_usage ?? 0);
+  return (Number.isFinite(u30) && u30 !== 0) || (Number.isFinite(total) && total !== 0);
+}
+
 function clientMetaFor(name) {
   return clientsMeta[name] || Object.values(clientsMeta).find(m => m?.carrier_name === name) || {};
 }
@@ -2576,7 +2582,7 @@ function renderClientsLegacy(){
   if(clientFilter==='inactive') rows=rows.filter(r=>r._inactive);
   if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
   if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
-  if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientsMeta[r.carrier_name]?.critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+  if(clientFilter==='usage') rows=rows.filter(hasUsageData);
   rows.sort((a,b)=>{
     let av=a[clientSortCol],bv=b[clientSortCol];
     if(clientSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
@@ -2743,10 +2749,10 @@ window.renderClients=()=>{
     if(clientFilter==='inactive') rows=rows.filter(r=>r._inactive);
     if(clientFilter==='alerts')  rows=rows.filter(r=>r._level!=='none');
     if(clientFilter==='debitOnly') rows=rows.filter(isDebitBalance);
-    if(clientFilter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+    if(clientFilter==='usage') rows=rows.filter(hasUsageData);
     if(title) {
       const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
-      const filterTitle = ({active:' - Active only', inactive:' - Inactive only', alerts:' - Alerts only', critbal:' - Crit Bal only'})[clientFilter] || '';
+      const filterTitle = ({active:' - Active only', inactive:' - Inactive only', alerts:' - Alerts only', usage:' - Usage only'})[clientFilter] || '';
       title.textContent = `All Clients${filterTitle}${managerTitle} (${rows.length})`;
     }
     rows.sort((a,b)=>{
@@ -3049,7 +3055,7 @@ function exportFilterLabel(filter) {
     inactive:'inactive_only',
     alerts:'alerts_only',
     debitOnlyDirect:'debit_only',
-    critbal:'crit_bal_only'
+    usage:'usage_only'
   })[filter] || 'current_view';
 }
 function clientRowsForExport(filter, includeInactive, includeSearch=false) {
@@ -3067,7 +3073,7 @@ function clientRowsForExport(filter, includeInactive, includeSearch=false) {
   if(filter==='inactive') rows=rows.filter(r=>r._inactive);
   if(filter==='alerts') rows=rows.filter(r=>r._level!=='none');
   if(filter==='debitOnlyDirect') rows=rows.filter(isDebitBalance);
-  if(filter==='critbal') rows=rows.filter(r=>{const cb=clientMetaFor(r.carrier_name).critical_balance;return cb!==undefined&&cb!==null&&cb!==''&&!isNaN(parseFloat(cb));});
+  if(filter==='usage') rows=rows.filter(hasUsageData);
   if(!includeInactive && filter!=='active' && filter!=='inactive') rows=rows.filter(r=>!r._inactive);
   rows.sort((a,b)=>{
     let av=a[clientSortCol],bv=b[clientSortCol];
