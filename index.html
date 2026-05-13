@@ -546,7 +546,7 @@
     .tbtn:active, .fltbtn:active, .tab:active, .col-item:active {
       transform: translate(1px,1px);
     }
-    td, th, .groupbox, .stat-box, .sum-card, .win-inp, .win-sel, .win-search, #snap-ta {
+    .groupbox, .stat-box, .sum-card, .win-inp, .win-sel, .win-search, #snap-ta {
       transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
     }
     #settings-dlg.open .win-dialog,
@@ -806,11 +806,21 @@
     }
     body.night-mode #tab-new-critical,
     body.night-mode #tab-new-critical.active {
-      color:#ffbd72;
+      background:#3a2a12 !important;
+      color:#fff0b8 !important;
+      border-top-color:#8a6a28;
+      border-left-color:#8a6a28;
     }
     body.night-mode #tab-new-critical.has-new {
-      background:#3a2710;
-      color:#ffd090;
+      background:#662200 !important;
+      color:#fff !important;
+      border-top-color:#ffbd72;
+      border-left-color:#ffbd72;
+      animation:newCritPulseNight 1.4s ease-in-out infinite;
+    }
+    @keyframes newCritPulseNight {
+      0%,100% { background:#662200; color:#fff; }
+      50% { background:#934000; color:#fff8d8; }
     }
     body.night-mode .col-item:hover,
     body.night-mode .nav-item:hover,
