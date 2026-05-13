@@ -468,6 +468,8 @@
     .settings-row label { min-width: 0 !important; white-space: normal; line-height: 1.2; }
     .settings-row .win-inp, .settings-row .win-sel { width: 100% !important; min-width: 0; }
     .settings-check { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: center; }
+    .settings-check label { cursor: default; }
+    .settings-check input[type="checkbox"] { cursor: pointer; }
     .settings-band { display: grid; gap: 4px; margin-top: 6px; padding-left: 18px; }
     .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
 
@@ -1195,24 +1197,24 @@
         </div>
         <div class="settings-check">
           <input type="checkbox" id="set-night" onchange="saveSettings()" style="margin:0">
-          <label for="set-night">Night mode</label>
+          <label>Night mode</label>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
         <div class="settings-check">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
-          <label for="set-sound">🔔 Sound alert on critical</label>
+          <label>🔔 Sound alert on critical</label>
         </div>
         <div class="settings-check">
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
-          <label for="set-notif">🖥 Browser notification on critical</label>
+          <label>🖥 Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">📊 Usage Band Thresholds</div>
-        <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without per-client thresholds set. Bands apply to Amnt Receivable.</div>
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">No Threshold Balance Alerts</div>
+        <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without Credit Limit or Critical Balance. Uses Amnt Receivable.</div>
         <div class="settings-check">
           <input type="checkbox" id="set-usebands" onchange="saveSettings()" style="margin:0">
-          <label for="set-usebands">Enable usage bands</label>
+          <label>Enable no-threshold balance alerts</label>
         </div>
         <div class="settings-band">
           <div class="settings-row">
@@ -1232,13 +1234,17 @@
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">🔒 PIN Protection</div>
         <div class="settings-check">
           <input type="checkbox" id="set-pin-enabled" onchange="saveSettings()" style="margin:0">
-          <label for="set-pin-enabled">Require PIN on startup</label>
+          <label>Require PIN on startup</label>
         </div>
         <div class="settings-row" style="grid-template-columns:minmax(140px,1fr) minmax(90px,120px) auto;margin-top:4px">
           <label style="min-width:140px">PIN (4–8 digits):</label>
-          <input class="win-inp" id="set-pin" type="password" maxlength="8" style="width:100px" placeholder="Enter new PIN…" onchange="saveSettings()">
-          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="clearPin()">Clear</button>
+          <input class="win-inp" id="set-pin" type="password" maxlength="8" inputmode="numeric" pattern="[0-9]*" style="width:100px" placeholder="Enter new PIN..." onkeydown="if(event.key==='Enter')setPin()">
+          <div style="display:flex;gap:4px;white-space:nowrap">
+            <button class="tbtn primary" style="font-size:10px;padding:0 6px" onclick="setPin()">Set PIN</button>
+            <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="clearPin()">Clear</button>
+          </div>
         </div>
+        <div id="set-pin-status" style="font-size:10px;color:#666;margin:2px 0 0 148px;min-height:12px"></div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
         <div class="settings-danger">
@@ -1484,6 +1490,13 @@ let S = {
 function applyNightMode() {
   document.body.classList.toggle('night-mode', !!S.nightMode);
 }
+function setPinStatus(msg, type='') {
+  const el = document.getElementById('set-pin-status');
+  if (!el) return;
+  const night = document.body.classList.contains('night-mode');
+  el.textContent = msg;
+  el.style.color = type === 'err' ? (night ? '#ff8585' : '#880000') : type === 'ok' ? (night ? '#78e690' : '#006600') : (night ? '#c8d8d8' : '#666');
+}
 function loadSettings() {
   try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
   applyNightMode();
@@ -1500,6 +1513,8 @@ function loadSettings() {
   document.getElementById('set-band-crit').value   = S.bandCritical;
   document.getElementById('set-pin-enabled').checked = S.pinEnabled;
   document.getElementById('set-night').checked     = !!S.nightMode;
+  document.getElementById('set-pin').value = '';
+  setPinStatus(S.pin ? 'PIN saved' : 'No PIN set');
 }
 function loadLastProcessedSnap() {
   if (fbOk) {
@@ -1528,23 +1543,45 @@ window.saveSettings = () => {
   S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
   S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
-  S.pinEnabled    = document.getElementById('set-pin-enabled').checked;
+  const pinToggle = document.getElementById('set-pin-enabled');
+  S.pinEnabled    = pinToggle.checked;
+  let pinStatusMsg = S.pin ? 'PIN saved' : 'No PIN set';
+  let pinStatusType = '';
+  if (S.pinEnabled && !S.pin) {
+    S.pinEnabled = false;
+    pinToggle.checked = false;
+    pinStatusMsg = 'Set a PIN first, then enable startup lock.';
+    pinStatusType = 'err';
+  }
   S.nightMode     = document.getElementById('set-night').checked;
   applyNightMode();
-  const pinVal    = document.getElementById('set-pin').value.trim();
-  if (pinVal) {
-    hashPin(pinVal).then(h => { S.pin = h; localStorage.setItem('bm_s98', JSON.stringify(S)); });
-    document.getElementById('set-pin').value = '';
-  } else {
-    localStorage.setItem('bm_s98', JSON.stringify(S));
-  }
+  localStorage.setItem('bm_s98', JSON.stringify(S));
+  setPinStatus(pinStatusMsg, pinStatusType);
   populateSlots(); refreshAll();
+};
+window.setPin = async () => {
+  const pinEl = document.getElementById('set-pin');
+  const pinVal = (pinEl?.value || '').trim();
+  if (!/^\d{4,8}$/.test(pinVal)) {
+    setPinStatus('PIN must be 4 to 8 digits', 'err');
+    toast('PIN must be 4 to 8 digits', 'err');
+    pinEl?.focus();
+    return;
+  }
+  S.pin = await hashPin(pinVal);
+  S.pinEnabled = true;
+  document.getElementById('set-pin-enabled').checked = true;
+  if (pinEl) pinEl.value = '';
+  localStorage.setItem('bm_s98', JSON.stringify(S));
+  setPinStatus('PIN saved. Startup lock enabled.', 'ok');
+  toast('✓ PIN saved', 'ok');
 };
 window.clearPin = () => {
   S.pin = ''; S.pinEnabled = false;
   document.getElementById('set-pin').value = '';
   document.getElementById('set-pin-enabled').checked = false;
   localStorage.setItem('bm_s98', JSON.stringify(S));
+  setPinStatus('No PIN set');
   toast('✓ PIN cleared', 'ok');
 };
 
