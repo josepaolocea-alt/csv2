@@ -1337,6 +1337,12 @@ function updateAlertTabFlash(hasCritical) {
 /* ── Page title blink ── */
 let _titleBlinkTimer = null;
 function updatePageTitle(hasCritical) {
+  if (_titleBlinkTimer) {
+    clearInterval(_titleBlinkTimer);
+    _titleBlinkTimer = null;
+  }
+  document.title = 'BalanceMonitor';
+  return;
   if (hasCritical) {
     if (!_titleBlinkTimer) {
       let flip = false;
