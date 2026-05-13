@@ -701,7 +701,7 @@
       <!-- ═══ ALL CLIENTS ════════════════════════════ -->
       <div class="view" id="view-all-clients">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title" id="clients-title">👥 All Clients</div>
+          <div class="groupbox-title" id="clients-title">All Clients</div>
           <div class="fbar">
             <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
             <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
@@ -2671,7 +2671,7 @@ function renderDebitOnlyClientsTable() {
     const title=document.getElementById('clients-title');
     if(title) {
       const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
-      title.textContent = `👥 All Clients - Debit Only${managerTitle} (${rows.length})`;
+      title.textContent = `All Clients - Debit Only${managerTitle} (${rows.length})`;
     }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
     tbody.innerHTML=page.map((r,ri)=>{
@@ -2723,7 +2723,7 @@ window.renderClients=()=>{
         `parsed=${lastParseInfo.parsedRows||0} accepted=${lastParseInfo.acceptedRows||0} headerLine=${lastParseInfo.headerLine||0}`;
     }
     const title=document.getElementById('clients-title');
-    if(title) title.textContent = `👥 All Clients (${sourceRows.length})`;
+    if(title) title.textContent = `All Clients (${sourceRows.length})`;
     let rows=sourceRows.map(r=>{
       const meta=clientMetaFor(r.carrier_name);
       const cb=parseFloat(meta.critical_balance);
@@ -2741,7 +2741,7 @@ window.renderClients=()=>{
     if(title) {
       const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
       const filterTitle = ({active:' - Active only', inactive:' - Inactive only', alerts:' - Alerts only', critbal:' - Crit Bal only'})[clientFilter] || '';
-      title.textContent = `ðŸ‘¥ All Clients${filterTitle}${managerTitle} (${rows.length})`;
+      title.textContent = `All Clients${filterTitle}${managerTitle} (${rows.length})`;
     }
     rows.sort((a,b)=>{
       let av=a[clientSortCol],bv=b[clientSortCol];
