@@ -128,10 +128,24 @@
     }
 
     /* Sidebar snap area */
-    #sidebar-snap { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 6px 4px 4px; }
+    #sidebar-snap { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; padding: 6px 4px 4px; }
+    #top-usage-panel,
+    #snap-editor { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
     .snap-label { font-size: 10px; font-weight: 700; color: #000080; margin-bottom: 2px; }
+    #top-usage-list {
+      flex: 1; overflow-y: auto; min-height: 0;
+      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      padding: 2px;
+    }
+    .top-usage-item {
+      padding: 2px 4px; font-size: 10px; line-height: 1.25;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .top-usage-empty { padding: 6px 4px; font-size: 10px; color: #666; }
     #snap-ta {
-      flex: 1; min-height: 60px; resize: none; width: 100%;
+      flex: 1; min-height: 40px; resize: none; width: 100%;
       background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
       font-family: 'Courier New', monospace; font-size: 10px; padding: 3px; color: #000;
@@ -662,6 +676,7 @@
     body.night-mode .sparkline-wrap,
     body.night-mode .progress-wrap,
     body.night-mode .drop-zone,
+    body.night-mode #top-usage-list,
     body.night-mode #client-detail-body {
       background: #181818 !important;
       color: #e8e8e8 !important;
@@ -711,6 +726,9 @@
     body.night-mode tr:hover td {
       background: #003078 !important;
       color: #fff !important;
+    }
+    body.night-mode .top-usage-item {
+      border-bottom-color:#303030;
     }
     body.night-mode td.neg { color:#ff7777; }
     body.night-mode td.pos { color:#66dd88; }
@@ -931,6 +949,13 @@
 
       <!-- Snapshot paste -->
       <div id="sidebar-snap">
+        <div id="top-usage-panel">
+          <div class="snap-label">Top 30m Usage</div>
+          <div id="top-usage-list">
+            <div class="top-usage-empty">No 30m usage yet.</div>
+          </div>
+        </div>
+        <div id="snap-editor">
         <div class="snap-label">📋 New Snapshot</div>
         <textarea id="snap-ta" placeholder="Paste data here…"></textarea>
         <select id="slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
@@ -1149,7 +1174,8 @@
               <label style="margin-left:6px"><input type="checkbox" id="exp-include-inactive" checked> Include inactive</label>
             </div>
             <div class="exp-row" style="margin-top:4px">
-              <button class="tbtn primary" onclick="exportCsv()">⬇ Export CSV</button>
+              <button class="tbtn primary" onclick="exportSnapshotSheet()">⬇ Export Snapshot Sheet</button>
+              <button class="tbtn" style="margin-left:4px" onclick="exportCsv()">⬇ Export Rows CSV</button>
               <button class="tbtn" style="margin-left:4px" onclick="window.print()">🖨 Print / PDF</button>
             </div>
           </div>
@@ -2617,6 +2643,18 @@ function allClientRows() {
   return Array.from(rowsByName.values());
 }
 
+function renderTopUsage() {
+  const el = document.getElementById('top-usage-list');
+  if (!el) return;
+  const rows = activeData()
+    .filter(r => r?.carrier_name && Number(r.usage_30min || 0) > 0)
+    .sort((a,b) => Number(b.usage_30min || 0) - Number(a.usage_30min || 0) || String(a.carrier_name).localeCompare(String(b.carrier_name)))
+    .slice(0, 12);
+  el.innerHTML = rows.length
+    ? rows.map(r => `<div class="top-usage-item">${esc(r.carrier_name)}</div>`).join('')
+    : '<div class="top-usage-empty">No 30m usage yet.</div>';
+}
+
 function safeRender(label, fn) {
   try { fn(); }
   catch(e) {
@@ -2627,6 +2665,7 @@ function safeRender(label, fn) {
 
 function refreshAll() {
   safeRender('Sync', updateSync);
+  safeRender('Top usage', renderTopUsage);
   safeRender('Stats', renderStats);
   safeRender('Timeline', renderTimeline);
   safeRender('Shift summary', renderShiftSummary);
@@ -3495,6 +3534,136 @@ function clientRowsForExport(filter, includeInactive, includeSearch=false) {
   });
   return rows;
 }
+function exportDateRange() {
+  const mode = document.getElementById('exp-range')?.value || 'today';
+  if (mode !== 'custom') return { from: todayStr(), to: todayStr() };
+  const from = document.getElementById('exp-from')?.value;
+  const to = document.getElementById('exp-to')?.value;
+  if (!from || !to) {
+    toast('Select export From and To dates', 'err');
+    return null;
+  }
+  if (from > to) {
+    toast('Export From date must be before To date', 'err');
+    return null;
+  }
+  return { from, to };
+}
+async function loadSnapshotsForExport(from, to) {
+  let snaps = [];
+  if (fbOk) {
+    const q = query(collection(db, 'snapshots'), where('session_date', '>=', from), where('session_date', '<=', to));
+    const s = await getDocs(q);
+    snaps = s.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate?.() || d.data().timestamp }));
+  } else {
+    snaps = todaySnaps.slice();
+  }
+  return snaps.filter(s => s?.session_date >= from && s.session_date <= to && Array.isArray(s.data));
+}
+function slotIndexForShift(slot, shift) {
+  const slots = shiftSlots(shift || '24H');
+  const idx = slots.indexOf(slot);
+  return idx >= 0 ? idx : 9999;
+}
+function sortSnapshotSheetSnaps(snaps, shift) {
+  return snaps.slice().sort((a,b) =>
+    String(a.session_date || '').localeCompare(String(b.session_date || '')) ||
+    slotIndexForShift(a.time_slot, shift) - slotIndexForShift(b.time_slot, shift) ||
+    snapshotTimeMs(a) - snapshotTimeMs(b)
+  );
+}
+function xmlEsc(v) {
+  return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function xlsTextCell(v, style='') {
+  const st = style ? ` ss:StyleID="${style}"` : '';
+  if (v === null || v === undefined || v === '') return `<Cell${st}/>`;
+  return `<Cell${st}><Data ss:Type="String">${xmlEsc(v)}</Data></Cell>`;
+}
+function xlsNumberCell(v, style='num') {
+  const st = style ? ` ss:StyleID="${style}"` : '';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return `<Cell${st}/>`;
+  return `<Cell${st}><Data ss:Type="Number">${n}</Data></Cell>`;
+}
+function xlsSheetName(name) {
+  return String(name || 'Snapshots').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31) || 'Snapshots';
+}
+function snapshotTimeLabel(s, showDate) {
+  const time = s.time_slot ? fmt12(s.time_slot).replace(' ', '') : '';
+  return showDate ? `${s.session_date || ''} ${time}`.trim() : time;
+}
+function snapshotWorksheetXml(shift, snaps, showDate) {
+  const sorted = sortSnapshotSheetSnaps(snaps, shift);
+  const names = [];
+  const seen = new Set();
+  sorted.forEach(s => (s.data || []).forEach(r => {
+    const name = r?.carrier_name;
+    if (name && !seen.has(name)) { seen.add(name); names.push(name); }
+  }));
+  const maps = sorted.map(s => new Map((s.data || []).filter(r => r?.carrier_name).map(r => [r.carrier_name, r])));
+  const row1 = sorted.map(s =>
+    `<Cell ss:MergeAcross="3" ss:StyleID="time"><Data ss:Type="String">${xmlEsc(snapshotTimeLabel(s, showDate))}</Data></Cell>`
+  ).join('');
+  const row2 = sorted.map(() =>
+    ['Carrier Name','Amnt Receivable','30m Usage','Total Usage'].map(h => xlsTextCell(h, 'hdr')).join('')
+  ).join('');
+  const body = names.map(name => `<Row>${maps.map(m => {
+    const r = m.get(name);
+    return [
+      xlsTextCell(r?.carrier_name || ''),
+      xlsNumberCell(r?.amnt_receivable),
+      xlsNumberCell(r?.usage_30min),
+      xlsNumberCell(r?.total_usage)
+    ].join('');
+  }).join('')}</Row>`).join('');
+  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${row1}</Row><Row>${row2}</Row>${body}</Table></Worksheet>`;
+}
+window.exportSnapshotSheet = async () => {
+  const range = exportDateRange();
+  if (!range) return;
+  const selectedShift = document.getElementById('exp-shift')?.value || 'both';
+  setLoading(true, 'Building snapshot sheet...');
+  try {
+    const allSnaps = await loadSnapshotsForExport(range.from, range.to);
+    const shiftOrder = ['7AM-7PM','7PM-7AM'];
+    const shifts = selectedShift === 'both'
+      ? shiftOrder.filter(sh => allSnaps.some(s => (s.shift || '') === sh))
+      : [selectedShift];
+    const showDate = range.from !== range.to;
+    const sheets = shifts.map(sh => {
+      const snaps = allSnaps.filter(s => (s.shift || '') === sh);
+      return snaps.length ? snapshotWorksheetXml(sh, snaps, showDate) : '';
+    }).filter(Boolean);
+    if (!sheets.length) {
+      toast('No snapshots found for this export range/shift', 'err');
+      return;
+    }
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+  <Style ss:ID="time"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="hdr"><Font ss:Bold="1"/><Interior ss:Color="#EFEFEF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="num"><NumberFormat ss:Format="0.00"/></Style>
+</Styles>${sheets.join('')}</Workbook>`;
+    const labelShift = selectedShift === 'both' ? 'both_shifts' : selectedShift.replace(/[^a-z0-9]+/gi,'_');
+    const url = URL.createObjectURL(new Blob([xml], { type:'application/vnd.ms-excel;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `snapshot_sheet_${range.from}${range.to!==range.from?'_to_'+range.to:''}_${labelShift}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`✓ Exported ${sheets.length} snapshot sheet(s)`, 'ok');
+  } catch(e) {
+    toast('Snapshot export failed: ' + (e.message || e), 'err');
+  } finally {
+    setLoading(false);
+  }
+};
 function downloadClientRowsCsv(rows, label) {
   if(!rows.length){toast('No data to export','err');return;}
   const h=['CarrierName','Account Manager','Prev Balance','Pay&Adj','Current Usage','Amnt Receivable','30m Usage','Total Usage','Alert Level','Notes','Credit Limit','Critical Balance','Status'];
