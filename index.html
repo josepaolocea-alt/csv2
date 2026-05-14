@@ -3550,16 +3550,46 @@ function exportDateRange() {
   }
   return { from, to };
 }
+function dateStringsInRange(from, to) {
+  const out = [];
+  const d = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while (d <= end && out.length < 120) {
+    out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
 async function loadSnapshotsForExport(from, to) {
   let snaps = [];
   if (fbOk) {
-    const q = query(collection(db, 'snapshots'), where('session_date', '>=', from), where('session_date', '<=', to));
-    const s = await getDocs(q);
-    snaps = s.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate?.() || d.data().timestamp }));
+    for (const day of dateStringsInRange(from, to)) {
+      const q = query(collection(db, 'snapshots'), where('session_date', '==', day), orderBy('time_slot'));
+      const s = await getDocs(q);
+      snaps.push(...s.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate?.() || d.data().timestamp })));
+    }
   } else {
     snaps = todaySnaps.slice();
   }
-  return snaps.filter(s => s?.session_date >= from && s.session_date <= to && Array.isArray(s.data));
+  if (from <= todayStr() && todayStr() <= to && todaySnaps.length) {
+    snaps.push(...todaySnaps);
+  }
+  const bySlot = new Map();
+  snaps.filter(s => s?.session_date >= from && s.session_date <= to && Array.isArray(s.data)).forEach(s => {
+    const key = `${s.session_date || ''}_${s.time_slot || ''}`;
+    const prev = bySlot.get(key);
+    if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) bySlot.set(key, s);
+  });
+  return Array.from(bySlot.values());
+}
+function shiftForTimeSlot(slot) {
+  const [h] = String(slot || '').split(':').map(Number);
+  if (!Number.isFinite(h)) return '';
+  return h >= 7 && h < 19 ? '7AM-7PM' : '7PM-7AM';
+}
+function snapshotMatchesShift(s, shift) {
+  if (shift === 'both') return true;
+  return (s.shift || '') === shift || shiftForTimeSlot(s.time_slot) === shift;
 }
 function slotIndexForShift(slot, shift) {
   const slots = shiftSlots(shift || '24H');
@@ -3629,11 +3659,11 @@ window.exportSnapshotSheet = async () => {
     const allSnaps = await loadSnapshotsForExport(range.from, range.to);
     const shiftOrder = ['7AM-7PM','7PM-7AM'];
     const shifts = selectedShift === 'both'
-      ? shiftOrder.filter(sh => allSnaps.some(s => (s.shift || '') === sh))
+      ? shiftOrder.filter(sh => allSnaps.some(s => snapshotMatchesShift(s, sh)))
       : [selectedShift];
     const showDate = range.from !== range.to;
     const sheets = shifts.map(sh => {
-      const snaps = allSnaps.filter(s => (s.shift || '') === sh);
+      const snaps = allSnaps.filter(s => snapshotMatchesShift(s, sh));
       return snaps.length ? snapshotWorksheetXml(sh, snaps, showDate) : '';
     }).filter(Boolean);
     if (!sheets.length) {
