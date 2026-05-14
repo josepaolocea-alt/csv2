@@ -3564,7 +3564,7 @@ async function loadSnapshotsForExport(from, to) {
   let snaps = [];
   if (fbOk) {
     for (const day of dateStringsInRange(from, to)) {
-      const q = query(collection(db, 'snapshots'), where('session_date', '==', day), orderBy('time_slot'));
+      const q = query(collection(db, 'snapshots'), where('session_date', '==', day));
       const s = await getDocs(q);
       snaps.push(...s.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate?.() || d.data().timestamp })));
     }
