@@ -1411,8 +1411,8 @@
     <div class="dlg-tb"><span>🔒 BalanceMonitor — PIN Required</span></div>
     <div style="padding:16px">
       <div style="font-size:11px;margin-bottom:10px;text-align:center">Enter your PIN to access BalanceMonitor:</div>
-      <input class="win-inp" id="pin-inp" type="password" maxlength="8" style="width:100%;text-align:center;font-size:18px;letter-spacing:6px;margin-bottom:6px"
-        placeholder="••••" onkeydown="if(event.key==='Enter')submitPin()">
+      <input class="win-inp" id="pin-inp" type="text" maxlength="8" inputmode="numeric" pattern="[0-9]*" style="width:100%;text-align:center;font-size:18px;letter-spacing:0;margin-bottom:6px"
+        placeholder="" onkeydown="if(event.key==='Enter')submitPin()">
       <div id="pin-error" style="font-size:11px;color:#cc0000;text-align:center;min-height:16px;margin-bottom:8px"></div>
       <div style="display:flex;justify-content:center">
         <button class="tbtn primary" style="min-width:90px" onclick="submitPin()">🔓 Unlock</button>
