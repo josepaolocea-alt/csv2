@@ -440,6 +440,24 @@
     .sms-field.full { grid-column: span 2; }
     .sms-row-actions { display: inline-flex; gap: 2px; }
     .sms-muted { color: #666; font-size: 10px; }
+    .sms-combo { position: relative; display: flex; min-width: 0; }
+    .sms-combo .win-inp { flex: 1; min-width: 0; }
+    .sms-combo-btn {
+      width: 22px; height: 20px; padding: 0; font-size: 9px; font-family: inherit;
+      background: #c0c0c0; cursor: pointer;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+    }
+    .sms-combo-options {
+      display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+      max-height: 150px; overflow-y: auto; z-index: 1200; background: #fff;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 2px 2px 5px rgba(0,0,0,.35);
+    }
+    .sms-combo.open .sms-combo-options { display: block; }
+    .sms-combo-option { padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sms-combo-option:hover { background: #000080; color: #fff; }
     @media (max-width: 980px) {
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     }
@@ -531,10 +549,10 @@
     .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
       box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
@@ -612,6 +630,7 @@
     #loading.on .win-dialog,
     #confirm-overlay.open #confirm-box,
     #undo-confirm-overlay.open #undo-confirm-box,
+    #sms-confirm-overlay.open #sms-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #client-detail-overlay.open #client-detail-box {
@@ -649,6 +668,7 @@
     body.night-mode .win-dialog,
     body.night-mode #confirm-box,
     body.night-mode #undo-confirm-box,
+    body.night-mode #sms-confirm-box,
     body.night-mode #client-detail-box,
     body.night-mode #rollback-box,
     body.night-mode #delete-today-box,
@@ -777,6 +797,18 @@
     }
     body.night-mode .top-usage-item {
       border-bottom-color:#303030;
+    }
+    body.night-mode .sms-combo-options {
+      background:#181818;
+      color:#e8e8e8;
+      border-top-color:#111;
+      border-left-color:#111;
+      border-right-color:#666;
+      border-bottom-color:#666;
+    }
+    body.night-mode .sms-combo-option:hover {
+      background:#003078;
+      color:#fff;
     }
     body.night-mode td.neg { color:#ff7777; }
     body.night-mode td.pos { color:#66dd88; }
@@ -1279,10 +1311,10 @@
             </div>
             <div class="sms-form-grid">
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
-              <div class="sms-field"><label>Sender ID</label><input class="win-inp" id="sms-sender-id"></div>
-              <div class="sms-field"><label>Destination</label><input class="win-inp" id="sms-destination" list="sms-destination-list" placeholder="Example: Ph Smart Mobile"><datalist id="sms-destination-list"></datalist></div>
-              <div class="sms-field"><label>Account Manager</label><input class="win-inp" id="sms-account-manager" list="sms-account-manager-list"><datalist id="sms-account-manager-list"></datalist></div>
-              <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-platform" list="sms-platform-list" value="MS Teams" oninput="toggleSmsEmailField()" onchange="toggleSmsEmailField()"><datalist id="sms-platform-list"></datalist></div>
+              <div class="sms-field"><label>Sender ID</label><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div></div>
+              <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
+              <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
+              <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
               <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
               <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
@@ -1330,6 +1362,20 @@
     <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name">👤 <span id="sb-opname">Set name…</span></div>
   </div>
 </div><!-- /#win -->
+
+<!-- SMS Confirm Dialog -->
+<div id="sms-confirm-overlay">
+  <div id="sms-confirm-box">
+    <div class="dlg-tb"><span>Confirm SMS Change</span></div>
+    <div style="padding:12px;font-size:11px">
+      <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
+      <div style="display:flex;justify-content:flex-end;gap:6px">
+        <button class="tbtn" onclick="closeSmsConfirm()">Cancel</button>
+        <button class="tbtn primary" id="sms-confirm-ok" onclick="confirmSmsDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Settings Dialog -->
 <div id="settings-dlg">
@@ -1630,7 +1676,7 @@ let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
-let smsClients = [], smsEditingId = null;
+let smsClients = [], smsEditingId = null, smsPendingDeleteId = null;
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -1770,6 +1816,7 @@ document.addEventListener('click', e => {
   if (sd.classList.contains('open') && !sd.contains(e.target) && !e.target.closest('[onclick*="toggleSettings"]'))
     sd.classList.remove('open');
   if (!e.target.closest('#view-menu')) closeViewMenu();
+  if (!e.target.closest('.sms-combo')) closeSmsCombos();
 });
 
 /* ════════════════════════════════════════════════
@@ -4055,19 +4102,88 @@ function saveSmsClients() {
   localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients));
 }
 
-function setDatalistOptions(id, values) {
-  const list = document.getElementById(id);
-  if (!list) return;
+function smsComboOptions(kind) {
+  if (kind === 'sender_id') return smsClients.map(r => r.sender_id);
+  if (kind === 'destination') return smsClients.map(r => r.destination);
+  if (kind === 'account_manager') return smsClients.map(r => r.account_manager);
+  if (kind === 'platform') return [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)];
+  return [];
+}
+
+function smsComboInputId(kind) {
+  return ({
+    sender_id:'sms-sender-id',
+    destination:'sms-destination',
+    account_manager:'sms-account-manager',
+    platform:'sms-platform'
+  })[kind];
+}
+
+function smsComboMenuId(kind) {
+  return ({
+    sender_id:'sms-sender-id-options',
+    destination:'sms-destination-options',
+    account_manager:'sms-account-manager-options',
+    platform:'sms-platform-options'
+  })[kind];
+}
+
+function cleanSmsComboValues(values) {
   const clean = Array.from(new Set(values.map(v => String(v || '').trim()).filter(Boolean)))
     .sort((a,b)=>a.localeCompare(b));
-  list.innerHTML = clean.map(v => `<option value="${esc(v)}"></option>`).join('');
+  return clean;
 }
 
 function updateSmsDatalists() {
-  setDatalistOptions('sms-destination-list', smsClients.map(r => r.destination));
-  setDatalistOptions('sms-account-manager-list', smsClients.map(r => r.account_manager));
-  setDatalistOptions('sms-platform-list', [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)]);
+  ['sender_id','destination','account_manager','platform'].forEach(kind => {
+    const input = document.getElementById(smsComboInputId(kind));
+    updateSmsComboOptions(kind, input?.value || '');
+  });
 }
+
+function updateSmsComboOptions(kind, filter='') {
+  const menu = document.getElementById(smsComboMenuId(kind));
+  if (!menu) return;
+  const q = String(filter || '').trim().toLowerCase();
+  const values = cleanSmsComboValues(smsComboOptions(kind))
+    .filter(v => !q || v.toLowerCase().includes(q))
+    .slice(0, 40);
+  menu.innerHTML = values.length
+    ? values.map(v => `<div class="sms-combo-option" data-value="${esc(v)}" onclick="pickSmsCombo('${kind}',this.dataset.value)">${esc(v)}</div>`).join('')
+    : `<div class="sms-combo-option" style="color:#666;cursor:default">No saved options</div>`;
+}
+
+function closeSmsCombos() {
+  document.querySelectorAll('.sms-combo.open').forEach(el => el.classList.remove('open'));
+}
+
+window.openSmsCombo = kind => {
+  closeSmsCombos();
+  updateSmsComboOptions(kind, document.getElementById(smsComboInputId(kind))?.value || '');
+  document.querySelector(`.sms-combo[data-combo="${kind}"]`)?.classList.add('open');
+};
+
+window.filterSmsCombo = kind => {
+  updateSmsComboOptions(kind, document.getElementById(smsComboInputId(kind))?.value || '');
+  document.querySelector(`.sms-combo[data-combo="${kind}"]`)?.classList.add('open');
+};
+
+window.toggleSmsCombo = (kind, e) => {
+  e?.stopPropagation();
+  const wrap = document.querySelector(`.sms-combo[data-combo="${kind}"]`);
+  const open = wrap?.classList.contains('open');
+  closeSmsCombos();
+  if (!open) {
+    updateSmsComboOptions(kind, '');
+    wrap?.classList.add('open');
+  }
+};
+
+window.pickSmsCombo = (kind, value) => {
+  smsSetValue(smsComboInputId(kind), value);
+  closeSmsCombos();
+  if (kind === 'platform') toggleSmsEmailField();
+};
 
 function initSmsModule() {
   const vendorSel = document.getElementById('sms-vendor');
@@ -4167,12 +4283,27 @@ window.editSmsClient = id => {
 
 window.deleteSmsClient = id => {
   const row = smsClients.find(r => r.id === id);
-  if (!row || !confirm(`Delete SMS route for ${row.client} / ${row.destination}?`)) return;
+  if (!row) return;
+  smsPendingDeleteId = id;
+  const text = document.getElementById('sms-confirm-text');
+  if (text) text.innerHTML = `Delete SMS route for <strong>${esc(row.client)}</strong> / <strong>${esc(row.destination)}</strong>?`;
+  document.getElementById('sms-confirm-overlay')?.classList.add('open');
+};
+
+window.closeSmsConfirm = () => {
+  smsPendingDeleteId = null;
+  document.getElementById('sms-confirm-overlay')?.classList.remove('open');
+};
+
+window.confirmSmsDelete = () => {
+  const id = smsPendingDeleteId;
+  if (!id) { closeSmsConfirm(); return; }
   smsClients = smsClients.filter(r => r.id !== id);
   if (smsEditingId === id) newSmsClient(false);
   saveSmsClients();
   updateSmsDatalists();
   renderSmsClients();
+  closeSmsConfirm();
   toast('SMS client route deleted', 'ok');
 };
 
