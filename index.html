@@ -1274,14 +1274,15 @@
               <button class="tbtn" onclick="downloadSmsClientTemplate()">Download Sample CSV</button>
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
               <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Upload CSV</button>
+              <button class="tbtn" onclick="exportSmsClientsCsv()">Export CSV</button>
               <span class="sms-muted" id="sms-edit-status">Adding new client route</span>
             </div>
             <div class="sms-form-grid">
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
               <div class="sms-field"><label>Sender ID</label><input class="win-inp" id="sms-sender-id"></div>
-              <div class="sms-field"><label>Destination</label><input class="win-inp" id="sms-destination" placeholder="Example: Ph Smart Mobile"></div>
-              <div class="sms-field"><label>Account Manager</label><input class="win-inp" id="sms-account-manager"></div>
-              <div class="sms-field"><label>Platform</label><select class="win-sel" id="sms-platform" onchange="toggleSmsEmailField()"><option>SMS</option><option>Email</option></select></div>
+              <div class="sms-field"><label>Destination</label><input class="win-inp" id="sms-destination" list="sms-destination-list" placeholder="Example: Ph Smart Mobile"><datalist id="sms-destination-list"></datalist></div>
+              <div class="sms-field"><label>Account Manager</label><input class="win-inp" id="sms-account-manager" list="sms-account-manager-list"><datalist id="sms-account-manager-list"></datalist></div>
+              <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-platform" list="sms-platform-list" value="MS Teams" oninput="toggleSmsEmailField()" onchange="toggleSmsEmailField()"><datalist id="sms-platform-list"></datalist></div>
               <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
               <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
@@ -1651,6 +1652,7 @@ const COLS = [
 ];
 const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
 const SMS_VENDORS = ['IBAZAAR','M360','SMART SUITE','TM','MONTY','MCT','VTS','NGT','NEW BUY'];
+const SMS_DEFAULT_PLATFORMS = ['MS Teams','Viber','WhatsApp','Telegram','Email'];
 
 /* ════════════════════════════════════════════════
    SETTINGS
@@ -4010,7 +4012,10 @@ function normalizeSmsVendor(v) {
 }
 
 function normalizeSmsPlatform(v) {
-  return String(v || '').trim().toLowerCase() === 'email' ? 'Email' : 'SMS';
+  const raw = String(v || '').trim();
+  if (!raw || raw.toLowerCase() === 'sms') return SMS_DEFAULT_PLATFORMS[0];
+  const match = SMS_DEFAULT_PLATFORMS.find(p => p.toLowerCase() === raw.toLowerCase());
+  return match || raw;
 }
 
 function normalizeSmsType(v) {
@@ -4050,12 +4055,27 @@ function saveSmsClients() {
   localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients));
 }
 
+function setDatalistOptions(id, values) {
+  const list = document.getElementById(id);
+  if (!list) return;
+  const clean = Array.from(new Set(values.map(v => String(v || '').trim()).filter(Boolean)))
+    .sort((a,b)=>a.localeCompare(b));
+  list.innerHTML = clean.map(v => `<option value="${esc(v)}"></option>`).join('');
+}
+
+function updateSmsDatalists() {
+  setDatalistOptions('sms-destination-list', smsClients.map(r => r.destination));
+  setDatalistOptions('sms-account-manager-list', smsClients.map(r => r.account_manager));
+  setDatalistOptions('sms-platform-list', [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)]);
+}
+
 function initSmsModule() {
   const vendorSel = document.getElementById('sms-vendor');
   if (vendorSel && !vendorSel.options.length) {
     vendorSel.innerHTML = SMS_VENDORS.map(v => `<option>${esc(v)}</option>`).join('');
   }
   loadSmsClients();
+  updateSmsDatalists();
   newSmsClient(false);
   renderSmsClients();
 }
@@ -4103,14 +4123,14 @@ function smsFillForm(row) {
 }
 
 window.toggleSmsEmailField = () => {
-  const isEmail = smsFormValue('sms-platform') === 'Email';
+  const isEmail = smsFormValue('sms-platform').toLowerCase() === 'email';
   const wrap = document.getElementById('sms-email-wrap');
   if (wrap) wrap.style.opacity = isEmail ? '1' : '.55';
 };
 
 window.newSmsClient = (showToast=true) => {
   smsEditingId = null;
-  smsFillForm({ platform:'SMS', type:'Wholesale', opt_out:'Without', vendor:SMS_VENDORS[0] });
+  smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', opt_out:'Without', vendor:SMS_VENDORS[0] });
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = 'Adding new client route';
   if (showToast) toast('Ready for a new SMS client route', 'ok');
@@ -4130,6 +4150,7 @@ window.saveSmsClient = () => {
     else smsClients.push(row);
   }
   saveSmsClients();
+  updateSmsDatalists();
   renderSmsClients();
   newSmsClient(false);
   toast('SMS client route saved', 'ok');
@@ -4150,6 +4171,7 @@ window.deleteSmsClient = id => {
   smsClients = smsClients.filter(r => r.id !== id);
   if (smsEditingId === id) newSmsClient(false);
   saveSmsClients();
+  updateSmsDatalists();
   renderSmsClients();
   toast('SMS client route deleted', 'ok');
 };
@@ -4162,6 +4184,7 @@ function smsMatchesSearch(row, q) {
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
   if (!tbody) return;
+  updateSmsDatalists();
   const q = (document.getElementById('sms-search')?.value || '').trim().toLowerCase();
   const rows = smsClients.filter(r => smsMatchesSearch(r, q))
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)));
@@ -4186,8 +4209,8 @@ window.renderSmsClients = () => {
 window.downloadSmsClientTemplate = () => {
   const rows = [
     ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','SENDERID','Ph Smart Mobile','Jason Cruz','SMS','Wholesale','Without','Allowed','SMART SUITE','','Smart route'],
-    ['Sample Client','SENDERID','Globe','Jason Cruz','SMS','Wholesale','Without','Allowed','M360','','Globe route'],
+    ['Sample Client','SENDERID','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Without','Allowed','SMART SUITE','','Smart route'],
+    ['Sample Client','SENDERID','Globe','Jason Cruz','Viber','Wholesale','Without','Allowed','M360','','Globe route'],
     ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -4198,6 +4221,23 @@ window.downloadSmsClientTemplate = () => {
   a.click();
   URL.revokeObjectURL(url);
   toast('Sample SMS CSV downloaded', 'ok');
+};
+
+window.exportSmsClientsCsv = () => {
+  if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
+  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const rows = smsClients
+    .slice()
+    .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
+    .map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sms_clients_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${smsClients.length} SMS client route(s)`, 'ok');
 };
 
 function smsRowFromCsv(raw) {
@@ -4228,6 +4268,7 @@ window.importSmsClientCsv = file => {
         }
       });
       saveSmsClients();
+      updateSmsDatalists();
       renderSmsClients();
       toast(`SMS CSV imported: ${added} added, ${updated} updated`, 'ok');
     },
