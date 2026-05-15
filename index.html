@@ -257,10 +257,17 @@
     }
     tr:nth-child(even) td { background: #f0f0f8; }
     tr:hover td { background: #000080 !important; color: #fff !important; }
-    tr:hover td.neg, tr:hover td.pos { color: #fff !important; }
+    tr:hover td.neg, tr:hover td.pos, tr:hover td.credit, tr:hover td.debit { color: #fff !important; }
     td.num { text-align: right; font-family: 'Courier New', monospace; }
     td.neg { color: #cc0000; }
     td.pos { color: #006600; }
+    td.credit { color: #006600; }
+    td.debit { color: #cc0000; }
+    tr.total-row td {
+      background: #d4d0c8 !important;
+      font-weight: 700;
+      border-top: 2px solid #808080;
+    }
 
     /* Alert badges */
     .badge {
@@ -732,12 +739,34 @@
     }
     body.night-mode td.neg { color:#ff7777; }
     body.night-mode td.pos { color:#66dd88; }
+    body.night-mode td.credit { color:#66dd88; }
+    body.night-mode td.debit { color:#ff7777; }
+    body.night-mode tr.total-row td {
+      background:#303030 !important;
+      border-top-color:#666;
+    }
     body.night-mode .imp-row,
     body.night-mode .detail-row {
       background: #181818;
       color: #e8e8e8;
       border-bottom-color: #333;
     }
+    body.night-mode .detail-lbl,
+    body.night-mode .detail-val {
+      color: #f0f0f0 !important;
+    }
+    body.night-mode .detail-val span,
+    body.night-mode #client-detail-body [style*="color:#000"],
+    body.night-mode #client-detail-body [style*="color: #000"] {
+      color: #e8e8e8 !important;
+    }
+    body.night-mode .sparkline-wrap polyline[stroke="#000080"] { stroke: #8fb8ff; }
+    body.night-mode .sparkline-wrap circle[fill="#000080"] { fill: #8fb8ff; }
+    body.night-mode .sparkline-wrap text[fill="#888"] { fill: #b8c8c8; }
+    body.night-mode .sparkline-wrap line[stroke="#cc0000"] { stroke: #ff7777; }
+    body.night-mode .sparkline-wrap text[fill="#cc0000"] { fill: #ff7777; }
+    body.night-mode .sparkline-wrap line[stroke="#cc6600"] { stroke: #ffb066; }
+    body.night-mode .sparkline-wrap text[fill="#cc6600"] { fill: #ffb066; }
     body.night-mode .stat-box .sv,
     body.night-mode .sum-card .sc-val,
     body.night-mode #sb-operators {
@@ -2852,7 +2881,7 @@ function renderAlerts() {
     const rowClass = [r._isNew?'row-new-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
-      <td class="num ${r.amnt_receivable<0?'neg':'pos'}">${fmt(r.amnt_receivable)}</td>
+      <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
       <td class="num ${r.usage_30min<0?'neg':r.usage_30min>0?'pos':''}">${fmt(r.usage_30min || 0)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
@@ -2880,6 +2909,40 @@ function nearTarget(row) {
   if (isNaN(t) || t === 0) return false;
   const diff = Math.abs((row.amnt_receivable ?? 0) - t);
   return diff / Math.abs(t) <= (S.nearPct / 100);
+}
+
+function debitCreditClass(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n === 0) return '';
+  return n < 0 ? 'credit' : 'debit';
+}
+
+function signedNumberClass(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n === 0) return '';
+  return n < 0 ? 'neg' : 'pos';
+}
+
+function snapshotTotals(rows) {
+  return (rows || []).reduce((acc, r) => {
+    acc.amnt_receivable += Number(r?.amnt_receivable) || 0;
+    acc.usage_30min += Number(r?.usage_30min) || 0;
+    acc.total_usage += Number(r?.total_usage) || 0;
+    return acc;
+  }, { amnt_receivable: 0, usage_30min: 0, total_usage: 0 });
+}
+
+function renderClientTotalRow(cols, rows) {
+  const totals = snapshotTotals(rows);
+  const totalKeys = new Set(['amnt_receivable', 'usage_30min', 'total_usage']);
+  const labelIndex = Math.max(0, cols.findIndex(c => !totalKeys.has(c.key)));
+  return `<tr class="total-row">${cols.map((c, i) => {
+    if (c.key === 'amnt_receivable') return `<td class="num ${debitCreditClass(totals.amnt_receivable)}">${fmt(totals.amnt_receivable)}</td>`;
+    if (c.key === 'usage_30min') return `<td class="num ${signedNumberClass(totals.usage_30min)}">${fmt(totals.usage_30min)}</td>`;
+    if (c.key === 'total_usage') return `<td class="num ${signedNumberClass(totals.total_usage)}">${fmt(totals.total_usage)}</td>`;
+    if (i === labelIndex) return '<td>Total</td>';
+    return '<td></td>';
+  }).join('')}</tr>`;
 }
 
 function isDebitBalance(row) {
@@ -3046,7 +3109,7 @@ function renderClientsLegacy(){
   const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
   const vc=COLS.filter(c=>c.vis);
   document.getElementById('clients-thead').innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
-  document.getElementById('clients-tbody').innerHTML=page.map((r,ri)=>{
+  const legacyBody=page.map((r,ri)=>{
     const rowStyle=r._inactive?'opacity:0.45;':'';
     const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
@@ -3065,9 +3128,11 @@ function renderClientsLegacy(){
       }
       if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
       const v=r[c.key],isN=typeof v==='number';
-      return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
+      const tone=isN&&['amnt_receivable','pay_adj'].includes(c.key)?debitCreditClass(v):(isN&&v<0?'neg':'');
+      return `<td class="${isN?'num':''} ${tone}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
-  }).join('')||(sourceRows.length===0
+  }).join('');
+  document.getElementById('clients-tbody').innerHTML=rows.length ? legacyBody + renderClientTotalRow(vc, rows) : (sourceRows.length===0
     ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
     : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
@@ -3090,7 +3155,8 @@ function clientCell(r,c,rowNum){
   }
   if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
   const v=r[c.key],isN=typeof v==='number';
-  return `<td class="${isN?'num':''} ${isN&&v<0?'neg':''}">${isN?fmt(v):esc(String(v??''))}</td>`;
+  const tone=isN&&['amnt_receivable','pay_adj'].includes(c.key)?debitCreditClass(v):(isN&&v<0?'neg':'');
+  return `<td class="${isN?'num':''} ${tone}">${isN?fmt(v):esc(String(v??''))}</td>`;
 }
 
 function debitCandidateRows() {
@@ -3138,11 +3204,12 @@ function renderDebitOnlyClientsTable() {
       title.textContent = `All Clients - Debit Only${managerTitle} (${rows.length})`;
     }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
-    tbody.innerHTML=page.map((r,ri)=>{
+    const bodyRows=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
       return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
-    }).join('')||`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No debit clients found. Debit only uses Amnt Receivable from 0.00000001 to 999999999. Loaded ${sourceRows.length} client(s).</td></tr>`;
+    }).join('');
+    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, rows) : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No debit clients found. Debit only uses Amnt Receivable from 0.00000001 to 999999999. Loaded ${sourceRows.length} client(s).</td></tr>`;
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
     buildColDD();
   } catch(e) {
@@ -3220,11 +3287,12 @@ window.renderClients=()=>{
       debug.innerHTML += ` Â· afterFilter=${rows.length} page=${page.length} cols=${vc.length} search="${esc(search)}" filter=${clientFilter} manager="${esc(managerFilterLabel(clientManagerFilter))}"`;
     }
     thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
-    tbody.innerHTML=page.map((r,ri)=>{
+    const bodyRows=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
       return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
-    }).join('')||(sourceRows.length===0
+    }).join('');
+    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, rows) : (sourceRows.length===0
       ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
       : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
@@ -3648,7 +3716,16 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
       xlsNumberCell(r?.total_usage)
     ].join('');
   }).join('')}</Row>`).join('');
-  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${row1}</Row><Row>${row2}</Row>${body}</Table></Worksheet>`;
+  const totalRow = `<Row>${sorted.map(s => {
+    const t = snapshotTotals(s.data || []);
+    return [
+      xlsTextCell('Total', 'total'),
+      xlsNumberCell(t.amnt_receivable, 'totalNum'),
+      xlsNumberCell(t.usage_30min, 'totalNum'),
+      xlsNumberCell(t.total_usage, 'totalNum')
+    ].join('');
+  }).join('')}</Row>`;
+  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${row1}</Row><Row>${row2}</Row>${body}${totalRow}</Table></Worksheet>`;
 }
 window.exportSnapshotSheet = async () => {
   const range = exportDateRange();
@@ -3680,6 +3757,8 @@ window.exportSnapshotSheet = async () => {
   <Style ss:ID="time"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="hdr"><Font ss:Bold="1"/><Interior ss:Color="#EFEFEF" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="num"><NumberFormat ss:Format="0.00"/></Style>
+  <Style ss:ID="total"><Font ss:Bold="1"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="totalNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
 </Styles>${sheets.join('')}</Workbook>`;
     const labelShift = selectedShift === 'both' ? 'both_shifts' : selectedShift.replace(/[^a-z0-9]+/gi,'_');
     const url = URL.createObjectURL(new Blob([xml], { type:'application/vnd.ms-excel;charset=utf-8' }));
