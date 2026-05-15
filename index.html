@@ -73,6 +73,18 @@
     }
     .mitem { padding: 1px 8px; font-size: 11px; cursor: pointer; }
     .mitem:hover { background: #000080; color: #fff; }
+    .menu-wrap { position: relative; }
+    .menu-dd {
+      display: none; position: absolute; top: 18px; left: 0; min-width: 150px;
+      background: #c0c0c0; z-index: 900;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 2px 2px 5px rgba(0,0,0,.35);
+      padding: 2px;
+    }
+    .menu-wrap.open .menu-dd { display: block; }
+    .menu-dd-item { padding: 3px 18px; font-size: 11px; white-space: nowrap; cursor: pointer; }
+    .menu-dd-item:hover, .menu-dd-item.active { background: #000080; color: #fff; }
 
     /* ── Toolbar ── */
     #toolbar {
@@ -407,6 +419,30 @@
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
       resize: vertical;
     }
+    #sms-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    body.sms-mode #sidebar,
+    body.sms-mode #toolbar .tbtn[id^="tnav-"],
+    body.sms-mode #snd-dismiss-btn,
+    body.sms-mode #btn-clip-watch,
+    body.sms-mode #sync-label {
+      display: none !important;
+    }
+    body.sms-mode #sms-toolbar-label { display: inline-flex; }
+    body.sms-mode #view-banner { display: none !important; }
+    .sms-form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .sms-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .sms-field label { font-size: 10px; color: #444; font-weight: 700; }
+    .sms-field.full { grid-column: span 2; }
+    .sms-row-actions { display: inline-flex; gap: 2px; }
+    .sms-muted { color: #666; font-size: 10px; }
+    @media (max-width: 980px) {
+      .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+    }
     label { font-size: 11px; }
 
     /* ── Progress bar ── */
@@ -606,6 +642,7 @@
     body.night-mode #win,
     body.night-mode #toolbar,
     body.night-mode #menubar,
+    body.night-mode .menu-dd,
     body.night-mode #sidebar,
     body.night-mode #content,
     body.night-mode #statusbar,
@@ -629,6 +666,7 @@
       background: linear-gradient(to right, #001050, #005060);
     }
     body.night-mode .tb-btn,
+    body.night-mode .menu-dd-item,
     body.night-mode .tbtn,
     body.night-mode .fltbtn,
     body.night-mode .tab,
@@ -642,12 +680,14 @@
       border-bottom-color: #111;
     }
     body.night-mode .tbtn:hover,
+    body.night-mode .menu-dd-item:hover,
     body.night-mode .fltbtn:hover,
     body.night-mode .tab:not(.active),
     body.night-mode .tslot.has-data:hover {
       background: #484848;
     }
     body.night-mode .tbtn.active,
+    body.night-mode .menu-dd-item.active,
     body.night-mode .fltbtn.active,
     body.night-mode .tab.active,
     body.night-mode .tslot.current {
@@ -662,6 +702,7 @@
     }
     body.night-mode .wstep.done { background:#005020; color:#fff; }
     body.night-mode #sync-label,
+    body.night-mode #sms-toolbar-label,
     body.night-mode .sidebar-section-label,
     body.night-mode .snap-label,
     body.night-mode .groupbox-title,
@@ -922,7 +963,13 @@
   <!-- Menu bar -->
   <div id="menubar">
     <div class="mitem">File</div>
-    <div class="mitem">View</div>
+    <div class="menu-wrap" id="view-menu">
+      <div class="mitem" onclick="toggleViewMenu(event)">View</div>
+      <div class="menu-dd">
+        <div class="menu-dd-item active" id="view-menu-balance" onclick="switchModule('balance')">Balance Monitor</div>
+        <div class="menu-dd-item" id="view-menu-sms" onclick="switchModule('sms')">SMS</div>
+      </div>
+    </div>
     <div class="mitem" onclick="toggleSettings()">Tools</div>
     <div class="mitem">Help</div>
   </div>
@@ -938,6 +985,7 @@
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
+    <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -1207,6 +1255,64 @@
               <button class="tbtn primary" onclick="exportSnapshotSheet()">⬇ Export Snapshot Sheet</button>
               <button class="tbtn" style="margin-left:4px" onclick="exportCsv()">⬇ Export Rows CSV</button>
               <button class="tbtn" style="margin-left:4px" onclick="window.print()">🖨 Print / PDF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SMS MODULE -->
+      <div class="view" id="view-sms">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">SMS Module</div>
+          <div class="tab-bar">
+            <div class="tab active">Client</div>
+          </div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
+            <div class="fbar">
+              <button class="tbtn primary" onclick="saveSmsClient()">Save Client</button>
+              <button class="tbtn" onclick="newSmsClient()">New / Clear</button>
+              <button class="tbtn" onclick="downloadSmsClientTemplate()">Download Sample CSV</button>
+              <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
+              <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Upload CSV</button>
+              <span class="sms-muted" id="sms-edit-status">Adding new client route</span>
+            </div>
+            <div class="sms-form-grid">
+              <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
+              <div class="sms-field"><label>Sender ID</label><input class="win-inp" id="sms-sender-id"></div>
+              <div class="sms-field"><label>Destination</label><input class="win-inp" id="sms-destination" placeholder="Example: Ph Smart Mobile"></div>
+              <div class="sms-field"><label>Account Manager</label><input class="win-inp" id="sms-account-manager"></div>
+              <div class="sms-field"><label>Platform</label><select class="win-sel" id="sms-platform" onchange="toggleSmsEmailField()"><option>SMS</option><option>Email</option></select></div>
+              <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
+              <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
+              <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
+              <div class="sms-field"><label>Vendor</label><select class="win-sel" id="sms-vendor"></select></div>
+              <div class="sms-field full" id="sms-email-wrap"><label>Email(s)</label><input class="win-inp" id="sms-emails" placeholder="name@example.com; another@example.com"></div>
+              <div class="sms-field full"><label>Notes / Remarks</label><input class="win-inp" id="sms-notes"></div>
+            </div>
+            <div class="fbar">
+              <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:260px">
+              <button class="tbtn" onclick="renderSmsClients()">Search</button>
+              <button class="tbtn" onclick="document.getElementById('sms-search').value=''; renderSmsClients();">Clear</button>
+              <span class="sms-muted" id="sms-count">0 client route(s)</span>
+            </div>
+            <div class="lv-wrap">
+              <table id="sms-clients-tbl">
+                <thead><tr>
+                  <th>Client</th>
+                  <th>Sender ID</th>
+                  <th>Destination</th>
+                  <th>Account Manager</th>
+                  <th>Platform</th>
+                  <th>Type</th>
+                  <th>Opt-Out</th>
+                  <th>Overdraft</th>
+                  <th>Vendor</th>
+                  <th>Email(s)</th>
+                  <th>Notes / Remarks</th>
+                  <th>Action</th>
+                </tr></thead>
+                <tbody id="sms-clients-tbody"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1523,6 +1629,7 @@ let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
+let smsClients = [], smsEditingId = null;
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -1543,6 +1650,7 @@ const COLS = [
   { key:'_level',          lbl:'Status',          vis:true },
 ];
 const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
+const SMS_VENDORS = ['IBAZAAR','M360','SMART SUITE','TM','MONTY','MCT','VTS','NGT','NEW BUY'];
 
 /* ════════════════════════════════════════════════
    SETTINGS
@@ -1659,12 +1767,52 @@ document.addEventListener('click', e => {
   const sd = document.getElementById('settings-dlg');
   if (sd.classList.contains('open') && !sd.contains(e.target) && !e.target.closest('[onclick*="toggleSettings"]'))
     sd.classList.remove('open');
+  if (!e.target.closest('#view-menu')) closeViewMenu();
 });
 
 /* ════════════════════════════════════════════════
    NAVIGATION
 ════════════════════════════════════════════════ */
+function closeViewMenu() {
+  document.getElementById('view-menu')?.classList.remove('open');
+}
+
+function updateViewMenuState() {
+  const smsMode = document.body.classList.contains('sms-mode');
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode);
+  document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
+  const title = document.querySelector('#titlebar .title');
+  if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS' : 'BalanceMonitor';
+}
+
+window.toggleViewMenu = e => {
+  e?.stopPropagation();
+  document.getElementById('view-menu')?.classList.toggle('open');
+};
+
+window.switchModule = module => {
+  closeViewMenu();
+  if (module === 'sms') {
+    document.body.classList.add('sms-mode');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-sms')?.classList.add('active');
+    updateViewMenuState();
+    renderSmsClients();
+    setSbStatus('Viewing: SMS Module');
+    return;
+  }
+  document.body.classList.remove('sms-mode');
+  updateViewMenuState();
+  window.switchView('summary');
+};
+
 window.switchView = name => {
+  if (name === 'sms') { window.switchModule('sms'); return; }
+  closeViewMenu();
+  document.body.classList.remove('sms-mode');
+  updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
@@ -3832,6 +3980,261 @@ window.exportCsv=()=>{
 /* ════════════════════════════════════════════════
    HELPERS
 ════════════════════════════════════════════════ */
+/* SMS MODULE */
+const SMS_FIELDS = ['client','sender_id','destination','account_manager','platform','type','opt_out','overdraft','vendor','emails','notes'];
+const SMS_HEADER_MAP = {
+  client:'client', clientname:'client', customer:'client', customername:'client',
+  senderid:'sender_id', sender:'sender_id',
+  destination:'destination', dest:'destination',
+  accountmanager:'account_manager', manager:'account_manager', am:'account_manager',
+  platform:'platform',
+  type:'type',
+  optout:'opt_out', opt:'opt_out',
+  overdraft:'overdraft',
+  vendor:'vendor',
+  email:'emails', emails:'emails', emailnotes:'emails',
+  notes:'notes', note:'notes', remarks:'notes', remark:'notes'
+};
+
+function smsNormKey(k) {
+  return String(k || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function smsId() {
+  return 'sms_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function normalizeSmsVendor(v) {
+  const s = String(v || '').trim().toUpperCase();
+  return SMS_VENDORS.includes(s) ? s : (s || SMS_VENDORS[0]);
+}
+
+function normalizeSmsPlatform(v) {
+  return String(v || '').trim().toLowerCase() === 'email' ? 'Email' : 'SMS';
+}
+
+function normalizeSmsType(v) {
+  return String(v || '').trim().toLowerCase() === 'retail' ? 'Retail' : 'Wholesale';
+}
+
+function normalizeSmsOptOut(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'with' || s === 'yes' || s === 'true' || s === '1' ? 'With' : 'Without';
+}
+
+function normalizeSmsClient(row) {
+  const out = {};
+  SMS_FIELDS.forEach(f => out[f] = String(row?.[f] ?? '').trim());
+  out.platform = normalizeSmsPlatform(out.platform);
+  out.type = normalizeSmsType(out.type);
+  out.opt_out = normalizeSmsOptOut(out.opt_out);
+  out.vendor = normalizeSmsVendor(out.vendor);
+  out.id = row?.id || smsId();
+  return out;
+}
+
+function smsRouteKey(r) {
+  return [r.client, r.destination, r.vendor, r.sender_id].map(v => String(v || '').trim().toLowerCase()).join('|');
+}
+
+function loadSmsClients() {
+  try {
+    const raw = localStorage.getItem('bm_sms_clients');
+    smsClients = raw ? JSON.parse(raw).map(normalizeSmsClient) : [];
+  } catch(e) {
+    smsClients = [];
+  }
+}
+
+function saveSmsClients() {
+  localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients));
+}
+
+function initSmsModule() {
+  const vendorSel = document.getElementById('sms-vendor');
+  if (vendorSel && !vendorSel.options.length) {
+    vendorSel.innerHTML = SMS_VENDORS.map(v => `<option>${esc(v)}</option>`).join('');
+  }
+  loadSmsClients();
+  newSmsClient(false);
+  renderSmsClients();
+}
+
+function smsFormValue(id) {
+  return document.getElementById(id)?.value?.trim() || '';
+}
+
+function smsSetValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value ?? '';
+}
+
+function smsReadForm() {
+  return normalizeSmsClient({
+    id: smsEditingId || undefined,
+    client: smsFormValue('sms-client'),
+    sender_id: smsFormValue('sms-sender-id'),
+    destination: smsFormValue('sms-destination'),
+    account_manager: smsFormValue('sms-account-manager'),
+    platform: smsFormValue('sms-platform'),
+    type: smsFormValue('sms-type'),
+    opt_out: smsFormValue('sms-opt-out'),
+    overdraft: smsFormValue('sms-overdraft'),
+    vendor: smsFormValue('sms-vendor'),
+    emails: smsFormValue('sms-emails'),
+    notes: smsFormValue('sms-notes')
+  });
+}
+
+function smsFillForm(row) {
+  const r = normalizeSmsClient(row || {});
+  smsSetValue('sms-client', r.client);
+  smsSetValue('sms-sender-id', r.sender_id);
+  smsSetValue('sms-destination', r.destination);
+  smsSetValue('sms-account-manager', r.account_manager);
+  smsSetValue('sms-platform', r.platform);
+  smsSetValue('sms-type', r.type);
+  smsSetValue('sms-opt-out', r.opt_out);
+  smsSetValue('sms-overdraft', r.overdraft);
+  smsSetValue('sms-vendor', r.vendor);
+  smsSetValue('sms-emails', r.emails);
+  smsSetValue('sms-notes', r.notes);
+  toggleSmsEmailField();
+}
+
+window.toggleSmsEmailField = () => {
+  const isEmail = smsFormValue('sms-platform') === 'Email';
+  const wrap = document.getElementById('sms-email-wrap');
+  if (wrap) wrap.style.opacity = isEmail ? '1' : '.55';
+};
+
+window.newSmsClient = (showToast=true) => {
+  smsEditingId = null;
+  smsFillForm({ platform:'SMS', type:'Wholesale', opt_out:'Without', vendor:SMS_VENDORS[0] });
+  const st = document.getElementById('sms-edit-status');
+  if (st) st.textContent = 'Adding new client route';
+  if (showToast) toast('Ready for a new SMS client route', 'ok');
+};
+
+window.saveSmsClient = () => {
+  const row = smsReadForm();
+  if (!row.client) { toast('Client is required', 'err'); document.getElementById('sms-client')?.focus(); return; }
+  if (!row.destination) { toast('Destination is required', 'err'); document.getElementById('sms-destination')?.focus(); return; }
+  if (row.platform === 'Email' && !row.emails) { toast('Email platform needs email address(es)', 'err'); document.getElementById('sms-emails')?.focus(); return; }
+  const idx = smsEditingId ? smsClients.findIndex(r => r.id === smsEditingId) : -1;
+  if (idx >= 0) {
+    smsClients[idx] = row;
+  } else {
+    const dupeIdx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
+    if (dupeIdx >= 0) smsClients[dupeIdx] = { ...smsClients[dupeIdx], ...row, id: smsClients[dupeIdx].id };
+    else smsClients.push(row);
+  }
+  saveSmsClients();
+  renderSmsClients();
+  newSmsClient(false);
+  toast('SMS client route saved', 'ok');
+};
+
+window.editSmsClient = id => {
+  const row = smsClients.find(r => r.id === id);
+  if (!row) return;
+  smsEditingId = id;
+  smsFillForm(row);
+  const st = document.getElementById('sms-edit-status');
+  if (st) st.textContent = `Editing: ${row.client} / ${row.destination}`;
+};
+
+window.deleteSmsClient = id => {
+  const row = smsClients.find(r => r.id === id);
+  if (!row || !confirm(`Delete SMS route for ${row.client} / ${row.destination}?`)) return;
+  smsClients = smsClients.filter(r => r.id !== id);
+  if (smsEditingId === id) newSmsClient(false);
+  saveSmsClients();
+  renderSmsClients();
+  toast('SMS client route deleted', 'ok');
+};
+
+function smsMatchesSearch(row, q) {
+  if (!q) return true;
+  return SMS_FIELDS.some(f => String(row[f] || '').toLowerCase().includes(q));
+}
+
+window.renderSmsClients = () => {
+  const tbody = document.getElementById('sms-clients-tbody');
+  if (!tbody) return;
+  const q = (document.getElementById('sms-search')?.value || '').trim().toLowerCase();
+  const rows = smsClients.filter(r => smsMatchesSearch(r, q))
+    .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)));
+  const count = document.getElementById('sms-count');
+  if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
+  tbody.innerHTML = rows.length ? rows.map(r => `<tr>
+    <td><strong>${esc(r.client)}</strong></td>
+    <td>${esc(r.sender_id)}</td>
+    <td>${esc(r.destination)}</td>
+    <td>${esc(r.account_manager)}</td>
+    <td>${esc(r.platform)}</td>
+    <td>${esc(r.type)}</td>
+    <td>${esc(r.opt_out)}</td>
+    <td>${esc(r.overdraft)}</td>
+    <td>${esc(r.vendor)}</td>
+    <td>${esc(r.emails)}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
+    <td><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
+  </tr>`).join('') : `<tr><td colspan="12" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+};
+
+window.downloadSmsClientTemplate = () => {
+  const rows = [
+    ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'],
+    ['Sample Client','SENDERID','Ph Smart Mobile','Jason Cruz','SMS','Wholesale','Without','Allowed','SMART SUITE','','Smart route'],
+    ['Sample Client','SENDERID','Globe','Jason Cruz','SMS','Wholesale','Without','Allowed','M360','','Globe route'],
+    ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+  ];
+  const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sms_clients_sample.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Sample SMS CSV downloaded', 'ok');
+};
+
+function smsRowFromCsv(raw) {
+  const row = {};
+  Object.entries(raw || {}).forEach(([k, v]) => {
+    const mapped = SMS_HEADER_MAP[smsNormKey(k)];
+    if (mapped) row[mapped] = v;
+  });
+  return normalizeSmsClient(row);
+}
+
+window.importSmsClientCsv = file => {
+  if (!file) return;
+  if (!window.Papa?.parse) { toast('CSV parser is not available', 'err'); return; }
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: res => {
+      let added = 0, updated = 0;
+      (res.data || []).map(smsRowFromCsv).filter(r => r.client && r.destination).forEach(row => {
+        const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
+        if (idx >= 0) {
+          smsClients[idx] = { ...smsClients[idx], ...row, id: smsClients[idx].id };
+          updated++;
+        } else {
+          smsClients.push(row);
+          added++;
+        }
+      });
+      saveSmsClients();
+      renderSmsClients();
+      toast(`SMS CSV imported: ${added} added, ${updated} updated`, 'ok');
+    },
+    error: err => toast('SMS CSV import failed: ' + (err.message || err), 'err')
+  });
+};
+
 function fmt(v){if(v===null||v===undefined||v==='')return '—';return amountNumber(v).toFixed(2);}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -4055,7 +4458,7 @@ window.confirmRollback = async () => {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadLastProcessedSnap(); checkPin(); populateSlots(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadLastProcessedSnap(); checkPin(); populateSlots(); initSmsModule(); window.renderWizard(); window.renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
