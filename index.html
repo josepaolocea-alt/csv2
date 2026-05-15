@@ -2021,13 +2021,32 @@ function chipInfo(row, lvl) {
 /* ════════════════════════════════════════════════
    COMPUTE USAGE
 ════════════════════════════════════════════════ */
+function amountNumber(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim();
+  if (!s) return 0;
+  const parenNegative = /^\(.*\)$/.test(s);
+  s = s.replace(/[\u2212\u2012\u2013\u2014]/g, '-');
+  s = s.replace(/[,\s]/g, '');
+  s = s.replace(/[^\d.-]/g, '');
+  const match = s.match(/-?\d*\.?\d+/);
+  if (!match) return 0;
+  let n = parseFloat(match[0]);
+  if (!Number.isFinite(n)) return 0;
+  if (parenNegative && n > 0) n = -n;
+  return n;
+}
+
 function computeUsage(cur, prev) {
-  const u30=prev ? cur.amnt_receivable-prev.amnt_receivable : 0;
-  return { usage_30min:u30, total_usage:prev?(prev.total_usage||0)+u30:0 };
+  const curBal = amountNumber(cur?.amnt_receivable);
+  const prevBal = prev ? amountNumber(prev.amnt_receivable) : 0;
+  const u30=prev ? curBal-prevBal : 0;
+  return { usage_30min:u30, total_usage:prev?amountNumber(prev.total_usage)+u30:0 };
 }
 
 function usageAlertLevel(row) {
-  const u30 = Number(row?.usage_30min ?? 0);
+  const u30 = amountNumber(row?.usage_30min);
   if (!Number.isFinite(u30)) return null;
   if (u30 >= 150) return 'high';
   if (u30 >= 100) return 'medium';
@@ -2187,7 +2206,7 @@ function parseText(text) {
       const key=FMAP[cleanKey]||cleanKey.replace(/\s+/g,'_');
       row[key]=v;
     }
-    NUM_FIELDS.forEach(f=>{ if(row[f]!==undefined) row[f]=parseFloat(String(row[f]).replace(/[$,]/g,''))||0; });
+    NUM_FIELDS.forEach(f=>{ if(row[f]!==undefined) row[f]=amountNumber(row[f]); });
     if(row.is_prepay!==undefined) row.is_prepay=['yes','true','1'].includes(String(row.is_prepay).toLowerCase());
     if((row.billing_cycle===undefined || row.billing_cycle==='') && row.is_prepay!==undefined) row.billing_cycle=row.is_prepay?'Prepay':'Postpay';
     return row;
@@ -2677,8 +2696,8 @@ function renderTopUsage() {
   const el = document.getElementById('top-usage-list');
   if (!el) return;
   const rows = activeData()
-    .filter(r => r?.carrier_name && Number(r.usage_30min || 0) > 0)
-    .sort((a,b) => Number(b.usage_30min || 0) - Number(a.usage_30min || 0) || String(a.carrier_name).localeCompare(String(b.carrier_name)))
+    .filter(r => r?.carrier_name && amountNumber(r.usage_30min) > 0)
+    .sort((a,b) => amountNumber(b.usage_30min) - amountNumber(a.usage_30min) || String(a.carrier_name).localeCompare(String(b.carrier_name)))
     .slice(0, 12);
   el.innerHTML = rows.length
     ? rows.map(r => `<div class="top-usage-item">${esc(r.carrier_name)}</div>`).join('')
@@ -2912,24 +2931,29 @@ function nearTarget(row) {
 }
 
 function debitCreditClass(v) {
-  const n = Number(v);
+  const n = amountNumber(v);
   if (!Number.isFinite(n) || n === 0) return '';
   return n < 0 ? 'credit' : 'debit';
 }
 
 function signedNumberClass(v) {
-  const n = Number(v);
+  const n = amountNumber(v);
   if (!Number.isFinite(n) || n === 0) return '';
   return n < 0 ? 'neg' : 'pos';
 }
 
 function snapshotTotals(rows) {
   return (rows || []).reduce((acc, r) => {
-    acc.amnt_receivable += Number(r?.amnt_receivable) || 0;
-    acc.usage_30min += Number(r?.usage_30min) || 0;
-    acc.total_usage += Number(r?.total_usage) || 0;
+    acc.amnt_receivable += amountNumber(r?.amnt_receivable);
+    acc.usage_30min += amountNumber(r?.usage_30min);
+    acc.total_usage += amountNumber(r?.total_usage);
     return acc;
   }, { amnt_receivable: 0, usage_30min: 0, total_usage: 0 });
+}
+
+function clientTotalSourceRows(rows, search) {
+  const isPlainAllClients = clientFilter === 'all' && showInactive && clientManagerFilter === 'all' && !search;
+  return isPlainAllClients ? activeData().filter(r => r?.carrier_name) : rows;
 }
 
 function renderClientTotalRow(cols, rows) {
@@ -2946,16 +2970,13 @@ function renderClientTotalRow(cols, rows) {
 }
 
 function isDebitBalance(row) {
-  const raw = row.amnt_receivable;
-  const bal = typeof raw === 'number'
-    ? raw
-    : parseFloat(String(raw ?? '').replace(/[$,\s]/g, ''));
+  const bal = amountNumber(row?.amnt_receivable);
   return Number.isFinite(bal) && bal >= 0.00000001 && bal <= 999999999;
 }
 
 function hasUsageData(row) {
-  const u30 = Number(row?.usage_30min ?? 0);
-  const total = Number(row?.total_usage ?? 0);
+  const u30 = amountNumber(row?.usage_30min);
+  const total = amountNumber(row?.total_usage);
   return (Number.isFinite(u30) && u30 !== 0) || (Number.isFinite(total) && total !== 0);
 }
 
@@ -3132,7 +3153,7 @@ function renderClientsLegacy(){
       return `<td class="${isN?'num':''} ${tone}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
   }).join('');
-  document.getElementById('clients-tbody').innerHTML=rows.length ? legacyBody + renderClientTotalRow(vc, rows) : (sourceRows.length===0
+  document.getElementById('clients-tbody').innerHTML=rows.length ? legacyBody + renderClientTotalRow(vc, clientTotalSourceRows(rows, search)) : (sourceRows.length===0
     ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
     : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
@@ -3292,7 +3313,7 @@ window.renderClients=()=>{
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
       return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
     }).join('');
-    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, rows) : (sourceRows.length===0
+    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, clientTotalSourceRows(rows, search)) : (sourceRows.length===0
       ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
       : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
@@ -3681,7 +3702,8 @@ function xlsTextCell(v, style='') {
 }
 function xlsNumberCell(v, style='num') {
   const st = style ? ` ss:StyleID="${style}"` : '';
-  const n = Number(v);
+  if (v === null || v === undefined || v === '') return `<Cell${st}/>`;
+  const n = amountNumber(v);
   if (!Number.isFinite(n)) return `<Cell${st}/>`;
   return `<Cell${st}><Data ss:Type="Number">${n}</Data></Cell>`;
 }
@@ -3810,7 +3832,7 @@ window.exportCsv=()=>{
 /* ════════════════════════════════════════════════
    HELPERS
 ════════════════════════════════════════════════ */
-function fmt(v){if(v===null||v===undefined)return '—';return Number(v).toFixed(2);}
+function fmt(v){if(v===null||v===undefined||v==='')return '—';return amountNumber(v).toFixed(2);}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 
