@@ -775,7 +775,8 @@
     body.night-mode .win-sel,
     body.night-mode .win-ta,
     body.night-mode .win-search,
-    body.night-mode .bulk-edit-inp {
+    body.night-mode .bulk-edit-inp,
+    body.night-mode .sms-vendor-box {
       background: #101010 !important;
       color: #f0f0f0 !important;
       border-top-color: #111 !important;
@@ -1319,7 +1320,8 @@
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div class="fbar">
-              <button class="tbtn primary" onclick="saveSmsClient()">Save Client</button>
+              <button class="tbtn primary" id="sms-save-btn" onclick="saveSmsClient()">Save Client</button>
+              <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">✕ Cancel Edit</button>
               <button class="tbtn" onclick="newSmsClient()">New / Clear</button>
               <button class="tbtn" onclick="downloadSmsClientTemplate()">Download Sample CSV</button>
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
@@ -4342,6 +4344,10 @@ window.newSmsClient = (showToast=true) => {
   smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', opt_out:'Without', vendor:'' });
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = 'Adding new client route';
+  const saveBtn = document.getElementById('sms-save-btn');
+  if (saveBtn) saveBtn.textContent = 'Save Client';
+  const cancelBtn = document.getElementById('sms-cancel-edit-btn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
   if (showToast) toast('Ready for a new SMS client route', 'ok');
 };
 
@@ -4351,6 +4357,7 @@ window.saveSmsClient = () => {
   if (!row.destination) { toast('Destination is required', 'err'); document.getElementById('sms-destination')?.focus(); return; }
   if (row.platform === 'Email' && !row.emails) { toast('Email platform needs email address(es)', 'err'); document.getElementById('sms-emails')?.focus(); return; }
   const idx = smsEditingId ? smsClients.findIndex(r => r.id === smsEditingId) : -1;
+  const wasEdit = idx >= 0;
   if (idx >= 0) {
     smsClients[idx] = row;
   } else {
@@ -4362,7 +4369,7 @@ window.saveSmsClient = () => {
   updateSmsDatalists();
   renderSmsClients();
   newSmsClient(false);
-  toast('SMS client route saved', 'ok');
+  toast(wasEdit ? `✓ Changes saved for ${row.client} / ${row.destination}` : 'SMS client route saved', 'ok');
 };
 
 window.editSmsClient = id => {
@@ -4372,6 +4379,17 @@ window.editSmsClient = id => {
   smsFillForm(row);
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = `Editing: ${row.client} / ${row.destination}`;
+  const saveBtn = document.getElementById('sms-save-btn');
+  if (saveBtn) saveBtn.textContent = '💾 Save Changes';
+  const cancelBtn = document.getElementById('sms-cancel-edit-btn');
+  if (cancelBtn) cancelBtn.style.display = '';
+  const clientEl = document.getElementById('sms-client');
+  if (clientEl) { clientEl.scrollIntoView({ block:'nearest' }); clientEl.focus(); }
+};
+
+window.cancelSmsEdit = () => {
+  newSmsClient(false);
+  toast('Edit cancelled — no changes saved', 'ok');
 };
 
 // Open the shared SMS confirm dialog with custom text, button label, and action
