@@ -4592,6 +4592,14 @@ function smsRowFromCsv(raw) {
   return { provided, row: normalizeSmsClient(mapped) };
 }
 
+// Partial update — only columns filled in the CSV change; blanks keep existing values
+function smsApplyPartial(idx, provided, row) {
+  const upd = { ...smsClients[idx] };
+  SMS_FIELDS.forEach(f => { if (provided.has(f)) upd[f] = row[f]; });
+  upd.id = smsClients[idx].id;
+  smsClients[idx] = upd;
+}
+
 window.importSmsClientCsv = file => {
   if (!file) return;
   if (!window.Papa?.parse) { toast('CSV parser is not available', 'err'); return; }
@@ -4599,28 +4607,48 @@ window.importSmsClientCsv = file => {
     header: true,
     skipEmptyLines: true,
     complete: res => {
-      let added = 0, updated = 0;
-      (res.data || []).map(smsRowFromCsv).filter(x => x.row.client && x.row.destination).forEach(({ provided, row }) => {
-        const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
-        if (idx >= 0) {
-          // Partial update — only columns filled in the CSV change;
-          // blank cells keep the existing client's values.
-          const upd = { ...smsClients[idx] };
-          SMS_FIELDS.forEach(f => { if (provided.has(f)) upd[f] = row[f]; });
-          upd.id = smsClients[idx].id;
-          smsClients[idx] = upd;
-          updated++;
+      let added = 0, updated = 0, rowNum = 1;
+      const errors = [];
+      (res.data || []).map(smsRowFromCsv).forEach(({ provided, row }) => {
+        rowNum++;
+        if (provided.size === 0) return;                       // blank line — ignore
+        if (!row.client) { errors.push(`Row ${rowNum}: missing Client`); return; }
+
+        if (provided.has('destination')) {
+          // Destination given — match (or create) that exact Client + Destination route
+          const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
+          if (idx >= 0) { smsApplyPartial(idx, provided, row); updated++; }
+          else { smsClients.push(row); added++; }
         } else {
-          // New client — blank cells use the normal defaults.
-          smsClients.push(row);
-          added++;
+          // No Destination — match by Client only
+          const hits = [];
+          smsClients.forEach((r, i) => {
+            if (String(r.client).trim().toLowerCase() === row.client.toLowerCase()) hits.push(i);
+          });
+          if (hits.length === 1) {
+            smsApplyPartial(hits[0], provided, row);            // exactly one route — safe to update
+            updated++;
+          } else if (hits.length > 1) {
+            errors.push(`Row ${rowNum}: "${row.client}" has ${hits.length} destinations — add a Destination value to specify which one`);
+          } else {
+            errors.push(`Row ${rowNum}: "${row.client}" is a new client — a Destination is required to add it`);
+          }
         }
       });
       saveSmsClients();
       buildSmsVendorBox();
       updateSmsDatalists();
       renderSmsClients();
-      toast(`SMS CSV imported: ${added} added, ${updated} updated`, 'ok');
+
+      if (added || updated) {
+        toast(`SMS CSV imported: ${added} added, ${updated} updated${errors.length ? `, ${errors.length} skipped` : ''}`, 'ok', 6000);
+      } else if (errors.length) {
+        toast(`SMS CSV: nothing imported — ${errors.length} row(s) skipped`, 'err', 6000);
+      } else {
+        toast('SMS CSV: no data rows found — check your column headers', 'err', 6000);
+      }
+      errors.slice(0, 4).forEach(e => toast(e, 'err', 8000));
+      if (errors.length > 4) toast(`…and ${errors.length - 4} more skipped row(s)`, 'err', 8000);
     },
     error: err => toast('SMS CSV import failed: ' + (err.message || err), 'err')
   });
