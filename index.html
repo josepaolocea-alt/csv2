@@ -458,6 +458,24 @@
     .sms-combo.open .sms-combo-options { display: block; }
     .sms-combo-option { padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sms-combo-option:hover { background: #000080; color: #fff; }
+    /* ── SMS native select — dropdown arrow matched to the combo style ── */
+    .sms-sel-wrap { position: relative; display: flex; min-width: 0; }
+    .sms-sel-wrap select {
+      flex: 1; min-width: 0;
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      padding-right: 26px;
+    }
+    .sms-sel-wrap::after {
+      content: '▼';
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #000;
+      background: #c0c0c0;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      pointer-events: none;
+    }
     /* ── SMS multi-vendor checkbox group ── */
     .sms-vendor-box {
       display: flex; flex-wrap: wrap; gap: 2px 12px;
@@ -473,6 +491,9 @@
       white-space: nowrap; cursor: pointer;
     }
     .sms-vendor-chk input { margin: 0; }
+    /* ── Fixed-width, ellipsis-truncated table cell content ── */
+    .sms-cell-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sms-clients-tbody tr { cursor: pointer; }
     /* ── Inactive SMS client rows — greyed out ── */
     tr.sms-inactive td { color: #999; font-style: italic; background: #f4f4f4; }
     tr.sms-inactive:nth-child(even) td { background: #ebebeb; }
@@ -594,6 +615,13 @@
     .detail-row { display: flex; align-items: center; padding: 2px 0; border-bottom: 1px solid #d8d8d8; }
     .detail-lbl { font-size: 11px; font-weight: 700; min-width: 150px; padding: 3px 8px; white-space: nowrap; }
     .detail-val { font-size: 11px; padding: 3px 6px; }
+    /* ── SMS client detail popup ── */
+    #sms-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 850; align-items: center; justify-content: center; }
+    #sms-detail-overlay.open { display: flex; }
+    #sms-detail-box { background: #c0c0c0; min-width: 340px; max-width: 460px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
 
     /* ── Dismiss sound button (hidden by default) ── */
     #snd-dismiss-btn { display: none; }
@@ -661,7 +689,8 @@
     #signout-confirm-overlay.open #signout-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
-    #client-detail-overlay.open #client-detail-box {
+    #client-detail-overlay.open #client-detail-box,
+    #sms-detail-overlay.open #sms-detail-box {
       animation: winPop .14s ease-out;
     }
     #clip-detect-bar.visible,
@@ -699,6 +728,7 @@
     body.night-mode #sms-confirm-box,
     body.night-mode #signout-confirm-box,
     body.night-mode #client-detail-box,
+    body.night-mode #sms-detail-box,
     body.night-mode #rollback-box,
     body.night-mode #delete-today-box,
     body.night-mode .toast,
@@ -774,7 +804,8 @@
     body.night-mode .progress-wrap,
     body.night-mode .drop-zone,
     body.night-mode #top-usage-list,
-    body.night-mode #client-detail-body {
+    body.night-mode #client-detail-body,
+    body.night-mode #sms-detail-body {
       background: #181818 !important;
       color: #e8e8e8 !important;
       border-top-color: #111 !important;
@@ -1349,9 +1380,9 @@
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
-              <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
-              <div class="sms-field"><label>Status</label><select class="win-sel" id="sms-status"><option>Active</option><option>Inactive</option></select></div>
-              <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
+              <div class="sms-field"><label>Type</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div></div>
+              <div class="sms-field"><label>Status</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-status"><option>Active</option><option>Inactive</option></select></div></div>
+              <div class="sms-field"><label>Opt-Out</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
               <div class="sms-field full" id="sms-email-wrap"><label>Email(s)</label><input class="win-inp" id="sms-emails" placeholder="name@example.com; another@example.com"></div>
@@ -1628,6 +1659,21 @@
       <button class="tbtn" id="btn-save-client" style="display:none;background:#000080;color:#fff" onclick="saveClientEdit()">💾 Save</button>
       <button class="tbtn" id="btn-cancel-edit" style="display:none" onclick="cancelClientEdit()">Cancel</button>
       <button class="tbtn" id="btn-close-detail" onclick="closeClientDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SMS Client Route Detail Dialog -->
+<div id="sms-detail-overlay">
+  <div id="sms-detail-box">
+    <div class="dlg-tb" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
+      <span id="sms-detail-title" style="color:#fff;font-size:11px;font-weight:700;padding-left:4px">SMS Client Route</span>
+      <div class="tb-btn" onclick="closeSmsDetail()" style="color:#000;margin-left:4px">✕</div>
+    </div>
+    <div id="sms-detail-body" style="padding:8px 12px;max-height:60vh;overflow-y:auto;background:#fff;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;margin:8px 12px 4px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
+      <button class="tbtn primary" onclick="editSmsFromDetail()">✏ Edit</button>
+      <button class="tbtn" onclick="closeSmsDetail()">Close</button>
     </div>
   </div>
 </div>
@@ -4519,6 +4565,45 @@ function smsMatchesSearch(row, q) {
   return SMS_FIELDS.some(f => String(row[f] || '').toLowerCase().includes(q));
 }
 
+let smsDetailId = null;
+window.showSmsDetail = id => {
+  const r = smsClients.find(x => x.id === id);
+  if (!r) return;
+  smsDetailId = id;
+  const title = document.getElementById('sms-detail-title');
+  if (title) title.textContent = `${r.client || '(no client)'} — ${r.destination || '(no destination)'}`;
+  const fields = [
+    ['Client', r.client],
+    ['Sender ID(s)', r.sender_id],
+    ['Destination', r.destination],
+    ['Account Manager', r.account_manager],
+    ['Platform', r.platform],
+    ['Type', r.type],
+    ['Status', r.status],
+    ['Opt-Out', r.opt_out],
+    ['Overdraft', r.overdraft],
+    ['Vendor(s)', r.vendor],
+    ['Email(s)', r.emails],
+    ['Notes / Remarks', r.notes]
+  ];
+  const body = document.getElementById('sms-detail-body');
+  if (body) body.innerHTML = fields.map(([l, v]) =>
+    `<div class="detail-row"><div class="detail-lbl">${esc(l)}</div>` +
+    `<div class="detail-val" style="flex:1;min-width:0;word-break:break-word">` +
+    `${String(v ?? '').trim() ? esc(v) : '<span style="color:#999">—</span>'}</div></div>`
+  ).join('');
+  document.getElementById('sms-detail-overlay')?.classList.add('open');
+};
+window.closeSmsDetail = () => {
+  smsDetailId = null;
+  document.getElementById('sms-detail-overlay')?.classList.remove('open');
+};
+window.editSmsFromDetail = () => {
+  const id = smsDetailId;
+  closeSmsDetail();
+  if (id) editSmsClient(id);
+};
+
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
   if (!tbody) return;
@@ -4528,7 +4613,7 @@ window.renderSmsClients = () => {
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)));
   const count = document.getElementById('sms-count');
   if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
-  tbody.innerHTML = rows.length ? rows.map(r => `<tr class="${r.status==='Inactive'?'sms-inactive':''}">
+  tbody.innerHTML = rows.length ? rows.map(r => `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="showSmsDetail('${escAttr(r.id)}')" title="Click for full details">
     <td><strong>${esc(r.client)}</strong></td>
     <td style="white-space:normal;max-width:160px">${esc(r.sender_id)}</td>
     <td>${esc(r.destination)}</td>
@@ -4539,10 +4624,10 @@ window.renderSmsClients = () => {
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
-    <td>${esc(r.emails)}</td>
-    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
-    <td><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
-  </tr>`).join('') : `<tr><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+    <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
+    <td><div class="sms-cell-clip" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
+    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
+  </tr>`).join('') : `<tr style="cursor:default"><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
 };
 
 window.downloadSmsClientTemplate = () => {
