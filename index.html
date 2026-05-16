@@ -4581,12 +4581,15 @@ window.exportSmsClientsCsv = () => {
 };
 
 function smsRowFromCsv(raw) {
-  const row = {};
+  const mapped = {};
   Object.entries(raw || {}).forEach(([k, v]) => {
-    const mapped = SMS_HEADER_MAP[smsNormKey(k)];
-    if (mapped) row[mapped] = v;
+    const f = SMS_HEADER_MAP[smsNormKey(k)];
+    if (f) mapped[f] = v;
   });
-  return normalizeSmsClient(row);
+  // Track which fields the CSV actually filled in (non-blank), so blank cells
+  // can be treated as "no change" when updating an existing client.
+  const provided = new Set(SMS_FIELDS.filter(f => String(mapped[f] ?? '').trim() !== ''));
+  return { provided, row: normalizeSmsClient(mapped) };
 }
 
 window.importSmsClientCsv = file => {
@@ -4597,12 +4600,18 @@ window.importSmsClientCsv = file => {
     skipEmptyLines: true,
     complete: res => {
       let added = 0, updated = 0;
-      (res.data || []).map(smsRowFromCsv).filter(r => r.client && r.destination).forEach(row => {
+      (res.data || []).map(smsRowFromCsv).filter(x => x.row.client && x.row.destination).forEach(({ provided, row }) => {
         const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
         if (idx >= 0) {
-          smsClients[idx] = { ...smsClients[idx], ...row, id: smsClients[idx].id };
+          // Partial update — only columns filled in the CSV change;
+          // blank cells keep the existing client's values.
+          const upd = { ...smsClients[idx] };
+          SMS_FIELDS.forEach(f => { if (provided.has(f)) upd[f] = row[f]; });
+          upd.id = smsClients[idx].id;
+          smsClients[idx] = upd;
           updated++;
         } else {
+          // New client — blank cells use the normal defaults.
           smsClients.push(row);
           added++;
         }
