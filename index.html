@@ -458,24 +458,8 @@
     .sms-combo.open .sms-combo-options { display: block; }
     .sms-combo-option { padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sms-combo-option:hover { background: #000080; color: #fff; }
-    /* ── SMS native select — dropdown arrow matched to the combo style ── */
-    .sms-sel-wrap { position: relative; display: flex; min-width: 0; }
-    .sms-sel-wrap select {
-      flex: 1; min-width: 0;
-      appearance: none; -webkit-appearance: none; -moz-appearance: none;
-      padding-right: 26px;
-    }
-    .sms-sel-wrap::after {
-      content: '▼';
-      position: absolute; top: 0; right: 0; bottom: 0;
-      width: 22px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 9px; color: #000;
-      background: #c0c0c0;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
-      pointer-events: none;
-    }
+    /* ── Read-only (fixed-choice) combo inputs — pick from list only ── */
+    .sms-combo input[readonly] { cursor: pointer; background: #fff; }
     /* ── SMS multi-vendor checkbox group ── */
     .sms-vendor-box {
       display: flex; flex-wrap: wrap; gap: 2px 12px;
@@ -1380,9 +1364,9 @@
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
-              <div class="sms-field"><label>Type</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div></div>
-              <div class="sms-field"><label>Status</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-status"><option>Active</option><option>Inactive</option></select></div></div>
-              <div class="sms-field"><label>Opt-Out</label><div class="sms-sel-wrap"><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div></div>
+              <div class="sms-field"><label>Type</label><div class="sms-combo" data-combo="type"><input class="win-inp" id="sms-type" autocomplete="off" readonly onfocus="openSmsCombo('type')" onclick="openSmsCombo('type')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('type',event)">▼</button><div class="sms-combo-options" id="sms-type-options"></div></div></div>
+              <div class="sms-field"><label>Status</label><div class="sms-combo" data-combo="status"><input class="win-inp" id="sms-status" autocomplete="off" readonly onfocus="openSmsCombo('status')" onclick="openSmsCombo('status')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('status',event)">▼</button><div class="sms-combo-options" id="sms-status-options"></div></div></div>
+              <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
               <div class="sms-field full" id="sms-email-wrap"><label>Email(s)</label><input class="win-inp" id="sms-emails" placeholder="name@example.com; another@example.com"></div>
@@ -4229,11 +4213,17 @@ function saveSmsClients() {
   localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients));
 }
 
+// Combos with a fixed, non-editable option list (picked from, not typed into)
+const SMS_FIXED_COMBOS = new Set(['type','status','opt_out']);
+
 function smsComboOptions(kind) {
   if (kind === 'sender_id') return smsClients.flatMap(r => smsSplitMulti(r.sender_id));
   if (kind === 'destination') return smsClients.map(r => r.destination);
   if (kind === 'account_manager') return smsClients.map(r => r.account_manager);
   if (kind === 'platform') return [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)];
+  if (kind === 'type') return ['Wholesale','Retail'];
+  if (kind === 'status') return ['Active','Inactive'];
+  if (kind === 'opt_out') return ['Without','With'];
   return [];
 }
 
@@ -4242,7 +4232,10 @@ function smsComboInputId(kind) {
     sender_id:'sms-sender-id',
     destination:'sms-destination',
     account_manager:'sms-account-manager',
-    platform:'sms-platform'
+    platform:'sms-platform',
+    type:'sms-type',
+    status:'sms-status',
+    opt_out:'sms-opt-out'
   })[kind];
 }
 
@@ -4251,7 +4244,10 @@ function smsComboMenuId(kind) {
     sender_id:'sms-sender-id-options',
     destination:'sms-destination-options',
     account_manager:'sms-account-manager-options',
-    platform:'sms-platform-options'
+    platform:'sms-platform-options',
+    type:'sms-type-options',
+    status:'sms-status-options',
+    opt_out:'sms-opt-out-options'
   })[kind];
 }
 
@@ -4262,7 +4258,7 @@ function cleanSmsComboValues(values) {
 }
 
 function updateSmsDatalists() {
-  ['sender_id','destination','account_manager','platform'].forEach(kind => {
+  ['sender_id','destination','account_manager','platform','type','status','opt_out'].forEach(kind => {
     const input = document.getElementById(smsComboInputId(kind));
     updateSmsComboOptions(kind, input?.value || '');
   });
@@ -4271,13 +4267,19 @@ function updateSmsDatalists() {
 function updateSmsComboOptions(kind, filter='') {
   const menu = document.getElementById(smsComboMenuId(kind));
   if (!menu) return;
-  // Sender ID is a multi-value field — match against the segment being typed
-  let raw = String(filter || '');
-  if (kind === 'sender_id') { const parts = raw.split(/[,;]/); raw = parts[parts.length - 1]; }
-  const q = raw.trim().toLowerCase();
-  const values = cleanSmsComboValues(smsComboOptions(kind))
-    .filter(v => !q || v.toLowerCase().includes(q))
-    .slice(0, 40);
+  let values;
+  if (SMS_FIXED_COMBOS.has(kind)) {
+    // Fixed-choice combo — always show the full list in its defined order
+    values = smsComboOptions(kind);
+  } else {
+    // Sender ID is a multi-value field — match against the segment being typed
+    let raw = String(filter || '');
+    if (kind === 'sender_id') { const parts = raw.split(/[,;]/); raw = parts[parts.length - 1]; }
+    const q = raw.trim().toLowerCase();
+    values = cleanSmsComboValues(smsComboOptions(kind))
+      .filter(v => !q || v.toLowerCase().includes(q))
+      .slice(0, 40);
+  }
   menu.innerHTML = values.length
     ? values.map(v => `<div class="sms-combo-option" data-value="${esc(v)}" onclick="pickSmsCombo('${kind}',this.dataset.value)">${esc(v)}</div>`).join('')
     : `<div class="sms-combo-option" style="color:#666;cursor:default">No saved options</div>`;
