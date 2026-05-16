@@ -462,11 +462,16 @@
     .sms-vendor-box {
       display: flex; flex-wrap: wrap; gap: 2px 12px;
       background: #fff; padding: 4px 6px;
+      font-family: 'Tahoma', 'MS Sans Serif', Arial, sans-serif;
       border-top: 2px solid #808080; border-left: 2px solid #808080;
       border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      max-height: 54px; overflow-y: auto;
+      max-height: 58px; overflow-y: auto;
     }
-    .sms-vendor-chk { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; white-space: nowrap; cursor: pointer; }
+    .sms-vendor-chk {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-family: inherit; font-size: 11px;
+      white-space: nowrap; cursor: pointer;
+    }
     .sms-vendor-chk input { margin: 0; }
     /* ── Undo toast ── */
     .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left-color: #aa5500; }
