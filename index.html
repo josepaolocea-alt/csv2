@@ -579,6 +579,11 @@
     .settings-check input[type="checkbox"] { cursor: pointer; }
     .settings-band { display: grid; gap: 4px; margin-top: 6px; padding-left: 18px; }
     .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
+    .settings-note {
+      font-size:11px; color:#444; background:#f0f0f0; padding:5px 8px;
+      border-top:1px solid #808080; border-left:1px solid #808080;
+      border-right:1px solid #fff; border-bottom:1px solid #fff;
+    }
 
     /* ── Confirm dialog overlay ── */
     #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay {
@@ -917,6 +922,12 @@
       background:#351818;
       border-color:#884444;
       color:#ffb0b0;
+    }
+    body.night-mode .settings-note {
+      background:#1c1c1c;
+      color:#c8c8c8;
+      border-top-color:#111; border-left-color:#111;
+      border-right-color:#555; border-bottom-color:#555;
     }
     body.night-mode a,
     body.night-mode [style*="color:#000080"],
@@ -1520,7 +1531,7 @@
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">🔒 Access</div>
-        <div style="font-size:11px;color:#444;background:#f0f0f0;border-top:1px solid #808080;border-left:1px solid #808080;border-right:1px solid #fff;border-bottom:1px solid #fff;padding:5px 8px">
+        <div class="settings-note">
           Login is managed via <strong>Firebase Authentication</strong>.<br>
           Add or remove users in the Firebase Console → Authentication → Users.
         </div>
