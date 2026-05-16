@@ -473,6 +473,14 @@
       white-space: nowrap; cursor: pointer;
     }
     .sms-vendor-chk input { margin: 0; }
+    /* ── Inactive SMS client rows — greyed out ── */
+    tr.sms-inactive td { color: #999; font-style: italic; background: #f4f4f4; }
+    tr.sms-inactive:nth-child(even) td { background: #ebebeb; }
+    tr.sms-inactive td strong { color: #999; font-weight: normal; }
+    tr.sms-inactive:hover td, tr.sms-inactive:hover td strong { color: #fff !important; }
+    body.night-mode tr.sms-inactive td,
+    body.night-mode tr.sms-inactive td strong { color: #777; background: #262626; }
+    body.night-mode tr.sms-inactive:nth-child(even) td { background: #2c2c2c; }
     /* ── Undo toast ── */
     .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left-color: #aa5500; }
     .toast.undo-toast .undo-msg { flex: 1; }
@@ -1342,6 +1350,7 @@
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
               <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
+              <div class="sms-field"><label>Status</label><select class="win-sel" id="sms-status"><option>Active</option><option>Inactive</option></select></div>
               <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
@@ -1363,6 +1372,7 @@
                   <th>Account Manager</th>
                   <th>Platform</th>
                   <th>Type</th>
+                  <th>Status</th>
                   <th>Opt-Out</th>
                   <th>Overdraft</th>
                   <th>Vendor(s)</th>
@@ -4080,7 +4090,7 @@ window.exportCsv=()=>{
    HELPERS
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
-const SMS_FIELDS = ['client','sender_id','destination','account_manager','platform','type','opt_out','overdraft','vendor','emails','notes'];
+const SMS_FIELDS = ['client','sender_id','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
 const SMS_HEADER_MAP = {
   client:'client', clientname:'client', customer:'client', customername:'client',
   senderid:'sender_id', senderids:'sender_id', sender:'sender_id', senderidlist:'sender_id',
@@ -4088,6 +4098,7 @@ const SMS_HEADER_MAP = {
   accountmanager:'account_manager', manager:'account_manager', am:'account_manager',
   platform:'platform',
   type:'type',
+  status:'status', clientstatus:'status', active:'status',
   optout:'opt_out', opt:'opt_out',
   overdraft:'overdraft',
   vendor:'vendor', vendors:'vendor', vendorlist:'vendor',
@@ -4136,11 +4147,17 @@ function normalizeSmsOptOut(v) {
   return s === 'with' || s === 'yes' || s === 'true' || s === '1' ? 'With' : 'Without';
 }
 
+function normalizeSmsStatus(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'inactive' || s === 'no' || s === 'false' || s === '0' ? 'Inactive' : 'Active';
+}
+
 function normalizeSmsClient(row) {
   const out = {};
   SMS_FIELDS.forEach(f => out[f] = String(row?.[f] ?? '').trim());
   out.platform = normalizeSmsPlatform(out.platform);
   out.type = normalizeSmsType(out.type);
+  out.status = normalizeSmsStatus(out.status);
   out.opt_out = normalizeSmsOptOut(out.opt_out);
   out.sender_id = normalizeSmsSenderIds(out.sender_id);
   out.vendor = normalizeSmsVendors(out.vendor);
@@ -4314,6 +4331,7 @@ function smsReadForm() {
     account_manager: smsFormValue('sms-account-manager'),
     platform: smsFormValue('sms-platform'),
     type: smsFormValue('sms-type'),
+    status: smsFormValue('sms-status'),
     opt_out: smsFormValue('sms-opt-out'),
     overdraft: smsFormValue('sms-overdraft'),
     vendor: smsReadVendors(),
@@ -4330,6 +4348,7 @@ function smsFillForm(row) {
   smsSetValue('sms-account-manager', r.account_manager);
   smsSetValue('sms-platform', r.platform);
   smsSetValue('sms-type', r.type);
+  smsSetValue('sms-status', r.status);
   smsSetValue('sms-opt-out', r.opt_out);
   smsSetValue('sms-overdraft', r.overdraft);
   smsSetVendors(r.vendor);
@@ -4509,28 +4528,30 @@ window.renderSmsClients = () => {
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)));
   const count = document.getElementById('sms-count');
   if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
-  tbody.innerHTML = rows.length ? rows.map(r => `<tr>
+  tbody.innerHTML = rows.length ? rows.map(r => `<tr class="${r.status==='Inactive'?'sms-inactive':''}">
     <td><strong>${esc(r.client)}</strong></td>
     <td style="white-space:normal;max-width:160px">${esc(r.sender_id)}</td>
     <td>${esc(r.destination)}</td>
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
     <td>${esc(r.type)}</td>
+    <td>${esc(r.status)}</td>
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
     <td>${esc(r.emails)}</td>
     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     <td><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
-  </tr>`).join('') : `<tr><td colspan="12" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  </tr>`).join('') : `<tr><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
 };
 
 window.downloadSmsClientTemplate = () => {
   const rows = [
-    ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','PLAY999; PLAY111','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
-    ['Sample Client','GLOBE01','Globe','Jason Cruz','Viber','Wholesale','Without','Allowed','M360','','Single sender ID / vendor'],
-    ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+    ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
+    ['Sample Client','PLAY999; PLAY111','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
+    ['Sample Client','GLOBE01','Globe','Jason Cruz','Viber','Wholesale','Active','Without','Allowed','M360','','Single sender ID / vendor'],
+    ['Old Client','RETIRED','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
+    ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
@@ -4544,11 +4565,11 @@ window.downloadSmsClientTemplate = () => {
 
 window.exportSmsClientsCsv = () => {
   if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
-  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
   const rows = smsClients
     .slice()
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
-    .map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+    .map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
