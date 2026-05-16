@@ -458,6 +458,20 @@
     .sms-combo.open .sms-combo-options { display: block; }
     .sms-combo-option { padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sms-combo-option:hover { background: #000080; color: #fff; }
+    /* ── SMS multi-vendor checkbox group ── */
+    .sms-vendor-box {
+      display: flex; flex-wrap: wrap; gap: 2px 12px;
+      background: #fff; padding: 4px 6px;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      max-height: 54px; overflow-y: auto;
+    }
+    .sms-vendor-chk { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; white-space: nowrap; cursor: pointer; }
+    .sms-vendor-chk input { margin: 0; }
+    /* ── Undo toast ── */
+    .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left-color: #aa5500; }
+    .toast.undo-toast .undo-msg { flex: 1; }
+    .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     }
@@ -549,10 +563,10 @@
     .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
       box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
@@ -631,6 +645,7 @@
     #confirm-overlay.open #confirm-box,
     #undo-confirm-overlay.open #undo-confirm-box,
     #sms-confirm-overlay.open #sms-confirm-box,
+    #signout-confirm-overlay.open #signout-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #client-detail-overlay.open #client-detail-box {
@@ -669,6 +684,7 @@
     body.night-mode #confirm-box,
     body.night-mode #undo-confirm-box,
     body.night-mode #sms-confirm-box,
+    body.night-mode #signout-confirm-box,
     body.night-mode #client-detail-box,
     body.night-mode #rollback-box,
     body.night-mode #delete-today-box,
@@ -1019,7 +1035,7 @@
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="login-user-label" style="font-size:10px;color:#000080;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px"></span>
-    <button class="tbtn" id="btn-signout" onclick="signOutUser()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">🔓 Sign Out</button>
+    <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">🔓 Sign Out</button>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -1309,18 +1325,19 @@
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
               <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Upload CSV</button>
               <button class="tbtn" onclick="exportSmsClientsCsv()">Export CSV</button>
+              <button class="tbtn" style="color:#880000" onclick="deleteAllSmsClients()">Delete All</button>
               <span class="sms-muted" id="sms-edit-status">Adding new client route</span>
             </div>
             <div class="sms-form-grid">
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
-              <div class="sms-field"><label>Sender ID</label><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div></div>
+              <div class="sms-field"><label>Sender ID(s)</label><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;)" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div></div>
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
               <div class="sms-field"><label>Type</label><select class="win-sel" id="sms-type"><option>Wholesale</option><option>Retail</option></select></div>
               <div class="sms-field"><label>Opt-Out</label><select class="win-sel" id="sms-opt-out"><option>Without</option><option>With</option></select></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
-              <div class="sms-field"><label>Vendor</label><select class="win-sel" id="sms-vendor"></select></div>
+              <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
               <div class="sms-field full" id="sms-email-wrap"><label>Email(s)</label><input class="win-inp" id="sms-emails" placeholder="name@example.com; another@example.com"></div>
               <div class="sms-field full"><label>Notes / Remarks</label><input class="win-inp" id="sms-notes"></div>
             </div>
@@ -1334,14 +1351,14 @@
               <table id="sms-clients-tbl">
                 <thead><tr>
                   <th>Client</th>
-                  <th>Sender ID</th>
+                  <th>Sender ID(s)</th>
                   <th>Destination</th>
                   <th>Account Manager</th>
                   <th>Platform</th>
                   <th>Type</th>
                   <th>Opt-Out</th>
                   <th>Overdraft</th>
-                  <th>Vendor</th>
+                  <th>Vendor(s)</th>
                   <th>Email(s)</th>
                   <th>Notes / Remarks</th>
                   <th>Action</th>
@@ -1373,8 +1390,26 @@
       <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
       <div style="display:flex;justify-content:flex-end;gap:6px">
         <button class="tbtn" onclick="closeSmsConfirm()">Cancel</button>
-        <button class="tbtn primary" id="sms-confirm-ok" onclick="confirmSmsDelete()">Delete</button>
+        <button class="tbtn primary" id="sms-confirm-ok" onclick="runSmsConfirm()">Delete</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sign Out Confirm Dialog -->
+<div id="signout-confirm-overlay">
+  <div id="signout-confirm-box">
+    <div class="dlg-tb"><span>🔓 Confirm Sign Out</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">🔓</div>
+      <div class="dlg-text">
+        <strong>Sign out of BalanceMonitor?</strong><br><br>
+        You will need to enter your email and password again to log back in.
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn primary" style="min-width:72px" onclick="confirmSignOut()">Sign Out</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeSignoutConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1709,7 +1744,7 @@ let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
-let smsClients = [], smsEditingId = null, smsPendingDeleteId = null;
+let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -2080,17 +2115,19 @@ window.submitLogin = async () => {
     if (btn) { btn.disabled = false; btn.textContent = 'OK'; }
   }
 };
+window.openSignoutConfirm  = () => document.getElementById('signout-confirm-overlay')?.classList.add('open');
+window.closeSignoutConfirm = () => document.getElementById('signout-confirm-overlay')?.classList.remove('open');
+window.confirmSignOut = () => { closeSignoutConfirm(); signOutUser(); };
 window.signOutUser = async () => {
   if (!auth) return;
   try {
     await signOut(auth);
   } catch(e) { console.warn('Sign out error', e); }
   // onAuthStateChanged will fire and show the login overlay
-  const emailEl = document.getElementById('login-email');
-  const passEl  = document.getElementById('login-pass');
-  const errEl   = document.getElementById('login-error');
-  if (passEl)  passEl.value  = '';
-  if (errEl)   errEl.textContent = '';
+  const passEl = document.getElementById('login-pass');
+  const errEl  = document.getElementById('login-error');
+  if (passEl) passEl.value = '';
+  if (errEl)  errEl.textContent = '';
   // keep email pre-filled for convenience
 };
 
@@ -4039,14 +4076,14 @@ window.exportCsv=()=>{
 const SMS_FIELDS = ['client','sender_id','destination','account_manager','platform','type','opt_out','overdraft','vendor','emails','notes'];
 const SMS_HEADER_MAP = {
   client:'client', clientname:'client', customer:'client', customername:'client',
-  senderid:'sender_id', sender:'sender_id',
+  senderid:'sender_id', senderids:'sender_id', sender:'sender_id', senderidlist:'sender_id',
   destination:'destination', dest:'destination',
   accountmanager:'account_manager', manager:'account_manager', am:'account_manager',
   platform:'platform',
   type:'type',
   optout:'opt_out', opt:'opt_out',
   overdraft:'overdraft',
-  vendor:'vendor',
+  vendor:'vendor', vendors:'vendor', vendorlist:'vendor',
   email:'emails', emails:'emails', emailnotes:'emails',
   notes:'notes', note:'notes', remarks:'notes', remark:'notes'
 };
@@ -4059,9 +4096,21 @@ function smsId() {
   return 'sms_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 }
 
-function normalizeSmsVendor(v) {
-  const s = String(v || '').trim().toUpperCase();
-  return SMS_VENDORS.includes(s) ? s : (s || SMS_VENDORS[0]);
+// Split a cell on comma or semicolon into trimmed, non-empty parts
+function smsSplitMulti(v) {
+  return String(v ?? '').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
+}
+// Sender IDs: keep one or more values, deduped, joined as "A, B"
+function normalizeSmsSenderIds(v) {
+  const seen = new Set(), out = [];
+  smsSplitMulti(v).forEach(s => { const k = s.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(s); } });
+  return out.join(', ');
+}
+// Vendors: one or more values, uppercased, deduped, joined as "A, B"
+function normalizeSmsVendors(v) {
+  const seen = new Set(), out = [];
+  smsSplitMulti(v).forEach(s => { const u = s.toUpperCase(); if (!seen.has(u)) { seen.add(u); out.push(u); } });
+  return out.join(', ');
 }
 
 function normalizeSmsPlatform(v) {
@@ -4086,13 +4135,15 @@ function normalizeSmsClient(row) {
   out.platform = normalizeSmsPlatform(out.platform);
   out.type = normalizeSmsType(out.type);
   out.opt_out = normalizeSmsOptOut(out.opt_out);
-  out.vendor = normalizeSmsVendor(out.vendor);
+  out.sender_id = normalizeSmsSenderIds(out.sender_id);
+  out.vendor = normalizeSmsVendors(out.vendor);
   out.id = row?.id || smsId();
   return out;
 }
 
+// One route = one client + one destination (each holding multiple sender IDs / vendors)
 function smsRouteKey(r) {
-  return [r.client, r.destination, r.vendor, r.sender_id].map(v => String(v || '').trim().toLowerCase()).join('|');
+  return [r.client, r.destination].map(v => String(v || '').trim().toLowerCase()).join('|');
 }
 
 function loadSmsClients() {
@@ -4109,7 +4160,7 @@ function saveSmsClients() {
 }
 
 function smsComboOptions(kind) {
-  if (kind === 'sender_id') return smsClients.map(r => r.sender_id);
+  if (kind === 'sender_id') return smsClients.flatMap(r => smsSplitMulti(r.sender_id));
   if (kind === 'destination') return smsClients.map(r => r.destination);
   if (kind === 'account_manager') return smsClients.map(r => r.account_manager);
   if (kind === 'platform') return [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)];
@@ -4150,7 +4201,10 @@ function updateSmsDatalists() {
 function updateSmsComboOptions(kind, filter='') {
   const menu = document.getElementById(smsComboMenuId(kind));
   if (!menu) return;
-  const q = String(filter || '').trim().toLowerCase();
+  // Sender ID is a multi-value field — match against the segment being typed
+  let raw = String(filter || '');
+  if (kind === 'sender_id') { const parts = raw.split(/[,;]/); raw = parts[parts.length - 1]; }
+  const q = raw.trim().toLowerCase();
   const values = cleanSmsComboValues(smsComboOptions(kind))
     .filter(v => !q || v.toLowerCase().includes(q))
     .slice(0, 40);
@@ -4186,17 +4240,50 @@ window.toggleSmsCombo = (kind, e) => {
 };
 
 window.pickSmsCombo = (kind, value) => {
-  smsSetValue(smsComboInputId(kind), value);
+  if (kind === 'sender_id') {
+    // Append the picked Sender ID to the existing list instead of replacing
+    const id = smsComboInputId(kind);
+    const list = smsSplitMulti(document.getElementById(id)?.value || '');
+    if (!list.some(x => x.toLowerCase() === value.toLowerCase())) list.push(value);
+    smsSetValue(id, list.join(', '));
+  } else {
+    smsSetValue(smsComboInputId(kind), value);
+  }
   closeSmsCombos();
   if (kind === 'platform') toggleSmsEmailField();
 };
 
+// Union of the fixed vendor list and any vendors already present in saved data
+function smsAllVendors(extra=[]) {
+  const seen = new Set(), out = [];
+  [...SMS_VENDORS, ...smsClients.flatMap(r => smsSplitMulti(r.vendor)), ...extra]
+    .forEach(v => { const u = String(v||'').trim().toUpperCase(); if (u && !seen.has(u)) { seen.add(u); out.push(u); } });
+  return out;
+}
+// (Re)build the vendor checkbox group; pass extra vendors to guarantee they appear
+function buildSmsVendorBox(extra=[]) {
+  const box = document.getElementById('sms-vendor-box');
+  if (!box) return;
+  box.innerHTML = smsAllVendors(extra).map(v =>
+    `<label class="sms-vendor-chk"><input type="checkbox" value="${esc(v)}">${esc(v)}</label>`
+  ).join('');
+}
+// Read the ticked vendors as a normalized "A, B" string
+function smsReadVendors() {
+  return normalizeSmsVendors(
+    [...document.querySelectorAll('#sms-vendor-box input:checked')].map(c => c.value).join(',')
+  );
+}
+// Tick the checkboxes matching the given vendor string
+function smsSetVendors(str) {
+  const wanted = new Set(smsSplitMulti(str).map(v => v.toUpperCase()));
+  buildSmsVendorBox([...wanted]);
+  document.querySelectorAll('#sms-vendor-box input').forEach(c => { c.checked = wanted.has(c.value.toUpperCase()); });
+}
+
 function initSmsModule() {
-  const vendorSel = document.getElementById('sms-vendor');
-  if (vendorSel && !vendorSel.options.length) {
-    vendorSel.innerHTML = SMS_VENDORS.map(v => `<option>${esc(v)}</option>`).join('');
-  }
   loadSmsClients();
+  buildSmsVendorBox();
   updateSmsDatalists();
   newSmsClient(false);
   renderSmsClients();
@@ -4222,7 +4309,7 @@ function smsReadForm() {
     type: smsFormValue('sms-type'),
     opt_out: smsFormValue('sms-opt-out'),
     overdraft: smsFormValue('sms-overdraft'),
-    vendor: smsFormValue('sms-vendor'),
+    vendor: smsReadVendors(),
     emails: smsFormValue('sms-emails'),
     notes: smsFormValue('sms-notes')
   });
@@ -4238,7 +4325,7 @@ function smsFillForm(row) {
   smsSetValue('sms-type', r.type);
   smsSetValue('sms-opt-out', r.opt_out);
   smsSetValue('sms-overdraft', r.overdraft);
-  smsSetValue('sms-vendor', r.vendor);
+  smsSetVendors(r.vendor);
   smsSetValue('sms-emails', r.emails);
   smsSetValue('sms-notes', r.notes);
   toggleSmsEmailField();
@@ -4252,7 +4339,7 @@ window.toggleSmsEmailField = () => {
 
 window.newSmsClient = (showToast=true) => {
   smsEditingId = null;
-  smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', opt_out:'Without', vendor:SMS_VENDORS[0] });
+  smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', opt_out:'Without', vendor:'' });
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = 'Adding new client route';
   if (showToast) toast('Ready for a new SMS client route', 'ok');
@@ -4287,31 +4374,103 @@ window.editSmsClient = id => {
   if (st) st.textContent = `Editing: ${row.client} / ${row.destination}`;
 };
 
-window.deleteSmsClient = id => {
-  const row = smsClients.find(r => r.id === id);
-  if (!row) return;
-  smsPendingDeleteId = id;
+// Open the shared SMS confirm dialog with custom text, button label, and action
+function openSmsConfirm(html, okLabel, callback) {
+  smsConfirmCallback = callback;
   const text = document.getElementById('sms-confirm-text');
-  if (text) text.innerHTML = `Delete SMS route for <strong>${esc(row.client)}</strong> / <strong>${esc(row.destination)}</strong>?`;
+  if (text) text.innerHTML = html;
+  const ok = document.getElementById('sms-confirm-ok');
+  if (ok) ok.textContent = okLabel || 'Delete';
   document.getElementById('sms-confirm-overlay')?.classList.add('open');
-};
+}
 
 window.closeSmsConfirm = () => {
-  smsPendingDeleteId = null;
+  smsConfirmCallback = null;
   document.getElementById('sms-confirm-overlay')?.classList.remove('open');
 };
 
-window.confirmSmsDelete = () => {
-  const id = smsPendingDeleteId;
-  if (!id) { closeSmsConfirm(); return; }
-  smsClients = smsClients.filter(r => r.id !== id);
-  if (smsEditingId === id) newSmsClient(false);
-  saveSmsClients();
-  updateSmsDatalists();
-  renderSmsClients();
+window.runSmsConfirm = () => {
+  const cb = smsConfirmCallback;
   closeSmsConfirm();
-  toast('SMS client route deleted', 'ok');
+  if (typeof cb === 'function') cb();
 };
+
+window.deleteSmsClient = id => {
+  const row = smsClients.find(r => r.id === id);
+  if (!row) return;
+  openSmsConfirm(
+    `Delete SMS route for <strong>${esc(row.client)}</strong> / <strong>${esc(row.destination)}</strong>?`,
+    'Delete',
+    () => {
+      const backup = smsClients.slice();
+      smsClients = smsClients.filter(r => r.id !== id);
+      if (smsEditingId === id) newSmsClient(false);
+      saveSmsClients();
+      updateSmsDatalists();
+      renderSmsClients();
+      showUndoToast(`Deleted route: ${row.client} / ${row.destination}`, () => {
+        smsClients = backup;
+        saveSmsClients();
+        updateSmsDatalists();
+        renderSmsClients();
+        toast('Deletion undone — route restored', 'ok');
+      });
+    }
+  );
+};
+
+window.deleteAllSmsClients = () => {
+  if (!smsClients.length) { toast('No SMS client routes to delete', 'err'); return; }
+  const n = smsClients.length;
+  openSmsConfirm(
+    `Delete <strong>all ${n}</strong> SMS client route(s)?<br><br>` +
+    `<span style="color:#880000">This clears the entire SMS client list.</span>`,
+    'Delete All',
+    () => {
+      const backup = smsClients.slice();
+      smsClients = [];
+      smsEditingId = null;
+      newSmsClient(false);
+      saveSmsClients();
+      updateSmsDatalists();
+      renderSmsClients();
+      showUndoToast(`Deleted all ${n} SMS client route(s)`, () => {
+        smsClients = backup;
+        saveSmsClients();
+        updateSmsDatalists();
+        renderSmsClients();
+        toast(`Deletion undone — ${n} route(s) restored`, 'ok');
+      });
+    }
+  );
+};
+
+// Toast with an Undo button + countdown in the lower-right; deletion is final when it expires
+function showUndoToast(msg, onUndo, seconds=5) {
+  const host = document.getElementById('toasts');
+  if (!host) return;
+  let remaining = seconds, done = false;
+  const t = document.createElement('div');
+  t.className = 'toast undo-toast';
+  t.innerHTML = `<span class="undo-msg">${esc(msg)}</span>` +
+    `<button class="tbtn" style="font-size:10px;padding:1px 6px">↩ Undo (<span class="undo-count">${remaining}</span>)</button>`;
+  const countEl = t.querySelector('.undo-count');
+  const btn = t.querySelector('button');
+  const dismiss = () => { t.classList.add('leaving'); setTimeout(() => t.remove(), 180); };
+  const iv = setInterval(() => {
+    if (done) return;
+    remaining--;
+    if (countEl) countEl.textContent = Math.max(remaining, 0);
+    if (remaining <= 0) { done = true; clearInterval(iv); dismiss(); }
+  }, 1000);
+  btn.onclick = () => {
+    if (done) return;
+    done = true; clearInterval(iv);
+    try { onUndo(); } catch(e) { console.warn('Undo error', e); }
+    dismiss();
+  };
+  host.appendChild(t);
+}
 
 function smsMatchesSearch(row, q) {
   if (!q) return true;
@@ -4329,14 +4488,14 @@ window.renderSmsClients = () => {
   if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
   tbody.innerHTML = rows.length ? rows.map(r => `<tr>
     <td><strong>${esc(r.client)}</strong></td>
-    <td>${esc(r.sender_id)}</td>
+    <td style="white-space:normal;max-width:160px">${esc(r.sender_id)}</td>
     <td>${esc(r.destination)}</td>
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
     <td>${esc(r.type)}</td>
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
-    <td>${esc(r.vendor)}</td>
+    <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
     <td>${esc(r.emails)}</td>
     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     <td><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
@@ -4346,8 +4505,8 @@ window.renderSmsClients = () => {
 window.downloadSmsClientTemplate = () => {
   const rows = [
     ['Client','Sender ID','Destination','Account Manager','Platform','Type','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','SENDERID','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Without','Allowed','SMART SUITE','','Smart route'],
-    ['Sample Client','SENDERID','Globe','Jason Cruz','Viber','Wholesale','Without','Allowed','M360','','Globe route'],
+    ['Sample Client','PLAY999; PLAY111','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
+    ['Sample Client','GLOBE01','Globe','Jason Cruz','Viber','Wholesale','Without','Allowed','M360','','Single sender ID / vendor'],
     ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -4405,6 +4564,7 @@ window.importSmsClientCsv = file => {
         }
       });
       saveSmsClients();
+      buildSmsVendorBox();
       updateSmsDatalists();
       renderSmsClients();
       toast(`SMS CSV imported: ${added} added, ${updated} updated`, 'ok');
