@@ -1212,6 +1212,7 @@
             <div class="tab" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
+            <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap">
@@ -3123,7 +3124,7 @@ window.sortAlert = col => {
 };
 window.alertPageTo = p => {alertPage=p;renderAlerts();};
 
-function renderAlerts() {
+function alertRows() {
   const prevCritSet = getPrevCriticalSet(); // null = no prior snapshot to compare
   const data=activeData().map(r=>{
     const meta=clientsMeta[r.carrier_name]||{};
@@ -3145,9 +3146,7 @@ function renderAlerts() {
     };
   });
 
-  // Update 🆕 New Critical tab label + pulse
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
-  updateNewCriticalTab(newCount);
 
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
@@ -3163,6 +3162,12 @@ function renderAlerts() {
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
+  return { rows, newCount, prevCritSet };
+}
+
+function renderAlerts() {
+  const { rows, newCount, prevCritSet } = alertRows();
+  updateNewCriticalTab(newCount);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
@@ -4125,6 +4130,52 @@ window.exportCsv=()=>{
   const filter=selected==='current' ? clientFilter : selected;
   const includeInactive=document.getElementById('exp-include-inactive')?.checked ?? true;
   downloadClientRowsCsv(clientRowsForExport(filter, includeInactive, selected==='current'), exportFilterLabel(filter));
+};
+function alertFilterLabel(filter) {
+  return ({
+    all:'all_alerts',
+    high:'critical',
+    light:'warning',
+    none:'safe',
+    nothresh:'no_threshold',
+    usage:'usage',
+    new:'new_critical'
+  })[filter] || 'current_view';
+}
+window.exportCurrentAlertView=()=>{
+  const { rows } = alertRows();
+  if(!rows.length){toast('No data to export','err');return;}
+  const h=['Client','Amnt Receivable','30m Usage','Credit Limit','Critical Balance','Balance %','Alert','New Critical','ETA to Critical','Acknowledged By','Ack Time','Notes','Status'];
+  const csvRows=rows.map(r=>{
+    const critBal=r.critical_balance, credLim=r.credit_limit, bal=r.amnt_receivable;
+    let bw=0;
+    if(critBal!==null && credLim!==null){
+      const range=critBal-credLim, pos=bal-credLim;
+      bw=range!==0?Math.min(Math.max(pos/range*100,0),100):(bal>=critBal?100:0);
+    }
+    const[,lbl]=alertFilter==='usage'?usageChipInfo(r):chipInfo(r,r._level);
+    const etaTxt=r._eta===null ? (r._level==='high'?'AT LIMIT':'—') : fmtEta(r._eta);
+    const ackTime=r._ack ? r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0') : '';
+    return [
+      r.carrier_name,
+      r.amnt_receivable,
+      r.usage_30min||0,
+      r.credit_limit,
+      r.critical_balance,
+      bw.toFixed(0)+'%',
+      lbl,
+      r._isNew?'Yes':'',
+      etaTxt,
+      r._ack?r._ack.operator:'',
+      ackTime,
+      r.notes||'',
+      r._inactive?'Inactive':'Active'
+    ];
+  });
+  const csv=[h,...csvRows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  const a=document.createElement('a');a.href=url;a.download=`balance_monitor_${alertFilterLabel(alertFilter)}_${todayStr()}.csv`;a.click();
+  URL.revokeObjectURL(url);toast(`✓ Exported ${rows.length} row(s)`,'ok');
 };
 
 /* ════════════════════════════════════════════════
