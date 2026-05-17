@@ -1794,7 +1794,7 @@ try {
    STATE
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
-let prevDaySnap = null; // last snapshot from the previous session day
+let priorSnap = null; // most recent snapshot from any day before today
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
 let operatorName = localStorage.getItem('bm_operator') || '';
 let ackMap = {}; // carrier_name → { operator, time }
@@ -2294,11 +2294,11 @@ function etaColor(mins) {
 ════════════════════════════════════════════════ */
 function getPrevSnapshot() {
   if (viewingIdx !== null) {
-    // viewing a past snap: compare against the one before it, or yesterday if it's the first today
-    return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : prevDaySnap;
+    // viewing a past snap: compare against the one before it, or the last prior-day snap if it's the first today
+    return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : priorSnap;
   }
   if (todaySnaps.length >= 2) return todaySnaps[todaySnaps.length - 2];
-  if (todaySnaps.length === 1) return prevDaySnap; // first snap of the day → compare vs yesterday's last
+  if (todaySnaps.length === 1) return priorSnap; // first snap of the day → compare vs last snapshot taken
   return null;
 }
 function getPrevCriticalSet() {
@@ -2916,22 +2916,21 @@ async function cleanupOldSnapshots() {
   } catch(e) { console.warn('Cleanup error:', e); }
 }
 
-async function loadPrevDaySnap() {
+async function loadPrevSnap() {
   if (!fbOk) return;
   try {
-    const d = new Date(); d.setDate(d.getDate() - 1);
-    const yest = d.toISOString().slice(0, 10);
     const q = query(
       collection(db, 'snapshots'),
-      where('session_date', '==', yest),
+      where('session_date', '<', todayStr()),
+      orderBy('session_date', 'desc'),
       orderBy('time_slot', 'desc'),
       limit(1)
     );
     const s = await getDocs(q);
     if (s.docs.length) {
-      prevDaySnap = { id: s.docs[0].id, ...s.docs[0].data(), timestamp: s.docs[0].data().timestamp?.toDate() };
+      priorSnap = { id: s.docs[0].id, ...s.docs[0].data(), timestamp: s.docs[0].data().timestamp?.toDate() };
     }
-  } catch(e) { console.warn('loadPrevDaySnap:', e); }
+  } catch(e) { console.warn('loadPrevSnap:', e); }
 }
 
 async function loadClients() {
@@ -3178,12 +3177,12 @@ function renderAlerts() {
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
-  const usingYestNote = alertFilter==='new' && prevDaySnap && prevSnap === prevDaySnap
+  const usingPriorNote = alertFilter==='new' && priorSnap && prevSnap === priorSnap
     ? `<tr><td colspan="10" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
-        📅 Comparing against yesterday's last snapshot — ${prevDaySnap.session_date} · ${fmt12(prevDaySnap.time_slot)}
+        📅 Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
        </td></tr>` : '';
 
-  document.getElementById('alert-tbody').innerHTML= noPrevNote + usingYestNote + page.map(r=>{
+  document.getElementById('alert-tbody').innerHTML= noPrevNote + usingPriorNote + page.map(r=>{
     const critBal = r.critical_balance;
     const credLim = r.credit_limit;
     const bal     = r.amnt_receivable;
@@ -5035,7 +5034,7 @@ async function init(){
     Notification.requestPermission();
   }
   setLoading(true,'Connecting to Firestore…');
-  await Promise.all([loadPrevDaySnap(), loadClients()]);
+  await Promise.all([loadPrevSnap(), loadClients()]);
   cleanupOldSnapshots(); // runs in background, no await needed
   setLoading(false);
   refreshAll();
