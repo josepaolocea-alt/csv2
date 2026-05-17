@@ -4172,24 +4172,31 @@ function normalizeSmsVendors(v) {
   return out.join(', ');
 }
 
+// Blank stays blank — defaults are applied by the add form, not here, so an
+// empty CSV cell or unset field is never silently auto-filled.
 function normalizeSmsPlatform(v) {
   const raw = String(v || '').trim();
-  if (!raw || raw.toLowerCase() === 'sms') return SMS_DEFAULT_PLATFORMS[0];
+  if (!raw) return '';
+  if (raw.toLowerCase() === 'sms') return SMS_DEFAULT_PLATFORMS[0];
   const match = SMS_DEFAULT_PLATFORMS.find(p => p.toLowerCase() === raw.toLowerCase());
   return match || raw;
 }
 
 function normalizeSmsType(v) {
-  return String(v || '').trim().toLowerCase() === 'retail' ? 'Retail' : 'Wholesale';
+  const s = String(v || '').trim().toLowerCase();
+  if (!s) return '';
+  return s === 'retail' ? 'Retail' : 'Wholesale';
 }
 
 function normalizeSmsOptOut(v) {
   const s = String(v || '').trim().toLowerCase();
+  if (!s) return '';
   return s === 'with' || s === 'yes' || s === 'true' || s === '1' ? 'With' : 'Without';
 }
 
 function normalizeSmsStatus(v) {
   const s = String(v || '').trim().toLowerCase();
+  if (!s) return '';
   return s === 'inactive' || s === 'no' || s === 'false' || s === '0' ? 'Inactive' : 'Active';
 }
 
@@ -4424,7 +4431,7 @@ window.toggleSmsEmailField = () => {
 
 window.newSmsClient = (showToast=true) => {
   smsEditingId = null;
-  smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', opt_out:'Without', vendor:'' });
+  smsFillForm({ platform:SMS_DEFAULT_PLATFORMS[0], type:'Wholesale', status:'Active', opt_out:'Without', vendor:'' });
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = 'Adding new client route';
   const saveBtn = document.getElementById('sms-save-btn');
