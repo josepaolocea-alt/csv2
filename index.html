@@ -3087,7 +3087,7 @@ window.confirmDeleteTodaySnapshots = async () => {
 async function loadSnaps() {
   if(!fbOk) return;
   try {
-    const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
+    const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()));
     const s=await getDocs(q);
     todaySnaps=normalizeTodaySnaps(s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
     if(todaySnaps.length) {
@@ -5431,7 +5431,7 @@ async function init(){
   refreshAll();
   if(fbOk){
     try{
-      const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()),orderBy('time_slot'));
+      const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()));
       onSnapshot(q,snap=>{
         todaySnaps=normalizeTodaySnaps(snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
         if(todaySnaps.length&&viewingIdx===null) {
