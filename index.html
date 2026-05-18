@@ -1896,7 +1896,7 @@ window.addEventListener('unhandledrejection', function(e) {
 ════════════════════════════════════════════════ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, getDocs, setDoc, doc, deleteDoc,
+  getFirestore, collection, addDoc, getDocs, getDoc, setDoc, doc, deleteDoc,
   query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit, deleteField
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
@@ -2149,8 +2149,11 @@ function fmt12(hhmm) {
 }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function populateSlots() {
-  const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift), next=nextSlot();
-  sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===next?'selected':''}>${fmt12(s)}</option>`).join('');
+  const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift);
+  // Preserve a manual selection across the 60s auto-refresh; only fall back to
+  // the default (next slot) when nothing valid is selected yet.
+  const chosen=slots.includes(sel.value)?sel.value:nextSlot();
+  sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===chosen?'selected':''}>${fmt12(s)}</option>`).join('');
 }
 
 /* ════════════════════════════════════════════════
@@ -2681,7 +2684,17 @@ window.processSnapshot = async() => {
     return;
   }
   const timeSlot=document.getElementById('slot-sel').value;
-  const existing=todaySnaps.find(s=>s.time_slot===timeSlot);
+  let existing=todaySnaps.find(s=>s.time_slot===timeSlot);
+  if(!existing && fbOk){
+    // Authoritative check: the in-memory list may be empty right after a reload
+    // (it loads asynchronously), so look up the exact doc setDoc would overwrite.
+    try {
+      setLoading(true,'Checking slot…');
+      const d=await getDoc(doc(db,'snapshots',snapshotDocId(todayStr(),timeSlot)));
+      if(d.exists()) existing=d.data();
+    } catch(e){ console.warn('overwrite check:',e); }
+    finally{ setLoading(false); }
+  }
   if(existing){
     pendingSnapshotText=document.getElementById('snap-ta').value;
     pendingSnapshotSlot=timeSlot;
