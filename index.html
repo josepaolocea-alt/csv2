@@ -429,6 +429,66 @@
     }
     body.sms-mode #sms-toolbar-label { display: inline-flex; }
     body.sms-mode #view-banner { display: none !important; }
+
+    /* ── Notepad module ── */
+    #notepad-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    body.notepad-mode #sidebar,
+    body.notepad-mode #toolbar .tbtn[id^="tnav-"],
+    body.notepad-mode #snd-dismiss-btn,
+    body.notepad-mode #btn-clip-watch,
+    body.notepad-mode #sync-label {
+      display: none !important;
+    }
+    body.notepad-mode #notepad-toolbar-label { display: inline-flex; }
+    body.notepad-mode #view-banner { display: none !important; }
+    .np-tabbar {
+      display: flex; gap: 0; padding: 0 2px; margin-bottom: -1px;
+      flex-wrap: wrap; align-items: flex-end;
+    }
+    .np-tab {
+      display: flex; align-items: center; gap: 5px;
+      padding: 2px 5px 2px 9px; font-size: 11px; font-family: inherit;
+      background: #d4d0c8; cursor: pointer; max-width: 180px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: none;
+      margin-right: 2px; position: relative; bottom: 0;
+    }
+    .np-tab.active {
+      background: #c0c0c0; font-weight: 700;
+      bottom: -1px; z-index: 1; border-bottom: 2px solid #c0c0c0;
+    }
+    .np-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .np-tab-close {
+      width: 15px; height: 15px; line-height: 13px; text-align: center;
+      font-size: 10px; flex: none;
+      background: #c0c0c0; color: #000;
+      border-top: 1px solid #fff; border-left: 1px solid #fff;
+      border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+    }
+    .np-tab-close:hover { background: #e89090; }
+    .np-tab-add {
+      padding: 2px 9px; font-size: 13px; font-weight: 700; line-height: 14px;
+      background: #c0c0c0; cursor: pointer;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+    }
+    .np-tab-add:active { border-color: #808080 #fff #fff #808080; }
+    #np-bold.active, #np-italic.active, #np-underline.active {
+      border-color: #808080 #fff #fff #808080;
+      background: #b0b0a8;
+    }
+    .np-editor {
+      flex: 1; min-height: 0; overflow-y: auto;
+      font-size: 14px; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+      padding: 6px 7px; background: #fff; color: #000;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      white-space: pre-wrap; word-break: break-word;
+      line-height: 1.45; outline: none;
+    }
+    .np-editor:empty:before {
+      content: 'Start typing your notes…'; color: #999;
+    }
     .sms-form-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(150px, 1fr));
@@ -1016,6 +1076,33 @@
       border-right-color:#111;
       border-bottom-color:#111;
     }
+    body.night-mode .np-tab {
+      background: #2a2a2a; color: #d0d0d0;
+      border-top-color: #555; border-left-color: #555;
+      border-right-color: #000;
+    }
+    body.night-mode .np-tab.active {
+      background: #383838; color: #fff;
+      border-bottom-color: #383838;
+    }
+    body.night-mode .np-tab-close,
+    body.night-mode .np-tab-add {
+      background: #383838; color: #e0e0e0;
+      border-top-color: #555; border-left-color: #555;
+      border-right-color: #000; border-bottom-color: #000;
+    }
+    body.night-mode .np-tab-close:hover { background: #7a2a2a; }
+    body.night-mode #np-bold.active,
+    body.night-mode #np-italic.active,
+    body.night-mode #np-underline.active { background: #1a1a1a; }
+    body.night-mode .np-editor {
+      background: #1e1e1e; color: #e0e0e0;
+      border-top-color: #000; border-left-color: #000;
+      border-right-color: #555; border-bottom-color: #555;
+    }
+    body.night-mode .np-editor:empty:before { color: #777; }
+    body.night-mode #notepad-toolbar-label { color: #9fc2ff; }
+
     @media print {
       body.night-mode,
       body.night-mode #win,
@@ -1056,6 +1143,7 @@
       <div class="menu-dd">
         <div class="menu-dd-item active" id="view-menu-balance" onclick="switchModule('balance')">Balance Monitor</div>
         <div class="menu-dd-item" id="view-menu-sms" onclick="switchModule('sms')">SMS</div>
+        <div class="menu-dd-item" id="view-menu-notepad" onclick="switchModule('notepad')">Notepad</div>
       </div>
     </div>
     <div class="mitem" onclick="toggleSettings()">Tools</div>
@@ -1074,6 +1162,7 @@
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
+    <span id="notepad-toolbar-label">📝 Notepad</span>
     <span id="login-user-label" style="font-size:10px;color:#000080;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px"></span>
     <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">🔓 Sign Out</button>
     <span id="sync-label">No data loaded</span>
@@ -1410,6 +1499,31 @@
                 <tbody id="sms-clients-tbody"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-notepad">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Notepad</div>
+          <div class="np-tabbar" id="np-tabbar"></div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
+            <div class="fbar">
+              <button class="tbtn" id="np-bold" onmousedown="event.preventDefault()" onclick="npFormat('bold')" title="Bold (Ctrl+B)" style="min-width:24px"><b>B</b></button>
+              <button class="tbtn" id="np-italic" onmousedown="event.preventDefault()" onclick="npFormat('italic')" title="Italic (Ctrl+I)" style="min-width:24px"><i>I</i></button>
+              <button class="tbtn" id="np-underline" onmousedown="event.preventDefault()" onclick="npFormat('underline')" title="Underline (Ctrl+U)" style="min-width:24px"><u>U</u></button>
+              <div class="tsep"></div>
+              <label style="font-size:11px">Font size</label>
+              <select class="win-sel" id="np-fontsize" onchange="npSetFontSize(this.value)">
+                <option>8</option><option>10</option><option>11</option><option>12</option>
+                <option>14</option><option>16</option><option>18</option><option>20</option>
+                <option>24</option><option>28</option><option>36</option><option>48</option>
+              </select>
+              <button class="tbtn" onclick="npAddTab()" title="Add a new note tab">+ New Tab</button>
+              <span class="sms-muted" id="np-status" style="margin-left:auto">Saved</span>
+            </div>
+            <div class="np-editor" id="np-editor" contenteditable="true"
+                 spellcheck="true" oninput="npOnInput()"></div>
           </div>
         </div>
       </div>
@@ -1909,10 +2023,13 @@ function closeViewMenu() {
 
 function updateViewMenuState() {
   const smsMode = document.body.classList.contains('sms-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode);
+  const npMode  = document.body.classList.contains('notepad-mode');
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
+  document.getElementById('view-menu-notepad')?.classList.toggle('active', npMode);
   const title = document.querySelector('#titlebar .title');
-  if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS' : 'BalanceMonitor';
+  if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS'
+    : npMode ? 'BalanceMonitor - Notepad' : 'BalanceMonitor';
 }
 
 window.toggleViewMenu = e => {
@@ -1923,6 +2040,7 @@ window.toggleViewMenu = e => {
 window.switchModule = module => {
   closeViewMenu();
   if (module === 'sms') {
+    document.body.classList.remove('notepad-mode');
     document.body.classList.add('sms-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -1933,15 +2051,30 @@ window.switchModule = module => {
     setSbStatus('Viewing: SMS Module');
     return;
   }
+  if (module === 'notepad') {
+    document.body.classList.remove('sms-mode');
+    document.body.classList.add('notepad-mode');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-notepad')?.classList.add('active');
+    updateViewMenuState();
+    npRender();
+    setSbStatus('Viewing: Notepad');
+    return;
+  }
   document.body.classList.remove('sms-mode');
+  document.body.classList.remove('notepad-mode');
   updateViewMenuState();
   window.switchView('summary');
 };
 
 window.switchView = name => {
   if (name === 'sms') { window.switchModule('sms'); return; }
+  if (name === 'notepad') { window.switchModule('notepad'); return; }
   closeViewMenu();
   document.body.classList.remove('sms-mode');
+  document.body.classList.remove('notepad-mode');
   updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -4809,6 +4942,166 @@ window.importSmsClientCsv = file => {
   });
 };
 
+/* ════════════════════════════════════════════════
+   NOTEPAD MODULE
+════════════════════════════════════════════════ */
+const NP_KEY = 'bm_notepad';
+const NP_FONT_DEFAULT = 14;
+let npState = { tabs: [], activeId: null };
+let npSaveTimer = null;
+
+function npNewTab(title) {
+  return {
+    id: 'np' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    title: title || 'Untitled',
+    html: '',
+    fontSize: NP_FONT_DEFAULT
+  };
+}
+function npActiveTab() {
+  return npState.tabs.find(t => t.id === npState.activeId) || null;
+}
+function npSyncEditor() {
+  const t = npActiveTab(), ed = document.getElementById('np-editor');
+  if (t && ed) t.html = ed.innerHTML;
+}
+function npSave() {
+  npSyncEditor();
+  try { localStorage.setItem(NP_KEY, JSON.stringify(npState)); } catch (e) {}
+}
+function loadNotepad() {
+  try {
+    const raw = localStorage.getItem(NP_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d && Array.isArray(d.tabs) && d.tabs.length) {
+        npState.tabs = d.tabs.map(t => ({
+          id: t.id || npNewTab().id,
+          title: t.title || 'Untitled',
+          html: typeof t.html === 'string' ? t.html : '',
+          fontSize: +t.fontSize || NP_FONT_DEFAULT
+        }));
+        npState.activeId = npState.tabs.some(t => t.id === d.activeId)
+          ? d.activeId : npState.tabs[0].id;
+        return;
+      }
+    }
+  } catch (e) {}
+  const t = npNewTab('Note 1');
+  npState.tabs = [t];
+  npState.activeId = t.id;
+}
+function npRenderTabs() {
+  const bar = document.getElementById('np-tabbar');
+  if (!bar) return;
+  bar.innerHTML = npState.tabs.map(t =>
+    `<div class="np-tab ${t.id === npState.activeId ? 'active' : ''}"
+          onclick="npSwitchTab('${t.id}')" ondblclick="npRenameTab('${t.id}')"
+          title="${esc(t.title)} — double-click to rename">
+       <span class="np-tab-title">${esc(t.title)}</span>
+       <span class="np-tab-close" onclick="event.stopPropagation();npCloseTab('${t.id}')"
+             title="Close tab">✕</span>
+     </div>`).join('') +
+    `<div class="np-tab-add" onclick="npAddTab()" title="New tab">+</div>`;
+}
+function npRenderEditor() {
+  const t = npActiveTab(), ed = document.getElementById('np-editor');
+  if (!t || !ed) return;
+  ed.innerHTML = t.html;
+  ed.style.fontSize = t.fontSize + 'px';
+  const fs = document.getElementById('np-fontsize');
+  if (fs) fs.value = String(t.fontSize);
+}
+function npRender() {
+  if (!npState.tabs.length) loadNotepad();
+  npRenderTabs();
+  npRenderEditor();
+  npUpdateStatus('Saved');
+}
+function npUpdateStatus(msg) {
+  const s = document.getElementById('np-status');
+  if (s) s.textContent = msg;
+}
+window.npSwitchTab = id => {
+  if (id === npState.activeId) return;
+  npSyncEditor();
+  npSave();
+  npState.activeId = id;
+  npRender();
+  document.getElementById('np-editor')?.focus();
+};
+window.npAddTab = () => {
+  npSyncEditor();
+  const t = npNewTab('Note ' + (npState.tabs.length + 1));
+  npState.tabs.push(t);
+  npState.activeId = t.id;
+  npSave();
+  npRender();
+  document.getElementById('np-editor')?.focus();
+};
+window.npCloseTab = id => {
+  const idx = npState.tabs.findIndex(t => t.id === id);
+  if (idx < 0) return;
+  npState.tabs.splice(idx, 1);
+  if (!npState.tabs.length) {
+    const t = npNewTab('Note 1');
+    npState.tabs = [t];
+    npState.activeId = t.id;
+  } else if (npState.activeId === id) {
+    npState.activeId = npState.tabs[Math.max(0, idx - 1)].id;
+  }
+  npSave();
+  npRender();
+};
+window.npRenameTab = id => {
+  const t = npState.tabs.find(x => x.id === id);
+  if (!t) return;
+  const name = prompt('Rename tab:', t.title);
+  if (name !== null && name.trim()) {
+    t.title = name.trim().slice(0, 40);
+    npSave();
+    npRenderTabs();
+  }
+};
+window.npOnInput = () => {
+  npUpdateStatus('Editing…');
+  clearTimeout(npSaveTimer);
+  npSaveTimer = setTimeout(() => {
+    npSave();
+    npUpdateStatus('Saved');
+  }, 400);
+};
+window.npFormat = cmd => {
+  const ed = document.getElementById('np-editor');
+  if (!ed) return;
+  ed.focus();
+  try { document.execCommand(cmd, false, null); } catch (e) {}
+  npUpdateFormatState();
+  window.npOnInput();
+};
+function npUpdateFormatState() {
+  [['bold', 'np-bold'], ['italic', 'np-italic'], ['underline', 'np-underline']]
+    .forEach(([cmd, id]) => {
+      let on = false;
+      try { on = document.queryCommandState(cmd); } catch (e) {}
+      document.getElementById(id)?.classList.toggle('active', on);
+    });
+}
+window.npSetFontSize = px => {
+  const t = npActiveTab();
+  if (!t) return;
+  t.fontSize = +px || NP_FONT_DEFAULT;
+  const ed = document.getElementById('np-editor');
+  if (ed) ed.style.fontSize = t.fontSize + 'px';
+  npSave();
+};
+function initNotepad() {
+  loadNotepad();
+}
+document.addEventListener('selectionchange', () => {
+  if (document.body.classList.contains('notepad-mode')) npUpdateFormatState();
+});
+
 function fmt(v){if(v===null||v===undefined||v==='')return '—';return amountNumber(v).toFixed(2);}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -5025,7 +5318,7 @@ window.confirmRollback = async () => {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadLastProcessedSnap(); populateSlots(); initSmsModule(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadLastProcessedSnap(); populateSlots(); initSmsModule(); initNotepad(); window.renderWizard(); window.renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
