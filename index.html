@@ -3122,18 +3122,31 @@ async function cleanupOldSnapshots() {
 async function loadPrevSnap() {
   if (!fbOk) return;
   try {
+    // Inequality + orderBy on the SAME field only — served by the automatic
+    // single-field index, so no composite index is required. The latest
+    // time_slot of the most recent prior date is then picked client-side.
     const q = query(
       collection(db, 'snapshots'),
       where('session_date', '<', todayStr()),
       orderBy('session_date', 'desc'),
-      orderBy('time_slot', 'desc'),
-      limit(1)
+      limit(30)
     );
     const s = await getDocs(q);
-    if (s.docs.length) {
-      priorSnap = { id: s.docs[0].id, ...s.docs[0].data(), timestamp: s.docs[0].data().timestamp?.toDate() };
+    if (!s.docs.length) return;
+    const latestDate = s.docs[0].data().session_date;
+    let best = null;
+    for (const d of s.docs) {
+      const data = d.data();
+      if (data.session_date !== latestDate) break; // docs are sorted by date desc
+      if (!best || String(data.time_slot) > String(best.time_slot)) {
+        best = { id: d.id, ...data };
+      }
     }
-  } catch(e) { console.warn('loadPrevSnap:', e); }
+    if (best) priorSnap = { ...best, timestamp: best.timestamp?.toDate() };
+  } catch(e) {
+    console.warn('loadPrevSnap:', e);
+    toast('New Critical comparison unavailable — could not load the previous snapshot: ' + (e.message || e), 'err', 7000);
+  }
 }
 
 async function loadClients() {
