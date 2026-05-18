@@ -646,10 +646,10 @@
     }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
       box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
@@ -736,6 +736,7 @@
     #undo-confirm-overlay.open #undo-confirm-box,
     #sms-confirm-overlay.open #sms-confirm-box,
     #signout-confirm-overlay.open #signout-confirm-box,
+    #overwrite-confirm-overlay.open #overwrite-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #client-detail-overlay.open #client-detail-box,
@@ -776,6 +777,7 @@
     body.night-mode #undo-confirm-box,
     body.night-mode #sms-confirm-box,
     body.night-mode #signout-confirm-box,
+    body.night-mode #overwrite-confirm-box,
     body.night-mode #client-detail-box,
     body.night-mode #sms-detail-box,
     body.night-mode #rollback-box,
@@ -1679,6 +1681,21 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn primary" style="min-width:72px" onclick="confirmResetToday()">Reset View</button>
       <button class="tbtn" style="min-width:72px" onclick="closeResetConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Overwrite Snapshot Dialog -->
+<div id="overwrite-confirm-overlay">
+  <div id="overwrite-confirm-box">
+    <div class="dlg-tb"><span>⚠ Slot Already Has Data</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="overwrite-confirm-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:110px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmOverwriteSnapshot()">Overwrite</button>
+      <button class="tbtn primary" style="min-width:72px" onclick="closeOverwriteConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2655,6 +2672,8 @@ function snapshotDocId(sessionDate, timeSlot) {
 /* ════════════════════════════════════════════════
    PROCESS SNAPSHOT
 ════════════════════════════════════════════════ */
+let pendingSnapshotText = null, pendingSnapshotSlot = null;
+
 window.processSnapshot = async() => {
   const rows=parseText(document.getElementById('snap-ta').value);
   if(!rows?.length){
@@ -2662,6 +2681,36 @@ window.processSnapshot = async() => {
     return;
   }
   const timeSlot=document.getElementById('slot-sel').value;
+  const existing=todaySnaps.find(s=>s.time_slot===timeSlot);
+  if(existing){
+    pendingSnapshotText=document.getElementById('snap-ta').value;
+    pendingSnapshotSlot=timeSlot;
+    const txt=document.getElementById('overwrite-confirm-text');
+    if(txt) txt.innerHTML=
+      `<strong>The ${fmt12(timeSlot)} slot already has a snapshot today.</strong><br><br>`+
+      `Saving now will <strong>overwrite</strong> it (${existing.data?.length||0} client row(s)). `+
+      `The earlier data and its New Critical comparison reference will be lost.<br><br>`+
+      `<span style="color:#880000">Cancel and pick a different time slot if you meant to keep both.</span>`;
+    document.getElementById('overwrite-confirm-overlay')?.classList.add('open');
+    return;
+  }
+  await doProcessSnapshot(rows, timeSlot);
+};
+
+window.confirmOverwriteSnapshot = async() => {
+  document.getElementById('overwrite-confirm-overlay')?.classList.remove('open');
+  if(pendingSnapshotText===null) return;
+  const rows=parseText(pendingSnapshotText), slot=pendingSnapshotSlot;
+  pendingSnapshotText=null; pendingSnapshotSlot=null;
+  if(rows?.length) await doProcessSnapshot(rows, slot);
+};
+
+window.closeOverwriteConfirm = () => {
+  document.getElementById('overwrite-confirm-overlay')?.classList.remove('open');
+  pendingSnapshotText=null; pendingSnapshotSlot=null;
+};
+
+async function doProcessSnapshot(rows, timeSlot){
   const prevMap={};
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
