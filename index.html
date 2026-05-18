@@ -571,6 +571,7 @@
       border-right: 1px solid #fff; border-bottom: 1px solid #fff;
     }
     #sb-sync { min-width: 220px; }
+    #sb-lastproc { white-space: nowrap; font-size: 10px; }
     #sb-status { flex: 1; }
     #sb-right { min-width: 120px; margin-left: auto; }
 
@@ -1537,6 +1538,7 @@
   <div id="statusbar">
     <div class="sb-pane" id="sb-status">Ready</div>
     <div class="sb-pane" id="sb-sync">No data</div>
+    <div class="sb-pane" id="sb-lastproc" style="display:none"></div>
     <div class="sb-pane" id="sb-operators"></div>
     <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name">👤 <span id="sb-opname">Set name…</span></div>
   </div>
@@ -2740,6 +2742,12 @@ async function doProcessSnapshot(rows, timeSlot){
     const managerSel=document.getElementById('clients-manager-filter');
     if(managerSel) managerSel.value='all';
   try { localStorage.setItem('bm_last_processed_snap', JSON.stringify(snap)); } catch(e) {}
+  try {
+    localStorage.setItem('bm_last_snap_meta', JSON.stringify({
+      at: snap.timestamp.toISOString(), slot: snap.time_slot, rows: data.length
+    }));
+  } catch(e) {}
+  updateLastProcessed();
   document.getElementById('snap-ta').value='';
   clearAcks();
   refreshAll();
@@ -3223,6 +3231,21 @@ function updateSync() {
   setSbSync(s);
   document.getElementById('sync-label').textContent = s;
   document.getElementById('print-date').textContent = `${todayStr()} · ${S.shift}`;
+}
+
+function updateLastProcessed() {
+  const el = document.getElementById('sb-lastproc');
+  if (!el) return;
+  let meta = null;
+  try { const v = localStorage.getItem('bm_last_snap_meta'); if (v) meta = JSON.parse(v); } catch(e) {}
+  const d = meta?.at ? new Date(meta.at) : null;
+  if (!d || isNaN(d.getTime())) { el.style.display = 'none'; el.textContent = ''; return; }
+  const when = d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  el.textContent = `🕐 Last processed: ${when}` +
+    (meta.slot ? ` · ${fmt12(meta.slot)} slot` : '') +
+    (meta.rows ? ` · ${meta.rows} clients` : '');
+  el.title = 'The most recent snapshot you processed on this device';
+  el.style.display = '';
 }
 
 /* ════════════════════════════════════════════════
@@ -5380,7 +5403,7 @@ window.confirmRollback = async () => {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadLastProcessedSnap(); populateSlots(); initSmsModule(); initNotepad(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadLastProcessedSnap(); populateSlots(); initSmsModule(); initNotepad(); updateLastProcessed(); window.renderWizard(); window.renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
