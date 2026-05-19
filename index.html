@@ -453,6 +453,55 @@
     }
     body.notepad-mode #notepad-toolbar-label { display: inline-flex; }
     body.notepad-mode #view-banner { display: none !important; }
+
+    /* ── Stats module ── */
+    #stats-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    body.stats-mode #stats-toolbar-label { display: inline-flex; }
+    .stats-tab { display: none !important; }
+    body.stats-mode .stats-tab { display: inline-flex !important; }
+    body.stats-mode #toolbar .tbtn[id^="tnav-"],
+    body.stats-mode #snd-dismiss-btn,
+    body.stats-mode #btn-clip-watch,
+    body.stats-mode #sync-label,
+    body.stats-mode #sidebar-snap { display: none !important; }
+    body.stats-mode #view-banner { display: none !important; }
+    #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 4px; overflow: hidden; padding: 6px 4px 4px; }
+    body.stats-mode #stats-sidebar-snap { display: flex; }
+    #stats-snap-ta {
+      flex: 1; min-height: 60px; resize: none; width: 100%;
+      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      font-family: 'Courier New', monospace; font-size: 10px; padding: 3px; color: #000;
+    }
+    #stats-snap-ta::placeholder { color: #808080; }
+    #stats-snap-list {
+      flex: 1; overflow-y: auto; min-height: 40px;
+      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff; padding: 2px;
+    }
+    .stats-snap-item {
+      padding: 2px 4px; font-size: 10px; line-height: 1.3; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .stats-snap-item:hover { background: #d8d8d8; }
+    .stats-snap-item.active { background: #000080; color: #fff; }
+    /* Stats classification badges */
+    .stbadge {
+      display: inline-block; padding: 0 5px; font-size: 10px; font-weight: 700;
+      border: 1px solid; white-space: nowrap;
+    }
+    .stbadge.critical { background: #ffcccc; color: #cc0000; border-color: #cc0000; }
+    .stbadge.low      { background: #ffe0cc; color: #cc5500; border-color: #cc5500; }
+    .stbadge.ok       { background: #ffffcc; color: #888800; border-color: #888800; }
+    .stbadge.good     { background: #ccffcc; color: #006600; border-color: #006600; }
+    .stbadge.watch    { background: #e4e4e4; color: #555555; border-color: #888888; }
+    .stbadge.newc     { background: #cce0ff; color: #0000cc; border-color: #0000cc; }
+    .stbadge.persist  { background: #cc0000; color: #ffffff; border-color: #800000; }
+    .stbadge.improving{ background: #d6f0d6; color: #006600; border-color: #4a9a4a; }
+    .stbadge.declining{ background: #f0d6d6; color: #aa0000; border-color: #aa4a4a; }
+    tr.st-row-critical td { background: #fff0f0; }
+    tr.st-row-persist td  { background: #ffe4e4; }
     .np-tabbar {
       display: flex; gap: 0; padding: 0 2px; margin-bottom: -1px;
       flex-wrap: wrap; align-items: flex-end;
@@ -1158,6 +1207,7 @@
       <div class="mitem" onclick="toggleViewMenu(event)">View</div>
       <div class="menu-dd">
         <div class="menu-dd-item active" id="view-menu-balance" onclick="switchModule('balance')">Balance Monitor</div>
+        <div class="menu-dd-item" id="view-menu-stats" onclick="switchModule('stats')">Stats</div>
         <div class="menu-dd-item" id="view-menu-sms" onclick="switchModule('sms')">SMS</div>
         <div class="menu-dd-item" id="view-menu-notepad" onclick="switchModule('notepad')">Notepad</div>
       </div>
@@ -1175,11 +1225,18 @@
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">📤 Export</button>
     <div class="tsep"></div>
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">📋 Logs</button>
+    <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">📊 Summary</button>
+    <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">👥 All Clients</button>
+    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical</button>
+    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low</button>
+    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok</button>
+    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good</button>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="notepad-toolbar-label">📝 Notepad</span>
+    <span id="stats-toolbar-label">📈 Stats Monitor</span>
     <span id="login-user-label" style="font-size:10px;color:#000080;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px"></span>
     <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">🔓 Sign Out</button>
     <span id="sync-label">No data loaded</span>
@@ -1246,6 +1303,24 @@
         </div>
       </div>
     </div>
+
+      <!-- Stats snapshot paste -->
+      <div id="stats-sidebar-snap">
+        <div class="snap-label">📋 New Snapshot</div>
+        <textarea id="stats-snap-ta" placeholder="Paste hourly stats data here…"></textarea>
+        <select id="stats-slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
+        <div style="display:flex;gap:2px;margin-top:2px">
+          <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsSnapshot()">▶ Process</button>
+          <button class="tbtn" onclick="document.getElementById('stats-snap-ta').value=''" title="Clear text area">✕</button>
+        </div>
+        <div class="snap-action-row" style="margin-top:4px">
+          <button class="tbtn" onclick="undoLastStatsSnapshot()" title="Remove the last saved stats snapshot">🗑 Undo Last</button>
+        </div>
+        <div class="snap-label" style="margin-top:8px">📅 Today's Snapshots</div>
+        <div id="stats-snap-list">
+          <div class="top-usage-empty">No stats snapshots yet.</div>
+        </div>
+      </div>
     </div>
 
     <!-- Main content -->
@@ -1580,6 +1655,187 @@
         </div>
       </div>
 
+      <!-- ═══ STATS — SUMMARY ════════════════════════ -->
+      <div class="view" id="view-stats-summary">
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">📈 Stats Overview — <span id="st-sum-slot">no snapshot</span></div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body">
+            <div class="stat-row">
+              <div class="stat-box">         <div class="sv" id="st-sum-total">—</div><div class="sl">Total clients</div></div>
+              <div class="stat-box s-high">  <div class="sv" id="st-sum-critical">—</div><div class="sl">🔴 Critical</div></div>
+              <div class="stat-box s-medium"><div class="sv" id="st-sum-low">—</div><div class="sl">🟠 Low</div></div>
+              <div class="stat-box s-light"> <div class="sv" id="st-sum-ok">—</div><div class="sl">🟡 Ok</div></div>
+              <div class="stat-box s-green"> <div class="sv" id="st-sum-good">—</div><div class="sl">🟢 Good</div></div>
+              <div class="stat-box">         <div class="sv" id="st-sum-watch">—</div><div class="sl">⚪ Watch (low traffic)</div></div>
+            </div>
+            <div class="stat-row">
+              <div class="stat-box"><div class="sv" id="st-sum-asr">—</div><div class="sl">Overall ASR %</div></div>
+              <div class="stat-box"><div class="sv" id="st-sum-attempts">—</div><div class="sl">Total Attempts</div></div>
+              <div class="stat-box"><div class="sv" id="st-sum-completed">—</div><div class="sl">Total Completed</div></div>
+              <div class="stat-box s-high"><div class="sv" id="st-sum-persist">—</div><div class="sl">⚠ Persistent issues</div></div>
+              <div class="stat-box"><div class="sv" id="st-sum-new">—</div><div class="sl">🆕 New clients</div></div>
+            </div>
+            <div class="legend" style="margin-top:4px">
+              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt; 10 (more than 30 attempts)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#888800"></div>Ok — ASR 10–20</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — low ASR but ≤30 attempts (often just new)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">⚠ Persistent Problems — bad 3+ snapshots in a row</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:200px">
+            <table><thead><tr>
+              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
+              <th style="text-align:right">Attempts</th><th>Class</th><th style="text-align:right">Bad snapshots</th><th>Trend</th>
+            </tr></thead><tbody id="st-list-persist"></tbody></table>
+          </div></div>
+        </div>
+
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">🔻 Performing Bad — Critical &amp; Low</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:240px">
+            <table><thead><tr>
+              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
+              <th style="text-align:right">Attempts</th><th>Class</th><th>Flags</th>
+            </tr></thead><tbody id="st-list-bad"></tbody></table>
+          </div></div>
+        </div>
+
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">🆕 New Clients This Snapshot</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:200px">
+            <table><thead><tr>
+              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
+              <th style="text-align:right">Attempts</th><th>Class</th>
+            </tr></thead><tbody id="st-list-new"></tbody></table>
+          </div></div>
+        </div>
+
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">✅ Performing Well — Good</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:240px">
+            <table><thead><tr>
+              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
+              <th style="text-align:right">Attempts</th><th style="text-align:right">Completed</th>
+            </tr></thead><tbody id="st-list-good"></tbody></table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- ═══ STATS — ALL / CRITICAL / LOW / OK / GOOD ══ -->
+      <div class="view" id="view-stats-all">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title" id="st-all-title">All Clients</div>
+          <div class="fbar">
+            <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
+            <span class="sms-muted" id="st-all-count" style="margin-left:auto"></span>
+          </div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap">
+              <table id="st-tbl-all">
+                <thead><tr>
+                  <th onclick="sortStats('customer_name')">Client</th>
+                  <th onclick="sortStats('account_codes')">Account Code(s)</th>
+                  <th onclick="sortStats('dest_count')" style="text-align:right">Dest</th>
+                  <th onclick="sortStats('attempts')" style="text-align:right">Attempts</th>
+                  <th onclick="sortStats('completed')" style="text-align:right">Completed</th>
+                  <th onclick="sortStats('asr')" style="text-align:right">ASR %</th>
+                  <th onclick="sortStats('acd')" style="text-align:right">ACD (min)</th>
+                  <th onclick="sortStats('revenue')" style="text-align:right">Revenue</th>
+                  <th onclick="sortStats('cls')">Classification</th>
+                  <th>ACD Band</th>
+                  <th>Status / Flags</th>
+                </tr></thead>
+                <tbody id="st-tbody-all"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-critical">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">🔴 Critical Clients — <span id="st-critical-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table>
+              <thead><tr>
+                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+              </tr></thead><tbody id="st-tbody-critical"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-low">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">🟠 Low Clients — <span id="st-low-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table>
+              <thead><tr>
+                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+              </tr></thead><tbody id="st-tbody-low"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-ok">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">🟡 Ok Clients — <span id="st-ok-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table>
+              <thead><tr>
+                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+              </tr></thead><tbody id="st-tbody-ok"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-good">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">🟢 Good Clients — <span id="st-good-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table>
+              <thead><tr>
+                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+              </tr></thead><tbody id="st-tbody-good"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /#content -->
   </div><!-- /#app-body -->
 
@@ -1588,6 +1844,7 @@
     <div class="sb-pane" id="sb-status">Ready</div>
     <div class="sb-pane" id="sb-sync">No data</div>
     <div class="sb-pane" id="sb-lastproc" style="display:none"></div>
+    <div class="sb-pane" id="sb-stats-last" style="display:none"></div>
     <div class="sb-pane" id="sb-operators"></div>
     <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name">👤 <span id="sb-opname">Set name…</span></div>
   </div>
@@ -2107,12 +2364,15 @@ function closeViewMenu() {
 function updateViewMenuState() {
   const smsMode = document.body.classList.contains('sms-mode');
   const npMode  = document.body.classList.contains('notepad-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode);
+  const stMode  = document.body.classList.contains('stats-mode');
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode && !stMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
   document.getElementById('view-menu-notepad')?.classList.toggle('active', npMode);
+  document.getElementById('view-menu-stats')?.classList.toggle('active', stMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS'
-    : npMode ? 'BalanceMonitor - Notepad' : 'BalanceMonitor';
+    : npMode ? 'BalanceMonitor - Notepad'
+    : stMode ? 'BalanceMonitor - Stats' : 'BalanceMonitor';
 }
 
 window.toggleViewMenu = e => {
@@ -2146,8 +2406,20 @@ window.switchModule = module => {
     setSbStatus('Viewing: Notepad');
     return;
   }
+  if (module === 'stats') {
+    document.body.classList.remove('sms-mode');
+    document.body.classList.remove('notepad-mode');
+    document.body.classList.add('stats-mode');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    updateViewMenuState();
+    window.switchStatsView(statsViewName || 'summary');
+    return;
+  }
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('notepad-mode');
+  document.body.classList.remove('stats-mode');
   updateViewMenuState();
   window.switchView('summary');
 };
@@ -2158,6 +2430,7 @@ window.switchView = name => {
   closeViewMenu();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('notepad-mode');
+  document.body.classList.remove('stats-mode');
   updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -5687,6 +5960,438 @@ window.confirmRollback = async () => {
 };
 
 /* ════════════════════════════════════════════════
+   STATS MODULE
+════════════════════════════════════════════════ */
+let statsTodaySnaps = [];      // [{id,timestamp,session_date,time_slot,data:[rawRows]}]
+let statsViewName = 'summary';
+let statsViewingSlot = null;   // null = view latest
+let statsSortCol = 'asr', statsSortDir = 1;
+
+const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
+const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
+
+const stEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const stN0  = v => Math.round(v || 0).toLocaleString();
+const stN2  = v => (v || 0).toFixed(2);
+
+function statsSlots() {
+  const out = [];
+  for (let h = 0; h < 24; h++) out.push(`${String(h).padStart(2,'0')}:00`);
+  return out;
+}
+function populateStatsSlots() {
+  const sel = document.getElementById('stats-slot-sel');
+  if (!sel) return;
+  const slots = statsSlots();
+  const cur = `${String(new Date().getHours()).padStart(2,'0')}:00`;
+  const chosen = slots.includes(sel.value) ? sel.value : cur;
+  sel.innerHTML = slots.map(s => `<option value="${s}" ${s===chosen?'selected':''}>${fmt12(s)}</option>`).join('');
+}
+
+function parseStatsText(text) {
+  if (!text) return [];
+  const lines = text.replace(/\r/g,'').split('\n').filter(l => l.trim() !== '');
+  if (!lines.length) return [];
+  const splitLine = l => l.includes('\t') ? l.split('\t') : l.split(',');
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const low = lines[i].toLowerCase();
+    if (low.includes('account code') || (low.includes('asr') && low.includes('acd'))) { headerIdx = i; break; }
+  }
+  const dataLines = headerIdx >= 0 ? lines.slice(headerIdx + 1) : lines;
+  const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : 0; };
+  const rows = [];
+  for (const line of dataLines) {
+    const c = splitLine(line).map(x => x.trim());
+    if (c.length < 7) continue;
+    const acct = c[0] || '';
+    if (!acct || /^total$/i.test(acct) || /^total$/i.test(c[1] || '')) continue;
+    rows.push({
+      account_code: acct, customer_name: c[1] || acct, destination: c[2] || '',
+      attempts: num(c[3]), completed: num(c[4]), asr: num(c[5]), acd: num(c[6]),
+      raw_dur: num(c[7]), rnd_dur: num(c[8]), revenue: num(c[9])
+    });
+  }
+  return rows;
+}
+
+function classifyStats(g) {
+  if (g.asr === 0 && g.acd === 0 && g.attempts > ST_CRIT_ATTEMPTS) return 'critical';
+  if (g.asr >= 21) return 'good';
+  if (g.asr >= 10) return 'ok';
+  if (g.attempts <= ST_LOW_MIN_ATTEMPTS) return 'watch';
+  return 'low';
+}
+function acdBand(acd) {
+  if (acd <= 0) return 'critical';
+  if (acd < 1)  return 'low';
+  if (acd < 2)  return 'ok';
+  return 'good';
+}
+const ST_CLS_LABEL = { critical:'CRITICAL', low:'LOW', ok:'OK', good:'GOOD', watch:'WATCH' };
+const ST_CLS_RANK  = { critical:0, low:1, watch:2, ok:3, good:4 };
+const stClsBadge = c => `<span class="stbadge ${c}">${ST_CLS_LABEL[c]||c}</span>`;
+const stAcdBadge = c => `<span class="stbadge ${c}">ACD ${ST_CLS_LABEL[c]||c}</span>`;
+
+function groupStatsSnapshot(snap) {
+  const m = new Map();
+  (snap?.data || []).forEach(r => {
+    const key = r.customer_name || r.account_code || '(unknown)';
+    let g = m.get(key);
+    if (!g) {
+      g = { customer_name:key, account_codes:new Set(), destinations:new Set(),
+            attempts:0, completed:0, raw_dur:0, revenue:0 };
+      m.set(key, g);
+    }
+    if (r.account_code) g.account_codes.add(r.account_code);
+    if (r.destination && r.destination !== '-') g.destinations.add(r.destination);
+    g.attempts += r.attempts; g.completed += r.completed;
+    g.raw_dur += r.raw_dur;   g.revenue += r.revenue;
+  });
+  m.forEach(g => {
+    g.asr = g.attempts > 0 ? (g.completed / g.attempts * 100) : 0;
+    g.acd = g.completed > 0 ? (g.raw_dur / g.completed) : 0;
+    g.dest_count = g.destinations.size;
+    g.acct_list = [...g.account_codes].join(', ');
+    g.cls = classifyStats(g);
+    g.acdcls = acdBand(g.acd);
+  });
+  return m;
+}
+
+function statsSortedSnaps() {
+  return [...statsTodaySnaps].sort((a,b) => String(a.time_slot).localeCompare(String(b.time_slot)));
+}
+function statsCurrentSnap() {
+  const snaps = statsSortedSnaps();
+  if (!snaps.length) return null;
+  if (statsViewingSlot) return snaps.find(s => s.time_slot === statsViewingSlot) || snaps[snaps.length-1];
+  return snaps[snaps.length-1];
+}
+
+// Build per-client enriched rows for the currently-viewed snapshot, with
+// persistence ("bad 3+ snapshots in a row") and "new" detection.
+function statsCurrentRows() {
+  const snaps = statsSortedSnaps();
+  const cur = statsCurrentSnap();
+  if (!cur) return [];
+  const curSlot = String(cur.time_slot);
+  const upTo = snaps.filter(s => String(s.time_slot) <= curSlot);
+  const timeline = new Map();   // name -> [{slot,cls,asr,acd}]
+  upTo.forEach(s => {
+    groupStatsSnapshot(s).forEach((g,name) => {
+      if (!timeline.has(name)) timeline.set(name, []);
+      timeline.get(name).push({ slot:String(s.time_slot), cls:g.cls, asr:g.asr, acd:g.acd });
+    });
+  });
+  const hasPrior = upTo.length > 1;
+  const curMap = groupStatsSnapshot(cur);
+  const rows = [];
+  curMap.forEach((g,name) => {
+    const tl = timeline.get(name) || [];
+    let streak = 0;
+    for (let i = tl.length - 1; i >= 0; i--) {
+      const e = tl[i];
+      if (e.cls === 'critical' || e.cls === 'low' || e.asr === 0) streak++; else break;
+    }
+    const firstSlot = tl.length ? tl[0].slot : curSlot;
+    const isNew = hasPrior && firstSlot === curSlot;
+    const prev = tl.length >= 2 ? tl[tl.length-2] : null;
+    let trend = 'flat';
+    if (prev) {
+      if (g.asr > prev.asr + 0.5) trend = 'improving';
+      else if (g.asr < prev.asr - 0.5) trend = 'declining';
+    }
+    rows.push({ ...g, badStreak:streak, persistent:streak >= 3, isNew, trend,
+                seenCount:tl.length, prevAsr: prev ? prev.asr : null });
+  });
+  return rows;
+}
+
+function statsFlags(r) {
+  const h = [];
+  if (r.isNew) h.push('<span class="stbadge newc">🆕 NEW</span>');
+  if (r.persistent) h.push(`<span class="stbadge persist">⚠ PERSISTENT ${r.badStreak}×</span>`);
+  else if (r.badStreak >= 2) h.push(`<span class="stbadge watch">bad ${r.badStreak}×</span>`);
+  if (r.trend === 'improving') h.push('<span class="stbadge improving">▲ improving</span>');
+  if (r.trend === 'declining') h.push('<span class="stbadge declining">▼ declining</span>');
+  return h.join(' ') || '<span style="color:#888">—</span>';
+}
+
+window.switchStatsView = name => {
+  statsViewName = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-stats-' + name)?.classList.add('active');
+  document.getElementById('stnav-stats-' + name)?.classList.add('active');
+  setSbStatus('Stats: ' + name.replace(/\b\w/g, c => c.toUpperCase()));
+  statsRender();
+};
+
+window.viewStatsSlot = slot => {
+  const snaps = statsSortedSnaps();
+  const isLatest = snaps.length && snaps[snaps.length-1].time_slot === slot;
+  statsViewingSlot = isLatest ? null : slot;
+  statsRender();
+};
+
+window.sortStats = col => {
+  if (statsSortCol === col) statsSortDir = -statsSortDir;
+  else { statsSortCol = col; statsSortDir = 1; }
+  renderStatsTables();
+};
+
+function statsSortRows(rows) {
+  const col = statsSortCol, dir = statsSortDir;
+  return [...rows].sort((a,b) => {
+    let av, bv;
+    if (col === 'cls') { av = ST_CLS_RANK[a.cls]; bv = ST_CLS_RANK[b.cls]; }
+    else if (col === 'customer_name') { av = a.customer_name.toLowerCase(); bv = b.customer_name.toLowerCase(); }
+    else if (col === 'account_codes') { av = a.acct_list.toLowerCase(); bv = b.acct_list.toLowerCase(); }
+    else { av = a[col] ?? 0; bv = b[col] ?? 0; }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+}
+
+function processStatsRows(rows, tbodyId, full) {
+  const tb = document.getElementById(tbodyId);
+  if (!tb) return;
+  if (!rows.length) {
+    const span = full ? 11 : 8;
+    tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => {
+    const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
+    const cells = full
+      ? `<td>${stEsc(r.customer_name)}</td>
+         <td style="font-size:10px;color:#555">${stEsc(r.acct_list)}</td>
+         <td style="text-align:right">${r.dest_count}</td>
+         <td style="text-align:right">${stN0(r.attempts)}</td>
+         <td style="text-align:right">${stN0(r.completed)}</td>
+         <td style="text-align:right">${stN2(r.asr)}</td>
+         <td style="text-align:right">${stN2(r.acd)}</td>
+         <td style="text-align:right">${stN2(r.revenue)}</td>
+         <td>${stClsBadge(r.cls)}</td>
+         <td>${stAcdBadge(r.acdcls)}</td>
+         <td>${statsFlags(r)}</td>`
+      : `<td>${stEsc(r.customer_name)}</td>
+         <td style="font-size:10px;color:#555">${stEsc(r.acct_list)}</td>
+         <td style="text-align:right">${stN0(r.attempts)}</td>
+         <td style="text-align:right">${stN0(r.completed)}</td>
+         <td style="text-align:right">${stN2(r.asr)}</td>
+         <td style="text-align:right">${stN2(r.acd)}</td>
+         <td style="text-align:right">${stN2(r.revenue)}</td>
+         <td>${statsFlags(r)}</td>`;
+    return `<tr class="${rowCls}">${cells}</tr>`;
+  }).join('');
+}
+
+function renderStatsTables() {
+  const rows = statsCurrentRows();
+  const search = (document.getElementById('st-search')?.value || '').trim().toLowerCase();
+  let allRows = statsSortRows(rows);
+  if (search) allRows = allRows.filter(r =>
+    r.customer_name.toLowerCase().includes(search) || r.acct_list.toLowerCase().includes(search));
+  processStatsRows(allRows, 'st-tbody-all', true);
+  const cnt = document.getElementById('st-all-count');
+  if (cnt) cnt.textContent = `${allRows.length} client(s)` + (search ? ' (filtered)' : '');
+
+  const byCls = c => statsSortRows(rows.filter(r => r.cls === c));
+  [['critical','st-tbody-critical','st-critical-count'],
+   ['low','st-tbody-low','st-low-count'],
+   ['ok','st-tbody-ok','st-ok-count'],
+   ['good','st-tbody-good','st-good-count']].forEach(([cls,tb,cl]) => {
+    const sub = byCls(cls);
+    processStatsRows(sub, tb, false);
+    const el = document.getElementById(cl);
+    if (el) el.textContent = sub.length;
+  });
+}
+
+function renderStatsSummary() {
+  const rows = statsCurrentRows();
+  const cur = statsCurrentSnap();
+  const set = (id,v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('st-sum-slot', cur ? `${fmt12(cur.time_slot)} · ${rows.length} clients` : 'no snapshot');
+  const count = c => rows.filter(r => r.cls === c).length;
+  set('st-sum-total', rows.length);
+  set('st-sum-critical', count('critical'));
+  set('st-sum-low', count('low'));
+  set('st-sum-ok', count('ok'));
+  set('st-sum-good', count('good'));
+  set('st-sum-watch', count('watch'));
+  const tA = rows.reduce((s,r) => s + r.attempts, 0);
+  const tC = rows.reduce((s,r) => s + r.completed, 0);
+  set('st-sum-asr', tA > 0 ? stN2(tC / tA * 100) : '0.00');
+  set('st-sum-attempts', stN0(tA));
+  set('st-sum-completed', stN0(tC));
+  set('st-sum-persist', rows.filter(r => r.persistent).length);
+  set('st-sum-new', rows.filter(r => r.isNew).length);
+
+  const fill = (id, list, builder, empty) => {
+    const tb = document.getElementById(id);
+    if (!tb) return;
+    tb.innerHTML = list.length ? list.map(builder).join('')
+      : `<tr><td colspan="7" style="padding:8px;color:#888;text-align:center">${empty}</td></tr>`;
+  };
+  const persist = rows.filter(r => r.persistent).sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr);
+  fill('st-list-persist', persist, r =>
+    `<tr class="st-row-persist"><td>${stEsc(r.customer_name)}</td>
+      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
+      <td style="text-align:right">${r.badStreak}×</td>
+      <td>${r.trend==='improving'?'▲ improving':r.trend==='declining'?'▼ declining':'flat'}</td></tr>`,
+    'No persistent problems — nothing bad 3 snapshots in a row.');
+
+  const bad = rows.filter(r => r.cls === 'critical' || r.cls === 'low')
+    .sort((a,b) => ST_CLS_RANK[a.cls] - ST_CLS_RANK[b.cls] || a.asr - b.asr);
+  fill('st-list-bad', bad, r =>
+    `<tr class="${r.cls==='critical'?'st-row-critical':''}"><td>${stEsc(r.customer_name)}</td>
+      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
+      <td>${statsFlags(r)}</td></tr>`,
+    'No clients performing badly. 🎉');
+
+  const fresh = rows.filter(r => r.isNew).sort((a,b) => b.attempts - a.attempts);
+  fill('st-list-new', fresh, r =>
+    `<tr><td>${stEsc(r.customer_name)}</td>
+      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td></tr>`,
+    'No new clients in this snapshot.');
+
+  const good = rows.filter(r => r.cls === 'good').sort((a,b) => b.asr - a.asr);
+  fill('st-list-good', good, r =>
+    `<tr><td>${stEsc(r.customer_name)}</td>
+      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stN0(r.attempts)}</td><td style="text-align:right">${stN0(r.completed)}</td></tr>`,
+    'No clients in the Good band yet.');
+}
+
+function renderStatsSidebar() {
+  const list = document.getElementById('stats-snap-list');
+  if (!list) return;
+  const snaps = statsSortedSnaps();
+  if (!snaps.length) { list.innerHTML = '<div class="top-usage-empty">No stats snapshots yet.</div>'; return; }
+  const curSlot = statsCurrentSnap()?.time_slot;
+  list.innerHTML = snaps.map(s =>
+    `<div class="stats-snap-item ${s.time_slot===curSlot?'active':''}" onclick="viewStatsSlot('${s.time_slot}')">${fmt12(s.time_slot)} — ${s.data?.length||0} rows</div>`
+  ).join('');
+}
+
+function updateStatsStatusBar() {
+  const pane = document.getElementById('sb-stats-last');
+  if (!pane) return;
+  const snaps = statsSortedSnaps();
+  if (snaps.length) {
+    const last = snaps[snaps.length-1];
+    pane.style.display = '';
+    pane.textContent = `📈 Last stats snapshot: ${fmt12(last.time_slot)} · ${last.data?.length||0} rows`;
+  } else {
+    let meta = null;
+    try { meta = JSON.parse(localStorage.getItem('bm_stats_last') || 'null'); } catch(e) {}
+    if (meta) { pane.style.display = ''; pane.textContent = `📈 Last stats snapshot: ${fmt12(meta.slot)} · ${meta.rows} rows`; }
+    else pane.style.display = 'none';
+  }
+}
+
+function statsRender() {
+  renderStatsSidebar();
+  renderStatsSummary();
+  renderStatsTables();
+  updateStatsStatusBar();
+}
+
+window.processStatsSnapshot = async () => {
+  const ta = document.getElementById('stats-snap-ta');
+  const rows = parseStatsText(ta.value);
+  if (!rows.length) { toast('No valid stats rows found — check the pasted data.', 'err', 6000); return; }
+  const slot = document.getElementById('stats-slot-sel').value;
+  const existing = statsTodaySnaps.find(s => s.time_slot === slot);
+  if (existing && !confirm(`The ${fmt12(slot)} slot already has a stats snapshot today (${existing.data?.length||0} rows). Overwrite it?`)) return;
+  const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows };
+  statsTodaySnaps = [...statsTodaySnaps.filter(s => s.time_slot !== slot), snap];
+  statsViewingSlot = null;
+  ta.value = '';
+  try { localStorage.setItem('bm_stats_last', JSON.stringify({ at:snap.timestamp.toISOString(), slot, rows:rows.length })); } catch(e) {}
+  statsRender();
+  if (fbOk) {
+    setLoading(true, 'Saving stats snapshot…');
+    try {
+      const id = snapshotDocId(snap.session_date, snap.time_slot);
+      await setDoc(doc(db, 'stats_snapshots', id), { ...snap, timestamp:Timestamp.fromDate(snap.timestamp) });
+      snap.id = id;
+      toast(`✓ Stats snapshot saved — ${rows.length} rows`, 'ok');
+    } catch(e) { toast('Firestore error (data kept locally): ' + e.message, 'err', 6000); }
+    finally { setLoading(false); }
+  } else {
+    toast(`✓ Stats snapshot saved locally — ${rows.length} rows`, 'ok');
+  }
+};
+
+window.undoLastStatsSnapshot = async () => {
+  const snaps = statsSortedSnaps();
+  if (!snaps.length) { toast('No stats snapshots to undo.', 'err'); return; }
+  const last = snaps[snaps.length-1];
+  if (!confirm(`Remove the ${fmt12(last.time_slot)} stats snapshot?`)) return;
+  setLoading(true, 'Removing stats snapshot…');
+  try {
+    if (fbOk) await deleteDoc(doc(db, 'stats_snapshots', last.id || snapshotDocId(last.session_date, last.time_slot)));
+    statsTodaySnaps = statsTodaySnaps.filter(s => s.time_slot !== last.time_slot);
+    statsViewingSlot = null;
+    statsRender();
+    toast('✓ Stats snapshot removed', 'ok');
+  } catch(e) { toast('Undo error: ' + e.message, 'err'); }
+  finally { setLoading(false); }
+};
+
+async function loadStatsSnaps() {
+  if (!fbOk) return;
+  try {
+    const q = query(collection(db, 'stats_snapshots'), where('session_date', '==', todayStr()));
+    const s = await getDocs(q);
+    statsTodaySnaps = s.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate() }));
+  } catch(e) { console.warn('loadStatsSnaps:', e); }
+}
+
+async function cleanupOldStatsSnapshots() {
+  if (!fbOk || !S.retentionDays) return;
+  try {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - S.retentionDays);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const q = query(collection(db, 'stats_snapshots'), where('session_date', '<', cutoffStr));
+    const s = await getDocs(q);
+    if (!s.docs.length) return;
+    let batch = writeBatch(db), c = 0;
+    for (const d of s.docs) {
+      batch.delete(doc(db, 'stats_snapshots', d.id));
+      if (++c >= 490) { await batch.commit(); batch = writeBatch(db); c = 0; }
+    }
+    if (c > 0) await batch.commit();
+  } catch(e) { console.warn('stats cleanup:', e); }
+}
+
+async function initStats() {
+  populateStatsSlots();
+  setInterval(populateStatsSlots, 60000);
+  await loadStatsSnaps();
+  cleanupOldStatsSnapshots();
+  statsRender();
+  if (fbOk) {
+    try {
+      const q = query(collection(db, 'stats_snapshots'), where('session_date', '==', todayStr()));
+      onSnapshot(q, snap => {
+        statsTodaySnaps = snap.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate() }));
+        statsRender();
+      });
+    } catch(e) { console.warn('stats onSnapshot:', e); }
+  }
+}
+
+/* ════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
@@ -5726,6 +6431,7 @@ async function init(){
     toast('Firebase not configured — demo mode. Fill in firebaseConfig to connect.','',8000);
     setSbStatus('Demo mode — Firebase not configured');
   }
+  initStats();
   setInterval(populateSlots, 60000);
   setInterval(updatePresence, 60000); // heartbeat every minute
   updatePresence();
