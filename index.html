@@ -353,6 +353,18 @@
     }
     tr.row-new-crit { background:#fff8e8 !important; }
     tr.row-new-crit:hover { background:#fff0cc !important; }
+    /* ── Alert tab red blink (visible in light & dark mode) ── */
+    @keyframes tabBlinkRed {
+      0%,100% { background:#cc0000; color:#fff; }
+      50%      { background:#ff4444; color:#fff; }
+    }
+    .tab.tab-blink-red {
+      animation: tabBlinkRed 0.9s ease-in-out infinite;
+      color:#fff !important; font-weight:700;
+      border-top-color:#ff8888 !important;
+      border-left-color:#ff8888 !important;
+      border-right-color:#880000 !important;
+    }
     /* Shift summary */
     .sum-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:6px; }
     .sum-card { background:#fff; border-top:2px solid #808080; border-left:2px solid #808080; border-right:2px solid #fff; border-bottom:2px solid #fff; padding:6px 8px; }
@@ -1044,8 +1056,8 @@
     body.night-mode [style*="color: #660000"] {
       color:#ff8585 !important;
     }
-    body.night-mode #tab-new-critical,
-    body.night-mode #tab-new-critical.active {
+    body.night-mode #tab-new-critical:not(.tab-blink-red),
+    body.night-mode #tab-new-critical.active:not(.tab-blink-red) {
       background:#3a2a12 !important;
       color:#fff0b8 !important;
       border-top-color:#8a6a28;
@@ -1306,8 +1318,8 @@
             <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
             <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
-            <div class="tab" onclick="setAlertFilter('nothresh',this)">No threshold</div>
-            <div class="tab" onclick="setAlertFilter('usage',this)">Usage</div>
+            <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
+            <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
             <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
@@ -2520,7 +2532,11 @@ function updateNewCriticalTab(newCount) {
   const tab = document.getElementById('tab-new-critical');
   if (!tab) return;
   tab.textContent = newCount > 0 ? `🆕 New Critical (${newCount})` : '🆕 New Critical';
-  tab.classList.toggle('has-new', newCount > 0);
+  tab.classList.toggle('tab-blink-red', newCount > 0);
+}
+function setTabBlink(id, on) {
+  const tab = document.getElementById(id);
+  if (tab) tab.classList.toggle('tab-blink-red', !!on);
 }
 function chipInfo(row, lvl) {
   if (lvl==='none') return ['none','✓ Safe'];
@@ -3632,6 +3648,8 @@ function alertRows() {
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
 
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
+  const usageHighCount = rows.filter(r=>usageAlertLevel(r)==='high').length;
+  const noThreshCount  = rows.filter(r=>!hasClientThreshold(r)).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
@@ -3645,12 +3663,14 @@ function alertRows() {
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
-  return { rows, newCount, prevCritSet };
+  return { rows, newCount, prevCritSet, usageHighCount, noThreshCount };
 }
 
 function renderAlerts() {
-  const { rows, newCount, prevCritSet } = alertRows();
+  const { rows, newCount, prevCritSet, usageHighCount, noThreshCount } = alertRows();
   updateNewCriticalTab(newCount);
+  setTabBlink('tab-usage',    usageHighCount > 0);
+  setTabBlink('tab-nothresh', noThreshCount > 0);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
