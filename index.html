@@ -918,6 +918,7 @@
     body.night-mode .progress-wrap,
     body.night-mode .drop-zone,
     body.night-mode #top-usage-list,
+    body.night-mode #stats-snap-list,
     body.night-mode #client-detail-body,
     body.night-mode #sms-detail-body {
       background: #181818 !important;
@@ -928,6 +929,7 @@
       border-bottom-color: #606060 !important;
     }
     body.night-mode #snap-ta,
+    body.night-mode #stats-snap-ta,
     body.night-mode #slot-sel,
     body.night-mode .win-inp,
     body.night-mode .win-sel,
@@ -943,10 +945,14 @@
       border-bottom-color: #666 !important;
     }
     body.night-mode #snap-ta::placeholder,
+    body.night-mode #stats-snap-ta::placeholder,
     body.night-mode .win-search::placeholder,
     body.night-mode .win-inp::placeholder {
       color: #888;
     }
+    body.night-mode .stats-snap-item { border-bottom-color: #333; }
+    body.night-mode .stats-snap-item:hover { background: #383838; }
+    body.night-mode .stats-snap-item.active { background: #003078; color: #fff; }
     body.night-mode th {
       background: #303030;
       color: #f0f0f0;
@@ -1747,6 +1753,7 @@
           <div class="groupbox-title" id="st-all-title">All Clients</div>
           <div class="fbar">
             <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
+            <button class="tbtn" id="st-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">🚫 Hide -DID</button>
             <span class="sms-muted" id="st-all-count" style="margin-left:auto"></span>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
@@ -5966,6 +5973,7 @@ let statsTodaySnaps = [];      // [{id,timestamp,session_date,time_slot,data:[ra
 let statsViewName = 'summary';
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
+let statsHideDID = false;      // hide account codes containing "-DID"
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
@@ -6035,11 +6043,14 @@ const stAcdBadge = c => `<span class="stbadge ${c}">ACD ${ST_CLS_LABEL[c]||c}</s
 
 function groupStatsSnapshot(snap) {
   const m = new Map();
-  (snap?.data || []).forEach(r => {
-    const key = r.customer_name || r.account_code || '(unknown)';
+  (snap?.data || []).forEach((r, idx) => {
+    // One entry per row — keyed by account code so the same row can still be
+    // tracked across snapshots for persistence/new detection. No grouping by client.
+    const key = r.account_code || r.customer_name || ('(unknown) #' + idx);
     let g = m.get(key);
     if (!g) {
-      g = { customer_name:key, account_codes:new Set(), destinations:new Set(),
+      g = { customer_name: r.customer_name || r.account_code || '(unknown)',
+            account_codes:new Set(), destinations:new Set(),
             attempts:0, completed:0, raw_dur:0, revenue:0 };
       m.set(key, g);
     }
@@ -6105,6 +6116,7 @@ function statsCurrentRows() {
     rows.push({ ...g, badStreak:streak, persistent:streak >= 3, isNew, trend,
                 seenCount:tl.length, prevAsr: prev ? prev.asr : null });
   });
+  if (statsHideDID) return rows.filter(r => !/-DID/i.test(r.acct_list));
   return rows;
 }
 
@@ -6132,6 +6144,16 @@ window.viewStatsSlot = slot => {
   const snaps = statsSortedSnaps();
   const isLatest = snaps.length && snaps[snaps.length-1].time_slot === slot;
   statsViewingSlot = isLatest ? null : slot;
+  statsRender();
+};
+
+window.toggleStatsHideDID = () => {
+  statsHideDID = !statsHideDID;
+  const btn = document.getElementById('st-hide-did');
+  if (btn) {
+    btn.classList.toggle('active', statsHideDID);
+    btn.textContent = statsHideDID ? '👁 Show -DID' : '🚫 Hide -DID';
+  }
   statsRender();
 };
 
