@@ -506,13 +506,6 @@
     td.st-cell-acct   { font-weight: 700; color: #000080; }
     body.night-mode td.st-cell-client { color: #777; }
     body.night-mode td.st-cell-acct   { color: #9fc2ff; }
-    .sttab-cnt {
-      display: inline-block; min-width: 14px; padding: 0 4px; margin-left: 3px;
-      font-size: 9px; font-weight: 700; text-align: center;
-      background: #808080; color: #fff; border: 1px solid #606060;
-    }
-    .sttab-cnt.zero { background: #c0c0c0; color: #555; border-color: #999; }
-    .sttab-cnt.crit { background: #cc0000; border-color: #800000; }
     #stnav-stats-critical.st-tab-alert {
       animation: stCritBlink 0.9s steps(1) infinite;
     }
@@ -1252,10 +1245,10 @@
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">📋 Logs</button>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">📊 Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">👥 All Clients</button>
-    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical <span class="sttab-cnt" id="sttab-cnt-critical"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low <span class="sttab-cnt" id="sttab-cnt-low"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok <span class="sttab-cnt" id="sttab-cnt-ok"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good <span class="sttab-cnt" id="sttab-cnt-good"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical <span id="sttab-cnt-critical"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low <span id="sttab-cnt-low"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok <span id="sttab-cnt-ok"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good <span id="sttab-cnt-good"></span></button>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
@@ -6276,15 +6269,7 @@ function renderStatsTables() {
     const el = document.getElementById(cl);
     if (el) el.textContent = sub.length;
     const tab = document.getElementById('sttab-cnt-' + cls);
-    if (tab) {
-      if (cls === 'critical') {
-        tab.textContent = sub.length ? sub.length : 'none';
-        tab.className = 'sttab-cnt' + (sub.length ? ' crit' : ' zero');
-      } else {
-        tab.textContent = sub.length;
-        tab.className = 'sttab-cnt' + (sub.length ? '' : ' zero');
-      }
-    }
+    if (tab) tab.textContent = (cls === 'critical' && !sub.length) ? '(none)' : `(${sub.length})`;
   });
   const critTab = document.getElementById('stnav-stats-critical');
   if (critTab) critTab.classList.toggle('st-tab-alert', byCls('critical').length > 0);
