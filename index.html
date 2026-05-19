@@ -2149,7 +2149,10 @@ function fmt12(hhmm) {
   const [h,m]=hhmm.split(':').map(Number);
   return `${h===0?12:h>12?h-12:h}:${m.toString().padStart(2,'0')} ${h<12?'AM':'PM'}`;
 }
-function todayStr() { return new Date().toISOString().slice(0,10); }
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function populateSlots() {
   const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift);
   // Preserve a manual selection across the 60s auto-refresh; only fall back to
@@ -2453,8 +2456,7 @@ function getPrevSnapshot() {
     return viewingIdx > 0 ? todaySnaps[viewingIdx - 1] : priorSnap;
   }
   if (todaySnaps.length >= 2) return todaySnaps[todaySnaps.length - 2];
-  if (todaySnaps.length === 1) return priorSnap; // first snap of the day → compare vs last snapshot taken
-  return null;
+  return priorSnap; // 0-1 snapshots today → compare vs the last snapshot taken on a prior day
 }
 function getPrevCriticalSet() {
   const prev = getPrevSnapshot();
@@ -3093,9 +3095,9 @@ async function loadSnaps() {
     if(todaySnaps.length) {
       const loadedLatest=todaySnaps[todaySnaps.length-1];
       latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
-    } else if (lastProcessedSnap?.data?.length) {
-      todaySnaps=[lastProcessedSnap];
-      latestSnap=lastProcessedSnap;
+    } else {
+      const fallback = lastProcessedSnap?.data?.length ? lastProcessedSnap : priorSnap;
+      if (fallback?.data?.length) { todaySnaps=[fallback]; latestSnap=fallback; }
     }
   } catch(e){console.warn('loadSnaps:',e);}
 }
@@ -5457,9 +5459,12 @@ async function init(){
         if(todaySnaps.length&&viewingIdx===null) {
           const loadedLatest=todaySnaps[todaySnaps.length-1];
           latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
-        } else if(!todaySnaps.length && lastProcessedSnap?.data?.length) {
-          todaySnaps=[lastProcessedSnap];
-          if(viewingIdx===null) latestSnap=lastProcessedSnap;
+        } else if(!todaySnaps.length) {
+          const fallback = lastProcessedSnap?.data?.length ? lastProcessedSnap : priorSnap;
+          if(fallback?.data?.length) {
+            todaySnaps=[fallback];
+            if(viewingIdx===null) latestSnap=fallback;
+          }
         }
         refreshAll();
       });
