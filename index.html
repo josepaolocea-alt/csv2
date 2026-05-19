@@ -1247,6 +1247,7 @@
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">👥 All Clients</button>
     <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical <span id="sttab-cnt-critical"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low <span id="sttab-cnt-low"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">⚪ Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good <span id="sttab-cnt-good"></span></button>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
@@ -1828,6 +1829,22 @@
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-watch">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">⚪ Watch Clients — <span id="st-watch-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table>
+              <thead><tr>
+                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+              </tr></thead><tbody id="st-tbody-watch"></tbody>
             </table></div>
           </div>
         </div>
@@ -6262,6 +6279,7 @@ function renderStatsTables() {
   const byCls = c => statsSortRows(rows.filter(r => r.cls === c));
   [['critical','st-tbody-critical','st-critical-count'],
    ['low','st-tbody-low','st-low-count'],
+   ['watch','st-tbody-watch','st-watch-count'],
    ['ok','st-tbody-ok','st-ok-count'],
    ['good','st-tbody-good','st-good-count']].forEach(([cls,tb,cl]) => {
     const sub = byCls(cls);
