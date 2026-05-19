@@ -647,10 +647,10 @@
     }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
       border-top: 2px solid #fff; border-left: 2px solid #fff;
       border-right: 2px solid #404040; border-bottom: 2px solid #404040;
       box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
@@ -738,6 +738,7 @@
     #sms-confirm-overlay.open #sms-confirm-box,
     #signout-confirm-overlay.open #signout-confirm-box,
     #overwrite-confirm-overlay.open #overwrite-confirm-box,
+    #logs-confirm-overlay.open #logs-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #client-detail-overlay.open #client-detail-box,
@@ -1161,6 +1162,7 @@
     <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">📂 Client Manager</button>
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">📤 Export</button>
     <div class="tsep"></div>
+    <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">📋 Logs</button>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
@@ -1203,6 +1205,10 @@
       <div class="nav-item" id="snav-export" onclick="switchView('export')">
         <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="2" width="8" height="10" fill="none" stroke="#000080" stroke-width="1.5"/><path d="M8 2h4l2 2v10h-6" stroke="#000080" stroke-width="1.5" fill="none"/><line x1="8" y1="9" x2="8" y2="14" stroke="#000080" stroke-width="1.5"/><path d="M5 12l3 3 3-3" fill="#000080"/></svg>
         Export
+      </div>
+      <div class="nav-item" id="snav-logs" onclick="switchView('logs')">
+        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="1" width="12" height="14" rx="1" fill="none" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="5" x2="11" y2="5" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="8" x2="11" y2="8" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="11" x2="9" y2="11" stroke="#000080" stroke-width="1.5"/></svg>
+        Logs
       </div>
       <div class="nav-divider"></div>
 
@@ -1440,6 +1446,37 @@
               <button class="tbtn" style="margin-left:4px" onclick="window.print()">🖨 Print / PDF</button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- ═══ LOGS ══════════════════════════════════ -->
+      <div class="view" id="view-logs">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">📋 Snapshot Logs</div>
+          <div class="fbar">
+            <span style="font-size:11px;color:#444">Audit trail of every snapshot posted — scheduled slot time vs. the time it was actually posted.</span>
+            <span id="logs-admin-tools" style="display:none;margin-left:auto;gap:4px">
+              <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>🗑 Delete Selected</button>
+              <button class="tbtn" style="color:#880000" onclick="openDeleteAllLogsConfirm()">🗑 Delete All Logs</button>
+            </span>
+            <span id="logs-viewonly-note" style="display:none;margin-left:auto;font-size:10px;color:#888;font-style:italic">🔒 View only — deleting logs is restricted to admins.</span>
+          </div>
+          <div class="lv-wrap">
+            <table id="logs-tbl">
+              <thead><tr>
+                <th id="logs-th-check" style="width:26px;text-align:center"><input type="checkbox" id="logs-check-all" onclick="toggleAllLogs(this)" title="Select all"></th>
+                <th>Date</th>
+                <th>Snapshot Slot</th>
+                <th>Posted At</th>
+                <th>Late By</th>
+                <th style="text-align:right">Clients</th>
+                <th>Posted By</th>
+                <th id="logs-th-action">Action</th>
+              </tr></thead>
+              <tbody id="logs-tbody"></tbody>
+            </table>
+          </div>
+          <div style="font-size:10px;color:#888;margin-top:4px" id="logs-count">No logs yet.</div>
         </div>
       </div>
 
@@ -1717,6 +1754,21 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn" style="min-width:110px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
       <button class="tbtn" style="min-width:72px" onclick="closeDeleteTodayConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Logs Dialog -->
+<div id="logs-confirm-overlay">
+  <div id="logs-confirm-box">
+    <div class="dlg-tb"><span>⚠ Delete Snapshot Logs</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">🗑</div>
+      <div class="dlg-text" id="logs-confirm-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn" style="min-width:90px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmDeleteLogs()">Delete</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeLogsConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2105,6 +2157,7 @@ window.switchView = name => {
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
+  if (name==='logs')          { renderLogs(); }
 };
 
 window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
@@ -2761,6 +2814,7 @@ async function doProcessSnapshot(rows, timeSlot){
       const snapId=snapshotDocId(snap.session_date, snap.time_slot);
       await setDoc(doc(db,'snapshots',snapId),{...snap,timestamp:Timestamp.fromDate(snap.timestamp)});
       snap.id=snapId;
+      await writeSnapshotLog(snap, data.length);
       toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
     } catch(e){toast('Firestore error (data kept locally): '+e.message,'err',6000);}
     finally{setLoading(false);}
@@ -2874,6 +2928,184 @@ async function clearAcks() {
     await batch.commit();
   } catch(e) {}
 }
+
+/* ════════════════════════════════════════════════
+   SNAPSHOT LOGS  (audit trail of when snapshots were posted)
+════════════════════════════════════════════════ */
+// Firebase login emails allowed to DELETE snapshot logs. Everyone else can
+// view the logs but cannot delete them. Add admin email(s) below, lowercase.
+const ADMIN_EMAILS = [
+  'jpgc06.2023@gmail.com'   // admin — can delete snapshot logs
+];
+let currentUserEmail = '';
+let logsData = [];               // all snapshot_logs docs, newest first
+let logsSelected = new Set();    // log ids ticked for multi-delete
+let pendingLogDelete = null;     // { mode:'one'|'selected'|'all', id? }
+function isAdmin(){ return !!currentUserEmail && ADMIN_EMAILS.includes(currentUserEmail.toLowerCase()); }
+
+function fmtDur(min){
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min/60), m = min%60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+function logLateness(log){
+  if (!log.processed_at || !log.time_slot || !log.session_date)
+    return { min:null, label:'—', color:'#888' };
+  const sched = new Date(`${log.session_date}T${log.time_slot}:00`);
+  if (isNaN(sched.getTime())) return { min:null, label:'—', color:'#888' };
+  const min = Math.round((log.processed_at - sched) / 60000);
+  if (min <= 5)  return { min, label:'✓ On time',                 color:'#006600' };
+  if (min <= 15) return { min, label:`⚠ ${fmtDur(min)} late`,      color:'#aa6600' };
+  return            { min, label:`🔴 ${fmtDur(min)} late`,        color:'#cc0000' };
+}
+
+async function writeSnapshotLog(snap, rowCount){
+  if (!fbOk) return;
+  try {
+    await addDoc(collection(db,'snapshot_logs'), {
+      session_date: snap.session_date,
+      time_slot:    snap.time_slot,
+      processed_at: Timestamp.fromDate(snap.timestamp),
+      rows:         rowCount,
+      operator:     operatorName || '',
+      user_email:   currentUserEmail || ''
+    });
+  } catch(e){ console.warn('snapshot log write failed:', e); }
+}
+
+function subscribeLogs(){
+  if (!fbOk) return;
+  try {
+    const q = query(collection(db,'snapshot_logs'), orderBy('processed_at','desc'));
+    onSnapshot(q, snap => {
+      logsData = snap.docs.map(d => ({ id:d.id, ...d.data(), processed_at:d.data().processed_at?.toDate() }));
+      [...logsSelected].forEach(id => { if (!logsData.some(l=>l.id===id)) logsSelected.delete(id); });
+      if (document.getElementById('view-logs').classList.contains('active')) renderLogs();
+    });
+  } catch(e){ console.warn('subscribeLogs:', e); }
+}
+
+function renderLogs(){
+  const admin   = isAdmin();
+  const tbody   = document.getElementById('logs-tbody');
+  const countEl = document.getElementById('logs-count');
+  if (!tbody) return;
+  document.getElementById('logs-admin-tools').style.display   = admin ? '' : 'none';
+  document.getElementById('logs-viewonly-note').style.display = admin ? 'none' : '';
+  document.getElementById('logs-th-check').style.display      = admin ? '' : 'none';
+  document.getElementById('logs-th-action').style.display     = admin ? '' : 'none';
+
+  if (!fbOk){
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:16px;text-align:center;color:#888">Logs require Firestore — unavailable in demo mode.</td></tr>`;
+    countEl.textContent = '';
+    return;
+  }
+  if (!logsData.length){
+    tbody.innerHTML = `<tr><td colspan="8" style="padding:16px;text-align:center;color:#888">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
+    countEl.textContent = 'No logs yet.';
+    updateLogsSelUI();
+    return;
+  }
+  tbody.innerHTML = logsData.map(log => {
+    const late      = logLateness(log);
+    const d         = log.processed_at;
+    const postedStr = d ? d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+    const checked   = logsSelected.has(log.id) ? 'checked' : '';
+    const checkCell  = admin ? `<td style="text-align:center"><input type="checkbox" ${checked} onclick="toggleLogSelect('${escAttr(log.id)}',this)"></td>` : '';
+    const actionCell = admin ? `<td><button class="tbtn" style="color:#880000;padding:0 6px;font-size:10px" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}')">🗑 Delete</button></td>` : '';
+    return `<tr>
+      ${checkCell}
+      <td>${esc(log.session_date || '—')}</td>
+      <td>${esc(log.time_slot ? fmt12(log.time_slot) : '—')}</td>
+      <td>${esc(postedStr)}</td>
+      <td style="color:${late.color};font-weight:700">${esc(late.label)}</td>
+      <td class="num">${log.rows ?? '—'}</td>
+      <td>${esc(log.operator || log.user_email || '—')}</td>
+      ${actionCell}
+    </tr>`;
+  }).join('');
+  const lateCount = logsData.filter(l => { const x=logLateness(l); return x.min!=null && x.min>15; }).length;
+  countEl.textContent = `${logsData.length} log(s)` + (lateCount ? ` · ${lateCount} posted late` : '');
+  updateLogsSelUI();
+}
+
+function updateLogsSelUI(){
+  const btn = document.getElementById('logs-del-sel-btn');
+  if (btn){
+    const n = logsSelected.size;
+    btn.disabled = n === 0;
+    btn.textContent = n ? `🗑 Delete Selected (${n})` : '🗑 Delete Selected';
+  }
+  const all = document.getElementById('logs-check-all');
+  if (all) all.checked = logsData.length > 0 && logsSelected.size === logsData.length;
+}
+
+window.toggleLogSelect = (id, cb) => {
+  if (cb.checked) logsSelected.add(id); else logsSelected.delete(id);
+  updateLogsSelUI();
+};
+window.toggleAllLogs = (cb) => {
+  if (cb.checked) logsData.forEach(l => logsSelected.add(l.id));
+  else logsSelected.clear();
+  renderLogs();
+};
+
+window.openDeleteOneLogConfirm = (id) => {
+  if (!isAdmin()) return;
+  const log = logsData.find(l => l.id === id);
+  pendingLogDelete = { mode:'one', id };
+  document.getElementById('logs-confirm-text').innerHTML =
+    `<strong>Delete this log entry?</strong><br><br>` +
+    (log ? `Slot ${esc(fmt12(log.time_slot))} · ${esc(log.session_date || '')}<br><br>` : '') +
+    `Only the log record is removed — the snapshot data and New Critical comparisons are not affected.`;
+  document.getElementById('logs-confirm-overlay').classList.add('open');
+};
+window.openDeleteSelectedLogsConfirm = () => {
+  if (!isAdmin() || !logsSelected.size) return;
+  const n = logsSelected.size;
+  pendingLogDelete = { mode:'selected' };
+  document.getElementById('logs-confirm-text').innerHTML =
+    `<strong>Delete ${n} selected log entr${n===1?'y':'ies'}?</strong><br><br>` +
+    `Only the log records are removed — snapshot data is not affected.`;
+  document.getElementById('logs-confirm-overlay').classList.add('open');
+};
+window.openDeleteAllLogsConfirm = () => {
+  if (!isAdmin()) return;
+  if (!logsData.length){ toast('No logs to delete.','err'); return; }
+  pendingLogDelete = { mode:'all' };
+  document.getElementById('logs-confirm-text').innerHTML =
+    `<strong>Delete ALL ${logsData.length} snapshot log entries?</strong><br><br>` +
+    `Only the log records are removed — snapshot data and New Critical comparisons are not affected.<br><br>` +
+    `<span style="color:#880000">This cannot be undone.</span>`;
+  document.getElementById('logs-confirm-overlay').classList.add('open');
+};
+window.closeLogsConfirm = () => {
+  document.getElementById('logs-confirm-overlay').classList.remove('open');
+  pendingLogDelete = null;
+};
+window.confirmDeleteLogs = async () => {
+  if (!pendingLogDelete || !isAdmin()){ window.closeLogsConfirm(); return; }
+  const mode = pendingLogDelete.mode;
+  let ids = [];
+  if (mode === 'one')           ids = [pendingLogDelete.id];
+  else if (mode === 'selected') ids = [...logsSelected];
+  else if (mode === 'all')      ids = logsData.map(l => l.id);
+  document.getElementById('logs-confirm-overlay').classList.remove('open');
+  pendingLogDelete = null;
+  if (!ids.length) return;
+  setLoading(true, 'Deleting logs…');
+  try {
+    let batch = writeBatch(db), count = 0;
+    for (const id of ids){
+      batch.delete(doc(db,'snapshot_logs',id));
+      if (++count >= 400){ await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+    ids.forEach(id => logsSelected.delete(id));
+    toast(`✓ Deleted ${ids.length} log entr${ids.length===1?'y':'ies'}`, 'ok');
+  } catch(e){ toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
 
 window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
 window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
@@ -5478,6 +5710,7 @@ async function init(){
   updatePresence();
   subscribePresence();
   subscribeAcks();
+  subscribeLogs();
 }
 
 /* ── Auth-gated boot ── */
@@ -5488,11 +5721,14 @@ if (auth) {
     const userLabel = document.getElementById('login-user-label');
     const signOutBtn = document.getElementById('btn-signout');
     if (user) {
+      currentUserEmail = user.email || '';
       if (overlay)    overlay.style.display = 'none';
       if (userLabel)  userLabel.textContent = user.email;
       if (signOutBtn) signOutBtn.style.display = '';
       if (!_appInitialized) { _appInitialized = true; init(); }
+      if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
+      currentUserEmail = '';
       if (userLabel)  userLabel.textContent = '';
       if (signOutBtn) signOutBtn.style.display = 'none';
       showLoginOverlay();
