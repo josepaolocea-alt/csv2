@@ -502,6 +502,24 @@
     .stbadge.declining{ background: #f0d6d6; color: #aa0000; border-color: #aa4a4a; }
     tr.st-row-critical td { background: #fff0f0; }
     tr.st-row-persist td  { background: #ffe4e4; }
+    td.st-cell-client { font-size: 10px; color: #999; }
+    td.st-cell-acct   { font-weight: 700; color: #000080; }
+    body.night-mode td.st-cell-client { color: #777; }
+    body.night-mode td.st-cell-acct   { color: #9fc2ff; }
+    .sttab-cnt {
+      display: inline-block; min-width: 14px; padding: 0 4px; margin-left: 3px;
+      font-size: 9px; font-weight: 700; text-align: center;
+      background: #808080; color: #fff; border: 1px solid #606060;
+    }
+    .sttab-cnt.zero { background: #c0c0c0; color: #555; border-color: #999; }
+    .sttab-cnt.crit { background: #cc0000; border-color: #800000; }
+    #stnav-stats-critical.st-tab-alert {
+      animation: stCritBlink 0.9s steps(1) infinite;
+    }
+    @keyframes stCritBlink {
+      0%,49%   { background: #cc0000; color: #fff; }
+      50%,100% { background: #d4d0c8; color: #000; }
+    }
     .np-tabbar {
       display: flex; gap: 0; padding: 0 2px; margin-bottom: -1px;
       flex-wrap: wrap; align-items: flex-end;
@@ -1172,7 +1190,8 @@
       border-right-color: #555; border-bottom-color: #555;
     }
     body.night-mode .np-editor:empty:before { color: #777; }
-    body.night-mode #notepad-toolbar-label { color: #9fc2ff; }
+    body.night-mode #notepad-toolbar-label,
+    body.night-mode #stats-toolbar-label { color: #9fc2ff; }
 
     @media print {
       body.night-mode,
@@ -1233,10 +1252,10 @@
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">📋 Logs</button>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">📊 Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">👥 All Clients</button>
-    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical</button>
-    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low</button>
-    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok</button>
-    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good</button>
+    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical <span class="sttab-cnt" id="sttab-cnt-critical"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low <span class="sttab-cnt" id="sttab-cnt-low"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok <span class="sttab-cnt" id="sttab-cnt-ok"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good <span class="sttab-cnt" id="sttab-cnt-good"></span></button>
     <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
     <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
@@ -1753,6 +1772,16 @@
           <div class="groupbox-title" id="st-all-title">All Clients</div>
           <div class="fbar">
             <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
+            <select id="st-flag-filter" class="win-sel" onchange="renderStatsTables()" title="Filter by Status / Flags" style="width:150px">
+              <option value="all">All flags</option>
+              <option value="any">⚑ Any flag</option>
+              <option value="new">🆕 New</option>
+              <option value="persistent">⚠ Persistent</option>
+              <option value="bad">bad 2×+ streak</option>
+              <option value="improving">▲ Improving</option>
+              <option value="declining">▼ Declining</option>
+              <option value="none">— No flags</option>
+            </select>
             <button class="tbtn" id="st-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">🚫 Hide -DID</button>
             <span class="sms-muted" id="st-all-count" style="margin-left:auto"></span>
           </div>
@@ -6188,8 +6217,8 @@ function processStatsRows(rows, tbodyId, full) {
   tb.innerHTML = rows.map(r => {
     const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
     const cells = full
-      ? `<td>${stEsc(r.customer_name)}</td>
-         <td style="font-size:10px;color:#555">${stEsc(r.acct_list)}</td>
+      ? `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
          <td style="text-align:right">${r.dest_count}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
@@ -6199,8 +6228,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${stClsBadge(r.cls)}</td>
          <td>${stAcdBadge(r.acdcls)}</td>
          <td>${statsFlags(r)}</td>`
-      : `<td>${stEsc(r.customer_name)}</td>
-         <td style="font-size:10px;color:#555">${stEsc(r.acct_list)}</td>
+      : `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stN2(r.asr)}</td>
@@ -6211,15 +6240,31 @@ function processStatsRows(rows, tbodyId, full) {
   }).join('');
 }
 
+function statsRowHasFlag(r, f) {
+  switch (f) {
+    case 'new':        return !!r.isNew;
+    case 'persistent': return !!r.persistent;
+    case 'bad':        return r.badStreak >= 2;
+    case 'improving':  return r.trend === 'improving';
+    case 'declining':  return r.trend === 'declining';
+    case 'any':        return r.isNew || r.badStreak >= 2 || r.trend === 'improving' || r.trend === 'declining';
+    case 'none':       return !(r.isNew || r.badStreak >= 2 || r.trend === 'improving' || r.trend === 'declining');
+    default:           return true;
+  }
+}
+
 function renderStatsTables() {
   const rows = statsCurrentRows();
   const search = (document.getElementById('st-search')?.value || '').trim().toLowerCase();
+  const flagF = document.getElementById('st-flag-filter')?.value || 'all';
   let allRows = statsSortRows(rows);
   if (search) allRows = allRows.filter(r =>
     r.customer_name.toLowerCase().includes(search) || r.acct_list.toLowerCase().includes(search));
+  if (flagF !== 'all') allRows = allRows.filter(r => statsRowHasFlag(r, flagF));
   processStatsRows(allRows, 'st-tbody-all', true);
+  const filtered = search || flagF !== 'all';
   const cnt = document.getElementById('st-all-count');
-  if (cnt) cnt.textContent = `${allRows.length} client(s)` + (search ? ' (filtered)' : '');
+  if (cnt) cnt.textContent = `${allRows.length} client(s)` + (filtered ? ' (filtered)' : '');
 
   const byCls = c => statsSortRows(rows.filter(r => r.cls === c));
   [['critical','st-tbody-critical','st-critical-count'],
@@ -6230,8 +6275,21 @@ function renderStatsTables() {
     processStatsRows(sub, tb, false);
     const el = document.getElementById(cl);
     if (el) el.textContent = sub.length;
+    const tab = document.getElementById('sttab-cnt-' + cls);
+    if (tab) {
+      if (cls === 'critical') {
+        tab.textContent = sub.length ? sub.length : 'none';
+        tab.className = 'sttab-cnt' + (sub.length ? ' crit' : ' zero');
+      } else {
+        tab.textContent = sub.length;
+        tab.className = 'sttab-cnt' + (sub.length ? '' : ' zero');
+      }
+    }
   });
+  const critTab = document.getElementById('stnav-stats-critical');
+  if (critTab) critTab.classList.toggle('st-tab-alert', byCls('critical').length > 0);
 }
+window.renderStatsTables = renderStatsTables;
 
 function renderStatsSummary() {
   const rows = statsCurrentRows();
