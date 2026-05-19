@@ -3749,10 +3749,11 @@ function signedNumberClass(v) {
 }
 
 function snapshotTotals(rows) {
+  const round2 = v => Math.round(amountNumber(v) * 100) / 100;
   return (rows || []).reduce((acc, r) => {
-    acc.amnt_receivable += amountNumber(r?.amnt_receivable);
-    acc.usage_30min += amountNumber(r?.usage_30min);
-    acc.total_usage += amountNumber(r?.total_usage);
+    acc.amnt_receivable += round2(r?.amnt_receivable);
+    acc.usage_30min += round2(r?.usage_30min);
+    acc.total_usage += round2(r?.total_usage);
     return acc;
   }, { amnt_receivable: 0, usage_30min: 0, total_usage: 0 });
 }
