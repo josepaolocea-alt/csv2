@@ -3648,7 +3648,7 @@ function alertRows() {
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
 
   let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
-  const usageHighCount = rows.filter(r=>usageAlertLevel(r)==='high').length;
+  const usageHighCount = rows.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = rows.filter(r=>!hasClientThreshold(r)).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
