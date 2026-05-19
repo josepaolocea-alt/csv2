@@ -3119,6 +3119,25 @@ async function cleanupOldSnapshots() {
   } catch(e) { console.warn('Cleanup error:', e); }
 }
 
+async function cleanupCsvImports() {
+  if (!fbOk) return;
+  const KEEP = 50; // keep well above the 10 shown in the upload history panel
+  try {
+    const q = query(collection(db, 'csv_imports'), orderBy('imported_at', 'desc'));
+    const s = await getDocs(q);
+    if (s.docs.length <= KEEP) return;
+    const stale = s.docs.slice(KEEP);
+    const BATCH_MAX = 490;
+    let batch = writeBatch(db), count = 0;
+    for (const d of stale) {
+      batch.delete(doc(db, 'csv_imports', d.id));
+      if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+    toast(`🗑 Removed ${stale.length} old CSV import record(s)`, 'ok', 5000);
+  } catch(e) { console.warn('CSV import cleanup error:', e); }
+}
+
 async function loadPrevSnap() {
   if (!fbOk) return;
   try {
@@ -5427,6 +5446,7 @@ async function init(){
   setLoading(true,'Connecting to Firestore…');
   await Promise.all([loadPrevSnap(), loadClients()]);
   cleanupOldSnapshots(); // runs in background, no await needed
+  cleanupCsvImports();   // runs in background, no await needed
   setLoading(false);
   refreshAll();
   if(fbOk){
