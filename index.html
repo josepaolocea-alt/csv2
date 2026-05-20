@@ -1634,18 +1634,18 @@
             <div class="lv-wrap">
               <table id="sms-clients-tbl">
                 <thead><tr>
-                  <th>Client</th>
-                  <th>Sender ID(s)</th>
-                  <th>Destination</th>
-                  <th>Account Manager</th>
-                  <th>Platform</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Opt-Out</th>
-                  <th>Overdraft</th>
-                  <th>Vendor(s)</th>
-                  <th>Email(s)</th>
-                  <th>Notes / Remarks</th>
+                  <th onclick="sortSms('client')" id="sms-th-client" style="cursor:pointer">Client</th>
+                  <th onclick="sortSms('sender_id')" id="sms-th-sender_id" style="cursor:pointer">Sender ID(s)</th>
+                  <th onclick="sortSms('destination')" id="sms-th-destination" style="cursor:pointer">Destination</th>
+                  <th onclick="sortSms('account_manager')" id="sms-th-account_manager" style="cursor:pointer">Account Manager</th>
+                  <th onclick="sortSms('platform')" id="sms-th-platform" style="cursor:pointer">Platform</th>
+                  <th onclick="sortSms('type')" id="sms-th-type" style="cursor:pointer">Type</th>
+                  <th onclick="sortSms('status')" id="sms-th-status" style="cursor:pointer">Status</th>
+                  <th onclick="sortSms('opt_out')" id="sms-th-opt_out" style="cursor:pointer">Opt-Out</th>
+                  <th onclick="sortSms('overdraft')" id="sms-th-overdraft" style="cursor:pointer">Overdraft</th>
+                  <th onclick="sortSms('vendor')" id="sms-th-vendor" style="cursor:pointer">Vendor(s)</th>
+                  <th onclick="sortSms('emails')" id="sms-th-emails" style="cursor:pointer">Email(s)</th>
+                  <th onclick="sortSms('notes')" id="sms-th-notes" style="cursor:pointer">Notes / Remarks</th>
                   <th>Action</th>
                 </tr></thead>
                 <tbody id="sms-clients-tbody"></tbody>
@@ -2310,6 +2310,7 @@ let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
 let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
+let smsSortCol = 'client', smsSortDir = 1;
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -5107,8 +5108,43 @@ function loadSmsClients() {
   }
 }
 
+// Cross-device sync state — set while applying a remote snapshot so we don't echo it back
+let smsRemoteApplying = false;
+let smsSubscribed = false;
+
 function saveSmsClients() {
-  localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients));
+  try { localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients)); } catch(e) {}
+  if (smsRemoteApplying || !fbOk) return;
+  setDoc(doc(db, 'sms', 'clients'), { clients: smsClients, updated_at: Timestamp.now() })
+    .catch(e => console.warn('SMS Firestore sync failed:', e));
+}
+
+async function subscribeSmsClients() {
+  if (!fbOk || smsSubscribed) return;
+  smsSubscribed = true;
+  try {
+    onSnapshot(doc(db, 'sms', 'clients'), async snap => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const remote = Array.isArray(data.clients) ? data.clients.map(normalizeSmsClient) : [];
+        smsRemoteApplying = true;
+        try {
+          smsClients = remote;
+          try { localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients)); } catch(e) {}
+          buildSmsVendorBox();
+          updateSmsDatalists();
+          renderSmsClients();
+        } finally {
+          smsRemoteApplying = false;
+        }
+      } else if (smsClients.length) {
+        // Remote doc missing — seed it from this device's local data (one-time migration)
+        try {
+          await setDoc(doc(db, 'sms', 'clients'), { clients: smsClients, updated_at: Timestamp.now() });
+        } catch(e) { console.warn('SMS Firestore seed failed:', e); }
+      }
+    }, err => console.warn('SMS onSnapshot error:', err));
+  } catch(e) { console.warn('SMS subscribe failed:', e); }
 }
 
 // Combos with a fixed, non-editable option list (picked from, not typed into)
@@ -5504,13 +5540,37 @@ window.editSmsFromDetail = () => {
   if (id) editSmsClient(id);
 };
 
+window.sortSms = col => {
+  smsSortDir = smsSortCol === col ? smsSortDir * -1 : 1;
+  smsSortCol = col;
+  renderSmsClients();
+};
+
+const SMS_SORTABLE_COLS = ['client','sender_id','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
+
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
   if (!tbody) return;
   updateSmsDatalists();
   const q = (document.getElementById('sms-search')?.value || '').trim().toLowerCase();
+  const dir = smsSortDir;
+  const col = smsSortCol;
   const rows = smsClients.filter(r => smsMatchesSearch(r, q))
-    .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)));
+    .sort((a,b) => {
+      const av = String(a[col] ?? '').toLowerCase();
+      const bv = String(b[col] ?? '').toLowerCase();
+      const cmp = av.localeCompare(bv);
+      if (cmp) return cmp * dir;
+      // Stable tiebreaker so equal primary keys stay grouped sensibly
+      return String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination));
+    });
+  // Sort indicator on the active header
+  SMS_SORTABLE_COLS.forEach(c => {
+    const th = document.getElementById('sms-th-' + c);
+    if (!th) return;
+    const base = th.textContent.replace(/[\s▲▼]+$/, '');
+    th.textContent = c === col ? `${base} ${dir > 0 ? '▲' : '▼'}` : base;
+  });
   const count = document.getElementById('sms-count');
   if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
   tbody.innerHTML = rows.length ? rows.map(r => `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="showSmsDetail('${escAttr(r.id)}')" title="Click for full details">
@@ -6527,6 +6587,7 @@ async function init(){
   subscribePresence();
   subscribeAcks();
   subscribeLogs();
+  subscribeSmsClients();
 }
 
 /* ── Auth-gated boot ── */
