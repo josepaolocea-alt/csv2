@@ -1626,9 +1626,12 @@
               <div class="sms-field full"><label>Notes / Remarks</label><input class="win-inp" id="sms-notes"></div>
             </div>
             <div class="fbar">
-              <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:260px">
+              <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:240px">
+              <select class="win-inp" id="sms-filter-client"          onchange="renderSmsClients()" title="Filter by Client"><option value="">All Clients</option></select>
+              <select class="win-inp" id="sms-filter-destination"     onchange="renderSmsClients()" title="Filter by Destination"><option value="">All Destinations</option></select>
+              <select class="win-inp" id="sms-filter-account-manager" onchange="renderSmsClients()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
               <button class="tbtn" onclick="renderSmsClients()">Search</button>
-              <button class="tbtn" onclick="document.getElementById('sms-search').value=''; renderSmsClients();">Clear</button>
+              <button class="tbtn" onclick="clearSmsFilters()">Clear</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
             </div>
             <div class="lv-wrap">
@@ -3478,6 +3481,15 @@ window.openClientPopup = name => {
   document.getElementById('btn-close-detail').style.display = '';
   renderClientDetailBody(false);
   document.getElementById('client-detail-overlay').classList.add('open');
+  if (!_historyLoaded) {
+    loadAllSnapshotHistory().then(() => {
+      if (_editingClient === name &&
+          document.getElementById('client-detail-overlay')?.classList.contains('open') &&
+          document.getElementById('btn-save-client')?.style.display === 'none') {
+        renderClientDetailBody(false);
+      }
+    }).catch(() => {});
+  }
 };
 
 function renderClientDetailBody(editMode) {
@@ -5501,6 +5513,33 @@ function smsMatchesSearch(row, q) {
   return SMS_FIELDS.some(f => String(row[f] || '').toLowerCase().includes(q));
 }
 
+function refreshSmsFilterOptions() {
+  const specs = [
+    ['sms-filter-client',          'client',          'All Clients'],
+    ['sms-filter-destination',     'destination',     'All Destinations'],
+    ['sms-filter-account-manager', 'account_manager', 'All Account Managers']
+  ];
+  specs.forEach(([selId, field, allLbl]) => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const current = sel.value;
+    const values = Array.from(new Set(
+      smsClients.map(r => String(r[field] ?? '').trim()).filter(Boolean)
+    )).sort((a,b) => a.localeCompare(b));
+    sel.innerHTML = `<option value="">${esc(allLbl)}</option>` +
+      values.map(v => `<option value="${escAttr(v)}">${esc(v)}</option>`).join('');
+    sel.value = values.includes(current) ? current : '';
+  });
+}
+
+window.clearSmsFilters = () => {
+  const s = document.getElementById('sms-search'); if (s) s.value = '';
+  ['sms-filter-client','sms-filter-destination','sms-filter-account-manager'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderSmsClients();
+};
+
 let smsDetailId = null;
 window.showSmsDetail = id => {
   const r = smsClients.find(x => x.id === id);
@@ -5552,10 +5591,18 @@ window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
   if (!tbody) return;
   updateSmsDatalists();
+  refreshSmsFilterOptions();
   const q = (document.getElementById('sms-search')?.value || '').trim().toLowerCase();
+  const fClient = (document.getElementById('sms-filter-client')?.value || '').trim().toLowerCase();
+  const fDest   = (document.getElementById('sms-filter-destination')?.value || '').trim().toLowerCase();
+  const fAcct   = (document.getElementById('sms-filter-account-manager')?.value || '').trim().toLowerCase();
   const dir = smsSortDir;
   const col = smsSortCol;
-  const rows = smsClients.filter(r => smsMatchesSearch(r, q))
+  const rows = smsClients
+    .filter(r => !fClient || String(r.client ?? '').trim().toLowerCase() === fClient)
+    .filter(r => !fDest   || String(r.destination ?? '').trim().toLowerCase() === fDest)
+    .filter(r => !fAcct   || String(r.account_manager ?? '').trim().toLowerCase() === fAcct)
+    .filter(r => smsMatchesSearch(r, q))
     .sort((a,b) => {
       const av = String(a[col] ?? '').toLowerCase();
       const bv = String(b[col] ?? '').toLowerCase();
@@ -5586,7 +5633,7 @@ window.renderSmsClients = () => {
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
-    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
+    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`).join('') : `<tr style="cursor:default"><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
 };
 
@@ -5623,6 +5670,29 @@ window.exportSmsClientsCsv = () => {
   a.click();
   URL.revokeObjectURL(url);
   toast(`Exported ${smsClients.length} SMS client route(s)`, 'ok');
+};
+
+window.exportSmsClientByRow = id => {
+  const src = smsClients.find(r => r.id === id);
+  if (!src) { toast('Client row not found', 'err'); return; }
+  const clientName = String(src.client ?? '').trim();
+  if (!clientName) { toast('Row has no client name', 'err'); return; }
+  const rows = smsClients
+    .filter(r => String(r.client ?? '').trim().toLowerCase() === clientName.toLowerCase())
+    .slice()
+    .sort((a,b) => String(a.destination).localeCompare(String(b.destination)));
+  if (!rows.length) { toast(`No routes found for "${clientName}"`, 'err'); return; }
+  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const data = rows.map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = clientName.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g,'') || 'client';
+  a.download = `sms_client_${safe}_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} route(s) for "${clientName}"`, 'ok');
 };
 
 function smsRowFromCsv(raw) {
@@ -5920,16 +5990,59 @@ window.saveBulkEdits = async () => {
 /* ════════════════════════════════════════════════
    SPARKLINE CHART
 ════════════════════════════════════════════════ */
+const _historyByDate = new Map(); // session_date -> latest snapshot of that date (older days, loaded from Firestore once per session)
+let _historyLoaded = false;
+let _historyLoading = null;
+
+function snapsByDayLatest() {
+  // Older days from cached history, overlaid with today's in-memory snaps so it
+  // stays fresh as new slots come in via the realtime listener.
+  const map = new Map(_historyByDate);
+  todaySnaps.forEach(s => {
+    if (!s?.session_date || !Array.isArray(s.data)) return;
+    const prev = map.get(s.session_date);
+    if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) map.set(s.session_date, s);
+  });
+  return map;
+}
+
+async function loadAllSnapshotHistory() {
+  if (_historyLoaded) return;
+  if (_historyLoading) return _historyLoading;
+  if (!fbOk) { _historyLoaded = true; return; }
+  _historyLoading = (async () => {
+    try {
+      const all = await getDocs(collection(db, 'snapshots'));
+      all.docs.forEach(d => {
+        const data = d.data();
+        const s = { id: d.id, ...data, timestamp: data.timestamp?.toDate?.() || data.timestamp };
+        if (!s.session_date || !Array.isArray(s.data)) return;
+        const prev = _historyByDate.get(s.session_date);
+        if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) _historyByDate.set(s.session_date, s);
+      });
+      _historyLoaded = true;
+    } finally { _historyLoading = null; }
+  })();
+  return _historyLoading;
+}
+
 function buildSparkline(name) {
-  const points = todaySnaps.map(s => {
-    const r = s.data.find(r => r.carrier_name === name);
-    return r ? { slot: s.time_slot, val: r.amnt_receivable } : null;
-  }).filter(Boolean);
-  if (points.length < 2) return `<div style="font-size:10px;color:#888;padding:4px">Not enough snapshots today for a trend chart.</div>`;
+  const byDate = snapsByDayLatest();
+  const dates = Array.from(byDate.keys()).sort();
+  const points = [];
+  dates.forEach(d => {
+    const snap = byDate.get(d);
+    const r = snap?.data?.find(r => r.carrier_name === name);
+    const v = r ? parseFloat(r.amnt_receivable) : NaN;
+    if (Number.isFinite(v)) points.push({ date: d, slot: snap.time_slot, val: v });
+  });
+  if (points.length < 2) {
+    if (!_historyLoaded) return `<div style="font-size:10px;color:#888;padding:4px">Loading trend history…</div>`;
+    return `<div style="font-size:10px;color:#888;padding:4px">Not enough snapshot history for a trend chart.</div>`;
+  }
 
   const W=360, H=70, PL=4, PR=44, PT=8, PB=16;
   const vals = points.map(p => p.val);
-  const minV = Math.min(...vals), maxV = Math.max(...vals);
   const meta = clientsMeta[name] || {};
   const critBal = parseFloat(meta.critical_balance);
   const credLim = parseFloat(meta.credit_limit);
@@ -5958,14 +6071,17 @@ function buildSparkline(name) {
     thresh += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#cc6600" stroke-width="1" stroke-dasharray="2,3"/>
     <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="#cc6600">Warn</text>`;
   }
-  // x-axis labels: first and last slot
-  const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="#888">${fmt12(points[0].slot).replace(' ','')}</text>
-    <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="#888" text-anchor="end">${fmt12(points[points.length-1].slot).replace(' ','')}</text>`;
+  const fmtDateShort = d => {
+    const [, m, da] = String(d).split('-');
+    return m && da ? `${+m}/${+da}` : d;
+  };
+  const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="#888">${fmtDateShort(points[0].date)}</text>
+    <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="#888" text-anchor="end">${fmtDateShort(points[points.length-1].date)}</text>`;
 
   return `<svg width="${W}" height="${H}" style="display:block;overflow:visible">
     ${thresh}
     <polyline points="${polyline}" fill="none" stroke="#000080" stroke-width="1.5" stroke-linejoin="round"/>
-    ${points.map((p,i)=>`<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${i===points.length-1?3:1.5}" fill="${i===points.length-1?dotColor:'#000080'}"/>`).join('')}
+    ${points.map((p,i)=>`<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${i===points.length-1?3:1.5}" fill="${i===points.length-1?dotColor:'#000080'}"><title>${esc(p.date)} ${esc(fmt12(p.slot||''))} — ${esc(fmt(p.val))}</title></circle>`).join('')}
     <text x="${(lastX+4).toFixed(0)}" y="${(lastY+3).toFixed(0)}" font-size="8" fill="${dotColor}" font-weight="bold">${fmt(lastVal)}</text>
     ${xLabels}
   </svg>`;
