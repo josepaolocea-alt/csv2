@@ -6051,9 +6051,18 @@ function buildSparkline(name) {
   const critBal = parseFloat(meta.critical_balance);
   const credLim = parseFloat(meta.credit_limit);
 
-  // Expand y-range to include thresholds if they're nearby
-  const allV = [...vals, ...(!isNaN(critBal)?[critBal]:[]), ...(!isNaN(credLim)?[credLim]:[])];
-  const lo = Math.min(...allV), hi = Math.max(...allV);
+  // Auto-scale y to the actual data so per-snapshot movement is visible.
+  // Only stretch to include a threshold line if it's reasonably close to the
+  // data range (within 30% of the data span). Off-chart thresholds get a small
+  // labeled indicator at the top/bottom edge instead.
+  const dataLo = Math.min(...vals), dataHi = Math.max(...vals);
+  const dataSpan = dataHi - dataLo;
+  const pad = (dataSpan || Math.abs(dataHi) || 1) * 0.1;
+  let lo = dataLo - pad, hi = dataHi + pad;
+  const closeTol = (dataSpan || Math.abs(dataHi) || 1) * 0.3;
+  const includeClose = v => Number.isFinite(v) && v >= dataLo - closeTol && v <= dataHi + closeTol;
+  if (includeClose(critBal)) { lo = Math.min(lo, critBal - pad); hi = Math.max(hi, critBal + pad); }
+  if (includeClose(credLim)) { lo = Math.min(lo, credLim - pad); hi = Math.max(hi, credLim + pad); }
   const range = hi - lo || 1;
 
   const xS = i => PL + (i / (points.length - 1)) * (W - PL - PR);
@@ -6064,17 +6073,19 @@ function buildSparkline(name) {
   const lastVal = points[points.length-1].val;
   const dotColor = lastVal >= (!isNaN(critBal)?critBal:Infinity) ? '#cc0000' : lastVal >= (!isNaN(credLim)?credLim:Infinity) ? '#cc6600' : '#006600';
 
-  let thresh = '';
-  if (!isNaN(critBal) && critBal >= lo && critBal <= hi) {
-    const y = yS(critBal).toFixed(1);
-    thresh += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#cc0000" stroke-width="1" stroke-dasharray="3,2"/>
-    <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="#cc0000">Crit</text>`;
-  }
-  if (!isNaN(credLim) && credLim >= lo && credLim <= hi) {
-    const y = yS(credLim).toFixed(1);
-    thresh += `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#cc6600" stroke-width="1" stroke-dasharray="2,3"/>
-    <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="#cc6600">Warn</text>`;
-  }
+  const threshLabel = (val, color, label, dash) => {
+    if (!Number.isFinite(val)) return '';
+    if (val >= lo && val <= hi) {
+      const y = yS(val).toFixed(1);
+      return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="${dash}"/>
+        <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="${color}">${label}</text>`;
+    }
+    // Off-chart: show direction + value at the corresponding edge of the chart.
+    const above = val > hi;
+    const y = above ? PT + 2 : H - PB - 2;
+    return `<text x="${W-PR+3}" y="${y}" font-size="8" fill="${color}">${label} ${above?'↑':'↓'} ${esc(fmt(val))}</text>`;
+  };
+  const thresh = threshLabel(critBal, '#cc0000', 'Crit', '3,2') + threshLabel(credLim, '#cc6600', 'Warn', '2,3');
   const fmtDateShort = d => {
     const [, m, da] = String(d).split('-');
     return m && da ? `${+m}/${+da}` : d;
