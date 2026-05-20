@@ -5990,20 +5990,25 @@ window.saveBulkEdits = async () => {
 /* ════════════════════════════════════════════════
    SPARKLINE CHART
 ════════════════════════════════════════════════ */
-const _historyByDate = new Map(); // session_date -> latest snapshot of that date (older days, loaded from Firestore once per session)
+const _historyBySlot = new Map(); // `${session_date}_${time_slot}` -> snapshot (every slot, loaded from Firestore once per session)
 let _historyLoaded = false;
 let _historyLoading = null;
 
-function snapsByDayLatest() {
-  // Older days from cached history, overlaid with today's in-memory snaps so it
-  // stays fresh as new slots come in via the realtime listener.
-  const map = new Map(_historyByDate);
+function snapsAllSorted() {
+  // Older slots from cached history, overlaid with today's in-memory snaps so
+  // it stays fresh as new slots come in via the realtime listener.
+  const map = new Map(_historyBySlot);
   todaySnaps.forEach(s => {
-    if (!s?.session_date || !Array.isArray(s.data)) return;
-    const prev = map.get(s.session_date);
-    if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) map.set(s.session_date, s);
+    if (!s?.session_date || !s.time_slot || !Array.isArray(s.data)) return;
+    const key = `${s.session_date}_${s.time_slot}`;
+    const prev = map.get(key);
+    if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) map.set(key, s);
   });
-  return map;
+  return Array.from(map.values()).sort((a, b) =>
+    String(a.session_date).localeCompare(String(b.session_date)) ||
+    String(a.time_slot).localeCompare(String(b.time_slot)) ||
+    snapshotTimeMs(a) - snapshotTimeMs(b)
+  );
 }
 
 async function loadAllSnapshotHistory() {
@@ -6016,9 +6021,10 @@ async function loadAllSnapshotHistory() {
       all.docs.forEach(d => {
         const data = d.data();
         const s = { id: d.id, ...data, timestamp: data.timestamp?.toDate?.() || data.timestamp };
-        if (!s.session_date || !Array.isArray(s.data)) return;
-        const prev = _historyByDate.get(s.session_date);
-        if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) _historyByDate.set(s.session_date, s);
+        if (!s.session_date || !s.time_slot || !Array.isArray(s.data)) return;
+        const key = `${s.session_date}_${s.time_slot}`;
+        const prev = _historyBySlot.get(key);
+        if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) _historyBySlot.set(key, s);
       });
       _historyLoaded = true;
     } finally { _historyLoading = null; }
@@ -6027,14 +6033,12 @@ async function loadAllSnapshotHistory() {
 }
 
 function buildSparkline(name) {
-  const byDate = snapsByDayLatest();
-  const dates = Array.from(byDate.keys()).sort();
+  const snaps = snapsAllSorted();
   const points = [];
-  dates.forEach(d => {
-    const snap = byDate.get(d);
+  snaps.forEach(snap => {
     const r = snap?.data?.find(r => r.carrier_name === name);
     const v = r ? parseFloat(r.amnt_receivable) : NaN;
-    if (Number.isFinite(v)) points.push({ date: d, slot: snap.time_slot, val: v });
+    if (Number.isFinite(v)) points.push({ date: snap.session_date, slot: snap.time_slot, val: v });
   });
   if (points.length < 2) {
     if (!_historyLoaded) return `<div style="font-size:10px;color:#888;padding:4px">Loading trend history…</div>`;
@@ -6078,10 +6082,19 @@ function buildSparkline(name) {
   const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="#888">${fmtDateShort(points[0].date)}</text>
     <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="#888" text-anchor="end">${fmtDateShort(points[points.length-1].date)}</text>`;
 
+  // When many points are packed in, drop intermediate circles so the line reads cleanly.
+  const dense = points.length > 40;
+  const circles = points.map((p,i) => {
+    const isLast = i === points.length - 1;
+    const isFirst = i === 0;
+    if (dense && !isLast && !isFirst) return '';
+    return `<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${isLast?3:1.5}" fill="${isLast?dotColor:'#000080'}"><title>${esc(p.date)} ${esc(fmt12(p.slot||''))} — ${esc(fmt(p.val))}</title></circle>`;
+  }).join('');
+
   return `<svg width="${W}" height="${H}" style="display:block;overflow:visible">
     ${thresh}
     <polyline points="${polyline}" fill="none" stroke="#000080" stroke-width="1.5" stroke-linejoin="round"/>
-    ${points.map((p,i)=>`<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${i===points.length-1?3:1.5}" fill="${i===points.length-1?dotColor:'#000080'}"><title>${esc(p.date)} ${esc(fmt12(p.slot||''))} — ${esc(fmt(p.val))}</title></circle>`).join('')}
+    ${circles}
     <text x="${(lastX+4).toFixed(0)}" y="${(lastY+3).toFixed(0)}" font-size="8" fill="${dotColor}" font-weight="bold">${fmt(lastVal)}</text>
     ${xLabels}
   </svg>`;
