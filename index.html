@@ -512,6 +512,8 @@
     td.st-cell-acct   { font-weight: 700; color: #000080; }
     body.night-mode td.st-cell-client { color: #777; }
     body.night-mode td.st-cell-acct   { color: #9fc2ff; }
+    .st-val-bad { color: #cc0000; font-weight: 700; }
+    body.night-mode .st-val-bad { color: #ff6b6b; }
     #stnav-stats-critical.st-tab-alert {
       animation: stCritBlink 0.9s steps(1) infinite;
     }
@@ -6639,6 +6641,7 @@ const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts
 const stEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const stN0  = v => Math.round(v || 0).toLocaleString();
 const stN2  = v => (v || 0).toFixed(2);
+const stVal = v => ((+v >= 0 && +v <= 0.9) ? `<span class="st-val-bad">${stN2(v)}</span>` : stN2(v));
 
 function statsSlots() {
   const out = [];
@@ -6856,8 +6859,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
-         <td style="text-align:right">${stN2(r.asr)}</td>
-         <td style="text-align:right">${stN2(r.acd)}</td>
+         <td style="text-align:right">${stVal(r.asr)}</td>
+         <td style="text-align:right">${stVal(r.acd)}</td>
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${stClsBadge(r.cls)}</td>
          <td>${stAcdBadge(r.acdcls)}</td>
@@ -6867,8 +6870,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
-         <td style="text-align:right">${stN2(r.asr)}</td>
-         <td style="text-align:right">${stN2(r.acd)}</td>
+         <td style="text-align:right">${stVal(r.asr)}</td>
+         <td style="text-align:right">${stVal(r.acd)}</td>
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${statsFlags(r)}</td>`;
     return `<tr class="${rowCls}">${cells}</tr>`;
@@ -6952,7 +6955,7 @@ function renderStatsSummary() {
   const persist = rows.filter(r => r.persistent).sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr);
   fill('st-list-persist', persist, r =>
     `<tr class="st-row-persist"><td>${clientCell(r)}</td>
-      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
       <td style="text-align:right">${r.badStreak}×</td>
       <td>${r.trend==='improving'?'▲ improving':r.trend==='declining'?'▼ declining':'flat'}</td></tr>`,
@@ -6962,7 +6965,7 @@ function renderStatsSummary() {
     .sort((a,b) => ST_CLS_RANK[a.cls] - ST_CLS_RANK[b.cls] || a.asr - b.asr);
   fill('st-list-bad', bad, r =>
     `<tr class="${r.cls==='critical'?'st-row-critical':''}"><td>${clientCell(r)}</td>
-      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
       <td>${statsFlags(r)}</td></tr>`,
     'No clients performing badly. 🎉');
@@ -6970,14 +6973,14 @@ function renderStatsSummary() {
   const fresh = rows.filter(r => r.isNew).sort((a,b) => b.attempts - a.attempts);
   fill('st-list-new', fresh, r =>
     `<tr><td>${clientCell(r)}</td>
-      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td></tr>`,
     'No new clients in this snapshot.');
 
   const good = rows.filter(r => r.cls === 'good').sort((a,b) => b.asr - a.asr);
   fill('st-list-good', good, r =>
     `<tr><td>${clientCell(r)}</td>
-      <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
+      <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td style="text-align:right">${stN0(r.completed)}</td></tr>`,
     'No clients in the Good band yet.');
 }
