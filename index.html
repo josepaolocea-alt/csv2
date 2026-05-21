@@ -671,6 +671,8 @@
     .sms-cell-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* ── Full-row form field (Email / Notes textareas) ── */
     .sms-field.full-row { grid-column: 1 / -1; }
+    /* ── Hide Status column in the SMS table to save space (still exported to CSV) ── */
+    .sms-col-status { display: none !important; }
     /* ── SMS Bulk Edit panel ── */
     #sms-bulk-panel {
       display: none; margin: 4px 0 6px; padding: 6px; background: #eef0d4;
@@ -1772,7 +1774,7 @@
                   <th onclick="sortSms('account_manager')" id="sms-th-account_manager" style="cursor:pointer">Account Manager</th>
                   <th onclick="sortSms('platform')" id="sms-th-platform" style="cursor:pointer">Platform</th>
                   <th onclick="sortSms('type')" id="sms-th-type" style="cursor:pointer">Type</th>
-                  <th onclick="sortSms('status')" id="sms-th-status" style="cursor:pointer">Status</th>
+                  <th class="sms-col-status" onclick="sortSms('status')" id="sms-th-status" style="cursor:pointer">Status</th>
                   <th onclick="sortSms('opt_out')" id="sms-th-opt_out" style="cursor:pointer">Opt-Out</th>
                   <th onclick="sortSms('overdraft')" id="sms-th-overdraft" style="cursor:pointer">Overdraft</th>
                   <th onclick="sortSms('vendor')" id="sms-th-vendor" style="cursor:pointer">Vendor(s)</th>
@@ -1807,7 +1809,7 @@
               <span class="sms-muted" id="np-status" style="margin-left:auto">Saved</span>
             </div>
             <div class="np-editor" id="np-editor" contenteditable="true"
-                 spellcheck="true" oninput="npOnInput()"></div>
+                 spellcheck="true" oninput="npOnInput()" onpaste="npOnPaste(event)"></div>
           </div>
         </div>
       </div>
@@ -3430,6 +3432,7 @@ const ADMIN_EMAILS = [
   'jpgc06.2023@gmail.com'   // admin — can delete snapshot logs
 ];
 let currentUserEmail = '';
+let currentUserUid = '';
 let logsData = [];               // all snapshot_logs docs, newest first
 let logsSelected = new Set();    // log ids ticked for multi-delete
 let pendingLogDelete = null;     // { mode:'one'|'selected'|'all', id? }
@@ -5927,7 +5930,7 @@ window.renderSmsClients = () => {
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
     <td>${esc(r.type)}</td>
-    <td>${esc(r.status)}</td>
+    <td class="sms-col-status">${esc(r.status)}</td>
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
@@ -5935,7 +5938,7 @@ window.renderSmsClients = () => {
     <td><div class="sms-cell-clip" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
-  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?14:13}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?13:12}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
   const allCb = document.getElementById('sms-bulk-all');
   if (allCb) {
@@ -6081,8 +6084,11 @@ window.importSmsClientCsv = file => {
 ════════════════════════════════════════════════ */
 const NP_KEY = 'bm_notepad';
 const NP_FONT_DEFAULT = 14;
-let npState = { tabs: [], activeId: null };
+let npState = { tabs: [], activeId: null, updatedAt: 0 };
 let npSaveTimer = null;
+let npRemoteApplying = false;
+let npSubscribed = false;
+let npRemoteUnsub = null;
 
 function npNewTab(title) {
   return {
@@ -6099,9 +6105,25 @@ function npSyncEditor() {
   const t = npActiveTab(), ed = document.getElementById('np-editor');
   if (t && ed) t.html = ed.innerHTML;
 }
+function npSerializable() {
+  return { tabs: npState.tabs, activeId: npState.activeId, updatedAt: npState.updatedAt };
+}
 function npSave() {
   npSyncEditor();
-  try { localStorage.setItem(NP_KEY, JSON.stringify(npState)); } catch (e) {}
+  npState.updatedAt = Date.now();
+  try { localStorage.setItem(NP_KEY, JSON.stringify(npSerializable())); } catch (e) {}
+  npSaveRemote();
+}
+function npSaveRemote() {
+  if (npRemoteApplying || !fbOk || !currentUserUid) return;
+  try {
+    setDoc(doc(db, 'users', currentUserUid, 'notepad', 'data'), {
+      tabs: npState.tabs,
+      activeId: npState.activeId,
+      updated_at: Timestamp.now(),
+      updated_ms: npState.updatedAt
+    }).catch(e => console.warn('Notepad Firestore sync failed:', e));
+  } catch (e) { console.warn('Notepad Firestore sync failed:', e); }
 }
 function loadNotepad() {
   try {
@@ -6117,6 +6139,7 @@ function loadNotepad() {
         }));
         npState.activeId = npState.tabs.some(t => t.id === d.activeId)
           ? d.activeId : npState.tabs[0].id;
+        npState.updatedAt = +d.updatedAt || 0;
         return;
       }
     }
@@ -6124,6 +6147,55 @@ function loadNotepad() {
   const t = npNewTab('Note 1');
   npState.tabs = [t];
   npState.activeId = t.id;
+  npState.updatedAt = 0;
+}
+function npApplyRemote(data) {
+  const tabs = Array.isArray(data?.tabs) ? data.tabs.map(t => ({
+    id: t.id || npNewTab().id,
+    title: t.title || 'Untitled',
+    html: typeof t.html === 'string' ? t.html : '',
+    fontSize: +t.fontSize || NP_FONT_DEFAULT
+  })) : [];
+  if (!tabs.length) return;
+  npRemoteApplying = true;
+  try {
+    npState.tabs = tabs;
+    npState.activeId = tabs.some(t => t.id === data.activeId) ? data.activeId : tabs[0].id;
+    npState.updatedAt = +data.updated_ms || Date.now();
+    try { localStorage.setItem(NP_KEY, JSON.stringify(npSerializable())); } catch (e) {}
+    if (document.body.classList.contains('notepad-mode')) npRender();
+  } finally {
+    npRemoteApplying = false;
+  }
+}
+async function subscribeNotepad() {
+  if (!fbOk || !currentUserUid || npSubscribed) return;
+  npSubscribed = true;
+  try {
+    const ref = doc(db, 'users', currentUserUid, 'notepad', 'data');
+    npRemoteUnsub = onSnapshot(ref, async snap => {
+      if (snap.exists()) {
+        const data = snap.data();
+        const remoteMs = +data.updated_ms || data.updated_at?.toMillis?.() || 0;
+        const ed = document.getElementById('np-editor');
+        const focused = ed && document.activeElement === ed;
+        // Don't yank text from under the user while they're actively typing
+        if (focused && (document.getElementById('np-status')?.textContent || '').startsWith('Editing')) return;
+        if (remoteMs && remoteMs <= npState.updatedAt) return; // local is newer or equal
+        npApplyRemote(data);
+      } else if (npState.tabs.length) {
+        // Remote doc missing — seed it from this device (one-time migration)
+        try {
+          await setDoc(ref, {
+            tabs: npState.tabs,
+            activeId: npState.activeId,
+            updated_at: Timestamp.now(),
+            updated_ms: npState.updatedAt || Date.now()
+          });
+        } catch (e) { console.warn('Notepad Firestore seed failed:', e); }
+      }
+    }, err => console.warn('Notepad onSnapshot error:', err));
+  } catch (e) { console.warn('Notepad subscribe failed:', e); npSubscribed = false; }
 }
 function npRenderTabs() {
   const bar = document.getElementById('np-tabbar');
@@ -6204,6 +6276,24 @@ window.npOnInput = () => {
     npSave();
     npUpdateStatus('Saved');
   }, 400);
+};
+window.npOnPaste = e => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
+  if (!text) return;
+  try {
+    document.execCommand('insertText', false, text);
+  } catch (err) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  window.npOnInput();
 };
 window.npFormat = cmd => {
   const ed = document.getElementById('np-editor');
@@ -7051,6 +7141,7 @@ async function init(){
   subscribeAcks();
   subscribeLogs();
   subscribeSmsClients();
+  subscribeNotepad();
 }
 
 /* ── Auth-gated boot ── */
@@ -7062,6 +7153,7 @@ if (auth) {
     const signOutBtn = document.getElementById('btn-signout');
     if (user) {
       currentUserEmail = user.email || '';
+      currentUserUid = user.uid || '';
       if (overlay)    overlay.style.display = 'none';
       if (userLabel)  userLabel.textContent = user.email;
       if (signOutBtn) signOutBtn.style.display = '';
@@ -7069,6 +7161,7 @@ if (auth) {
       if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
       currentUserEmail = '';
+      currentUserUid = '';
       if (userLabel)  userLabel.textContent = '';
       if (signOutBtn) signOutBtn.style.display = 'none';
       showLoginOverlay();
