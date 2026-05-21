@@ -613,8 +613,64 @@
       white-space: nowrap; cursor: pointer;
     }
     .sms-vendor-chk input { margin: 0; }
+    /* ── SMS textarea (Notes / Emails) — multi-line, easier to read & edit ── */
+    .sms-textarea {
+      font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; font-size: 11px;
+      padding: 3px 5px; background: #fff; color: #000;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      resize: vertical; line-height: 1.35; min-height: 22px;
+      width: 100%; box-sizing: border-box;
+    }
+    /* ── Sender ID row holds combo + comment button side-by-side ── */
+    .sms-sender-row { display: flex; gap: 3px; align-items: stretch; min-width: 0; }
+    .sms-sender-row .sms-combo { flex: 1; min-width: 0; }
+    .sms-comment-btn {
+      height: 20px; padding: 0 6px; font-size: 11px; cursor: pointer;
+      background: #c0c0c0; font-family: inherit; color: #000;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .sms-comment-btn:active {
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+    }
+    .sms-comment-btn.has-comment { background: #ffe9a8; font-weight: 700; }
+    /* ── Comment popover (anchored near the comment button) ── */
+    #sms-comment-popover {
+      display: none; position: absolute; z-index: 1300; width: 320px;
+      background: #ffffd6; color: #000; padding: 8px;
+      border-top: 2px solid #fff; border-left: 2px solid #fff;
+      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
+      box-shadow: 3px 3px 8px rgba(0,0,0,.4);
+    }
+    #sms-comment-popover.open { display: block; }
+    #sms-comment-popover .pop-head { font-size: 10px; font-weight: 700; color: #444; margin-bottom: 4px; }
+    #sms-comment-popover textarea {
+      width: 100%; box-sizing: border-box; min-height: 90px;
+      font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11px; padding: 4px 6px;
+      background: #fff; color: #000;
+      border-top: 2px solid #808080; border-left: 2px solid #808080;
+      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      resize: vertical;
+    }
+    #sms-comment-popover .pop-actions { display: flex; gap: 4px; justify-content: flex-end; margin-top: 6px; }
+    /* ── Excel-style red corner triangle on table cells with a comment ── */
+    .sms-has-comment { position: relative; }
+    .sms-has-comment::after {
+      content: ''; position: absolute; top: 0; right: 0;
+      border-style: solid; border-width: 0 8px 8px 0;
+      border-color: transparent #d40000 transparent transparent;
+      pointer-events: none;
+    }
+    body.night-mode #sms-comment-popover { background: #3a3a26; color: #eee; }
+    body.night-mode .sms-comment-btn.has-comment { background: #8a6a1a; color: #fff; }
     /* ── Fixed-width, ellipsis-truncated table cell content ── */
     .sms-cell-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* ── Full-row form field (Email / Notes textareas) ── */
+    .sms-field.full-row { grid-column: 1 / -1; }
     #sms-clients-tbody tr { cursor: pointer; }
     /* ── Inactive SMS client rows — greyed out ── */
     tr.sms-inactive td { color: #999; font-style: italic; background: #f4f4f4; }
@@ -1613,7 +1669,7 @@
             </div>
             <div class="sms-form-grid">
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
-              <div class="sms-field"><label>Sender ID(s)</label><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;)" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div></div>
+              <div class="sms-field"><label>Sender ID(s)</label><div class="sms-sender-row"><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;)" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div><button type="button" class="sms-comment-btn" id="sms-sender-id-comment-btn" onclick="openSmsCommentPopover(event)" title="Add or edit a comment about this Sender ID">💬</button></div></div>
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" value="MS Teams" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
@@ -1622,8 +1678,8 @@
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
-              <div class="sms-field full" id="sms-email-wrap"><label>Email(s)</label><input class="win-inp" id="sms-emails" placeholder="name@example.com; another@example.com"></div>
-              <div class="sms-field full"><label>Notes / Remarks</label><input class="win-inp" id="sms-notes"></div>
+              <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
+              <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
             </div>
             <div class="fbar">
               <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:240px">
@@ -2168,6 +2224,16 @@
   </div>
 </div>
 
+<!-- Sender ID Comment Popover (anchored to the 💬 button) -->
+<div id="sms-comment-popover" onclick="event.stopPropagation()">
+  <div class="pop-head">💬 Sender ID Comment <span style="color:#888;font-weight:400">— preserved on CSV export</span></div>
+  <textarea id="sms-sender-id-comment" placeholder="e.g. SID flagged for review by Smart Suite — pending re-approval"></textarea>
+  <div class="pop-actions">
+    <button class="tbtn" type="button" onclick="clearSmsCommentPopover()">Clear</button>
+    <button class="tbtn primary" type="button" onclick="closeSmsCommentPopover()">Done</button>
+  </div>
+</div>
+
 <!-- SMS Client Route Detail Dialog -->
 <div id="sms-detail-overlay">
   <div id="sms-detail-box">
@@ -2408,6 +2474,14 @@ document.addEventListener('click', e => {
     sd.classList.remove('open');
   if (!e.target.closest('#view-menu')) closeViewMenu();
   if (!e.target.closest('.sms-combo')) closeSmsCombos();
+  // Close the Sender ID comment popover when clicking outside it or its trigger button
+  const pop = document.getElementById('sms-comment-popover');
+  if (pop?.classList.contains('open')
+      && !e.target.closest('#sms-comment-popover')
+      && !e.target.closest('#sms-sender-id-comment-btn')) {
+    pop.classList.remove('open');
+    refreshSmsCommentBtn();
+  }
 });
 
 /* ════════════════════════════════════════════════
@@ -5024,10 +5098,14 @@ window.exportCurrentAlertView=()=>{
    HELPERS
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
-const SMS_FIELDS = ['client','sender_id','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_FIELDS = ['client','sender_id','sender_id_comment','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
 const SMS_HEADER_MAP = {
   client:'client', clientname:'client', customer:'client', customername:'client',
   senderid:'sender_id', senderids:'sender_id', sender:'sender_id', senderidlist:'sender_id',
+  senderidcomment:'sender_id_comment', senderidnote:'sender_id_comment', senderidnotes:'sender_id_comment',
+  senderidremark:'sender_id_comment', senderidremarks:'sender_id_comment',
+  sidcomment:'sender_id_comment', sidnote:'sender_id_comment',
+  commentforsenderid:'sender_id_comment', commentsenderid:'sender_id_comment',
   destination:'destination', dest:'destination',
   accountmanager:'account_manager', manager:'account_manager', am:'account_manager',
   platform:'platform',
@@ -5321,6 +5399,7 @@ function smsReadForm() {
     id: smsEditingId || undefined,
     client: smsFormValue('sms-client'),
     sender_id: smsFormValue('sms-sender-id'),
+    sender_id_comment: smsFormValue('sms-sender-id-comment'),
     destination: smsFormValue('sms-destination'),
     account_manager: smsFormValue('sms-account-manager'),
     platform: smsFormValue('sms-platform'),
@@ -5338,6 +5417,7 @@ function smsFillForm(row) {
   const r = normalizeSmsClient(row || {});
   smsSetValue('sms-client', r.client);
   smsSetValue('sms-sender-id', r.sender_id);
+  smsSetValue('sms-sender-id-comment', r.sender_id_comment);
   smsSetValue('sms-destination', r.destination);
   smsSetValue('sms-account-manager', r.account_manager);
   smsSetValue('sms-platform', r.platform);
@@ -5349,7 +5429,44 @@ function smsFillForm(row) {
   smsSetValue('sms-emails', r.emails);
   smsSetValue('sms-notes', r.notes);
   toggleSmsEmailField();
+  refreshSmsCommentBtn();
 }
+
+// Visually mark the 💬 button when this Sender ID has a saved comment
+function refreshSmsCommentBtn() {
+  const btn = document.getElementById('sms-sender-id-comment-btn');
+  if (!btn) return;
+  const txt = smsFormValue('sms-sender-id-comment');
+  btn.classList.toggle('has-comment', !!txt);
+  btn.title = txt ? `Comment: ${txt}` : 'Add or edit a comment about this Sender ID';
+}
+
+// Position the popover just below the 💬 button and focus the textarea
+window.openSmsCommentPopover = e => {
+  e?.stopPropagation();
+  const btn = document.getElementById('sms-sender-id-comment-btn');
+  const pop = document.getElementById('sms-comment-popover');
+  if (!btn || !pop) return;
+  const r = btn.getBoundingClientRect();
+  pop.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+  // Keep within the right edge of the viewport (popover is ~320px wide + padding)
+  const popW = pop.offsetWidth || 336;
+  const left = Math.min(r.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - popW - 8);
+  pop.style.left = Math.max(window.scrollX + 4, left) + 'px';
+  pop.classList.add('open');
+  const ta = document.getElementById('sms-sender-id-comment');
+  if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+};
+
+window.closeSmsCommentPopover = () => {
+  document.getElementById('sms-comment-popover')?.classList.remove('open');
+  refreshSmsCommentBtn();
+};
+
+window.clearSmsCommentPopover = () => {
+  smsSetValue('sms-sender-id-comment', '');
+  refreshSmsCommentBtn();
+};
 
 window.toggleSmsEmailField = () => {
   const isEmail = smsFormValue('sms-platform').toLowerCase() === 'email';
@@ -5550,6 +5667,7 @@ window.showSmsDetail = id => {
   const fields = [
     ['Client', r.client],
     ['Sender ID(s)', r.sender_id],
+    ['Sender ID Comment', r.sender_id_comment],
     ['Destination', r.destination],
     ['Account Manager', r.account_manager],
     ['Platform', r.platform],
@@ -5620,9 +5738,12 @@ window.renderSmsClients = () => {
   });
   const count = document.getElementById('sms-count');
   if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
-  tbody.innerHTML = rows.length ? rows.map(r => `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="showSmsDetail('${escAttr(r.id)}')" title="Click for full details">
+  tbody.innerHTML = rows.length ? rows.map(r => {
+    const hasComment = !!String(r.sender_id_comment || '').trim();
+    const commentTitle = hasComment ? `Comment: ${r.sender_id_comment}` : '';
+    return `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="showSmsDetail('${escAttr(r.id)}')" title="Click for full details">
     <td><strong>${esc(r.client)}</strong></td>
-    <td style="white-space:normal;max-width:160px">${esc(r.sender_id)}</td>
+    <td class="${hasComment?'sms-has-comment':''}" style="white-space:normal;max-width:160px" ${hasComment?`title="${esc(commentTitle)}"`:''}>${esc(r.sender_id)}</td>
     <td>${esc(r.destination)}</td>
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
@@ -5634,16 +5755,17 @@ window.renderSmsClients = () => {
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
-  </tr>`).join('') : `<tr style="cursor:default"><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  </tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="13" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
 };
 
 window.downloadSmsClientTemplate = () => {
   const rows = [
-    ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','PLAY999; PLAY111','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
-    ['Sample Client','GLOBE01','Globe','Jason Cruz','Viber','Wholesale','Active','Without','Allowed','M360','','Single sender ID / vendor'],
-    ['Old Client','RETIRED','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
-    ['Email Client','EMAIL','Email','Jason Cruz','Email','Retail','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+    ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
+    ['Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
+    ['Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','Active','Without','Allowed','M360','','Single sender ID / vendor'],
+    ['Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
+    ['Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
@@ -5657,11 +5779,11 @@ window.downloadSmsClientTemplate = () => {
 
 window.exportSmsClientsCsv = () => {
   if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
-  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
   const rows = smsClients
     .slice()
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
-    .map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+    .map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
@@ -5682,8 +5804,8 @@ window.exportSmsClientByRow = id => {
     .slice()
     .sort((a,b) => String(a.destination).localeCompare(String(b.destination)));
   if (!rows.length) { toast(`No routes found for "${clientName}"`, 'err'); return; }
-  const headers = ['Client','Sender ID','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
-  const data = rows.map(r => [r.client,r.sender_id,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const data = rows.map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
