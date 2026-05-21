@@ -1128,6 +1128,20 @@
       background:#303030 !important;
       border-top-color:#666;
     }
+    /* Alert row highlights — dark-mode variants */
+    body.night-mode tr.row-new-crit { background:#3a2a10 !important; }
+    body.night-mode tr.row-new-crit td { background:#3a2a10 !important; }
+    body.night-mode tr.row-new-crit:hover td { background:#003078 !important; color:#fff !important; }
+    body.night-mode tr.row-eta-warn td { background:#2e2818 !important; }
+    body.night-mode tr.row-eta-warn:hover td { background:#003078 !important; color:#fff !important; }
+    @keyframes rowBlinkDark {
+      0%,100% { background:#5a2020 !important; }
+      50%      { background:#7a2828 !important; }
+    }
+    body.night-mode tr.band-critical td { animation: rowBlinkDark 0.9s ease-in-out infinite; }
+    body.night-mode tr.band-critical:hover td { background:#003078 !important; color:#fff !important; animation:none !important; }
+    body.night-mode tr.st-row-critical td { background:#2a1818 !important; }
+    body.night-mode tr.st-row-persist  td { background:#3a1c1c !important; }
     body.night-mode .imp-row,
     body.night-mode .detail-row {
       background: #181818;
