@@ -1925,7 +1925,7 @@
                 <thead><tr>
                   <th onclick="sortStats('customer_name')">Client</th>
                   <th onclick="sortStats('account_codes')">Account Code(s)</th>
-                  <th onclick="sortStats('dest_count')" style="text-align:right">Dest</th>
+                  <th onclick="sortStats('destination')">Destination</th>
                   <th onclick="sortStats('attempts')" style="text-align:right">Attempts</th>
                   <th onclick="sortStats('completed')" style="text-align:right">Completed</th>
                   <th onclick="sortStats('asr')" style="text-align:right">ASR %</th>
@@ -1949,7 +1949,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-critical"></tbody>
@@ -1965,7 +1965,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
@@ -1981,7 +1981,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-watch"></tbody>
@@ -1997,7 +1997,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-ok"></tbody>
@@ -2013,7 +2013,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
@@ -6702,12 +6702,16 @@ const stAcdBadge = c => `<span class="stbadge ${c}">ACD ${ST_CLS_LABEL[c]||c}</s
 function groupStatsSnapshot(snap) {
   const m = new Map();
   (snap?.data || []).forEach((r, idx) => {
-    // One entry per row — keyed by account code so the same row can still be
-    // tracked across snapshots for persistence/new detection. No grouping by client.
-    const key = r.account_code || r.customer_name || ('(unknown) #' + idx);
+    // One entry per (account code, destination). Same account with multiple
+    // destinations stays split so per-destination stats are visible and the
+    // timeline tracks each destination independently across snapshots.
+    const acct = r.account_code || r.customer_name || ('(unknown) #' + idx);
+    const dest = (r.destination && r.destination !== '-') ? r.destination : '(no dest)';
+    const key = acct + ' | ' + dest;
     let g = m.get(key);
     if (!g) {
       g = { customer_name: r.customer_name || r.account_code || '(unknown)',
+            destination: dest,
             account_codes:new Set(), destinations:new Set(),
             attempts:0, completed:0, raw_dur:0, revenue:0 };
       m.set(key, g);
@@ -6828,6 +6832,7 @@ function statsSortRows(rows) {
     if (col === 'cls') { av = ST_CLS_RANK[a.cls]; bv = ST_CLS_RANK[b.cls]; }
     else if (col === 'customer_name') { av = a.customer_name.toLowerCase(); bv = b.customer_name.toLowerCase(); }
     else if (col === 'account_codes') { av = a.acct_list.toLowerCase(); bv = b.acct_list.toLowerCase(); }
+    else if (col === 'destination') { av = (a.destination || '').toLowerCase(); bv = (b.destination || '').toLowerCase(); }
     else { av = a[col] ?? 0; bv = b[col] ?? 0; }
     if (av < bv) return -dir;
     if (av > bv) return dir;
@@ -6839,7 +6844,7 @@ function processStatsRows(rows, tbodyId, full) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
   if (!rows.length) {
-    const span = full ? 11 : 8;
+    const span = full ? 11 : 9;
     tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
     return;
   }
@@ -6848,7 +6853,7 @@ function processStatsRows(rows, tbodyId, full) {
     const cells = full
       ? `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
          <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
-         <td style="text-align:right">${r.dest_count}</td>
+         <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stN2(r.asr)}</td>
@@ -6859,6 +6864,7 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${statsFlags(r)}</td>`
       : `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
          <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
+         <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stN2(r.asr)}</td>
@@ -6888,7 +6894,9 @@ function renderStatsTables() {
   const flagF = document.getElementById('st-flag-filter')?.value || 'all';
   let allRows = statsSortRows(rows);
   if (search) allRows = allRows.filter(r =>
-    r.customer_name.toLowerCase().includes(search) || r.acct_list.toLowerCase().includes(search));
+    r.customer_name.toLowerCase().includes(search)
+    || r.acct_list.toLowerCase().includes(search)
+    || (r.destination || '').toLowerCase().includes(search));
   if (flagF !== 'all') allRows = allRows.filter(r => statsRowHasFlag(r, flagF));
   processStatsRows(allRows, 'st-tbody-all', true);
   const filtered = search || flagF !== 'all';
@@ -6939,9 +6947,11 @@ function renderStatsSummary() {
     tb.innerHTML = list.length ? list.map(builder).join('')
       : `<tr><td colspan="7" style="padding:8px;color:#888;text-align:center">${empty}</td></tr>`;
   };
+  const clientCell = r => `${stEsc(r.customer_name)}<div style="font-size:10px;color:#666">${stEsc(r.destination || '')}</div>`;
+
   const persist = rows.filter(r => r.persistent).sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr);
   fill('st-list-persist', persist, r =>
-    `<tr class="st-row-persist"><td>${stEsc(r.customer_name)}</td>
+    `<tr class="st-row-persist"><td>${clientCell(r)}</td>
       <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
       <td style="text-align:right">${r.badStreak}×</td>
@@ -6951,7 +6961,7 @@ function renderStatsSummary() {
   const bad = rows.filter(r => r.cls === 'critical' || r.cls === 'low')
     .sort((a,b) => ST_CLS_RANK[a.cls] - ST_CLS_RANK[b.cls] || a.asr - b.asr);
   fill('st-list-bad', bad, r =>
-    `<tr class="${r.cls==='critical'?'st-row-critical':''}"><td>${stEsc(r.customer_name)}</td>
+    `<tr class="${r.cls==='critical'?'st-row-critical':''}"><td>${clientCell(r)}</td>
       <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
       <td>${statsFlags(r)}</td></tr>`,
@@ -6959,14 +6969,14 @@ function renderStatsSummary() {
 
   const fresh = rows.filter(r => r.isNew).sort((a,b) => b.attempts - a.attempts);
   fill('st-list-new', fresh, r =>
-    `<tr><td>${stEsc(r.customer_name)}</td>
+    `<tr><td>${clientCell(r)}</td>
       <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td></tr>`,
     'No new clients in this snapshot.');
 
   const good = rows.filter(r => r.cls === 'good').sort((a,b) => b.asr - a.asr);
   fill('st-list-good', good, r =>
-    `<tr><td>${stEsc(r.customer_name)}</td>
+    `<tr><td>${clientCell(r)}</td>
       <td style="text-align:right">${stN2(r.asr)}</td><td style="text-align:right">${stN2(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td style="text-align:right">${stN0(r.completed)}</td></tr>`,
     'No clients in the Good band yet.');
