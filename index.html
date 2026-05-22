@@ -298,6 +298,7 @@
     .badge.light  { background: #ffffcc; color: #886600; }
     .badge.target { background: #ccffcc; color: #006600; }
     .badge.none   { background: #e8e8e8; color: #666; }
+    .badge.removed { background: #ffcccc; color: #880000; }
 
     /* Usage bar */
     .ubar-wrap { display: flex; align-items: center; gap: 4px; }
@@ -359,6 +360,8 @@
     }
     tr.row-new-crit { background:#fff8e8 !important; }
     tr.row-new-crit:hover { background:#fff0cc !important; }
+    tr.row-removed-crit td { background:#fff0f0 !important; }
+    tr.row-removed-crit:hover td { background:#000080 !important; color:#fff !important; }
     /* ── Alert tab red blink (visible in light & dark mode) ── */
     @keyframes tabBlinkRed {
       0%,100% { background:#cc0000; color:#fff; }
@@ -1132,6 +1135,8 @@
     body.night-mode tr.row-new-crit { background:#3a2a10 !important; }
     body.night-mode tr.row-new-crit td { background:#3a2a10 !important; }
     body.night-mode tr.row-new-crit:hover td { background:#003078 !important; color:#fff !important; }
+    body.night-mode tr.row-removed-crit td { background:#401818 !important; }
+    body.night-mode tr.row-removed-crit:hover td { background:#003078 !important; color:#fff !important; }
     body.night-mode tr.row-eta-warn td { background:#2e2818 !important; }
     body.night-mode tr.row-eta-warn:hover td { background:#003078 !important; color:#fff !important; }
     @keyframes rowBlinkDark {
@@ -1181,6 +1186,7 @@
     body.night-mode .badge.light { background:#3f3f18; color:#eeee88; }
     body.night-mode .badge.target { background:#163f20; color:#8df0a2; }
     body.night-mode .badge.none { background:#333; color:#bbb; }
+    body.night-mode .badge.removed { background:#581818; color:#ffaaaa; }
     body.night-mode .scnt { background:#222; color:#ccc; border-color:#111 #666 #666 #111; }
     body.night-mode .scnt.g { background:#12351c; color:#8df0a2; }
     body.night-mode .scnt.a { background:#3d3510; color:#eadb72; }
@@ -1547,6 +1553,7 @@
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
+            <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
             <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
           </div>
@@ -3028,6 +3035,12 @@ function updateNewCriticalTab(newCount) {
   tab.textContent = newCount > 0 ? `🆕 New Critical (${newCount})` : '🆕 New Critical';
   tab.classList.toggle('tab-blink-red', newCount > 0);
 }
+function updateRemovedCriticalTab(removedCount) {
+  const tab = document.getElementById('tab-removed-critical');
+  if (!tab) return;
+  tab.textContent = removedCount > 0 ? `Removed from Critical (${removedCount})` : 'Removed from Critical';
+  tab.classList.toggle('tab-blink-red', removedCount > 0);
+}
 function setTabBlink(id, on) {
   const tab = document.getElementById(id);
   if (tab) tab.classList.toggle('tab-blink-red', !!on);
@@ -4128,14 +4141,15 @@ window.sortAlert = col => {
 window.alertPageTo = p => {alertPage=p;renderAlerts();};
 
 function alertRows() {
+  const prevSnap = getPrevSnapshot();
   const prevCritSet = getPrevCriticalSet(); // null = no prior snapshot to compare
-  const data=activeData().map(r=>{
+  const toAlertRow = (r, compareForNew) => {
     const meta=clientsMeta[r.carrier_name]||{};
     const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
     const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
     const level   = alertLevel(r);
     // _isNew: critical NOW and either no prior snapshot OR was not critical before
-    const _isNew  = level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
+    const _isNew  = !!compareForNew && level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
     return {
       ...r,
       _level: level,
@@ -4147,13 +4161,29 @@ function alertRows() {
       critical_balance: critBal,
       _inactive: isClientInactive(meta),
     };
-  });
+  };
+  const data=activeData().map(r=>toAlertRow(r, true));
+  const currentCriticalNames = new Set(data.filter(r=>r._level==='high').map(r=>r.carrier_name));
+  const removedData = prevSnap ? (prevSnap.data || [])
+    .map(r=>toAlertRow(r, false))
+    .filter(r=>r._level==='high' && !currentCriticalNames.has(r.carrier_name))
+    .map(r=>({
+      ...r,
+      _isNew:false,
+      _eta:null,
+      _removedFromCritical:true,
+      _removedPrevDate:prevSnap.session_date || '',
+      _removedPrevSlot:prevSnap.time_slot || ''
+    })) : [];
 
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
+  const removedCount = removedData.filter(r=>!r._inactive).length;
 
-  let rows=alertShowInactive ? data : data.filter(r=>!r._inactive);
-  const usageHighCount = rows.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
-  const noThreshCount  = rows.filter(r=>!hasClientThreshold(r)).length;
+  const visibleData = alertShowInactive ? data : data.filter(r=>!r._inactive);
+  const visibleRemoved = alertShowInactive ? removedData : removedData.filter(r=>!r._inactive);
+  let rows=alertFilter==='removed' ? visibleRemoved : visibleData;
+  const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
+  const noThreshCount  = visibleData.filter(r=>!hasClientThreshold(r)).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
@@ -4167,12 +4197,13 @@ function alertRows() {
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
-  return { rows, newCount, prevCritSet, usageHighCount, noThreshCount };
+  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount };
 }
 
 function renderAlerts() {
-  const { rows, newCount, prevCritSet, usageHighCount, noThreshCount } = alertRows();
+  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount } = alertRows();
   updateNewCriticalTab(newCount);
+  updateRemovedCriticalTab(removedCount);
   setTabBlink('tab-usage',    usageHighCount > 0);
   setTabBlink('tab-nothresh', noThreshCount > 0);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
@@ -4184,13 +4215,21 @@ function renderAlerts() {
     ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
+  const removedNoPrevNote = alertFilter==='removed' && prevCritSet===null
+    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+        No previous snapshot to compare for removed critical clients.
+       </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
-  const usingPriorNote = alertFilter==='new' && priorSnap && prevSnap === priorSnap
+  const usingPriorNote = (alertFilter==='new' || alertFilter==='removed') && priorSnap && prevSnap === priorSnap
     ? `<tr><td colspan="10" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
         📅 Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
        </td></tr>` : '';
+  const removedCompareNote = alertFilter==='removed' && prevSnap
+    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff0f0;color:#880000;font-style:italic">
+        Showing clients critical in ${prevSnap.session_date || ''} ${fmt12(prevSnap.time_slot)} but not critical in the current snapshot.
+       </td></tr>` : '';
 
-  document.getElementById('alert-tbody').innerHTML= noPrevNote + usingPriorNote + page.map(r=>{
+  document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + page.map(r=>{
     const critBal = r.critical_balance;
     const credLim = r.credit_limit;
     const bal     = r.amnt_receivable;
@@ -4200,14 +4239,14 @@ function renderAlerts() {
       const pos   = bal - credLim;
       bw = range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
     }
-    const[cls,lbl]=alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
+    const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
     const etaMins  = r._eta;
-    const etaTxt   = etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
-    const ackCell  = r._ack
+    const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
+    const ackCell  = r._removedFromCritical ? '—' : r._ack
       ? `<span style="font-size:10px;color:#006600;white-space:nowrap">✓ ${esc(r._ack.operator)}<br><span style="color:#888">${fmt12(r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0'))}</span></span>`
       : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">✓ Ack</button>`;
-    const rowClass = [r._isNew?'row-new-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
+    const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
@@ -5147,7 +5186,8 @@ function alertFilterLabel(filter) {
     none:'safe',
     nothresh:'no_threshold',
     usage:'usage',
-    new:'new_critical'
+    new:'new_critical',
+    removed:'removed_from_critical'
   })[filter] || 'current_view';
 }
 window.exportCurrentAlertView=()=>{
@@ -5161,8 +5201,8 @@ window.exportCurrentAlertView=()=>{
       const range=critBal-credLim, pos=bal-credLim;
       bw=range!==0?Math.min(Math.max(pos/range*100,0),100):(bal>=critBal?100:0);
     }
-    const[,lbl]=alertFilter==='usage'?usageChipInfo(r):chipInfo(r,r._level);
-    const etaTxt=r._eta===null ? (r._level==='high'?'AT LIMIT':'—') : fmtEta(r._eta);
+    const[,lbl]=r._removedFromCritical?['removed','Removed from Critical']:alertFilter==='usage'?usageChipInfo(r):chipInfo(r,r._level);
+    const etaTxt=r._removedFromCritical ? '' : r._eta===null ? (r._level==='high'?'AT LIMIT':'—') : fmtEta(r._eta);
     const ackTime=r._ack ? r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0') : '';
     return [
       r.carrier_name,
