@@ -5413,6 +5413,54 @@ function cleanSmsComboValues(values) {
   return clean;
 }
 
+function smsSearchKey(value) {
+  return String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u2018\u2019\u201B\u0060]/g, "'")
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function smsSearchCompact(value) {
+  return smsSearchKey(value).replace(/\s+/g, '');
+}
+
+function smsTextMatches(value, query) {
+  const q = smsSearchKey(query);
+  if (!q) return true;
+  const hay = smsSearchKey(value);
+  if (hay.includes(q)) return true;
+  const compactQ = q.replace(/\s+/g, '');
+  return !!compactQ && smsSearchCompact(value).includes(compactQ);
+}
+
+function smsTextSame(value, query) {
+  const a = smsSearchKey(value);
+  const b = smsSearchKey(query);
+  if (!b) return true;
+  if (a === b) return true;
+  const ca = a.replace(/\s+/g, '');
+  const cb = b.replace(/\s+/g, '');
+  return !!cb && ca === cb;
+}
+
+function smsUniqueDisplayValues(values) {
+  const seen = new Set();
+  return values
+    .map(v => String(v || '').trim())
+    .filter(v => {
+      if (!v) return false;
+      const key = smsSearchCompact(v) || smsSearchKey(v);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a,b) => a.localeCompare(b));
+}
+
 function updateSmsDatalists() {
   ['sender_id','destination','account_manager','platform','type','status','opt_out'].forEach(kind => {
     const input = document.getElementById(smsComboInputId(kind));
@@ -5431,9 +5479,8 @@ function updateSmsComboOptions(kind, filter='') {
     // Sender ID is a multi-value field — match against the segment being typed
     let raw = String(filter || '');
     if (kind === 'sender_id') { const parts = raw.split(/[,;]/); raw = parts[parts.length - 1]; }
-    const q = raw.trim().toLowerCase();
     values = cleanSmsComboValues(smsComboOptions(kind))
-      .filter(v => !q || v.toLowerCase().includes(q))
+      .filter(v => smsTextMatches(v, raw))
       .slice(0, 40);
   }
   menu.innerHTML = values.length
@@ -5758,8 +5805,8 @@ function showUndoToast(msg, onUndo, seconds=5) {
 }
 
 function smsMatchesSearch(row, q) {
-  if (!q) return true;
-  return SMS_FIELDS.some(f => String(row[f] || '').toLowerCase().includes(q));
+  if (!smsSearchKey(q)) return true;
+  return SMS_FIELDS.some(f => smsTextMatches(row[f], q));
 }
 
 function refreshSmsFilterOptions() {
@@ -5772,12 +5819,10 @@ function refreshSmsFilterOptions() {
     const sel = document.getElementById(selId);
     if (!sel) return;
     const current = sel.value;
-    const values = Array.from(new Set(
-      smsClients.map(r => String(r[field] ?? '').trim()).filter(Boolean)
-    )).sort((a,b) => a.localeCompare(b));
+    const values = smsUniqueDisplayValues(smsClients.map(r => r[field]));
     sel.innerHTML = `<option value="">${esc(allLbl)}</option>` +
       values.map(v => `<option value="${escAttr(v)}">${esc(v)}</option>`).join('');
-    sel.value = values.includes(current) ? current : '';
+    sel.value = values.find(v => smsTextSame(v, current)) || '';
   });
 }
 
@@ -5946,16 +5991,16 @@ window.renderSmsClients = () => {
   if (!tbody) return;
   updateSmsDatalists();
   refreshSmsFilterOptions();
-  const q = (document.getElementById('sms-search')?.value || '').trim().toLowerCase();
-  const fClient = (document.getElementById('sms-filter-client')?.value || '').trim().toLowerCase();
-  const fDest   = (document.getElementById('sms-filter-destination')?.value || '').trim().toLowerCase();
-  const fAcct   = (document.getElementById('sms-filter-account-manager')?.value || '').trim().toLowerCase();
+  const q = (document.getElementById('sms-search')?.value || '').trim();
+  const fClient = (document.getElementById('sms-filter-client')?.value || '').trim();
+  const fDest   = (document.getElementById('sms-filter-destination')?.value || '').trim();
+  const fAcct   = (document.getElementById('sms-filter-account-manager')?.value || '').trim();
   const dir = smsSortDir;
   const col = smsSortCol;
   const rows = smsClients
-    .filter(r => !fClient || String(r.client ?? '').trim().toLowerCase() === fClient)
-    .filter(r => !fDest   || String(r.destination ?? '').trim().toLowerCase() === fDest)
-    .filter(r => !fAcct   || String(r.account_manager ?? '').trim().toLowerCase() === fAcct)
+    .filter(r => !fClient || smsTextSame(r.client, fClient))
+    .filter(r => !fDest   || smsTextSame(r.destination, fDest))
+    .filter(r => !fAcct   || smsTextSame(r.account_manager, fAcct))
     .filter(r => smsMatchesSearch(r, q))
     .sort((a,b) => {
       const av = String(a[col] ?? '').toLowerCase();
