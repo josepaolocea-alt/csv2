@@ -5440,7 +5440,7 @@ function smsTextMatches(value, query) {
 function smsTextSame(value, query) {
   const a = smsSearchKey(value);
   const b = smsSearchKey(query);
-  if (!b) return true;
+  if (!b) return !a;
   if (a === b) return true;
   const ca = a.replace(/\s+/g, '');
   const cb = b.replace(/\s+/g, '');
@@ -5822,7 +5822,7 @@ function refreshSmsFilterOptions() {
     const values = smsUniqueDisplayValues(smsClients.map(r => r[field]));
     sel.innerHTML = `<option value="">${esc(allLbl)}</option>` +
       values.map(v => `<option value="${escAttr(v)}">${esc(v)}</option>`).join('');
-    sel.value = values.find(v => smsTextSame(v, current)) || '';
+    sel.value = current ? (values.find(v => smsTextSame(v, current)) || '') : '';
   });
 }
 
