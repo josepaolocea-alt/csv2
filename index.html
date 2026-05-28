@@ -1555,11 +1555,12 @@
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">💤 Inactive w/ Usage</div>
+            <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">📊 30m Usage / Snapshot</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
             <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
-            <div class="lv-wrap">
+            <div class="lv-wrap" id="alert-tbl-wrap">
               <table id="alert-tbl">
                 <thead><tr>
                   <th onclick="sortAlert('carrier_name')">Client ▲</th>
@@ -1577,6 +1578,18 @@
               </table>
             </div>
             <div class="pager" id="alert-pager"></div>
+            <div class="lv-wrap" id="usage-hist-wrap" style="display:none">
+              <table id="usage-hist-tbl">
+                <thead><tr>
+                  <th onclick="sortUsageHist('carrier_name')">Client</th>
+                  <th onclick="sortUsageHist('time_slot')">Snapshot Time</th>
+                  <th onclick="sortUsageHist('usage_30min')" style="text-align:right">30m Usage</th>
+                  <th onclick="sortUsageHist('amnt_receivable')" style="text-align:right">Amnt Receivable</th>
+                </tr></thead>
+                <tbody id="usage-hist-tbody"></tbody>
+              </table>
+            </div>
+            <div id="usage-hist-foot" style="display:none;font-size:10px;color:#666;margin-top:4px"></div>
           </div>
         </div>
       </div>
@@ -2668,7 +2681,7 @@ window.switchView = name => {
   document.getElementById('tnav-'+name)?.classList.add('active');
   document.getElementById('snav-'+name)?.classList.add('active');
   setSbStatus('Viewing: '+name.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()));
-  if (name==='alerts')        { stopAlertSound(); renderAlerts(); }
+  if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { renderLogs(); }
@@ -4025,7 +4038,10 @@ function refreshAll() {
   safeRender('Stats', renderStats);
   safeRender('Timeline', renderTimeline);
   safeRender('Shift summary', renderShiftSummary);
-  if(document.getElementById('view-alerts').classList.contains('active'))      safeRender('Alerts', renderAlerts);
+  if(document.getElementById('view-alerts').classList.contains('active')) {
+    if (alertFilter === 'usagehistory') safeRender('Usage History', renderUsageHistory);
+    else                                safeRender('Alerts', renderAlerts);
+  }
   if(document.getElementById('view-all-clients').classList.contains('active')) safeRender('All Clients', window.renderClients);
   safeRender('Notifications', () => checkAndNotify(activeData(), false)); // keep tab flash in sync on every refresh
 }
@@ -4148,7 +4164,17 @@ window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); renderAlerts();
+  btn.classList.add('active');
+  const isHist = (f === 'usagehistory');
+  const histWrap = document.getElementById('usage-hist-wrap');
+  const histFoot = document.getElementById('usage-hist-foot');
+  const alertWrap = document.getElementById('alert-tbl-wrap');
+  const alertPager = document.getElementById('alert-pager');
+  if (histWrap) histWrap.style.display = isHist ? '' : 'none';
+  if (histFoot) histFoot.style.display = isHist ? '' : 'none';
+  if (alertWrap) alertWrap.style.display = isHist ? 'none' : '';
+  if (alertPager) alertPager.style.display = isHist ? 'none' : '';
+  if (isHist) renderUsageHistory(); else renderAlerts();
 };
 window.sortAlert = col => {
   alertSortDir = alertSortCol===col?alertSortDir*-1:-1;
@@ -4281,6 +4307,66 @@ function renderAlerts() {
     </tr>`;
   }).join('')||`<tr><td colspan="10" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
+}
+
+/* ════════════════════════════════════════════════
+   30M USAGE / SNAPSHOT HISTORY (today)
+════════════════════════════════════════════════ */
+let usageHistSortCol = 'carrier_name', usageHistSortDir = 1;
+window.sortUsageHist = col => {
+  usageHistSortDir = usageHistSortCol === col ? usageHistSortDir * -1 : 1;
+  usageHistSortCol = col;
+  renderUsageHistory();
+};
+function renderUsageHistory() {
+  const tbody = document.getElementById('usage-hist-tbody');
+  const foot  = document.getElementById('usage-hist-foot');
+  if (!tbody) return;
+  if (!todaySnaps.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;color:#666">No snapshots yet today.</td></tr>`;
+    if (foot) foot.textContent = '';
+    return;
+  }
+  // Clients with non-zero 30-min usage in at least one of today's snapshots
+  const qualifyingClients = new Set();
+  todaySnaps.forEach(s => (s.data || []).forEach(r => {
+    if (r?.carrier_name && amountNumber(r.usage_30min) !== 0) qualifyingClients.add(r.carrier_name);
+  }));
+  // Build one row per (client, snapshot)
+  const rows = [];
+  todaySnaps.forEach(s => {
+    (s.data || []).forEach(r => {
+      if (!r?.carrier_name || !qualifyingClients.has(r.carrier_name)) return;
+      rows.push({
+        carrier_name: r.carrier_name,
+        time_slot: s.time_slot || '',
+        session_date: s.session_date || '',
+        usage_30min: amountNumber(r.usage_30min),
+        amnt_receivable: amountNumber(r.amnt_receivable),
+      });
+    });
+  });
+  rows.sort((a, b) => {
+    let av = a[usageHistSortCol], bv = b[usageHistSortCol];
+    if (typeof av === 'string') {
+      const cmp = av.localeCompare(bv) * usageHistSortDir;
+      if (cmp !== 0) return cmp;
+    } else {
+      const cmp = ((av ?? 0) - (bv ?? 0)) * usageHistSortDir;
+      if (cmp !== 0) return cmp;
+    }
+    // Stable secondary sort: client then time
+    if (a.carrier_name !== b.carrier_name) return a.carrier_name.localeCompare(b.carrier_name);
+    return String(a.time_slot).localeCompare(String(b.time_slot));
+  });
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${esc(r.carrier_name)}</td>
+      <td>${esc(fmt12(r.time_slot))}</td>
+      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min)}</td>
+      <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
+    </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
+  if (foot) foot.textContent = `${qualifyingClients.size} client(s) · ${todaySnaps.length} snapshot(s) · ${rows.length} row(s)`;
 }
 
 /* ════════════════════════════════════════════════
