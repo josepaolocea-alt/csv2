@@ -1567,7 +1567,7 @@
                   <th onclick="sortAlert('usage_30min')" style="text-align:right">30m Usage</th>
                   <th onclick="sortAlert('credit_limit')" style="text-align:right">Credit Limit</th>
                   <th onclick="sortAlert('critical_balance')" style="text-align:right">Critical Balance</th>
-                  <th>Balance Bar</th>
+                  <th onclick="sortAlert('_bw')" style="cursor:pointer">Balance Bar</th>
                   <th onclick="sortAlert('_level')">Alert</th>
                   <th onclick="sortAlert('_eta')" style="white-space:nowrap">⏱ ETA to Critical</th>
                   <th>Ack</th>
@@ -4135,6 +4135,15 @@ window.backToLive = () => {
 /* ════════════════════════════════════════════════
    ALERT TABLE
 ════════════════════════════════════════════════ */
+function balanceBarPct(r) {
+  const critBal = r?.critical_balance;
+  const credLim = r?.credit_limit;
+  const bal     = r?.amnt_receivable;
+  if (critBal == null || credLim == null) return 0;
+  const range = critBal - credLim;
+  const pos   = bal - credLim;
+  return range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
+}
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
@@ -4208,6 +4217,7 @@ function alertRows() {
     let av=a[alertSortCol],bv=b[alertSortCol];
     if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
     if(alertSortCol==='_eta'){av=a._eta??Infinity;bv=b._eta??Infinity;}
+    if(alertSortCol==='_bw'){av=balanceBarPct(a);bv=balanceBarPct(b);}
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
@@ -4245,15 +4255,7 @@ function renderAlerts() {
        </td></tr>` : '';
 
   document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + page.map(r=>{
-    const critBal = r.critical_balance;
-    const credLim = r.credit_limit;
-    const bal     = r.amnt_receivable;
-    let bw = 0;
-    if (critBal !== null && credLim !== null) {
-      const range = critBal - credLim;
-      const pos   = bal - credLim;
-      bw = range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
-    }
+    const bw = balanceBarPct(r);
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
     const etaMins  = r._eta;
@@ -4265,7 +4267,7 @@ function renderAlerts() {
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
-      <td class="num ${r.usage_30min<0?'neg':r.usage_30min>0?'pos':''}">${fmt(r.usage_30min || 0)}</td>
+      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
@@ -5444,13 +5446,21 @@ function smsSearchCompact(value) {
   return smsSearchKey(value).replace(/\s+/g, '');
 }
 
+// Tokens of `value` with intra-word punctuation stripped, but real word boundaries preserved.
+// e.g. "ABC-123 for globe" → ["abc123", "for", "globe"] — so "elfo" can't bridge "for globe".
+function smsCompactTokens(value) {
+  return smsSearchKey(value).split(/\s+/).filter(Boolean);
+}
+
 function smsTextMatches(value, query) {
   const q = smsSearchKey(query);
   if (!q) return true;
   const hay = smsSearchKey(value);
   if (hay.includes(q)) return true;
-  const compactQ = q.replace(/\s+/g, '');
-  return !!compactQ && smsSearchCompact(value).includes(compactQ);
+  // Compact fallback for single-token queries like "abc123" matching "ABC-123".
+  // Restricted to per-token matches so cross-word substrings (e.g. "elfo" in "panel for") don't hit.
+  if (/\s/.test(q)) return false;
+  return smsCompactTokens(value).some(tok => tok.includes(q));
 }
 
 function smsTextSame(value, query) {
