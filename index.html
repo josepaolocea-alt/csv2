@@ -2719,6 +2719,7 @@ function shiftSlots(shift) {
   const [s,e] = shift==='7AM-7PM' ? [7,19] : [19,31];
   const out = [];
   for (let h=s; h<e; h++) { const hh=(h%24).toString().padStart(2,'0'); out.push(`${hh}:00`,`${hh}:30`); }
+  out.push(`${(e%24).toString().padStart(2,'0')}:00`);
   return out;
 }
 function nextSlot() {
