@@ -1554,6 +1554,7 @@
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
+            <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">💤 Inactive w/ Usage</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
             <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
           </div>
@@ -3045,6 +3046,12 @@ function setTabBlink(id, on) {
   const tab = document.getElementById(id);
   if (tab) tab.classList.toggle('tab-blink-red', !!on);
 }
+function updateInactiveUsageTab(count) {
+  const tab = document.getElementById('tab-inactive-usage');
+  if (!tab) return;
+  tab.textContent = count > 0 ? `💤 Inactive w/ Usage (${count})` : '💤 Inactive w/ Usage';
+  tab.classList.toggle('tab-blink-red', count > 0);
+}
 function chipInfo(row, lvl) {
   if (lvl==='none') return ['none','✓ Safe'];
   return [lvl, {high:'🔴 Critical', medium:'🟠 Medium', light:'⚠ Warning'}[lvl]||lvl];
@@ -4178,10 +4185,17 @@ function alertRows() {
 
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
   const removedCount = removedData.filter(r=>!r._inactive).length;
+  // Inactive clients that still have non-zero 30-minute usage — always computed
+  // from the full data set so the count/blink work even when "Show inactive" is off.
+  const inactiveUsageRows  = data.filter(r=>r._inactive && amountNumber(r.usage_30min) !== 0);
+  const inactiveUsageCount = inactiveUsageRows.length;
 
   const visibleData = alertShowInactive ? data : data.filter(r=>!r._inactive);
   const visibleRemoved = alertShowInactive ? removedData : removedData.filter(r=>!r._inactive);
-  let rows=alertFilter==='removed' ? visibleRemoved : visibleData;
+  let rows;
+  if      (alertFilter==='removed')       rows = visibleRemoved;
+  else if (alertFilter==='inactiveusage') rows = inactiveUsageRows; // bypass Show-inactive toggle
+  else                                    rows = visibleData;
   const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = visibleData.filter(r=>!hasClientThreshold(r)).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
@@ -4197,15 +4211,16 @@ function alertRows() {
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
-  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount };
+  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount };
 }
 
 function renderAlerts() {
-  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount } = alertRows();
+  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount } = alertRows();
   updateNewCriticalTab(newCount);
   updateRemovedCriticalTab(removedCount);
   setTabBlink('tab-usage',    usageHighCount > 0);
   setTabBlink('tab-nothresh', noThreshCount > 0);
+  updateInactiveUsageTab(inactiveUsageCount);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
@@ -5187,7 +5202,8 @@ function alertFilterLabel(filter) {
     nothresh:'no_threshold',
     usage:'usage',
     new:'new_critical',
-    removed:'removed_from_critical'
+    removed:'removed_from_critical',
+    inactiveusage:'inactive_with_usage'
   })[filter] || 'current_view';
 }
 window.exportCurrentAlertView=()=>{
