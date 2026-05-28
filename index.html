@@ -5170,38 +5170,29 @@ function snapshotTimeLabel(s, showDate) {
 }
 function snapshotWorksheetXml(shift, snaps, showDate) {
   const sorted = sortSnapshotSheetSnaps(snaps, shift);
-  const names = [];
-  const seen = new Set();
-  sorted.forEach(s => (s.data || []).forEach(r => {
-    const name = r?.carrier_name;
-    if (name && !seen.has(name)) { seen.add(name); names.push(name); }
+  const blocks = sorted.map(s => ({
+    time: snapshotTimeLabel(s, showDate),
+    rows: (s.data || []).filter(r => r?.carrier_name)
   }));
-  const maps = sorted.map(s => new Map((s.data || []).filter(r => r?.carrier_name).map(r => [r.carrier_name, r])));
-  const row1 = sorted.map(s =>
-    `<Cell ss:MergeAcross="3" ss:StyleID="time"><Data ss:Type="String">${xmlEsc(snapshotTimeLabel(s, showDate))}</Data></Cell>`
+  const headerRow = blocks.map(() =>
+    ['Client','Snapshot Time','30 mins usage','Amnt Receivable'].map(h => xlsTextCell(h, 'hdr')).join('')
   ).join('');
-  const row2 = sorted.map(() =>
-    ['Carrier Name','Amnt Receivable','30m Usage','Total Usage'].map(h => xlsTextCell(h, 'hdr')).join('')
-  ).join('');
-  const body = names.map(name => `<Row>${maps.map(m => {
-    const r = m.get(name);
-    return [
-      xlsTextCell(r?.carrier_name || ''),
-      xlsNumberCell(r?.amnt_receivable),
-      xlsNumberCell(r?.usage_30min),
-      xlsNumberCell(r?.total_usage)
-    ].join('');
-  }).join('')}</Row>`).join('');
-  const totalRow = `<Row>${sorted.map(s => {
-    const t = snapshotTotals(s.data || []);
-    return [
-      xlsTextCell('Total', 'total'),
-      xlsNumberCell(t.amnt_receivable, 'totalNum'),
-      xlsNumberCell(t.usage_30min, 'totalNum'),
-      xlsNumberCell(t.total_usage, 'totalNum')
-    ].join('');
-  }).join('')}</Row>`;
-  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${row1}</Row><Row>${row2}</Row>${body}${totalRow}</Table></Worksheet>`;
+  const maxRows = blocks.reduce((m, b) => Math.max(m, b.rows.length), 0);
+  const blankBlock = [xlsTextCell(''), xlsTextCell(''), xlsTextCell(''), xlsTextCell('')].join('');
+  let body = '';
+  for (let i = 0; i < maxRows; i++) {
+    body += '<Row>' + blocks.map(b => {
+      const r = b.rows[i];
+      if (!r) return blankBlock;
+      return [
+        xlsTextCell(r.carrier_name || ''),
+        xlsTextCell(b.time),
+        xlsNumberCell(r.usage_30min),
+        xlsNumberCell(r.amnt_receivable)
+      ].join('');
+    }).join('') + '</Row>';
+  }
+  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${headerRow}</Row>${body}</Table></Worksheet>`;
 }
 window.exportSnapshotSheet = async () => {
   const range = exportDateRange();
