@@ -287,6 +287,16 @@
       border-top: 2px solid #808080;
     }
 
+    /* 30m Usage / Snapshot pivot — sticky Client column */
+    #usage-hist-tbl thead th.uh-name-col { position: sticky; left: 0; top: 0; z-index: 3; }
+    #usage-hist-tbl tbody td.uh-name-cell {
+      position: sticky; left: 0; z-index: 1;
+      background: #fff; font-weight: 600;
+      border-right: 1px solid #808080;
+    }
+    #usage-hist-tbl tbody tr:nth-child(even) td.uh-name-cell { background: #f0f0f8; }
+    #usage-hist-tbl tbody tr:hover td.uh-name-cell { background: #000080 !important; color: #fff !important; }
+
     /* Alert badges */
     .badge {
       display: inline-block; padding: 0 5px; font-size: 9px; font-weight: 700;
@@ -1580,12 +1590,7 @@
             <div class="pager" id="alert-pager"></div>
             <div class="lv-wrap" id="usage-hist-wrap" style="display:none">
               <table id="usage-hist-tbl">
-                <thead><tr>
-                  <th onclick="sortUsageHist('carrier_name')">Client</th>
-                  <th onclick="sortUsageHist('time_slot')">Snapshot Time</th>
-                  <th onclick="sortUsageHist('usage_30min')" style="text-align:right">30m Usage</th>
-                  <th onclick="sortUsageHist('amnt_receivable')" style="text-align:right">Amnt Receivable</th>
-                </tr></thead>
+                <thead id="usage-hist-thead"></thead>
                 <tbody id="usage-hist-tbody"></tbody>
               </table>
             </div>
@@ -4320,54 +4325,73 @@ window.sortUsageHist = col => {
   renderUsageHistory();
 };
 function renderUsageHistory() {
+  const thead = document.getElementById('usage-hist-thead');
   const tbody = document.getElementById('usage-hist-tbody');
   const foot  = document.getElementById('usage-hist-foot');
-  if (!tbody) return;
+  if (!tbody || !thead) return;
   if (!todaySnaps.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;color:#666">No snapshots yet today.</td></tr>`;
+    thead.innerHTML = `<tr><th>Client</th></tr>`;
+    tbody.innerHTML = `<tr><td style="text-align:center;padding:16px;color:#666">No snapshots yet today.</td></tr>`;
     if (foot) foot.textContent = '';
     return;
   }
+  // Order today's snapshots chronologically by 24H slot index
+  const slotIdx = {};
+  shiftSlots('24H').forEach((s, i) => { slotIdx[s] = i; });
+  const snaps = todaySnaps.slice().sort((a, b) =>
+    (slotIdx[a.time_slot] ?? 999) - (slotIdx[b.time_slot] ?? 999)
+  );
   // Clients with non-zero 30-min usage in at least one of today's snapshots
   const qualifyingClients = new Set();
-  todaySnaps.forEach(s => (s.data || []).forEach(r => {
+  snaps.forEach(s => (s.data || []).forEach(r => {
     if (r?.carrier_name && amountNumber(r.usage_30min) !== 0) qualifyingClients.add(r.carrier_name);
   }));
-  // Build one row per (client, snapshot)
-  const rows = [];
-  todaySnaps.forEach(s => {
+  // Build usage map: client -> slot -> usage_30min
+  const usageBy = {};
+  snaps.forEach(s => {
+    const slot = s.time_slot || '';
     (s.data || []).forEach(r => {
-      if (!r?.carrier_name || !qualifyingClients.has(r.carrier_name)) return;
-      rows.push({
-        carrier_name: r.carrier_name,
-        time_slot: s.time_slot || '',
-        session_date: s.session_date || '',
-        usage_30min: amountNumber(r.usage_30min),
-        amnt_receivable: amountNumber(r.amnt_receivable),
-      });
+      const name = r?.carrier_name;
+      if (!name || !qualifyingClients.has(name)) return;
+      (usageBy[name] = usageBy[name] || {})[slot] = amountNumber(r.usage_30min);
     });
   });
-  rows.sort((a, b) => {
-    let av = a[usageHistSortCol], bv = b[usageHistSortCol];
-    if (typeof av === 'string') {
-      const cmp = av.localeCompare(bv) * usageHistSortDir;
-      if (cmp !== 0) return cmp;
+  const slotKeys = snaps.map(s => s.time_slot || '');
+  const clients = Array.from(qualifyingClients);
+  clients.sort((a, b) => {
+    let cmp;
+    if (usageHistSortCol === 'carrier_name' || !slotKeys.includes(usageHistSortCol)) {
+      cmp = a.localeCompare(b);
     } else {
-      const cmp = ((av ?? 0) - (bv ?? 0)) * usageHistSortDir;
-      if (cmp !== 0) return cmp;
+      const av = usageBy[a]?.[usageHistSortCol];
+      const bv = usageBy[b]?.[usageHistSortCol];
+      const an = av === undefined ? -Infinity : av;
+      const bn = bv === undefined ? -Infinity : bv;
+      cmp = an - bn;
     }
-    // Stable secondary sort: client then time
-    if (a.carrier_name !== b.carrier_name) return a.carrier_name.localeCompare(b.carrier_name);
-    return String(a.time_slot).localeCompare(String(b.time_slot));
+    return (cmp * usageHistSortDir) || a.localeCompare(b);
   });
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td>${esc(r.carrier_name)}</td>
-      <td>${esc(fmt12(r.time_slot))}</td>
-      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min)}</td>
-      <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
-    </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
-  if (foot) foot.textContent = `${qualifyingClients.size} client(s) · ${todaySnaps.length} snapshot(s) · ${rows.length} row(s)`;
+  const headerCells = `<th class="uh-name-col" onclick="sortUsageHist('carrier_name')">Client</th>` +
+    slotKeys.map(slot =>
+      `<th onclick="sortUsageHist('${slot}')" style="text-align:right;white-space:nowrap">${esc(fmt12(slot))}</th>`
+    ).join('');
+  thead.innerHTML = `<tr>${headerCells}</tr>`;
+  if (!clients.length) {
+    tbody.innerHTML = `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
+    if (foot) foot.textContent = `0 client(s) · ${snaps.length} snapshot(s)`;
+    return;
+  }
+  tbody.innerHTML = clients.map(name => {
+    const tdName = `<td class="uh-name-cell">${esc(name)}</td>`;
+    const tdCells = slotKeys.map(slot => {
+      const v = usageBy[name]?.[slot];
+      if (v === undefined) return `<td class="num"></td>`;
+      const cls = v < 0 ? 'pos' : v > 0 ? 'neg' : '';
+      return `<td class="num ${cls}">${fmt(v)}</td>`;
+    }).join('');
+    return `<tr>${tdName}${tdCells}</tr>`;
+  }).join('');
+  if (foot) foot.textContent = `${qualifyingClients.size} client(s) · ${snaps.length} snapshot(s)`;
 }
 
 /* ════════════════════════════════════════════════
