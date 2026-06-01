@@ -1752,7 +1752,8 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">SMS Module</div>
           <div class="tab-bar">
-            <div class="tab active">Client</div>
+            <div class="tab active" id="sms-tab-client" onclick="switchSmsTab('client')">Client</div>
+            <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div class="fbar">
@@ -2500,6 +2501,14 @@ let alertPage = 0, clientPage = 0;
 let PG = 500;
 let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
 let smsSortCol = 'client', smsSortDir = 1;
+let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'client';
+const SMS_TAB_CONFIG = {
+  client:  { label:'Client',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
+  phoenix: { label:'SMS Phoenix Platform', storageKey:'bm_sms_phoenix_clients', firestoreDoc:'phoenix_platform_clients', filePrefix:'sms_phoenix_platform' }
+};
+const smsDataByTab = { client: [], phoenix: [] };
+const smsRemoteApplyingByTab = { client: false, phoenix: false };
+const smsSubscribedTabs = new Set();
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -2640,6 +2649,7 @@ window.switchModule = module => {
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('view-sms')?.classList.add('active');
     updateViewMenuState();
+    updateSmsTabUi();
     renderSmsClients();
     setSbStatus('Viewing: SMS Module');
     return;
@@ -5444,48 +5454,61 @@ function smsRouteKey(r) {
   return [r.client, r.destination].map(v => String(v || '').trim().toLowerCase()).join('|');
 }
 
-function loadSmsClients() {
+function smsTabCfg(tab=smsActiveTab) {
+  return SMS_TAB_CONFIG[tab] || SMS_TAB_CONFIG.client;
+}
+
+function syncActiveSmsClients() {
+  smsDataByTab[smsActiveTab] = smsClients;
+}
+
+function loadSmsClients(tab=smsActiveTab) {
+  const cfg = smsTabCfg(tab);
   try {
-    const raw = localStorage.getItem('bm_sms_clients');
-    smsClients = raw ? JSON.parse(raw).map(normalizeSmsClient) : [];
+    const raw = localStorage.getItem(cfg.storageKey);
+    smsDataByTab[tab] = raw ? JSON.parse(raw).map(normalizeSmsClient) : [];
   } catch(e) {
-    smsClients = [];
+    smsDataByTab[tab] = [];
   }
+  if (tab === smsActiveTab) smsClients = smsDataByTab[tab];
 }
 
 // Cross-device sync state — set while applying a remote snapshot so we don't echo it back
-let smsRemoteApplying = false;
-let smsSubscribed = false;
-
 function saveSmsClients() {
-  try { localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients)); } catch(e) {}
-  if (smsRemoteApplying || !fbOk) return;
-  setDoc(doc(db, 'sms', 'clients'), { clients: smsClients, updated_at: Timestamp.now() })
+  syncActiveSmsClients();
+  const cfg = smsTabCfg();
+  try { localStorage.setItem(cfg.storageKey, JSON.stringify(smsClients)); } catch(e) {}
+  if (smsRemoteApplyingByTab[smsActiveTab] || !fbOk) return;
+  setDoc(doc(db, 'sms', cfg.firestoreDoc), { clients: smsClients, updated_at: Timestamp.now() })
     .catch(e => console.warn('SMS Firestore sync failed:', e));
 }
 
-async function subscribeSmsClients() {
-  if (!fbOk || smsSubscribed) return;
-  smsSubscribed = true;
+async function subscribeSmsClients(tab=smsActiveTab) {
+  const cfg = smsTabCfg(tab);
+  if (!fbOk || smsSubscribedTabs.has(tab)) return;
+  smsSubscribedTabs.add(tab);
   try {
-    onSnapshot(doc(db, 'sms', 'clients'), async snap => {
+    onSnapshot(doc(db, 'sms', cfg.firestoreDoc), async snap => {
       if (snap.exists()) {
         const data = snap.data();
         const remote = Array.isArray(data.clients) ? data.clients.map(normalizeSmsClient) : [];
-        smsRemoteApplying = true;
+        smsRemoteApplyingByTab[tab] = true;
         try {
-          smsClients = remote;
-          try { localStorage.setItem('bm_sms_clients', JSON.stringify(smsClients)); } catch(e) {}
-          buildSmsVendorBox();
-          updateSmsDatalists();
-          renderSmsClients();
+          smsDataByTab[tab] = remote;
+          try { localStorage.setItem(cfg.storageKey, JSON.stringify(remote)); } catch(e) {}
+          if (tab === smsActiveTab) {
+            smsClients = smsDataByTab[tab];
+            buildSmsVendorBox();
+            updateSmsDatalists();
+            renderSmsClients();
+          }
         } finally {
-          smsRemoteApplying = false;
+          smsRemoteApplyingByTab[tab] = false;
         }
-      } else if (smsClients.length) {
+      } else if ((smsDataByTab[tab] || []).length) {
         // Remote doc missing — seed it from this device's local data (one-time migration)
         try {
-          await setDoc(doc(db, 'sms', 'clients'), { clients: smsClients, updated_at: Timestamp.now() });
+          await setDoc(doc(db, 'sms', cfg.firestoreDoc), { clients: smsDataByTab[tab], updated_at: Timestamp.now() });
         } catch(e) { console.warn('SMS Firestore seed failed:', e); }
       }
     }, err => console.warn('SMS onSnapshot error:', err));
@@ -5687,8 +5710,46 @@ function smsSetVendors(str) {
   document.querySelectorAll('#sms-vendor-box input').forEach(c => { c.checked = wanted.has(c.value.toUpperCase()); });
 }
 
+function updateSmsTabUi() {
+  if (!SMS_TAB_CONFIG[smsActiveTab]) smsActiveTab = 'client';
+  const cfg = smsTabCfg();
+  document.querySelectorAll('#view-sms .tab-bar .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`sms-tab-${smsActiveTab}`)?.classList.add('active');
+  const toolbar = document.getElementById('sms-toolbar-label');
+  if (toolbar) toolbar.textContent = `SMS Module - ${cfg.label}`;
+  const status = document.getElementById('sms-edit-status');
+  if (status && !smsEditingId) status.textContent = `Adding new ${cfg.label} route`;
+}
+
+window.switchSmsTab = tab => {
+  if (!SMS_TAB_CONFIG[tab] || tab === smsActiveTab) return;
+  syncActiveSmsClients();
+  if (smsBulkMode) {
+    smsBulkMode = false;
+    document.body.classList.remove('sms-bulk-mode');
+    document.getElementById('sms-bulk-panel')?.classList.remove('open');
+    document.getElementById('sms-bulk-btn')?.classList.remove('active');
+  }
+  smsBulkSelected.clear();
+  smsEditingId = null;
+  smsActiveTab = tab;
+  localStorage.setItem('bm_sms_active_tab', smsActiveTab);
+  if (!smsDataByTab[tab]?.length) loadSmsClients(tab);
+  smsClients = smsDataByTab[tab] || [];
+  subscribeSmsClients(tab);
+  updateSmsTabUi();
+  buildSmsVendorBox();
+  updateSmsDatalists();
+  clearSmsFilters();
+  newSmsClient(false);
+  renderSmsClients();
+};
+
 function initSmsModule() {
-  loadSmsClients();
+  if (!SMS_TAB_CONFIG[smsActiveTab]) smsActiveTab = 'client';
+  Object.keys(SMS_TAB_CONFIG).forEach(loadSmsClients);
+  smsClients = smsDataByTab[smsActiveTab] || [];
+  updateSmsTabUi();
   buildSmsVendorBox();
   updateSmsDatalists();
   newSmsClient(false);
@@ -5788,12 +5849,12 @@ window.newSmsClient = (showToast=true) => {
   smsEditingId = null;
   smsFillForm({ platform:'', type:'', status:'Active', opt_out:'Without', vendor:'' });
   const st = document.getElementById('sms-edit-status');
-  if (st) st.textContent = 'Adding new client route';
+  if (st) st.textContent = `Adding new ${smsTabCfg().label} route`;
   const saveBtn = document.getElementById('sms-save-btn');
   if (saveBtn) saveBtn.textContent = 'Save Client';
   const cancelBtn = document.getElementById('sms-cancel-edit-btn');
   if (cancelBtn) cancelBtn.style.display = 'none';
-  if (showToast) toast('Ready for a new SMS client route', 'ok');
+  if (showToast) toast(`Ready for a new ${smsTabCfg().label} route`, 'ok');
 };
 
 window.saveSmsClient = () => {
@@ -5814,7 +5875,7 @@ window.saveSmsClient = () => {
   updateSmsDatalists();
   renderSmsClients();
   newSmsClient(false);
-  toast(wasEdit ? `✓ Changes saved for ${row.client} / ${row.destination}` : 'SMS client route saved', 'ok');
+  toast(wasEdit ? `✓ Changes saved for ${row.client} / ${row.destination}` : `${smsTabCfg().label} route saved`, 'ok');
 };
 
 window.editSmsClient = id => {
@@ -6191,10 +6252,10 @@ window.downloadSmsClientTemplate = () => {
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'sms_clients_sample.csv';
+  a.download = `${smsTabCfg().filePrefix}_sample.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  toast('Sample SMS CSV downloaded', 'ok');
+  toast(`${smsTabCfg().label} sample CSV downloaded`, 'ok');
 };
 
 window.exportSmsClientsCsv = () => {
@@ -6208,10 +6269,10 @@ window.exportSmsClientsCsv = () => {
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `sms_clients_${todayStr()}.csv`;
+  a.download = `${smsTabCfg().filePrefix}_${todayStr()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  toast(`Exported ${smsClients.length} SMS client route(s)`, 'ok');
+  toast(`Exported ${smsClients.length} ${smsTabCfg().label} route(s)`, 'ok');
 };
 
 window.exportSmsClientByRow = id => {
@@ -6231,7 +6292,7 @@ window.exportSmsClientByRow = id => {
   const a = document.createElement('a');
   a.href = url;
   const safe = clientName.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g,'') || 'client';
-  a.download = `sms_client_${safe}_${todayStr()}.csv`;
+  a.download = `${smsTabCfg().filePrefix}_${safe}_${todayStr()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   toast(`Exported ${rows.length} route(s) for "${clientName}"`, 'ok');
