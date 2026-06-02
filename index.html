@@ -4206,6 +4206,7 @@ function alertRows() {
   const prevCritSet = getPrevCriticalSet(); // null = no prior snapshot to compare
   const toAlertRow = (r, compareForNew) => {
     const meta=clientsMeta[r.carrier_name]||{};
+    const hasThreshold = hasClientThreshold(r);
     const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
     const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
     const level   = alertLevel(r);
@@ -4220,6 +4221,7 @@ function alertRows() {
       notes: r.notes||meta.notes||'',
       credit_limit: credLim,
       critical_balance: critBal,
+      _hasThreshold: hasThreshold,
       _inactive: isClientInactive(meta),
     };
   };
@@ -4251,12 +4253,12 @@ function alertRows() {
   else if (alertFilter==='inactiveusage') rows = inactiveUsageRows; // bypass Show-inactive toggle
   else                                    rows = visibleData;
   const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
-  const noThreshCount  = visibleData.filter(r=>!hasClientThreshold(r)).length;
+  const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
-  if(alertFilter==='nothresh') rows=rows.filter(r=>!hasClientThreshold(r));
+  if(alertFilter==='nothresh') rows=rows.filter(r=>!r._hasThreshold);
   if(alertFilter==='new')      rows=rows.filter(r=>r._isNew);
   rows.sort((a,b)=>{
     let av=a[alertSortCol],bv=b[alertSortCol];
