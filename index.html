@@ -2965,7 +2965,7 @@ function checkAndNotify(data, isNewSnapshot = false) {
     if (S.soundAlert) playAlertSound();
 
     // 3. Browser notification — mention if newly critical
-    if (S.browserNotif) sendCriticalNotification(newlyCritical.length ? newlyCritical : critical);
+    if (S.browserNotif && newlyCritical.length > 0) sendCriticalNotification(newlyCritical);
 
     // 4. Auto-switch: prefer 🆕 New Critical tab if there are new ones, else 🔴 Critical
     window.switchView('alerts');
