@@ -687,6 +687,21 @@
     body.night-mode .sms-comment-btn.has-comment { background: #8a6a1a; color: #fff; }
     /* ── Fixed-width, ellipsis-truncated table cell content ── */
     .sms-cell-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sms-cell-preview {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.25;
+      max-height: 3.8em;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+    .sms-detail-multiline {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.35;
+    }
+    .detail-row.sms-detail-row-multiline { align-items: flex-start; }
+    .detail-row.sms-detail-row-multiline .detail-lbl { padding-top: 4px; }
     /* ── Full-row form field (Email / Notes textareas) ── */
     .sms-field.full-row { grid-column: 1 / -1; }
     /* ── Hide Status column in the SMS table to save space (still exported to CSV) ── */
@@ -778,6 +793,20 @@
     .drop-zone:hover, .drop-zone.over { background: #e8f0ff; color: #000080; }
     .map-grid { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 4px; align-items: center; font-size: 11px; margin-bottom: 8px; }
     .map-arrow { text-align: center; color: #666; font-size: 10px; }
+    .inset-panel,
+    .csv-summary-card {
+      background: #fff;
+      border-top: 2px solid #808080;
+      border-left: 2px solid #808080;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+    .csv-summary-card { padding: 8px; font-size: 11px; }
+    .empty-state { padding: 8px; font-size: 11px; color: #666; }
+    .alert-note td { padding: 4px 6px; font-style: italic; }
+    .alert-note.warn td { background: #fff8e8; color: #884400; }
+    .alert-note.info td { background: #e8f0ff; color: #000080; }
+    .alert-note.danger td { background: #fff0f0; color: #880000; }
     .imp-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-bottom: 1px solid #e0e0e0; font-size: 11px; background: #fff; }
     .imp-row:nth-child(even) { background: #f0f0f8; }
     .imp-fn { font-family: 'Courier New', monospace; font-size: 10px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
@@ -1046,6 +1075,8 @@
     body.night-mode .sparkline-wrap,
     body.night-mode .progress-wrap,
     body.night-mode .drop-zone,
+    body.night-mode .inset-panel,
+    body.night-mode .csv-summary-card,
     body.night-mode #top-usage-list,
     body.night-mode #stats-snap-list,
     body.night-mode #client-detail-body,
@@ -1165,6 +1196,22 @@
       background: #181818;
       color: #e8e8e8;
       border-bottom-color: #333;
+    }
+    body.night-mode .empty-state,
+    body.night-mode .top-usage-empty {
+      color: #c8d8d8 !important;
+    }
+    body.night-mode .alert-note.warn td {
+      background: #2f2a16 !important;
+      color: #ffe8a0 !important;
+    }
+    body.night-mode .alert-note.info td {
+      background: #172638 !important;
+      color: #a8d4ff !important;
+    }
+    body.night-mode .alert-note.danger td {
+      background: #351818 !important;
+      color: #ffb0b0 !important;
     }
     body.night-mode .detail-lbl,
     body.night-mode .detail-val {
@@ -1659,7 +1706,7 @@
             <span class="caret">▼</span>
           </div>
           <div class="caret-body" style="padding-top:4px">
-            <div id="imp-hist-list" style="border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;background:#fff"></div>
+            <div id="imp-hist-list" class="inset-panel"></div>
           </div>
         </div>
 
@@ -4284,20 +4331,20 @@ function renderAlerts() {
 
   // Header note for 'new' filter — explain what "new" means
   const noPrevNote = alertFilter==='new' && prevCritSet===null
-    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+    ? `<tr class="alert-note warn"><td colspan="10">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const removedNoPrevNote = alertFilter==='removed' && prevCritSet===null
-    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff8e8;color:#884400;font-style:italic">
+    ? `<tr class="alert-note warn"><td colspan="10">
         No previous snapshot to compare for removed critical clients.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
   const usingPriorNote = (alertFilter==='new' || alertFilter==='removed') && priorSnap && prevSnap === priorSnap
-    ? `<tr><td colspan="10" style="padding:4px 6px;background:#e8f0ff;color:#000080;font-style:italic">
+    ? `<tr class="alert-note info"><td colspan="10">
         📅 Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
        </td></tr>` : '';
   const removedCompareNote = alertFilter==='removed' && prevSnap
-    ? `<tr><td colspan="10" style="padding:4px 6px;background:#fff0f0;color:#880000;font-style:italic">
+    ? `<tr class="alert-note danger"><td colspan="10">
         Showing clients critical in ${prevSnap.session_date || ''} ${fmt12(prevSnap.time_slot)} but not critical in the current snapshot.
        </td></tr>` : '';
 
@@ -4957,7 +5004,7 @@ window.handleFile=file=>{
     const matched=res.data.filter(r=>clientsMeta[r[nameKey]]).length;
     const isNew=res.data.length-matched;
     document.getElementById('csv-sum').innerHTML=`
-      <div style="background:#fff;padding:8px;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;font-size:11px">
+      <div class="csv-summary-card">
         <b>${esc(file.name)}</b> — ${res.data.length} rows · ${wHeaders.length} cols · ${(file.size/1024).toFixed(1)} KB<br>
         <span style="color:#000080">📥 ${isNew} new clients</span>${matched?` · <span style="color:#006600">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
       </div>
@@ -5051,7 +5098,7 @@ async function renderImpHist(){
   const el=document.getElementById('imp-hist-list');
   const list=await loadImpHist();
   _importHistory=list;
-  if(!list.length){el.innerHTML='<div style="padding:8px;font-size:11px;color:#666">No imports yet.</div>';return;}
+  if(!list.length){el.innerHTML='<div class="empty-state">No imports yet.</div>';return;}
   el.innerHTML=list.map((imp,i)=>{
     const dt=imp.imported_at instanceof Date?imp.imported_at:new Date(imp.imported_at||0);
     const canRollback=imp.before_state?.length>0&&!imp.rolled_back;
@@ -6036,7 +6083,7 @@ window.showSmsDetail = id => {
   const fields = [
     ['Client', r.client],
     ['Sender ID(s)', r.sender_id],
-    ['Sender ID Comment', r.sender_id_comment],
+    ['Sender ID Comment', r.sender_id_comment, true],
     ['Destination', r.destination],
     ['Account Manager', r.account_manager],
     ['Platform', r.platform],
@@ -6045,13 +6092,13 @@ window.showSmsDetail = id => {
     ['Opt-Out', r.opt_out],
     ['Overdraft', r.overdraft],
     ['Vendor(s)', r.vendor],
-    ['Email(s)', r.emails],
-    ['Notes / Remarks', r.notes]
+    ['Email(s)', r.emails, true],
+    ['Notes / Remarks', r.notes, true]
   ];
   const body = document.getElementById('sms-detail-body');
-  if (body) body.innerHTML = fields.map(([l, v]) =>
-    `<div class="detail-row"><div class="detail-lbl">${esc(l)}</div>` +
-    `<div class="detail-val" style="flex:1;min-width:0;word-break:break-word">` +
+  if (body) body.innerHTML = fields.map(([l, v, multiline]) =>
+    `<div class="detail-row ${multiline ? 'sms-detail-row-multiline' : ''}"><div class="detail-lbl">${esc(l)}</div>` +
+    `<div class="detail-val ${multiline ? 'sms-detail-multiline' : ''}" style="flex:1;min-width:0;word-break:break-word">` +
     `${String(v ?? '').trim() ? esc(v) : '<span style="color:#999">—</span>'}</div></div>`
   ).join('');
   document.getElementById('sms-detail-overlay')?.classList.add('open');
@@ -6228,7 +6275,7 @@ window.renderSmsClients = () => {
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
-    <td><div class="sms-cell-clip" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
+    <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
   }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?13:12}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
