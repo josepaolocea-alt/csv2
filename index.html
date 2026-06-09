@@ -522,6 +522,8 @@
     .stbadge.persist  { background: #cc0000; color: #ffffff; border-color: #800000; }
     .stbadge.improving{ background: #d6f0d6; color: #006600; border-color: #4a9a4a; }
     .stbadge.declining{ background: #f0d6d6; color: #aa0000; border-color: #aa4a4a; }
+    th.st-sortable { cursor: pointer; user-select: none; }
+    th.st-sortable:hover { text-decoration: underline; }
     tr.st-row-critical td { background: #fff0f0; }
     tr.st-row-persist td  { background: #ffe4e4; }
     td.st-cell-client { font-size: 10px; color: #999; }
@@ -1947,8 +1949,13 @@
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:200px">
             <table><thead><tr>
-              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
-              <th style="text-align:right">Attempts</th><th>Class</th><th style="text-align:right">Bad snapshots</th><th>Trend</th>
+              <th class="st-sortable" data-st-sum-sort="persist:customer_name" data-label="Client" onclick="sortStatsSummary('persist','customer_name')">Client</th>
+              <th class="st-sortable" data-st-sum-sort="persist:asr" data-label="ASR %" onclick="sortStatsSummary('persist','asr')" style="text-align:right">ASR %</th>
+              <th class="st-sortable" data-st-sum-sort="persist:acd" data-label="ACD" onclick="sortStatsSummary('persist','acd')" style="text-align:right">ACD</th>
+              <th class="st-sortable" data-st-sum-sort="persist:attempts" data-label="Attempts" onclick="sortStatsSummary('persist','attempts')" style="text-align:right">Attempts</th>
+              <th class="st-sortable" data-st-sum-sort="persist:cls" data-label="Class" onclick="sortStatsSummary('persist','cls')">Class</th>
+              <th class="st-sortable" data-st-sum-sort="persist:badStreak" data-label="Bad snapshots" onclick="sortStatsSummary('persist','badStreak')" style="text-align:right">Bad snapshots</th>
+              <th class="st-sortable" data-st-sum-sort="persist:trend" data-label="Trend" onclick="sortStatsSummary('persist','trend')">Trend</th>
             </tr></thead><tbody id="st-list-persist"></tbody></table>
           </div></div>
         </div>
@@ -1960,8 +1967,12 @@
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:240px">
             <table><thead><tr>
-              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
-              <th style="text-align:right">Attempts</th><th>Class</th><th>Flags</th>
+              <th class="st-sortable" data-st-sum-sort="bad:customer_name" data-label="Client" onclick="sortStatsSummary('bad','customer_name')">Client</th>
+              <th class="st-sortable" data-st-sum-sort="bad:asr" data-label="ASR %" onclick="sortStatsSummary('bad','asr')" style="text-align:right">ASR %</th>
+              <th class="st-sortable" data-st-sum-sort="bad:acd" data-label="ACD" onclick="sortStatsSummary('bad','acd')" style="text-align:right">ACD</th>
+              <th class="st-sortable" data-st-sum-sort="bad:attempts" data-label="Attempts" onclick="sortStatsSummary('bad','attempts')" style="text-align:right">Attempts</th>
+              <th class="st-sortable" data-st-sum-sort="bad:cls" data-label="Class" onclick="sortStatsSummary('bad','cls')">Class</th>
+              <th class="st-sortable" data-st-sum-sort="bad:flags" data-label="Flags" onclick="sortStatsSummary('bad','flags')">Flags</th>
             </tr></thead><tbody id="st-list-bad"></tbody></table>
           </div></div>
         </div>
@@ -1973,8 +1984,11 @@
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:200px">
             <table><thead><tr>
-              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
-              <th style="text-align:right">Attempts</th><th>Class</th>
+              <th class="st-sortable" data-st-sum-sort="new:customer_name" data-label="Client" onclick="sortStatsSummary('new','customer_name')">Client</th>
+              <th class="st-sortable" data-st-sum-sort="new:asr" data-label="ASR %" onclick="sortStatsSummary('new','asr')" style="text-align:right">ASR %</th>
+              <th class="st-sortable" data-st-sum-sort="new:acd" data-label="ACD" onclick="sortStatsSummary('new','acd')" style="text-align:right">ACD</th>
+              <th class="st-sortable" data-st-sum-sort="new:attempts" data-label="Attempts" onclick="sortStatsSummary('new','attempts')" style="text-align:right">Attempts</th>
+              <th class="st-sortable" data-st-sum-sort="new:cls" data-label="Class" onclick="sortStatsSummary('new','cls')">Class</th>
             </tr></thead><tbody id="st-list-new"></tbody></table>
           </div></div>
         </div>
@@ -1986,8 +2000,11 @@
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:240px">
             <table><thead><tr>
-              <th>Client</th><th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th>
-              <th style="text-align:right">Attempts</th><th style="text-align:right">Completed</th>
+              <th class="st-sortable" data-st-sum-sort="good:customer_name" data-label="Client" onclick="sortStatsSummary('good','customer_name')">Client</th>
+              <th class="st-sortable" data-st-sum-sort="good:asr" data-label="ASR %" onclick="sortStatsSummary('good','asr')" style="text-align:right">ASR %</th>
+              <th class="st-sortable" data-st-sum-sort="good:acd" data-label="ACD" onclick="sortStatsSummary('good','acd')" style="text-align:right">ACD</th>
+              <th class="st-sortable" data-st-sum-sort="good:attempts" data-label="Attempts" onclick="sortStatsSummary('good','attempts')" style="text-align:right">Attempts</th>
+              <th class="st-sortable" data-st-sum-sort="good:completed" data-label="Completed" onclick="sortStatsSummary('good','completed')" style="text-align:right">Completed</th>
             </tr></thead><tbody id="st-list-good"></tbody></table>
           </div></div>
         </div>
@@ -6971,6 +6988,7 @@ let statsTodaySnaps = [];      // [{id,timestamp,session_date,time_slot,data:[ra
 let statsViewName = 'summary';
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
+let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
@@ -7181,6 +7199,56 @@ function statsSortRows(rows) {
   });
 }
 
+function statsSummarySortValue(r, col) {
+  if (col === 'customer_name') return String(r.customer_name || '').toLowerCase();
+  if (col === 'cls') return ST_CLS_RANK[r.cls] ?? 99;
+  if (col === 'trend') return ({ declining:0, flat:1, improving:2 })[r.trend] ?? 1;
+  if (col === 'flags') return [
+    r.isNew ? 'new' : '',
+    r.persistent ? 'persistent' : '',
+    r.badStreak >= 2 ? 'bad' + r.badStreak : '',
+    r.trend || ''
+  ].filter(Boolean).join(' ');
+  return Number(r[col] ?? 0);
+}
+
+function statsSummarySortRows(section, rows, defaultSort) {
+  const list = [...rows];
+  if (!statsSummarySort || statsSummarySort.section !== section) return defaultSort(list);
+  const { col, dir } = statsSummarySort;
+  return list.sort((a,b) => {
+    const av = statsSummarySortValue(a, col);
+    const bv = statsSummarySortValue(b, col);
+    if (typeof av === 'string' || typeof bv === 'string') {
+      const cmp = String(av).localeCompare(String(bv));
+      if (cmp) return cmp * dir;
+    } else {
+      if (av < bv) return -dir;
+      if (av > bv) return dir;
+    }
+    return String(a.customer_name || '').localeCompare(String(b.customer_name || ''));
+  });
+}
+
+function updateStatsSummarySortHeaders() {
+  document.querySelectorAll('[data-st-sum-sort]').forEach(th => {
+    const label = th.dataset.label || th.textContent.replace(/\s*[▲▼]\s*$/, '');
+    th.dataset.label = label;
+    const [section, col] = String(th.dataset.stSumSort || '').split(':');
+    const active = statsSummarySort && statsSummarySort.section === section && statsSummarySort.col === col;
+    th.textContent = active ? `${label} ${statsSummarySort.dir > 0 ? '▲' : '▼'}` : label;
+  });
+}
+
+window.sortStatsSummary = (section, col) => {
+  if (statsSummarySort && statsSummarySort.section === section && statsSummarySort.col === col) {
+    statsSummarySort.dir = -statsSummarySort.dir;
+  } else {
+    statsSummarySort = { section, col, dir: 1 };
+  }
+  renderStatsSummary();
+};
+
 function processStatsRows(rows, tbodyId, full) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
@@ -7265,6 +7333,7 @@ window.renderStatsTables = renderStatsTables;
 function renderStatsSummary() {
   const rows = statsCurrentRows();
   const cur = statsCurrentSnap();
+  updateStatsSummarySortHeaders();
   const set = (id,v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
   set('st-sum-slot', cur ? `${fmt12(cur.time_slot)} · ${rows.length} clients` : 'no snapshot');
   const count = c => rows.filter(r => r.cls === c).length;
@@ -7290,7 +7359,8 @@ function renderStatsSummary() {
   };
   const clientCell = r => `${stEsc(r.customer_name)}<div style="font-size:10px;color:#666">${stEsc(r.destination || '')}</div>`;
 
-  const persist = rows.filter(r => r.persistent).sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr);
+  const persist = statsSummarySortRows('persist', rows.filter(r => r.persistent),
+    list => list.sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr));
   fill('st-list-persist', persist, r =>
     `<tr class="st-row-persist"><td>${clientCell(r)}</td>
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
@@ -7299,8 +7369,8 @@ function renderStatsSummary() {
       <td>${r.trend==='improving'?'▲ improving':r.trend==='declining'?'▼ declining':'flat'}</td></tr>`,
     'No persistent problems — nothing bad 3 snapshots in a row.');
 
-  const bad = rows.filter(r => r.cls === 'critical' || r.cls === 'low')
-    .sort((a,b) => ST_CLS_RANK[a.cls] - ST_CLS_RANK[b.cls] || a.asr - b.asr);
+  const bad = statsSummarySortRows('bad', rows.filter(r => r.cls === 'critical' || r.cls === 'low'),
+    list => list.sort((a,b) => ST_CLS_RANK[a.cls] - ST_CLS_RANK[b.cls] || a.asr - b.asr));
   fill('st-list-bad', bad, r =>
     `<tr class="${r.cls==='critical'?'st-row-critical':''}"><td>${clientCell(r)}</td>
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
@@ -7308,14 +7378,16 @@ function renderStatsSummary() {
       <td>${statsFlags(r)}</td></tr>`,
     'No clients performing badly. 🎉');
 
-  const fresh = rows.filter(r => r.isNew).sort((a,b) => b.attempts - a.attempts);
+  const fresh = statsSummarySortRows('new', rows.filter(r => r.isNew),
+    list => list.sort((a,b) => b.attempts - a.attempts));
   fill('st-list-new', fresh, r =>
     `<tr><td>${clientCell(r)}</td>
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td></tr>`,
     'No new clients in this snapshot.');
 
-  const good = rows.filter(r => r.cls === 'good').sort((a,b) => b.asr - a.asr);
+  const good = statsSummarySortRows('good', rows.filter(r => r.cls === 'good'),
+    list => list.sort((a,b) => b.asr - a.asr));
   fill('st-list-good', good, r =>
     `<tr><td>${clientCell(r)}</td>
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
