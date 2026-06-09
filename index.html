@@ -2529,7 +2529,7 @@ const COLS = [
   { key:'_level',          lbl:'Status',          vis:true },
 ];
 const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
-const SMS_VENDORS = ['IBAZAAR','M360','SMART SUITE','TM','MONTY','MCT','VTS','NGT','NEW BUY'];
+const SMS_VENDORS = ['IBAZAAR','M360','SMART SUITE','TM','MONTY','MCT','VTS','NGT','NEW BUY','8X8'];
 const SMS_DEFAULT_PLATFORMS = ['MS Teams','Viber','WhatsApp','Telegram','Email'];
 
 /* ════════════════════════════════════════════════
@@ -5397,11 +5397,9 @@ function smsId() {
 function smsSplitMulti(v) {
   return String(v ?? '').split(/[,;]+/).map(x => x.trim()).filter(Boolean);
 }
-// Sender IDs: keep one or more values, deduped, joined as "A, B"
+// Sender IDs: keep every entered value exactly as a separate Sender ID.
 function normalizeSmsSenderIds(v) {
-  const seen = new Set(), out = [];
-  smsSplitMulti(v).forEach(s => { const k = s.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(s); } });
-  return out.join(', ');
+  return smsSplitMulti(v).join(', ');
 }
 // Vendors: one or more values, uppercased, deduped, joined as "A, B"
 function normalizeSmsVendors(v) {
@@ -5675,7 +5673,7 @@ window.pickSmsCombo = (kind, value) => {
     // Append the picked Sender ID to the existing list instead of replacing
     const id = smsComboInputId(kind);
     const list = smsSplitMulti(document.getElementById(id)?.value || '');
-    if (!list.some(x => x.toLowerCase() === value.toLowerCase())) list.push(value);
+    if (!list.includes(value)) list.push(value);
     smsSetValue(id, list.join(', '));
   } else {
     smsSetValue(smsComboInputId(kind), value);
