@@ -2184,9 +2184,9 @@
     <div class="dlg-tb"><span>⚙ Settings</span></div>
     <div class="settings-body">
       <div class="settings-grid">
-        <div class="settings-row">
+        <div class="settings-row" style="display:none">
           <label style="min-width:130px">Fallback warning:</label>
-          <input class="win-inp" id="set-light" type="number" value="-10" style="width:70px" onchange="saveSettings()" title="Used when a client has no Credit Limit set">
+          <input class="win-inp" id="set-light" type="number" value="-10" style="width:70px" onchange="saveSettings()" title="Credit Limit must be set per client. Blank Credit Limit does not trigger Warning.">
         </div>
         <div class="settings-row">
           <label style="min-width:130px">Fallback critical:</label>
@@ -3047,6 +3047,16 @@ function checkAndNotify(data, isNewSnapshot = false) {
    ALERT LOGIC
 ════════════════════════════════════════════════ */
 function getThreshold(meta, row, field, fallback) {
+  if (field === 'credit_limit') {
+    const hasMeta = meta && Object.keys(meta).length > 0;
+    if (Object.prototype.hasOwnProperty.call(meta || {}, field)) {
+      const mv = meta[field];
+      if (mv === undefined || mv === null || mv === '') return null;
+      const n = parseFloat(mv);
+      return !isNaN(n) ? n : null;
+    }
+    if (hasMeta) return null;
+  }
   const mv = meta[field];
   if (mv !== undefined && mv !== null && mv !== '') { const n=parseFloat(mv); if (!isNaN(n)) return n; }
   const rv = row[field];
@@ -3068,7 +3078,7 @@ function alertLevel(row) {
   const bal = row.amnt_receivable ?? 0;
   const meta = clientsMeta[row.carrier_name] || {};
   const critBal = getThreshold(meta, row, 'critical_balance', S.mediumMax);
-  const credLim = getThreshold(meta, row, 'credit_limit',     S.lightMax);
+  const credLim = getThreshold(meta, row, 'credit_limit',     null);
   if (critBal !== null && bal >= critBal) return 'high';
   if (credLim !== null && bal >= credLim) return 'light';
   // Usage band fallback — only applies when client has no per-client thresholds
@@ -3778,6 +3788,10 @@ function renderClientDetailBody(editMode) {
   const name = _editingClient;
   const meta = clientsMeta[name] || {};
   const snap = (latestSnap?.data || []).find(r => r.carrier_name === name) || {};
+  const hasMeta = Object.keys(meta).length > 0;
+  const creditLimitValue = hasMeta
+    ? (Object.prototype.hasOwnProperty.call(meta, 'credit_limit') ? (meta.credit_limit ?? '') : '')
+    : (snap.credit_limit ?? '');
   const statusVal = meta.is_active !== undefined
     ? fmtBool(meta.is_active)
     : (snap.is_active !== undefined ? fmtBool(snap.is_active) : 'Active');
@@ -3785,7 +3799,7 @@ function renderClientDetailBody(editMode) {
     { label:'Carrier Name',     key:'carrier_name',    value: name,                                                          editable: false },
     { label:'Status',           key:'is_active',       value: statusVal,                                                     editable: true,  type:'select', opts:['Active','Inactive'] },
     { label:'Account Manager',  key:'account_manager', value: meta.account_manager ?? snap.account_manager ?? '',            editable: true,  type:'text' },
-    { label:'Credit Limit',     key:'credit_limit',    value: meta.credit_limit     ?? snap.credit_limit     ?? '',          editable: true,  type:'number' },
+    { label:'Credit Limit',     key:'credit_limit',    value: creditLimitValue,                                               editable: true,  type:'number' },
     { label:'Critical Balance', key:'critical_balance',value: meta.critical_balance ?? snap.critical_balance ?? '',          editable: true,  type:'number' },
     { label:'Notes',            key:'notes',           value: meta.notes            ?? snap.notes            ?? '',          editable: true,  type:'text' },
     { label:'Billing Cycle',    key:'billing_cycle',   value: meta.billing_cycle    ?? snap.billing_cycle    ?? '—',         editable: false },
@@ -3836,7 +3850,10 @@ window.saveClientEdit = async () => {
   const isActEl = document.getElementById('cde-is_active');
   if (isActEl) updates.is_active = isActEl.value === 'Active';
   const clEl = document.getElementById('cde-credit_limit');
-  if (clEl && clEl.value !== '') updates.credit_limit = parseFloat(clEl.value) || 0;
+  if (clEl) {
+    if (clEl.value === '') updates.credit_limit = '';
+    else updates.credit_limit = parseFloat(clEl.value) || 0;
+  }
   const cbEl = document.getElementById('cde-critical_balance');
   if (cbEl && cbEl.value !== '') updates.critical_balance = parseFloat(cbEl.value) || 0;
   const nEl = document.getElementById('cde-notes');
@@ -4272,7 +4289,7 @@ function alertRows() {
     const meta=clientsMeta[r.carrier_name]||{};
     const hasThreshold = hasClientThreshold(r);
     const critBal = getThreshold(meta,r,'critical_balance',S.mediumMax);
-    const credLim = getThreshold(meta,r,'credit_limit',S.lightMax);
+    const credLim = getThreshold(meta,r,'credit_limit',null);
     const level   = alertLevel(r);
     // _isNew: critical NOW and either no prior snapshot OR was not critical before
     const _isNew  = !!compareForNew && level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
@@ -6721,8 +6738,12 @@ window.saveBulkEdits = async () => {
       for (const [name, fields] of entries) {
         const ref = doc(db,'clients', name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''));
         const upd = { carrier_name:name, updated_at:Timestamp.now() };
-        if (fields.critical_balance != null) upd.critical_balance = fields.critical_balance;
-        if (fields.credit_limit     != null) upd.credit_limit     = fields.credit_limit;
+        if (fields.critical_balance !== undefined) {
+          if (fields.critical_balance != null) upd.critical_balance = fields.critical_balance;
+        }
+        if (fields.credit_limit !== undefined) {
+          upd.credit_limit = fields.credit_limit == null ? '' : fields.credit_limit;
+        }
         batch.set(ref, upd, { merge:true });
         if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
       }
@@ -6730,7 +6751,9 @@ window.saveBulkEdits = async () => {
     }
     for (const [name, fields] of entries) {
       if (!clientsMeta[name]) clientsMeta[name] = {};
-      Object.assign(clientsMeta[name], fields);
+      Object.entries(fields).forEach(([field, value]) => {
+        clientsMeta[name][field] = value == null ? '' : value;
+      });
     }
     toast(`✓ ${entries.length} client(s) updated`, 'ok');
     bulkEditMode = false; bulkEdits = {};
