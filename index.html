@@ -5489,6 +5489,35 @@ function normalizeSmsVendors(v) {
   return out.join(', ');
 }
 
+function smsMergeMulti(existing, incoming, normalizer=normalizeSmsSenderIds) {
+  const seen = new Set(), out = [];
+  [existing, incoming].forEach(value => {
+    smsSplitMulti(value).forEach(item => {
+      const key = item.toUpperCase();
+      if (!seen.has(key)) { seen.add(key); out.push(item); }
+    });
+  });
+  return normalizer(out.join(', '));
+}
+
+function smsMergeRoute(existing, incoming, opts={}) {
+  const provided = opts.provided || null;
+  const partial = !!opts.partial;
+  const merged = { ...existing, id: existing.id };
+  const has = f => !provided || provided.has(f);
+  if (has('sender_id')) merged.sender_id = smsMergeMulti(existing.sender_id, incoming.sender_id, normalizeSmsSenderIds);
+  if (has('vendor')) merged.vendor = smsMergeMulti(existing.vendor, incoming.vendor, normalizeSmsVendors);
+  SMS_FIELDS.forEach(f => {
+    if (f === 'sender_id' || f === 'vendor') return;
+    if (partial) {
+      if (provided?.has(f)) merged[f] = incoming[f];
+      return;
+    }
+    if (!String(merged[f] ?? '').trim() && String(incoming[f] ?? '').trim()) merged[f] = incoming[f];
+  });
+  return normalizeSmsClient(merged);
+}
+
 // Blank stays blank — defaults are applied by the add form, not here, so an
 // empty CSV cell or unset field is never silently auto-filled.
 function normalizeSmsPlatform(v) {
@@ -5949,7 +5978,7 @@ window.saveSmsClient = () => {
     smsClients[idx] = row;
   } else {
     const dupeIdx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
-    if (dupeIdx >= 0) smsClients[dupeIdx] = { ...smsClients[dupeIdx], ...row, id: smsClients[dupeIdx].id };
+    if (dupeIdx >= 0) smsClients[dupeIdx] = smsMergeRoute(smsClients[dupeIdx], row);
     else smsClients.push(row);
   }
   saveSmsClients();
@@ -6393,10 +6422,7 @@ function smsRowFromCsv(raw) {
 
 // Partial update — only columns filled in the CSV change; blanks keep existing values
 function smsApplyPartial(idx, provided, row) {
-  const upd = { ...smsClients[idx] };
-  SMS_FIELDS.forEach(f => { if (provided.has(f)) upd[f] = row[f]; });
-  upd.id = smsClients[idx].id;
-  smsClients[idx] = upd;
+  smsClients[idx] = smsMergeRoute(smsClients[idx], row, { provided, partial:true });
 }
 
 window.importSmsClientCsv = file => {
