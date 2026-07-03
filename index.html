@@ -2714,6 +2714,8 @@ window.toggleViewMenu = e => {
 
 window.switchModule = module => {
   closeViewMenu();
+  // Restricted users are locked to the Balance Monitor module.
+  if (isBalanceOnly() && module !== 'balance') module = 'balance';
   if (module === 'sms') {
     document.body.classList.remove('notepad-mode');
     document.body.classList.add('sms-mode');
@@ -3588,6 +3590,28 @@ let logsData = [];               // all snapshot_logs docs, newest first
 let logsSelected = new Set();    // log ids ticked for multi-delete
 let pendingLogDelete = null;     // { mode:'one'|'selected'|'all', id? }
 function isAdmin(){ return !!currentUserEmail && ADMIN_EMAILS.includes(currentUserEmail.toLowerCase()); }
+
+// Emails restricted to the Balance Monitor module only. For these users the
+// Stats / SMS / Notepad modules are hidden from the View menu and blocked.
+const BALANCE_ONLY_EMAILS = [
+  'customersupport@cynsolutions.ph'
+];
+function isBalanceOnly(){ return !!currentUserEmail && BALANCE_ONLY_EMAILS.includes(currentUserEmail.toLowerCase()); }
+
+// Show/hide top-level modules based on the signed-in user's access, and make
+// sure a restricted user is sitting on the Balance Monitor module.
+function applyModuleAccess(){
+  const restricted = isBalanceOnly();
+  ['view-menu-stats','view-menu-sms','view-menu-notepad'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = restricted ? 'none' : '';
+  });
+  if (restricted && (document.body.classList.contains('sms-mode')
+      || document.body.classList.contains('notepad-mode')
+      || document.body.classList.contains('stats-mode'))) {
+    window.switchModule('balance');
+  }
+}
 
 function fmtDur(min){
   if (min < 60) return `${min} min`;
@@ -7635,6 +7659,7 @@ if (auth) {
     if (user) {
       currentUserEmail = user.email || '';
       currentUserUid = user.uid || '';
+      applyModuleAccess();
       if (overlay)    overlay.style.display = 'none';
       if (userLabel)  userLabel.textContent = user.email;
       if (signOutBtn) signOutBtn.style.display = '';
