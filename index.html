@@ -10,14 +10,17 @@
   <meta name="theme-color" content="#eef0f3" />
   <meta name="application-name" content="BalanceMonitor" />
   <meta name="apple-mobile-web-app-title" content="BalanceMonitor" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* ── Design tokens ── */
     :root {
-      --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      --mono: 'Cascadia Mono', Consolas, ui-monospace, 'Courier New', monospace;
+      --font: 'DM Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      --mono: 'DM Mono', 'Cascadia Mono', Consolas, ui-monospace, 'Courier New', monospace;
 
       --bg: #eef0f3;
       --surface: #ffffff;
@@ -726,6 +729,11 @@
       gap: 8px;
       margin-bottom: 8px;
     }
+    /* ── Collapsible SMS form section (hidden by default) ── */
+    #sms-form-section { margin-bottom: 6px; }
+    #sms-form-section .collapsible-header { padding: 2px 2px 4px; }
+    #sms-form-section .groupbox-title { margin-bottom: 0; }
+    #sms-form-section .caret-body { padding-top: 4px; }
     .sms-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .sms-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
     .sms-field.full { grid-column: span 2; }
@@ -1604,6 +1612,12 @@
             <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
+            <div id="sms-form-section" class="collapsed">
+            <div class="collapsible-header" onclick="toggleSmsForm()">
+              <div class="groupbox-title" id="sms-form-toggle-title">Add / Edit Route Form</div>
+              <span class="caret">▼</span>
+            </div>
+            <div class="caret-body">
             <div class="fbar">
               <button class="tbtn primary" id="sms-save-btn" onclick="saveSmsClient()">Save Client</button>
               <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">Cancel Edit</button>
@@ -1629,6 +1643,8 @@
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
               <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
               <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
+            </div>
+            </div>
             </div>
             <div class="fbar">
               <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:240px">
@@ -2503,6 +2519,7 @@ window.switchModule = module => {
   if (isBalanceOnly() && module !== 'balance') module = 'balance';
   if (module === 'sms') {
     document.body.classList.remove('notepad-mode');
+    document.body.classList.remove('stats-mode');
     document.body.classList.add('sms-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -2516,6 +2533,7 @@ window.switchModule = module => {
   }
   if (module === 'notepad') {
     document.body.classList.remove('sms-mode');
+    document.body.classList.remove('stats-mode');
     document.body.classList.add('notepad-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -2566,6 +2584,14 @@ window.switchView = name => {
 };
 
 window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
+
+window.toggleSmsForm = () => {
+  document.getElementById('sms-form-section')?.classList.toggle('collapsed');
+};
+
+function openSmsForm() {
+  document.getElementById('sms-form-section')?.classList.remove('collapsed');
+}
 
 /* ════════════════════════════════════════════════
    LOADING / TOAST / STATUS
@@ -5827,6 +5853,7 @@ window.saveSmsClient = () => {
 window.editSmsClient = id => {
   const row = smsClients.find(r => r.id === id);
   if (!row) return;
+  openSmsForm();
   smsEditingId = id;
   smsFillForm(row);
   const st = document.getElementById('sms-edit-status');
