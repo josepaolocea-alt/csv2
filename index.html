@@ -7,113 +7,192 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#eef0f3" />
   <meta name="application-name" content="BalanceMonitor" />
   <meta name="apple-mobile-web-app-title" content="BalanceMonitor" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: 'Tahoma', 'MS Sans Serif', Arial, sans-serif;
-      font-size: 11px;
-      background: #008080;
-      background-image: radial-gradient(ellipse at 20% 30%, #00a0a0 0%, transparent 50%),
-                        radial-gradient(ellipse at 80% 70%, #006060 0%, transparent 50%);
-      width: 100vw; height: 100vh; overflow: hidden;
+    /* ── Design tokens ── */
+    :root {
+      --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      --mono: 'Cascadia Mono', Consolas, ui-monospace, 'Courier New', monospace;
+
+      --bg: #eef0f3;
+      --surface: #ffffff;
+      --surface-2: #f5f6f8;
+      --surface-3: #eceef2;
+      --border: #e2e5ea;
+      --border-strong: #cdd2da;
+      --text: #1c2230;
+      --text-2: #5b6474;
+      --text-3: #9aa2b1;
+
+      --accent: #3564e0;
+      --accent-soft: #eaf0fe;
+      --accent-strong: #2b53c0;
+      --on-accent: #ffffff;
+
+      --red: #cf3d3d;
+      --red-soft: #fdeeee;
+      --red-deep: #a82c2c;
+      --orange: #c96a10;
+      --orange-soft: #fdf1e3;
+      --yellow: #d8bb1e;
+      --yellow-deep: #94770a;
+      --yellow-soft: #fbf6db;
+      --green: #1f9250;
+      --green-soft: #e7f6ec;
+
+      --row-hover: #edf2fd;
+      --shadow-sm: 0 1px 2px rgba(16, 24, 40, .06);
+      --shadow-md: 0 4px 16px rgba(16, 24, 40, .10);
+      --shadow-lg: 0 12px 40px rgba(16, 24, 40, .18);
+
+      --r-sm: 5px;
+      --r-md: 8px;
+      --r-lg: 12px;
     }
 
-    /* ── Win98 border helpers ── */
-    .raised {
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
-      box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #404040;
+    body.night-mode {
+      --bg: #0d0f13;
+      --surface: #171a21;
+      --surface-2: #1e222b;
+      --surface-3: #262b36;
+      --border: #2a303c;
+      --border-strong: #3a4150;
+      --text: #e8ebf1;
+      --text-2: #a0a9b8;
+      --text-3: #6d7688;
+
+      --accent: #6d93f5;
+      --accent-soft: #1d2a47;
+      --accent-strong: #86a7f8;
+      --on-accent: #0d1220;
+
+      --red: #f07575;
+      --red-soft: #3a2020;
+      --red-deep: #ff9d9d;
+      --orange: #f0a05a;
+      --orange-soft: #3a2c18;
+      --yellow: #e0cc55;
+      --yellow-deep: #ded27e;
+      --yellow-soft: #34301a;
+      --green: #55c98a;
+      --green-soft: #16301f;
+
+      --row-hover: #212c44;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, .5);
+      --shadow-lg: 0 12px 40px rgba(0, 0, 0, .6);
     }
-    .sunken {
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      box-shadow: inset 1px 1px 0 #404040, inset -1px -1px 0 #dfdfdf;
+
+    body {
+      font-family: var(--font);
+      font-size: 11px;
+      background: var(--bg);
+      color: var(--text);
+      width: 100vw; height: 100vh; overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
-    .inset {
-      border: 1px solid #808080; border-right-color: #fff; border-bottom-color: #fff;
-      border-top-color: #404040; border-left-color: #404040;
-    }
-    .outset {
-      border: 1px solid #fff; border-right-color: #404040; border-bottom-color: #404040;
-    }
+
+    /* ── Legacy border helpers (flattened) ── */
+    .raised, .outset { border: 1px solid var(--border); }
+    .sunken, .inset  { border: 1px solid var(--border); }
 
     /* ── Main window ── */
     #win {
       position: fixed; inset: 6px;
-      background: #c0c0c0;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 2px 2px 8px rgba(0,0,0,.5);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-md);
       display: flex; flex-direction: column;
+      overflow: hidden;
     }
 
     /* ── Title bar ── */
     #titlebar {
-      height: 20px; flex-shrink: 0;
-      background: linear-gradient(to right, #000080, #1084d0);
-      display: flex; align-items: center; padding: 0 2px; gap: 2px;
+      height: 34px; flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 12px; gap: 8px;
     }
-    #titlebar .ico { width: 14px; height: 14px; margin-right: 2px; flex-shrink: 0; }
-    #titlebar .title { flex: 1; color: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    #titlebar .ico { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+    #titlebar .title { flex: 1; color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; letter-spacing: .01em; }
     .tb-btn {
-      width: 16px; height: 14px; background: #c0c0c0; flex-shrink: 0;
-      border-top: 1px solid #fff; border-left: 1px solid #fff;
-      border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+      width: 22px; height: 22px; flex-shrink: 0;
+      background: transparent; border: none; border-radius: var(--r-sm);
       display: flex; align-items: center; justify-content: center;
-      font-size: 9px; font-weight: 900; cursor: pointer; color: #000; padding-bottom: 1px;
+      font-size: 11px; cursor: pointer; color: var(--text-2);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .tb-btn:active { border-color: #808080 #fff #fff #808080; }
-    .tb-close { margin-left: 2px; }
+    .tb-btn:hover { background: var(--surface-3); color: var(--text); }
+    .tb-btn:active { background: var(--border); }
+    .tb-close:hover { background: var(--red-soft); color: var(--red); }
 
     /* ── Menu bar ── */
     #menubar {
-      height: 18px; flex-shrink: 0;
-      display: flex; align-items: center; padding: 0 2px;
-      border-bottom: 1px solid #808080;
-      gap: 0;
+      height: 28px; flex-shrink: 0;
+      display: flex; align-items: center; padding: 0 6px; gap: 2px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
     }
-    .mitem { padding: 1px 8px; font-size: 11px; cursor: pointer; }
-    .mitem:hover { background: #000080; color: #fff; }
+    .mitem {
+      padding: 3px 10px; font-size: 11px; cursor: pointer;
+      border-radius: var(--r-sm); color: var(--text-2);
+      transition: background-color .12s ease-out, color .12s ease-out;
+    }
+    .mitem:hover { background: var(--surface-3); color: var(--text); }
     .menu-wrap { position: relative; }
     .menu-dd {
-      display: none; position: absolute; top: 18px; left: 0; min-width: 150px;
-      background: #c0c0c0; z-index: 900;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 2px 2px 5px rgba(0,0,0,.35);
-      padding: 2px;
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 170px;
+      background: var(--surface); z-index: 900;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      padding: 4px;
     }
-    .menu-wrap.open .menu-dd { display: block; }
-    .menu-dd-item { padding: 3px 18px; font-size: 11px; white-space: nowrap; cursor: pointer; }
-    .menu-dd-item:hover, .menu-dd-item.active { background: #000080; color: #fff; }
+    .menu-wrap.open .menu-dd { display: block; animation: slideDown .14s ease-out; }
+    .menu-dd-item {
+      padding: 5px 12px; font-size: 11px; white-space: nowrap; cursor: pointer;
+      border-radius: var(--r-sm); color: var(--text);
+      transition: background-color .12s ease-out;
+    }
+    .menu-dd-item:hover { background: var(--surface-2); }
+    .menu-dd-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
     /* ── Toolbar ── */
     #toolbar {
-      height: 26px; flex-shrink: 0;
-      display: flex; align-items: center; gap: 2px; padding: 2px 4px;
-      border-bottom: 1px solid #808080;
-      background: #c0c0c0;
+      height: 38px; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px; padding: 0 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      overflow-x: auto; overflow-y: hidden;
     }
-    .tsep { width: 1px; height: 18px; background: #808080; border-right: 1px solid #fff; margin: 0 3px; }
+    .tsep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
     .tbtn {
-      display: inline-flex; align-items: center; gap: 3px;
-      padding: 1px 8px; font-size: 11px; font-family: inherit;
-      background: #c0c0c0; cursor: pointer;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; font-size: 11px; font-family: inherit;
+      background: var(--surface); color: var(--text);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
       white-space: nowrap;
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
     }
-    .tbtn:hover { background: #d8d8d8; }
-    .tbtn:active { border-color: #808080 #fff #fff #808080; padding: 2px 7px 0 9px; }
-    .tbtn.active { border-color: #808080 #fff #fff #808080; background: #d4d0c8; box-shadow: inset 1px 1px 2px rgba(0,0,0,.2); }
-    .tbtn.primary { background: #000080; color: #fff; }
-    .tbtn.primary:hover { background: #1084d0; }
-    #sync-label { margin-left: auto; font-size: 10px; color: #444; white-space: nowrap; }
+    .tbtn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .tbtn:active { transform: translateY(1px); }
+    .tbtn.active {
+      background: var(--accent-soft); color: var(--accent);
+      border-color: transparent; font-weight: 600;
+    }
+    .tbtn.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 600; }
+    .tbtn.primary:hover { background: var(--accent-strong); }
+    .tbtn.danger { background: var(--red); color: #fff; border-color: transparent; font-weight: 600; }
+    .tbtn.danger:hover { background: var(--red-deep); }
+    #sync-label { margin-left: auto; font-size: 10px; color: var(--text-3); white-space: nowrap; }
 
     /* ── Body layout ── */
     #app-body { flex: 1; display: flex; overflow: hidden; }
@@ -121,24 +200,27 @@
     /* ── Left sidebar ── */
     #sidebar {
       width: 180px; flex-shrink: 0;
-      background: #c0c0c0;
-      border-right: 2px solid #808080;
+      background: var(--surface-2);
+      border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
       overflow: hidden;
     }
     .sidebar-section-label {
-      font-size: 10px; font-weight: 700; color: #000080;
-      padding: 4px 6px 2px; background: #c0c0c0;
+      font-size: 10px; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 6px 8px 3px;
     }
     .nav-item {
-      display: flex; align-items: center; gap: 5px;
-      padding: 3px 8px; font-size: 11px; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px; font-size: 11px; cursor: pointer;
       user-select: none; white-space: nowrap;
+      border-radius: var(--r-sm); margin: 0 4px; color: var(--text-2);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .nav-item:hover { background: #000080; color: #fff; }
-    .nav-item.active { background: #000080; color: #fff; }
+    .nav-item:hover { background: var(--surface-3); color: var(--text); }
+    .nav-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
     .nav-item .nav-ico { width: 16px; height: 16px; flex-shrink: 0; }
-    .nav-divider { height: 1px; background: #808080; border-bottom: 1px solid #fff; margin: 3px 0; }
+    .nav-divider { height: 1px; background: var(--border); margin: 4px 8px; }
     #sidebar > .sidebar-section-label,
     #sidebar > .nav-item,
     #sidebar > .nav-divider {
@@ -146,323 +228,361 @@
     }
 
     /* Sidebar snap area */
-    #sidebar-snap { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; padding: 6px 4px 4px; }
+    #sidebar-snap { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; padding: 10px 8px 8px; }
     #top-usage-panel,
     #snap-editor { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-    .snap-label { font-size: 10px; font-weight: 700; color: #000080; margin-bottom: 2px; }
+    .snap-label { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
     #top-usage-list {
       flex: 1; overflow-y: auto; min-height: 0;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      padding: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 3px;
     }
     .top-usage-item {
-      padding: 2px 4px; font-size: 10px; line-height: 1.25;
+      padding: 3px 5px; font-size: 10px; line-height: 1.3;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-bottom: 1px solid #e8e8e8;
+      border-bottom: 1px solid var(--border);
     }
-    .top-usage-empty { padding: 6px 4px; font-size: 10px; color: #666; }
+    .top-usage-item:last-child { border-bottom: none; }
+    .top-usage-empty { padding: 6px 5px; font-size: 10px; color: var(--text-3); }
     #snap-ta {
       flex: 1; min-height: 40px; resize: none; width: 100%;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      font-family: 'Courier New', monospace; font-size: 10px; padding: 3px; color: #000;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      font-family: var(--mono); font-size: 10px; padding: 5px;
+      outline: none;
+      transition: border-color .12s ease-out;
     }
-    #snap-ta::placeholder { color: #808080; }
+    #snap-ta:focus { border-color: var(--accent); }
+    #snap-ta::placeholder { color: var(--text-3); }
     #slot-sel {
-      width: 100%; margin: 3px 0; height: 20px;
+      width: 100%; margin: 3px 0; height: 24px;
       font-size: 11px; font-family: inherit;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff; padding: 0 3px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 0 4px; outline: none;
     }
 
     /* ── Main content ── */
-    #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: #c0c0c0; }
+    #content { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
 
-    .view { display: none; flex: 1; overflow-y: auto; padding: 6px; flex-direction: column; }
+    .view { display: none; flex: 1; overflow-y: auto; padding: 10px; flex-direction: column; }
     .view.active { display: flex; }
 
     /* View banner */
     #view-banner {
       display: none; align-items: center; gap: 8px;
-      padding: 3px 8px; background: #d4d0c8; border-bottom: 1px solid #808080;
-      font-size: 11px; color: #000080;
+      padding: 5px 12px; background: var(--yellow-soft);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--yellow-deep);
     }
     #view-banner.visible { display: flex; }
 
-    /* ── Group box ── */
+    /* ── Group box (card) ── */
     .groupbox {
-      border: 2px solid; border-color: #808080 #fff #fff #808080;
-      margin-bottom: 6px; padding: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 10px; padding: 10px;
     }
     .groupbox-title {
-      font-size: 11px; font-weight: 700; color: #000;
-      margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #808080;
+      font-size: 11px; font-weight: 600; color: var(--text);
+      margin-bottom: 8px;
     }
     .collapsible-header {
       display: flex; justify-content: space-between; align-items: center;
       cursor: pointer; user-select: none;
     }
-    .collapsible-header:hover .groupbox-title { color: #000080; }
-    .caret { font-size: 9px; color: #444; }
+    .collapsible-header:hover .groupbox-title { color: var(--accent); }
+    .caret { font-size: 8px; color: var(--text-3); transition: transform .16s ease-out; }
+    .collapsed .caret { transform: rotate(-90deg); }
     .collapsed .caret-body { display: none; }
+    .collapsed .groupbox-title { margin-bottom: 0; }
 
     /* ── Stats row ── */
-    .stat-row { display: flex; gap: 4px; margin-bottom: 4px; }
+    .stat-row { display: flex; gap: 8px; margin-bottom: 8px; }
     .stat-box {
-      flex: 1; text-align: center; padding: 5px 4px;
-      background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      flex: 1; text-align: center; padding: 8px 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
     }
-    .stat-box .sv { font-size: 16px; font-weight: 700; font-family: 'Courier New', monospace; color: #000080; }
-    .stat-box .sl { font-size: 9px; color: #444; margin-top: 1px; }
-    .stat-box.s-high   .sv { color: #cc0000; }
-    .stat-box.s-medium .sv { color: #cc6600; }
-    .stat-box.s-light  .sv { color: #888800; }
-    .stat-box.s-green  .sv { color: #006600; }
+    .stat-box .sv { font-size: 17px; font-weight: 600; font-family: var(--mono); color: var(--accent); }
+    .stat-box .sl { font-size: 9px; color: var(--text-2); margin-top: 2px; }
+    .stat-box.s-high   .sv { color: var(--red); }
+    .stat-box.s-medium .sv { color: var(--orange); }
+    .stat-box.s-light  .sv { color: var(--yellow-deep); }
+    .stat-box.s-green  .sv { color: var(--green); }
 
     /* ── Legend ── */
-    .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #444; margin-bottom: 4px; }
-    .leg-item { display: flex; align-items: center; gap: 3px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 10px; color: var(--text-2); margin-bottom: 4px; }
+    .leg-item { display: flex; align-items: center; gap: 5px; }
     .leg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
     /* ── Timeline ── */
-    .timeline-strip { display: flex; gap: 2px; overflow-x: auto; padding-bottom: 2px; }
+    .timeline-strip { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
     .tslot {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      min-width: 44px; padding: 4px 3px;
-      background: #c0c0c0; cursor: default;
-      border-top: 1px solid #fff; border-left: 1px solid #fff;
-      border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      min-width: 44px; padding: 5px 4px;
+      background: var(--surface-2); cursor: default;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
     }
     .tslot.has-data { cursor: pointer; }
-    .tslot.has-data:hover { background: #d8d8d8; }
-    .tslot.current { background: #d4d0c8; border-color: #000080; border-width: 2px; }
-    .tslot.viewing { background: #000080; }
-    .tslot.viewing .stime, .tslot.viewing .scnt { color: #fff; }
-    .stime { font-size: 9px; color: #444; font-family: 'Courier New', monospace; }
+    .tslot.has-data:hover { background: var(--surface-3); border-color: var(--border-strong); }
+    .tslot.current { border-color: var(--accent); background: var(--accent-soft); }
+    .tslot.viewing { background: var(--accent); border-color: var(--accent); }
+    .tslot.viewing .stime, .tslot.viewing .scnt { color: var(--on-accent); }
+    .stime { font-size: 9px; color: var(--text-2); font-family: var(--mono); }
     .scnt {
-      font-size: 10px; font-weight: 700; font-family: 'Courier New', monospace;
-      width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;
-      color: #666; background: #d8d8d8;
-      border-top: 1px solid #808080; border-left: 1px solid #808080;
-      border-right: 1px solid #fff; border-bottom: 1px solid #fff;
+      font-size: 10px; font-weight: 600; font-family: var(--mono);
+      min-width: 18px; height: 18px; padding: 0 2px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: var(--surface-3);
+      border-radius: var(--r-sm);
     }
-    .scnt.g { background: #ccffcc; color: #006600; }
-    .scnt.a { background: #ffffcc; color: #886600; }
-    .scnt.r { background: #ffcccc; color: #cc0000; }
+    .tslot.viewing .scnt { background: rgba(255,255,255,.22); }
+    .scnt.g { background: var(--green-soft);  color: var(--green); }
+    .scnt.a { background: var(--yellow-soft); color: var(--yellow-deep); }
+    .scnt.r { background: var(--red-soft);    color: var(--red); }
 
     /* ── Listview table ── */
     .lv-wrap {
-      background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
       overflow: auto; flex: 1; min-height: 180px;
     }
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th {
       position: sticky; top: 0; z-index: 2;
-      background: #c0c0c0; padding: 3px 6px; text-align: left;
-      font-weight: 700; white-space: nowrap; cursor: pointer;
-      border-right: 1px solid #808080; border-bottom: 2px solid #808080;
-      border-top: 1px solid #fff; border-left: 1px solid #fff;
+      background: var(--surface-2); padding: 6px 8px; text-align: left;
+      font-weight: 600; font-size: 10px; color: var(--text-2);
+      white-space: nowrap; cursor: pointer;
+      border-bottom: 1px solid var(--border-strong);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    th:hover { background: #d0d0d0; }
+    th:hover { background: var(--surface-3); color: var(--text); }
     td {
-      padding: 2px 6px; border-bottom: 1px solid #e8e8e8;
-      border-right: 1px solid #e8e8e8; white-space: nowrap;
+      padding: 4px 8px; border-bottom: 1px solid var(--border);
+      white-space: nowrap; color: var(--text);
     }
-    tr:nth-child(even) td { background: #f0f0f8; }
-    tr:hover td { background: #000080 !important; color: #fff !important; }
-    tr:hover td.neg, tr:hover td.pos, tr:hover td.credit, tr:hover td.debit { color: #fff !important; }
-    td.num { text-align: right; font-family: 'Courier New', monospace; }
-    td.neg { color: #cc0000; }
-    td.pos { color: #006600; }
-    td.credit { color: #006600; }
-    td.debit { color: #cc0000; }
+    tr:nth-child(even) td { background: var(--surface-2); }
+    tr:hover td { background: var(--row-hover) !important; }
+    td.num { text-align: right; font-family: var(--mono); }
+    td.neg { color: var(--red); }
+    td.pos { color: var(--green); }
+    td.credit { color: var(--green); }
+    td.debit { color: var(--red); }
     tr.total-row td {
-      background: #d4d0c8 !important;
-      font-weight: 700;
-      border-top: 2px solid #808080;
+      background: var(--surface-3) !important;
+      font-weight: 600;
+      border-top: 1px solid var(--border-strong);
     }
 
     /* 30m Usage / Snapshot pivot — sticky Client column */
     #usage-hist-tbl thead th.uh-name-col { position: sticky; left: 0; top: 0; z-index: 3; }
     #usage-hist-tbl tbody td.uh-name-cell {
       position: sticky; left: 0; z-index: 1;
-      background: #fff; font-weight: 600;
-      border-right: 1px solid #808080;
+      background: var(--surface); font-weight: 600;
+      border-right: 1px solid var(--border-strong);
     }
-    #usage-hist-tbl tbody tr:nth-child(even) td.uh-name-cell { background: #f0f0f8; }
-    #usage-hist-tbl tbody tr:hover td.uh-name-cell { background: #000080 !important; color: #fff !important; }
-    body.night-mode #usage-hist-tbl tbody td.uh-name-cell { background: #141414; border-right-color: #303030; }
-    body.night-mode #usage-hist-tbl tbody tr:nth-child(even) td.uh-name-cell { background: #1f2424; }
-    body.night-mode #usage-hist-tbl tbody tr:hover td.uh-name-cell { background: #003078 !important; color: #fff !important; }
+    #usage-hist-tbl tbody tr:nth-child(even) td.uh-name-cell { background: var(--surface-2); }
+    #usage-hist-tbl tbody tr:hover td.uh-name-cell { background: var(--row-hover) !important; }
 
     /* Alert badges */
     .badge {
-      display: inline-block; padding: 0 5px; font-size: 9px; font-weight: 700;
-      border-top: 1px solid #fff; border-left: 1px solid #fff;
-      border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+      display: inline-block; padding: 1px 7px; font-size: 9px; font-weight: 600;
+      border-radius: 999px;
     }
-    .badge.high   { background: #ffcccc; color: #cc0000; }
-    .badge.medium { background: #ffe4cc; color: #884400; }
-    .badge.light  { background: #ffffcc; color: #886600; }
-    .badge.target { background: #ccffcc; color: #006600; }
-    .badge.none   { background: #e8e8e8; color: #666; }
-    .badge.removed { background: #ffcccc; color: #880000; }
+    .badge.high   { background: var(--red-soft);    color: var(--red); }
+    .badge.medium { background: var(--orange-soft); color: var(--orange); }
+    .badge.light  { background: var(--yellow-soft); color: var(--yellow-deep); }
+    .badge.target { background: var(--green-soft);  color: var(--green); }
+    .badge.none   { background: var(--surface-3);   color: var(--text-2); }
+    .badge.removed { background: var(--red-soft);   color: var(--red-deep); }
 
-    /* Usage bar — Win98 segmented progress bar */
-    .ubar-wrap { display: flex; align-items: center; gap: 4px; }
+    /* Usage bar */
+    .ubar-wrap { display: flex; align-items: center; gap: 5px; }
     .ubar {
-      width: 54px; height: 10px; background: #fff; flex-shrink: 0; overflow: hidden; padding: 1px;
-      border-top: 1px solid #808080; border-left: 1px solid #808080;
-      border-right: 1px solid #dfdfdf; border-bottom: 1px solid #dfdfdf;
-      box-shadow: inset 1px 1px 0 #404040;
+      width: 54px; height: 6px; background: var(--surface-3); flex-shrink: 0; overflow: hidden;
+      border-radius: 999px;
     }
-    .ubar-fill {
-      height: 100%;
-      -webkit-mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px);
-              mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px);
-    }
-    .ubar-fill.light  { background: #d4b800; }
-    .ubar-fill.medium { background: #c05a00; }
-    .ubar-fill.high   { background: #b40000; }
+    .ubar-fill { height: 100%; border-radius: 999px; }
+    .ubar-fill.light  { background: var(--yellow); }
+    .ubar-fill.medium { background: var(--orange); }
+    .ubar-fill.high   { background: var(--red); }
 
-    /* ── Filter tabs (tab control) ── */
+    /* ── Filter tabs ── */
     .tab-bar {
-      display: flex; gap: 0; margin-bottom: -1px; padding: 0 2px;
+      display: flex; gap: 2px; margin-bottom: -1px; padding: 0;
+      flex-wrap: wrap;
     }
     .tab {
-      padding: 2px 10px; font-size: 11px; font-family: inherit;
-      background: #c0c0c0; cursor: pointer;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: none;
-      margin-right: 2px; position: relative; bottom: -1px;
+      padding: 5px 11px; font-size: 11px; font-family: inherit;
+      background: transparent; cursor: pointer; color: var(--text-2);
+      border: none; border-bottom: 2px solid transparent;
+      position: relative;
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
     }
+    .tab:hover { color: var(--text); background: var(--surface-2); border-radius: var(--r-sm) var(--r-sm) 0 0; }
     .tab.active {
-      background: #c0c0c0; font-weight: 700;
-      border-bottom: 2px solid #c0c0c0; z-index: 1;
+      color: var(--accent); font-weight: 600;
+      border-bottom-color: var(--accent); z-index: 1;
     }
-    .tab:not(.active) { background: #d4d0c8; bottom: 0; }
-    .tab-content { border-top: 2px solid #808080; border-left: 2px solid #808080; border-right: 2px solid #fff; border-bottom: 2px solid #fff; padding: 6px; }
+    .tab-content { border-top: 1px solid var(--border); padding: 8px 0 0; }
 
     /* ── Filter bar ── */
-    .fbar { display: flex; gap: 4px; margin-bottom: 4px; align-items: center; flex-wrap: wrap; }
+    .fbar { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
     .fltbtn {
-      padding: 1px 8px; font-size: 11px; font-family: inherit;
-      background: #c0c0c0; cursor: pointer;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      padding: 3px 11px; font-size: 11px; font-family: inherit;
+      background: var(--surface); cursor: pointer; color: var(--text-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
     }
-    .fltbtn.active { border-color: #808080 #fff #fff #808080; background: #d4d0c8; font-weight: 700; }
-    .fltbtn:hover { background: #d8d8d8; }
+    .fltbtn.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
+    .fltbtn:hover:not(.active) { background: var(--surface-2); border-color: var(--border-strong); color: var(--text); }
 
     /* ── Critical alert flash on tab / nav-item ── */
     @keyframes critFlash {
-      0%,100% { background:#cc0000; color:#fff; border-color:#ff6666 #880000 #880000 #ff6666; }
-      50%      { background:#ff2222; color:#fff; border-color:#ff9999 #aa0000 #aa0000 #ff9999; }
+      0%, 100% { background: var(--red); color: #fff; }
+      50%      { background: var(--red-deep); color: #fff; }
     }
     @keyframes navFlash {
-      0%,100% { background:#cc0000; color:#fff; }
-      50%      { background:#ff2222; color:#fff; }
+      0%, 100% { background: var(--red); color: #fff; }
+      50%      { background: var(--red-deep); color: #fff; }
     }
-    #tnav-alerts.critical-flash { animation: critFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
-    #snav-alerts.critical-flash { animation: navFlash 0.9s ease-in-out infinite; color:#fff !important; font-weight:700; }
-    #snav-alerts.critical-flash svg * { stroke:#fff !important; fill:#fff !important; }
+    #tnav-alerts.critical-flash { animation: critFlash 1.2s ease-in-out infinite; color: #fff !important; border-color: transparent; font-weight: 600; }
+    #snav-alerts.critical-flash { animation: navFlash 1.2s ease-in-out infinite; color: #fff !important; font-weight: 600; }
+    #snav-alerts.critical-flash svg * { stroke: #fff !important; fill: #fff !important; }
 
     /* ── New Critical tab & row styles ── */
-    #tab-new-critical { color:#cc4400; font-weight:700; }
-    #tab-new-critical.active { color:#cc4400; }
-    #tab-new-critical.has-new { background:#fff0d0; color:#aa2200; font-weight:700;
-      border-top:2px solid #ffaa00; animation:newCritPulse 1.4s ease-in-out infinite; }
-    @keyframes newCritPulse {
-      0%,100% { background:#fff0d0; } 50% { background:#ffe090; }
+    #tab-new-critical { color: var(--orange); font-weight: 600; }
+    #tab-new-critical.active { color: var(--orange); border-bottom-color: var(--orange); }
+    #tab-new-critical.has-new {
+      background: var(--orange-soft); color: var(--orange);
+      border-radius: var(--r-sm) var(--r-sm) 0 0;
+      animation: newCritPulse 1.6s ease-in-out infinite;
     }
-    tr.row-new-crit { background:#fff8e8 !important; }
-    tr.row-new-crit:hover { background:#fff0cc !important; }
-    tr.row-removed-crit td { background:#fff0f0 !important; }
-    tr.row-removed-crit:hover td { background:#000080 !important; color:#fff !important; }
-    /* ── Alert tab red blink (visible in light & dark mode) ── */
+    @keyframes newCritPulse {
+      0%, 100% { opacity: 1; } 50% { opacity: .62; }
+    }
+    tr.row-new-crit td { background: var(--yellow-soft) !important; }
+    tr.row-new-crit:hover td { background: var(--row-hover) !important; }
+    tr.row-removed-crit td { background: var(--red-soft) !important; }
+    tr.row-removed-crit:hover td { background: var(--row-hover) !important; }
+    /* ── Alert tab red blink ── */
     @keyframes tabBlinkRed {
-      0%,100% { background:#cc0000; color:#fff; }
-      50%      { background:#ff4444; color:#fff; }
+      0%, 100% { background: var(--red); color: #fff; }
+      50%      { background: var(--red-deep); color: #fff; }
     }
     .tab.tab-blink-red {
-      animation: tabBlinkRed 0.9s ease-in-out infinite;
-      color:#fff !important; font-weight:700;
-      border-top-color:#ff8888 !important;
-      border-left-color:#ff8888 !important;
-      border-right-color:#880000 !important;
+      animation: tabBlinkRed 1.2s ease-in-out infinite;
+      color: #fff !important; font-weight: 600;
+      border-radius: var(--r-sm) var(--r-sm) 0 0;
     }
     /* Shift summary */
-    .sum-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:6px; }
-    .sum-card { background:#fff; border-top:2px solid #808080; border-left:2px solid #808080; border-right:2px solid #fff; border-bottom:2px solid #fff; padding:6px 8px; }
-    .sum-card .sc-val { font-size:18px; font-weight:700; font-family:'Courier New',monospace; color:#000080; }
-    .sum-card .sc-lbl { font-size:9px; color:#666; margin-top:1px; }
-    .sum-card.sc-red .sc-val { color:#cc0000; }
-    .sum-card.sc-green .sc-val { color:#006600; }
-    .sum-card.sc-orange .sc-val { color:#cc6600; }
-    .sum-movers { font-size:11px; }
-    .sum-movers td { padding:2px 6px; }
+    .sum-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+    .sum-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 8px 10px;
+    }
+    .sum-card .sc-val { font-size: 18px; font-weight: 600; font-family: var(--mono); color: var(--accent); }
+    .sum-card .sc-lbl { font-size: 9px; color: var(--text-2); margin-top: 2px; }
+    .sum-card.sc-red .sc-val { color: var(--red); }
+    .sum-card.sc-green .sc-val { color: var(--green); }
+    .sum-card.sc-orange .sc-val { color: var(--orange); }
+    .sum-movers { font-size: 11px; }
+    .sum-movers td { padding: 2px 6px; }
     /* Sparkline */
-    .sparkline-wrap { margin-bottom:8px; padding:4px; background:#fff; border-top:2px solid #808080; border-left:2px solid #808080; border-right:2px solid #fff; border-bottom:2px solid #fff; }
+    .sparkline-wrap {
+      margin-bottom: 8px; padding: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+    }
     /* Bulk edit */
-    .bulk-edit-inp { width:80px; font-size:10px; font-family:inherit; padding:1px 3px; background:#ffffcc; border-top:1px solid #808080; border-left:1px solid #808080; border-right:1px solid #fff; border-bottom:1px solid #fff; }
-    td.bulk-changed { background:#fffacc !important; }
-    #bulk-save-bar { display:none; padding:4px 6px; background:#fffacc; border-bottom:1px solid #cc9900; font-size:11px; align-items:center; gap:6px; }
-    #bulk-save-bar.visible { display:flex; }
+    .bulk-edit-inp {
+      width: 80px; font-size: 10px; font-family: inherit; padding: 2px 4px;
+      background: var(--yellow-soft); color: var(--text);
+      border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+      outline: none;
+    }
+    .bulk-edit-inp:focus { border-color: var(--accent); }
+    td.bulk-changed { background: var(--yellow-soft) !important; }
+    #bulk-save-bar {
+      display: none; padding: 5px 8px; background: var(--yellow-soft);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      margin-bottom: 6px;
+      font-size: 11px; align-items: center; gap: 6px; color: var(--yellow-deep);
+    }
+    #bulk-save-bar.visible { display: flex; }
 
     /* ETA approaching-critical row highlight */
-    tr.row-eta-warn td { background: #fffae8 !important; }
-    tr.row-eta-warn:hover td { background: #000080 !important; color: #fff !important; }
+    tr.row-eta-warn td { background: var(--yellow-soft) !important; }
+    tr.row-eta-warn:hover td { background: var(--row-hover) !important; }
 
     /* Band-critical row blink */
     @keyframes rowBlink {
-      0%,100% { background: #ffcccc !important; }
-      50%      { background: #ffaaaa !important; }
+      0%, 100% { background: var(--red-soft) !important; }
+      50%      { background: transparent !important; }
     }
-    tr.band-critical td { animation: rowBlink 0.9s ease-in-out infinite; }
-    tr.band-critical:hover td { background: #000080 !important; color: #fff !important; animation: none !important; }
+    tr.band-critical td { animation: rowBlink 1.3s ease-in-out infinite; }
+    tr.band-critical:hover td { background: var(--row-hover) !important; animation: none !important; }
 
     /* Clipboard detect bar */
-    #clip-detect-bar { display: none; padding: 3px 10px; background: #fffacc; border-bottom: 1px solid #cc9900; font-size: 11px; align-items: center; gap: 6px; flex-shrink: 0; }
+    #clip-detect-bar {
+      display: none; padding: 5px 12px; background: var(--yellow-soft);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; align-items: center; gap: 6px; flex-shrink: 0; color: var(--yellow-deep);
+    }
     #clip-detect-bar.visible { display: flex; }
     /* Operators status pane */
-    #sb-operators { flex:1; font-size:10px; color:#000080; font-style:italic; }
+    #sb-operators { flex: 1; font-size: 10px; color: var(--accent); }
 
-    .badge-isnew { display:inline-block; background:#cc4400; color:#fff;
-      font-size:9px; font-weight:700; padding:0 4px; margin-left:4px;
-      border:1px solid #882200; vertical-align:middle; }
-    .win-search {
-      height: 20px; font-size: 11px; font-family: inherit; padding: 0 4px;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      min-width: 130px;
+    .badge-isnew {
+      display: inline-block; background: var(--orange); color: #fff;
+      font-size: 9px; font-weight: 600; padding: 0 5px; margin-left: 4px;
+      border-radius: 999px; vertical-align: middle;
     }
+    .win-search {
+      height: 24px; font-size: 11px; font-family: inherit; padding: 0 8px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      min-width: 130px; outline: none;
+      transition: border-color .12s ease-out;
+    }
+    .win-search:focus { border-color: var(--accent); }
+    .win-search::placeholder { color: var(--text-3); }
 
     /* ── Pagination ── */
-    .pager { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; }
+    .pager { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--text-2); }
 
-    /* ── Win98 input / select ── */
-    .win-inp {
-      height: 20px; font-size: 11px; font-family: inherit; padding: 0 4px; background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+    /* ── Inputs / selects ── */
+    .win-inp, .win-sel {
+      height: 24px; font-size: 11px; font-family: inherit; padding: 0 6px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      outline: none;
+      transition: border-color .12s ease-out;
     }
-    .win-sel {
-      height: 20px; font-size: 11px; font-family: inherit; padding: 0 2px; background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-    }
+    .win-inp:focus, .win-sel:focus { border-color: var(--accent); }
+    .win-inp::placeholder { color: var(--text-3); }
     .win-ta {
-      font-size: 11px; font-family: 'Courier New', monospace; padding: 3px; background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      resize: vertical;
+      font-size: 11px; font-family: var(--mono); padding: 5px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      resize: vertical; outline: none;
     }
-    #sms-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    .win-ta:focus { border-color: var(--accent); }
+    #sms-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.sms-mode #sidebar,
     body.sms-mode #toolbar .tbtn[id^="tnav-"],
     body.sms-mode #snd-dismiss-btn,
@@ -474,7 +594,7 @@
     body.sms-mode #view-banner { display: none !important; }
 
     /* ── Notepad module ── */
-    #notepad-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    #notepad-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.notepad-mode #sidebar,
     body.notepad-mode #toolbar .tbtn[id^="tnav-"],
     body.notepad-mode #snd-dismiss-btn,
@@ -486,7 +606,7 @@
     body.notepad-mode #view-banner { display: none !important; }
 
     /* ── Stats module ── */
-    #stats-toolbar-label { display: none; font-size: 11px; font-weight: 700; color: #000080; padding: 0 6px; }
+    #stats-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.stats-mode #stats-toolbar-label { display: inline-flex; }
     .stats-tab { display: none !important; }
     body.stats-mode .stats-tab { display: inline-flex !important; }
@@ -496,206 +616,213 @@
     body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
     body.stats-mode #view-banner { display: none !important; }
-    #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 4px; overflow: hidden; padding: 6px 4px 4px; }
+    #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 6px; overflow: hidden; padding: 10px 8px 8px; }
     body.stats-mode #stats-sidebar-snap { display: flex; }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      font-family: 'Courier New', monospace; font-size: 10px; padding: 3px; color: #000;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      font-family: var(--mono); font-size: 10px; padding: 5px;
+      outline: none;
+      transition: border-color .12s ease-out;
     }
-    #stats-snap-ta::placeholder { color: #808080; }
+    #stats-snap-ta:focus { border-color: var(--accent); }
+    #stats-snap-ta::placeholder { color: var(--text-3); }
     #stats-snap-list {
       flex: 1; overflow-y: auto; min-height: 40px;
-      background: #fff; border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff; padding: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 3px;
     }
     .stats-snap-item {
-      padding: 2px 4px; font-size: 10px; line-height: 1.3; cursor: pointer;
+      padding: 3px 5px; font-size: 10px; line-height: 1.3; cursor: pointer;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-bottom: 1px solid #e8e8e8;
+      border-radius: var(--r-sm);
+      transition: background-color .12s ease-out;
     }
-    .stats-snap-item:hover { background: #d8d8d8; }
-    .stats-snap-item.active { background: #000080; color: #fff; }
+    .stats-snap-item:hover { background: var(--surface-2); }
+    .stats-snap-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
     /* Stats classification badges */
     .stbadge {
-      display: inline-block; padding: 0 5px; font-size: 10px; font-weight: 700;
-      border: 1px solid; white-space: nowrap;
+      display: inline-block; padding: 1px 7px; font-size: 10px; font-weight: 600;
+      border-radius: 999px; white-space: nowrap;
     }
-    .stbadge.critical { background: #ffcccc; color: #cc0000; border-color: #cc0000; }
-    .stbadge.low      { background: #ffe0cc; color: #cc5500; border-color: #cc5500; }
-    .stbadge.ok       { background: #ffffcc; color: #888800; border-color: #888800; }
-    .stbadge.good     { background: #ccffcc; color: #006600; border-color: #006600; }
-    .stbadge.watch    { background: #e4e4e4; color: #555555; border-color: #888888; }
-    .stbadge.newc     { background: #cce0ff; color: #0000cc; border-color: #0000cc; }
-    .stbadge.persist  { background: #cc0000; color: #ffffff; border-color: #800000; }
-    .stbadge.improving{ background: #d6f0d6; color: #006600; border-color: #4a9a4a; }
-    .stbadge.declining{ background: #f0d6d6; color: #aa0000; border-color: #aa4a4a; }
+    .stbadge.critical { background: var(--red-soft);    color: var(--red); }
+    .stbadge.low      { background: var(--orange-soft); color: var(--orange); }
+    .stbadge.ok       { background: var(--yellow-soft); color: var(--yellow-deep); }
+    .stbadge.good     { background: var(--green-soft);  color: var(--green); }
+    .stbadge.watch    { background: var(--surface-3);   color: var(--text-2); }
+    .stbadge.newc     { background: var(--accent-soft); color: var(--accent); }
+    .stbadge.persist  { background: var(--red);         color: #fff; }
+    .stbadge.improving{ background: var(--green-soft);  color: var(--green); }
+    .stbadge.declining{ background: var(--red-soft);    color: var(--red); }
     th.st-sortable { cursor: pointer; user-select: none; }
     th.st-sortable:hover { text-decoration: underline; }
-    tr.st-row-critical td { background: #fff0f0; }
-    tr.st-row-persist td  { background: #ffe4e4; }
-    td.st-cell-client { font-size: 10px; color: #999; }
-    td.st-cell-acct   { font-weight: 700; color: #000080; }
-    body.night-mode td.st-cell-client { color: #777; }
-    body.night-mode td.st-cell-acct   { color: #9fc2ff; }
-    .st-val-bad { color: #cc0000; font-weight: 700; }
-    body.night-mode .st-val-bad { color: #ff6b6b; }
+    tr.st-row-critical td { background: var(--red-soft); }
+    tr.st-row-persist td  { background: var(--red-soft); }
+    td.st-cell-client { font-size: 10px; color: var(--text-3); }
+    td.st-cell-acct   { font-weight: 600; color: var(--accent); }
+    .st-val-bad { color: var(--red); font-weight: 600; }
     #stnav-stats-critical.st-tab-alert {
-      animation: stCritBlink 0.9s steps(1) infinite;
+      animation: stCritBlink 1.2s ease-in-out infinite;
     }
     @keyframes stCritBlink {
-      0%,49%   { background: #cc0000; color: #fff; }
-      50%,100% { background: #d4d0c8; color: #000; }
+      0%, 100% { background: var(--red); color: #fff; border-color: transparent; }
+      50%      { background: var(--red-deep); color: #fff; border-color: transparent; }
     }
     .np-tabbar {
-      display: flex; gap: 0; padding: 0 2px; margin-bottom: -1px;
+      display: flex; gap: 2px; padding: 0; margin-bottom: -1px;
       flex-wrap: wrap; align-items: flex-end;
     }
     .np-tab {
       display: flex; align-items: center; gap: 5px;
-      padding: 2px 5px 2px 9px; font-size: 11px; font-family: inherit;
-      background: #d4d0c8; cursor: pointer; max-width: 180px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: none;
-      margin-right: 2px; position: relative; bottom: 0;
+      padding: 4px 6px 4px 10px; font-size: 11px; font-family: inherit;
+      background: transparent; cursor: pointer; max-width: 180px;
+      color: var(--text-2);
+      border: none; border-bottom: 2px solid transparent;
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
     }
+    .np-tab:hover { background: var(--surface-2); border-radius: var(--r-sm) var(--r-sm) 0 0; }
     .np-tab.active {
-      background: #c0c0c0; font-weight: 700;
-      bottom: -1px; z-index: 1; border-bottom: 2px solid #c0c0c0;
+      color: var(--accent); font-weight: 600;
+      border-bottom-color: var(--accent); z-index: 1;
     }
     .np-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .np-tab-close {
-      width: 15px; height: 15px; line-height: 13px; text-align: center;
+      width: 15px; height: 15px; line-height: 14px; text-align: center;
       font-size: 10px; flex: none;
-      background: #c0c0c0; color: #000;
-      border-top: 1px solid #fff; border-left: 1px solid #fff;
-      border-right: 1px solid #808080; border-bottom: 1px solid #808080;
+      background: transparent; color: var(--text-3);
+      border-radius: var(--r-sm);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .np-tab-close:hover { background: #e89090; }
+    .np-tab-close:hover { background: var(--red-soft); color: var(--red); }
     .np-tab-add {
-      padding: 2px 9px; font-size: 13px; font-weight: 700; line-height: 14px;
-      background: #c0c0c0; cursor: pointer;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      padding: 3px 10px; font-size: 13px; font-weight: 600; line-height: 15px;
+      background: transparent; cursor: pointer; color: var(--text-2);
+      border: none; border-radius: var(--r-sm);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .np-tab-add:active { border-color: #808080 #fff #fff #808080; }
+    .np-tab-add:hover { background: var(--surface-2); color: var(--text); }
     #np-bold.active, #np-italic.active, #np-underline.active {
-      border-color: #808080 #fff #fff #808080;
-      background: #b0b0a8;
+      background: var(--accent-soft); color: var(--accent); border-color: transparent;
     }
     .np-editor {
       flex: 1; min-height: 0; overflow-y: auto;
-      font-size: 14px; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
-      padding: 6px 7px; background: #fff; color: #000;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      font-size: 14px; font-family: var(--font);
+      padding: 10px 12px; background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-md);
       white-space: pre-wrap; word-break: break-word;
-      line-height: 1.45; outline: none;
+      line-height: 1.5; outline: none;
+      transition: border-color .12s ease-out;
     }
+    .np-editor:focus { border-color: var(--accent); }
     .np-editor:empty:before {
-      content: 'Start typing your notes…'; color: #999;
+      content: 'Start typing your notes…'; color: var(--text-3);
     }
     .sms-form-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(150px, 1fr));
-      gap: 6px;
-      margin-bottom: 6px;
+      gap: 8px;
+      margin-bottom: 8px;
     }
-    .sms-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .sms-field label { font-size: 10px; color: #444; font-weight: 700; }
+    .sms-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .sms-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
     .sms-field.full { grid-column: span 2; }
-    .sms-row-actions { display: inline-flex; gap: 2px; }
-    .sms-muted { color: #666; font-size: 10px; }
-    .sms-combo { position: relative; display: flex; min-width: 0; }
+    .sms-row-actions { display: inline-flex; gap: 3px; }
+    .sms-muted { color: var(--text-3); font-size: 10px; }
+    .sms-combo { position: relative; display: flex; min-width: 0; gap: 2px; }
     .sms-combo .win-inp { flex: 1; min-width: 0; }
     .sms-combo-btn {
-      width: 22px; height: 20px; padding: 0; font-size: 9px; font-family: inherit;
-      background: #c0c0c0; cursor: pointer;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      width: 24px; height: 24px; padding: 0; font-size: 8px; font-family: inherit;
+      background: var(--surface); color: var(--text-2); cursor: pointer;
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      transition: background-color .12s ease-out, border-color .12s ease-out;
     }
+    .sms-combo-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
     .sms-combo-options {
-      display: none; position: absolute; top: calc(100% + 2px); left: 0; right: 0;
-      max-height: 150px; overflow-y: auto; z-index: 1200; background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 2px 2px 5px rgba(0,0,0,.35);
+      display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+      max-height: 150px; overflow-y: auto; z-index: 1200;
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      padding: 3px;
     }
-    .sms-combo.open .sms-combo-options { display: block; }
-    .sms-combo-option { padding: 3px 6px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sms-combo-option:hover { background: #000080; color: #fff; }
+    .sms-combo.open .sms-combo-options { display: block; animation: slideDown .14s ease-out; }
+    .sms-combo-option {
+      padding: 4px 8px; font-size: 11px; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-radius: var(--r-sm);
+      transition: background-color .12s ease-out;
+    }
+    .sms-combo-option:hover { background: var(--accent-soft); color: var(--accent); }
     /* ── Read-only (fixed-choice) combo inputs — pick from list only ── */
-    .sms-combo input[readonly] { cursor: pointer; background: #fff; }
+    .sms-combo input[readonly] { cursor: pointer; background: var(--surface); }
     /* ── SMS multi-vendor checkbox group ── */
     .sms-vendor-box {
       display: flex; flex-wrap: wrap; gap: 2px 12px;
-      background: #fff; padding: 4px 6px;
-      font-family: 'Tahoma', 'MS Sans Serif', Arial, sans-serif;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      background: var(--surface); padding: 5px 7px;
+      font-family: var(--font);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
       max-height: 58px; overflow-y: auto;
     }
     .sms-vendor-chk {
-      display: inline-flex; align-items: center; gap: 3px;
+      display: inline-flex; align-items: center; gap: 4px;
       font-family: inherit; font-size: 11px;
       white-space: nowrap; cursor: pointer;
     }
-    .sms-vendor-chk input { margin: 0; }
-    /* ── SMS textarea (Notes / Emails) — multi-line, easier to read & edit ── */
+    .sms-vendor-chk input { margin: 0; accent-color: var(--accent); }
+    /* ── SMS textarea (Notes / Emails) ── */
     .sms-textarea {
-      font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; font-size: 11px;
-      padding: 3px 5px; background: #fff; color: #000;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      resize: vertical; line-height: 1.35; min-height: 22px;
-      width: 100%; box-sizing: border-box;
+      font-family: var(--font); font-size: 11px;
+      padding: 5px 7px; background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      resize: vertical; line-height: 1.4; min-height: 24px;
+      width: 100%; box-sizing: border-box; outline: none;
+      transition: border-color .12s ease-out;
     }
+    .sms-textarea:focus { border-color: var(--accent); }
+    .sms-textarea::placeholder { color: var(--text-3); }
     /* ── Sender ID row holds combo + comment button side-by-side ── */
     .sms-sender-row { display: flex; gap: 3px; align-items: stretch; min-width: 0; }
     .sms-sender-row .sms-combo { flex: 1; min-width: 0; }
     .sms-comment-btn {
-      height: 20px; padding: 0 6px; font-size: 11px; cursor: pointer;
-      background: #c0c0c0; font-family: inherit; color: #000;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      height: 24px; padding: 0 7px; font-size: 11px; cursor: pointer;
+      background: var(--surface); font-family: inherit; color: var(--text-2);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
       display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
       flex-shrink: 0;
+      transition: background-color .12s ease-out, border-color .12s ease-out, color .12s ease-out;
     }
-    .sms-comment-btn:active {
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-    }
-    .sms-comment-btn.has-comment { background: #ffe9a8; font-weight: 700; }
-    /* ── Comment popover (anchored near the comment button) ── */
+    .sms-comment-btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .sms-comment-btn.has-comment { background: var(--yellow-soft); color: var(--yellow-deep); font-weight: 600; border-color: transparent; }
+    /* ── Comment popover ── */
     #sms-comment-popover {
       display: none; position: absolute; z-index: 1300; width: 320px;
-      background: #ffffd6; color: #000; padding: 8px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 3px 3px 8px rgba(0,0,0,.4);
+      background: var(--surface); color: var(--text); padding: 10px;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
     }
-    #sms-comment-popover.open { display: block; }
-    #sms-comment-popover .pop-head { font-size: 10px; font-weight: 700; color: #444; margin-bottom: 4px; }
+    #sms-comment-popover.open { display: block; animation: winPop .16s ease-out; }
+    #sms-comment-popover .pop-head { font-size: 10px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
     #sms-comment-popover textarea {
       width: 100%; box-sizing: border-box; min-height: 90px;
-      font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 11px; padding: 4px 6px;
-      background: #fff; color: #000;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      resize: vertical;
+      font-family: var(--font); font-size: 11px; padding: 5px 7px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      resize: vertical; outline: none;
+      transition: border-color .12s ease-out;
     }
-    #sms-comment-popover .pop-actions { display: flex; gap: 4px; justify-content: flex-end; margin-top: 6px; }
-    /* ── Excel-style red corner triangle on table cells with a comment ── */
+    #sms-comment-popover textarea:focus { border-color: var(--accent); }
+    #sms-comment-popover textarea::placeholder { color: var(--text-3); }
+    #sms-comment-popover .pop-actions { display: flex; gap: 4px; justify-content: flex-end; margin-top: 8px; }
+    /* ── Corner marker on table cells with a comment ── */
     .sms-has-comment { position: relative; }
     .sms-has-comment::after {
       content: ''; position: absolute; top: 0; right: 0;
-      border-style: solid; border-width: 0 8px 8px 0;
-      border-color: transparent #d40000 transparent transparent;
+      border-style: solid; border-width: 0 7px 7px 0;
+      border-color: transparent var(--red) transparent transparent;
       pointer-events: none;
     }
-    body.night-mode #sms-comment-popover { background: #3a3a26; color: #eee; }
-    body.night-mode .sms-comment-btn.has-comment { background: #8a6a1a; color: #fff; }
     /* ── Fixed-width, ellipsis-truncated table cell content ── */
     .sms-cell-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sms-cell-preview {
@@ -713,202 +840,245 @@
     }
     .detail-row.sms-detail-row-multiline { align-items: flex-start; }
     .detail-row.sms-detail-row-multiline .detail-lbl { padding-top: 4px; }
-    /* ── Full-row form field (Email / Notes textareas) ── */
+    /* ── Full-row form field ── */
     .sms-field.full-row { grid-column: 1 / -1; }
-    /* ── Hide Status column in the SMS table to save space (still exported to CSV) ── */
+    /* ── Hide Status column in the SMS table ── */
     .sms-col-status { display: none !important; }
     /* ── SMS Bulk Edit panel ── */
     #sms-bulk-panel {
-      display: none; margin: 4px 0 6px; padding: 6px; background: #eef0d4;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #808080; border-bottom: 2px solid #808080;
+      display: none; margin: 4px 0 8px; padding: 8px;
+      background: var(--yellow-soft);
+      border: 1px solid var(--border); border-radius: var(--r-md);
     }
-    #sms-bulk-panel.open { display: block; }
+    #sms-bulk-panel.open { display: block; animation: slideDown .14s ease-out; }
     #sms-bulk-panel .bulk-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
-    #sms-bulk-panel .bulk-field { display: inline-flex; flex-direction: column; gap: 1px; }
-    #sms-bulk-panel .bulk-field label { font-size: 10px; color: #444; font-weight: 700; }
+    #sms-bulk-panel .bulk-field { display: inline-flex; flex-direction: column; gap: 2px; }
+    #sms-bulk-panel .bulk-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
     #sms-bulk-panel .bulk-field input,
     #sms-bulk-panel .bulk-field select {
-      height: 20px; font-size: 11px; font-family: inherit; padding: 0 4px; background: #fff;
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+      height: 24px; font-size: 11px; font-family: inherit; padding: 0 6px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      outline: none;
     }
-    #sms-bulk-panel .bulk-actions { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-    #sms-bulk-panel .bulk-hint { font-size: 10px; color: #555; margin-bottom: 4px; font-style: italic; }
+    #sms-bulk-panel .bulk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+    #sms-bulk-panel .bulk-hint { font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
     .sms-bulk-col { width: 24px; text-align: center; padding: 0 !important; }
     body:not(.sms-bulk-mode) .sms-bulk-col { display: none; }
-    .sms-bulk-col input { margin: 0; cursor: pointer; }
-    body.sms-bulk-mode #sms-clients-tbody tr:hover td { background: #003078; color: #fff; }
-    /* ── Bulk panel — dark theme ── */
-    body.night-mode #sms-bulk-panel {
-      background: #232818;
-      border-top-color: #555; border-left-color: #555;
-      border-right-color: #000; border-bottom-color: #000;
-    }
-    body.night-mode #sms-bulk-panel .bulk-field label { color: #c8c8c8; }
-    body.night-mode #sms-bulk-panel .bulk-hint { color: #aaa; }
-    body.night-mode #sms-bulk-panel .bulk-field input,
-    body.night-mode #sms-bulk-panel .bulk-field select {
-      background: #101010; color: #f0f0f0;
-      border-top-color: #111; border-left-color: #111;
-      border-right-color: #666; border-bottom-color: #666;
-    }
+    .sms-bulk-col input { margin: 0; cursor: pointer; accent-color: var(--accent); }
+    body.sms-bulk-mode #sms-clients-tbody tr:hover td { background: var(--row-hover); }
     #sms-clients-tbody tr { cursor: pointer; }
-    /* ── Inactive SMS client rows — greyed out ── */
-    tr.sms-inactive td { color: #999; font-style: italic; background: #f4f4f4; }
-    tr.sms-inactive:nth-child(even) td { background: #ebebeb; }
-    tr.sms-inactive td strong { color: #999; font-weight: normal; }
-    tr.sms-inactive:hover td, tr.sms-inactive:hover td strong { color: #fff !important; }
-    body.night-mode tr.sms-inactive td,
-    body.night-mode tr.sms-inactive td strong { color: #777; background: #262626; }
-    body.night-mode tr.sms-inactive:nth-child(even) td { background: #2c2c2c; }
+    /* ── Inactive SMS client rows ── */
+    tr.sms-inactive td { color: var(--text-3); font-style: italic; background: var(--surface-2); }
+    tr.sms-inactive:nth-child(even) td { background: var(--surface-3); }
+    tr.sms-inactive td strong { color: var(--text-3); font-weight: normal; }
     /* ── Undo toast ── */
-    .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left-color: #aa5500; }
+    .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left: 3px solid var(--orange); }
     .toast.undo-toast .undo-msg { flex: 1; }
     .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     }
     label { font-size: 11px; }
+    input[type="checkbox"] { accent-color: var(--accent); }
 
     /* ── Progress bar ── */
-    .progress-wrap { height: 14px; background: #fff; border-top: 1px solid #808080; border-left: 1px solid #808080; border-right: 1px solid #fff; border-bottom: 1px solid #fff; margin: 2px 0; }
-    .progress-fill { height: 100%; background: repeating-linear-gradient(to right,#000080 0,#000080 8px,#1084d0 8px,#1084d0 10px); }
+    .progress-wrap { height: 6px; background: var(--surface-3); border-radius: 999px; margin: 4px 0; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .2s ease-out; }
 
     /* ── Status bar ── */
     #statusbar {
-      height: 18px; flex-shrink: 0;
+      height: 24px; flex-shrink: 0;
       display: flex; align-items: center;
-      border-top: 1px solid #808080; background: #c0c0c0;
+      border-top: 1px solid var(--border); background: var(--surface);
+      color: var(--text-2);
     }
     .sb-pane {
-      padding: 0 8px; font-size: 11px; height: 100%; display: flex; align-items: center;
-      border-top: 1px solid #808080; border-left: 1px solid #808080;
-      border-right: 1px solid #fff; border-bottom: 1px solid #fff;
+      padding: 0 10px; font-size: 10px; height: 100%; display: flex; align-items: center;
+      border-right: 1px solid var(--border);
     }
+    .sb-pane:last-child { border-right: none; }
     #sb-sync { min-width: 220px; }
     #sb-lastproc { white-space: nowrap; font-size: 10px; }
     #sb-status { flex: 1; }
-    #sb-right { min-width: 120px; margin-left: auto; }
+    #sb-right { min-width: 120px; margin-left: auto; border-right: none; }
 
     /* ── CSV Wizard ── */
-    .wiz-steps { display: flex; gap: 0; margin-bottom: 8px; }
-    .wstep { flex: 1; text-align: center; padding: 3px; font-size: 10px; background: #d4d0c8; border: 1px solid #808080; }
-    .wstep.active { background: #000080; color: #fff; font-weight: 700; }
-    .wstep.done   { background: #006600; color: #fff; }
-    .drop-zone {
-      border-top: 2px solid #808080; border-left: 2px solid #808080;
-      border-right: 2px solid #fff; border-bottom: 2px solid #fff;
-      padding: 24px; text-align: center; cursor: pointer; background: #fff; color: #444;
+    .wiz-steps { display: flex; gap: 4px; margin-bottom: 10px; }
+    .wstep {
+      flex: 1; text-align: center; padding: 5px; font-size: 10px;
+      background: var(--surface-2); color: var(--text-3);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .drop-zone:hover, .drop-zone.over { background: #e8f0ff; color: #000080; }
-    .map-grid { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 4px; align-items: center; font-size: 11px; margin-bottom: 8px; }
-    .map-arrow { text-align: center; color: #666; font-size: 10px; }
+    .wstep.active { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 600; }
+    .wstep.done   { background: var(--green-soft); color: var(--green); border-color: transparent; }
+    .drop-zone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--r-md);
+      padding: 26px; text-align: center; cursor: pointer;
+      background: var(--surface-2); color: var(--text-2);
+      transition: background-color .12s ease-out, border-color .12s ease-out, color .12s ease-out;
+    }
+    .drop-zone:hover, .drop-zone.over { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .map-grid { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 5px; align-items: center; font-size: 11px; margin-bottom: 8px; }
+    .map-arrow { text-align: center; color: var(--text-3); font-size: 10px; }
     .inset-panel,
     .csv-summary-card {
-      background: #fff;
-      border-top: 2px solid #808080;
-      border-left: 2px solid #808080;
-      border-right: 2px solid #fff;
-      border-bottom: 2px solid #fff;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
     }
-    .csv-summary-card { padding: 8px; font-size: 11px; }
-    .empty-state { padding: 8px; font-size: 11px; color: #666; }
-    .alert-note td { padding: 4px 6px; font-style: italic; }
-    .alert-note.warn td { background: #fff8e8; color: #884400; }
-    .alert-note.info td { background: #e8f0ff; color: #000080; }
-    .alert-note.danger td { background: #fff0f0; color: #880000; }
-    .imp-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-bottom: 1px solid #e0e0e0; font-size: 11px; background: #fff; }
-    .imp-row:nth-child(even) { background: #f0f0f8; }
-    .imp-fn { font-family: 'Courier New', monospace; font-size: 10px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .csv-summary-card { padding: 10px; font-size: 11px; }
+    .empty-state { padding: 10px; font-size: 11px; color: var(--text-3); }
+    .alert-note td { padding: 5px 8px; }
+    .alert-note.warn td { background: var(--yellow-soft); color: var(--yellow-deep); }
+    .alert-note.info td { background: var(--accent-soft); color: var(--accent); }
+    .alert-note.danger td { background: var(--red-soft); color: var(--red); }
+    .imp-row {
+      display: flex; align-items: center; gap: 8px; padding: 4px 8px;
+      border-bottom: 1px solid var(--border); font-size: 11px; background: var(--surface);
+    }
+    .imp-row:last-child { border-bottom: none; }
+    .imp-row:nth-child(even) { background: var(--surface-2); }
+    .imp-fn { font-family: var(--mono); font-size: 10px; flex: 1; overflow: hidden; text-overflow: ellipsis; }
 
     /* ── Column toggle ── */
     .col-wrap { position: relative; }
-    .col-dd { display: none; position: absolute; top: calc(100% + 2px); right: 0; min-width: 150px; z-index: 50; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; box-shadow: 2px 2px 4px rgba(0,0,0,.3); padding: 2px 0; }
-    .col-dd.open { display: block; }
-    .col-item { display: flex; align-items: center; gap: 5px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
-    .col-item:hover { background: #000080; color: #fff; }
+    .col-dd {
+      display: none; position: absolute; top: calc(100% + 4px); right: 0; min-width: 160px; z-index: 50;
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      padding: 4px;
+    }
+    .col-dd.open { display: block; animation: slideDown .14s ease-out; }
+    .col-item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer;
+      border-radius: var(--r-sm);
+      transition: background-color .12s ease-out, transform .08s ease-out;
+    }
+    .col-item:hover { background: var(--surface-2); }
 
     /* ── Loading / Dialog ── */
-    #loading { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; }
+    #loading { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .45); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
     #loading.on { display: flex; }
     .win-dialog {
-      background: #c0c0c0; min-width: 240px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 4px 4px 8px rgba(0,0,0,.5);
+      background: var(--surface); min-width: 240px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
     }
-    .dlg-tb { background: linear-gradient(to right,#000080,#1084d0); height: 18px; display: flex; align-items: center; padding: 0 4px; }
-    .dlg-tb span { color: #fff; font-size: 11px; font-weight: 700; }
+    .dlg-tb {
+      background: var(--surface); height: 36px; display: flex; align-items: center; padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dlg-tb span { color: var(--text); font-size: 12px; font-weight: 600; }
     .dlg-body { padding: 16px; display: flex; gap: 12px; align-items: center; }
-    .dlg-ico { font-size: 24px; }
-    .dlg-text { font-size: 11px; }
+    .dlg-ico { font-size: 20px; color: var(--text-2); }
+    .dlg-text { font-size: 11px; line-height: 1.5; }
     .progress-dlg { padding: 0 16px 16px; }
 
     /* ── Toast ── */
-    #toasts { position: fixed; bottom: 30px; right: 10px; z-index: 2000; display: flex; flex-direction: column; gap: 4px; }
-    .toast { padding: 6px 12px; font-size: 11px; background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #404040; border-bottom: 2px solid #404040; box-shadow: 2px 2px 4px rgba(0,0,0,.4); max-width: 280px; }
-    .toast.ok  { border-left-color: #006600; color: #003300; }
-    .toast.err { border-left-color: #cc0000; color: #660000; }
+    #toasts { position: fixed; bottom: 34px; right: 12px; z-index: 2000; display: flex; flex-direction: column; gap: 6px; }
+    .toast {
+      padding: 8px 14px; font-size: 11px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong);
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-md);
+      max-width: 300px;
+    }
+    .toast.ok  { border-left-color: var(--green); }
+    .toast.err { border-left-color: var(--red); }
 
     /* ── Export ── */
-    .exp-form { display: grid; gap: 6px; max-width: 420px; }
+    .exp-form { display: grid; gap: 8px; max-width: 460px; }
     .exp-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-    .exp-lbl { font-size: 11px; min-width: 70px; }
+    .exp-lbl { font-size: 11px; min-width: 70px; color: var(--text-2); }
 
     /* ── Settings dialog ── */
     #settings-dlg { display: none; position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 500; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 80px); }
     #settings-dlg.open { display: block; }
     #settings-dlg .win-dialog { width: 100%; max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
-    #settings-dlg .settings-body { padding: 12px; overflow-y: auto; }
-    .settings-grid { display: grid; gap: 6px; }
+    #settings-dlg .settings-body { padding: 14px; overflow-y: auto; }
+    .settings-grid { display: grid; gap: 7px; }
     .settings-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(90px, 150px); gap: 8px; align-items: center; }
     .settings-row label { min-width: 0 !important; white-space: normal; line-height: 1.2; }
     .settings-row .win-inp, .settings-row .win-sel { width: 100% !important; min-width: 0; }
     .settings-check { display: grid; grid-template-columns: 16px 1fr auto; gap: 6px; align-items: center; }
     .settings-check label { cursor: default; }
     .settings-check input[type="checkbox"] { cursor: pointer; }
-    .settings-band { display: grid; gap: 4px; margin-top: 6px; padding-left: 18px; }
-    .settings-danger { background:#fff0f0; border:1px solid #cc8888; padding:6px; font-size:10px; color:#660000; }
-    .settings-note {
-      font-size:11px; color:#444; background:#f0f0f0; padding:5px 8px;
-      border-top:1px solid #808080; border-left:1px solid #808080;
-      border-right:1px solid #fff; border-bottom:1px solid #fff;
+    .settings-band { display: grid; gap: 5px; margin-top: 6px; padding-left: 18px; }
+    .settings-danger {
+      background: var(--red-soft); border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 8px; font-size: 10px; color: var(--red);
     }
+    .settings-note {
+      font-size: 11px; color: var(--text-2);
+      background: var(--surface-2);
+      padding: 7px 10px;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+    }
+    hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
     #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 900; align-items: center; justify-content: center; }
+      display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
     #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box { background: #c0c0c0; min-width: 280px; max-width: 340px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box {
+      background: var(--surface); min-width: 280px; max-width: 360px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
 
     /* ── Client detail popup ── */
-    #client-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 850; align-items: center; justify-content: center; }
+    #client-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
     #client-detail-overlay.open { display: flex; }
-    #client-detail-box { background: #c0c0c0; min-width: 360px; max-width: 480px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
-    .detail-row { display: flex; align-items: center; padding: 2px 0; border-bottom: 1px solid #d8d8d8; }
-    .detail-lbl { font-size: 11px; font-weight: 700; min-width: 150px; padding: 3px 8px; white-space: nowrap; }
+    #client-detail-box {
+      background: var(--surface); min-width: 360px; max-width: 480px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    #client-detail-body {
+      padding: 10px 12px; max-height: 400px; overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      margin: 10px 14px 4px;
+    }
+    .detail-row { display: flex; align-items: center; padding: 2px 0; border-bottom: 1px solid var(--border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-lbl { font-size: 11px; font-weight: 600; min-width: 150px; padding: 3px 8px; white-space: nowrap; color: var(--text-2); }
     .detail-val { font-size: 11px; padding: 3px 6px; }
     /* ── SMS client detail popup ── */
-    #sms-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 850; align-items: center; justify-content: center; }
+    #sms-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
     #sms-detail-overlay.open { display: flex; }
-    #sms-detail-box { background: #c0c0c0; min-width: 340px; max-width: 460px;
-      border-top: 2px solid #fff; border-left: 2px solid #fff;
-      border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-      box-shadow: 4px 4px 10px rgba(0,0,0,.6); }
+    #sms-detail-box {
+      background: var(--surface); min-width: 340px; max-width: 460px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    #sms-detail-body {
+      padding: 8px 12px; max-height: 60vh; overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      margin: 10px 14px 4px;
+    }
 
     /* ── Dismiss sound button (hidden by default) ── */
     #snd-dismiss-btn { display: none; }
-    #snd-dismiss-btn.active { display: inline-flex; animation: critFlash 0.9s ease-in-out infinite; }
+    #snd-dismiss-btn.active { display: inline-flex; animation: critFlash 1.2s ease-in-out infinite; color: #fff !important; border-color: transparent; }
 
-    .snap-action-row { display: flex; gap: 2px; margin-top: 3px; }
-    .snap-action-row .tbtn { flex: 1; justify-content: center; font-size: 10px; padding: 1px 4px; }
+    .snap-action-row { display: flex; gap: 3px; margin-top: 4px; }
+    .snap-action-row .tbtn { flex: 1; justify-content: center; font-size: 10px; padding: 2px 4px; }
 
     /* Print */
     @media print {
@@ -916,21 +1086,21 @@
       #app-body { overflow: visible; }
       .view { display: flex !important; overflow: visible; }
       .collapsed .caret-body { display: block !important; }
-      body, #win, #content { background: #fff !important; overflow: visible; position: static !important; }
+      body, #win, #content { background: #fff !important; overflow: visible; position: static !important; box-shadow: none !important; border: none !important; }
       #print-hdr { display: block !important; }
     }
-    #print-hdr { display: none; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    #print-hdr { display: none; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
 
     /* Scrollbars */
-    ::-webkit-scrollbar { width: 16px; height: 16px; }
-    ::-webkit-scrollbar-track { background: #c0c0c0; }
-    ::-webkit-scrollbar-thumb { background: #c0c0c0; border-top: 2px solid #fff; border-left: 2px solid #fff; border-right: 2px solid #808080; border-bottom: 2px solid #808080; }
-    ::-webkit-scrollbar-button { background: #c0c0c0; height: 16px; width: 16px; display: block; }
-    ::-webkit-scrollbar-corner { background: #c0c0c0; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); border: 2px solid transparent; background-clip: padding-box; }
+    ::-webkit-scrollbar-corner { background: transparent; }
 
     /* Motion polish */
     @keyframes viewIn {
-      from { opacity: .72; transform: translateY(3px); }
+      from { opacity: .6; transform: translateY(3px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     @keyframes winPop {
@@ -949,18 +1119,10 @@
       from { opacity: 1; transform: translateX(0); }
       to   { opacity: 0; transform: translateX(12px); }
     }
-    .view.active { animation: viewIn .14s ease-out; }
-    .tbtn, .fltbtn, .tab, .nav-item, .tslot, .col-item {
-      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
-    }
-    .tbtn:active, .fltbtn:active, .tab:active, .col-item:active {
-      transform: translate(1px,1px);
-    }
-    .groupbox, .stat-box, .sum-card, .win-inp, .win-sel, .win-search, #snap-ta {
-      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
-    }
+    .view.active { animation: viewIn .16s ease-out; }
+    .groupbox, .stat-box, .sum-card { transition: background-color .12s ease-out, border-color .12s ease-out; }
     #settings-dlg.open .win-dialog,
-    #operator-overlay.open .win-dialog,
+    #operator-dlg .win-dialog,
     #login-overlay .win-dialog,
     #loading.on .win-dialog,
     #confirm-overlay.open #confirm-box,
@@ -973,15 +1135,15 @@
     #delete-today-overlay.open #delete-today-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-detail-overlay.open #sms-detail-box {
-      animation: winPop .14s ease-out;
+      animation: winPop .16s ease-out;
     }
     #clip-detect-bar.visible,
     #view-banner.visible,
     #bulk-save-bar.visible {
-      animation: slideDown .14s ease-out;
+      animation: slideDown .16s ease-out;
     }
-    .toast { animation: toastIn .16s ease-out; }
-    .toast.leaving { animation: toastOut .16s ease-in forwards; }
+    .toast { animation: toastIn .18s ease-out; }
+    .toast.leaving { animation: toastOut .18s ease-in forwards; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         animation-duration: .01ms !important;
@@ -990,410 +1152,41 @@
       }
     }
 
-    /* Night Mode: dark Win98 workstation */
-    body.night-mode {
-      background: #071010;
-      background-image: radial-gradient(ellipse at 20% 30%, #123030 0%, transparent 52%),
-                        radial-gradient(ellipse at 80% 70%, #101020 0%, transparent 52%);
-      color: #e8e8e8;
-    }
-    body.night-mode #win,
-    body.night-mode #toolbar,
-    body.night-mode #menubar,
-    body.night-mode .menu-dd,
-    body.night-mode #sidebar,
-    body.night-mode #content,
-    body.night-mode #statusbar,
-    body.night-mode .win-dialog,
-    body.night-mode #confirm-box,
-    body.night-mode #undo-confirm-box,
-    body.night-mode #sms-confirm-box,
-    body.night-mode #signout-confirm-box,
-    body.night-mode #overwrite-confirm-box,
-    body.night-mode #client-detail-box,
-    body.night-mode #sms-detail-box,
-    body.night-mode #rollback-box,
-    body.night-mode #delete-today-box,
-    body.night-mode .toast,
-    body.night-mode .col-dd {
-      background: #303030 !important;
-      color: #e8e8e8;
-      border-top-color: #666 !important;
-      border-left-color: #666 !important;
-      border-right-color: #111 !important;
-      border-bottom-color: #111 !important;
-    }
-    body.night-mode #titlebar,
-    body.night-mode .dlg-tb {
-      background: linear-gradient(to right, #001050, #005060);
-    }
-    body.night-mode .tb-btn,
-    body.night-mode .menu-dd-item,
-    body.night-mode .tbtn,
-    body.night-mode .fltbtn,
-    body.night-mode .tab,
-    body.night-mode .tslot,
-    body.night-mode .wstep {
-      background: #3a3a3a;
-      color: #e8e8e8;
-      border-top-color: #707070;
-      border-left-color: #707070;
-      border-right-color: #111;
-      border-bottom-color: #111;
-    }
-    body.night-mode .tbtn:hover,
-    body.night-mode .menu-dd-item:hover,
-    body.night-mode .fltbtn:hover,
-    body.night-mode .tab:not(.active),
-    body.night-mode .tslot.has-data:hover {
-      background: #484848;
-    }
-    body.night-mode .tbtn.active,
-    body.night-mode .menu-dd-item.active,
-    body.night-mode .fltbtn.active,
-    body.night-mode .tab.active,
-    body.night-mode .tslot.current {
-      background: #222;
-      color: #fff;
-      border-color: #111 #707070 #707070 #111;
-    }
-    body.night-mode .tbtn.primary,
-    body.night-mode .wstep.active {
-      background: #003078;
-      color: #fff;
-    }
-    body.night-mode .wstep.done { background:#005020; color:#fff; }
-    body.night-mode #sync-label,
-    body.night-mode #sms-toolbar-label,
-    body.night-mode .sidebar-section-label,
-    body.night-mode .snap-label,
-    body.night-mode .groupbox-title,
-    body.night-mode .legend,
-    body.night-mode .stime,
-    body.night-mode .caret,
-    body.night-mode .stat-box .sl,
-    body.night-mode .sum-card .sc-lbl,
-    body.night-mode .map-arrow,
-    body.night-mode .exp-lbl,
-    body.night-mode label {
-      color: #c8d8d8 !important;
-    }
-    body.night-mode .groupbox,
-    body.night-mode .tab-content,
-    body.night-mode .lv-wrap,
-    body.night-mode .stat-box,
-    body.night-mode .sum-card,
-    body.night-mode .sparkline-wrap,
-    body.night-mode .progress-wrap,
-    body.night-mode .drop-zone,
-    body.night-mode .inset-panel,
-    body.night-mode .csv-summary-card,
-    body.night-mode #top-usage-list,
-    body.night-mode #stats-snap-list,
-    body.night-mode #client-detail-body,
-    body.night-mode #sms-detail-body {
-      background: #181818 !important;
-      color: #e8e8e8 !important;
-      border-top-color: #111 !important;
-      border-left-color: #111 !important;
-      border-right-color: #606060 !important;
-      border-bottom-color: #606060 !important;
-    }
-    body.night-mode #snap-ta,
-    body.night-mode #stats-snap-ta,
-    body.night-mode #slot-sel,
-    body.night-mode .win-inp,
-    body.night-mode .win-sel,
-    body.night-mode .win-ta,
-    body.night-mode .win-search,
-    body.night-mode .bulk-edit-inp,
-    body.night-mode .sms-vendor-box,
-    body.night-mode .sms-textarea,
-    body.night-mode #sms-comment-popover textarea {
-      background: #101010 !important;
-      color: #f0f0f0 !important;
-      border-top-color: #111 !important;
-      border-left-color: #111 !important;
-      border-right-color: #666 !important;
-      border-bottom-color: #666 !important;
-    }
-    body.night-mode #snap-ta::placeholder,
-    body.night-mode #stats-snap-ta::placeholder,
-    body.night-mode .win-search::placeholder,
-    body.night-mode .win-inp::placeholder,
-    body.night-mode .sms-textarea::placeholder,
-    body.night-mode #sms-comment-popover textarea::placeholder {
-      color: #888;
-    }
-    /* Comment popover takes the same dark surface as other SMS dialogs */
-    body.night-mode #sms-comment-popover {
-      background: #1f1f1f !important;
-      color: #f0f0f0;
-      border-top-color: #555 !important;
-      border-left-color: #555 !important;
-      border-right-color: #000 !important;
-      border-bottom-color: #000 !important;
-    }
-    body.night-mode #sms-comment-popover .pop-head { color: #d0d0d0; }
-    body.night-mode .sms-comment-btn { background: #2a2a2a; color: #f0f0f0; }
-    body.night-mode .sms-comment-btn.has-comment { background: #8a6a1a; color: #fff; }
-    body.night-mode .stats-snap-item { border-bottom-color: #333; }
-    body.night-mode .stats-snap-item:hover { background: #383838; }
-    body.night-mode .stats-snap-item.active { background: #003078; color: #fff; }
-    body.night-mode th {
-      background: #303030;
-      color: #f0f0f0;
-      border-top-color: #666;
-      border-left-color: #666;
-      border-right-color: #111;
-      border-bottom-color: #111;
-    }
-    body.night-mode th:hover { background:#444; }
-    body.night-mode td {
-      background: #141414;
-      color: #e8e8e8;
-      border-bottom-color: #303030;
-      border-right-color: #303030;
-    }
-    body.night-mode tr:nth-child(even) td,
-    body.night-mode .imp-row:nth-child(even) {
-      background: #1f2424;
-    }
-    body.night-mode tr:hover td {
-      background: #003078 !important;
-      color: #fff !important;
-    }
-    body.night-mode .top-usage-item {
-      border-bottom-color:#303030;
-    }
-    body.night-mode .sms-combo-options {
-      background:#181818;
-      color:#e8e8e8;
-      border-top-color:#111;
-      border-left-color:#111;
-      border-right-color:#666;
-      border-bottom-color:#666;
-    }
-    body.night-mode .sms-combo-option:hover {
-      background:#003078;
-      color:#fff;
-    }
-    body.night-mode td.neg { color:#ff7777; }
-    body.night-mode td.pos { color:#66dd88; }
-    body.night-mode td.credit { color:#66dd88; }
-    body.night-mode td.debit { color:#ff7777; }
-    body.night-mode tr.total-row td {
-      background:#303030 !important;
-      border-top-color:#666;
-    }
-    /* Alert row highlights — dark-mode variants */
-    body.night-mode tr.row-new-crit { background:#3a2a10 !important; }
-    body.night-mode tr.row-new-crit td { background:#3a2a10 !important; }
-    body.night-mode tr.row-new-crit:hover td { background:#003078 !important; color:#fff !important; }
-    body.night-mode tr.row-removed-crit td { background:#401818 !important; }
-    body.night-mode tr.row-removed-crit:hover td { background:#003078 !important; color:#fff !important; }
-    body.night-mode tr.row-eta-warn td { background:#2e2818 !important; }
-    body.night-mode tr.row-eta-warn:hover td { background:#003078 !important; color:#fff !important; }
-    @keyframes rowBlinkDark {
-      0%,100% { background:#5a2020 !important; }
-      50%      { background:#7a2828 !important; }
-    }
-    body.night-mode tr.band-critical td { animation: rowBlinkDark 0.9s ease-in-out infinite; }
-    body.night-mode tr.band-critical:hover td { background:#003078 !important; color:#fff !important; animation:none !important; }
-    body.night-mode tr.st-row-critical td { background:#2a1818 !important; }
-    body.night-mode tr.st-row-persist  td { background:#3a1c1c !important; }
-    body.night-mode .imp-row,
-    body.night-mode .detail-row {
-      background: #181818;
-      color: #e8e8e8;
-      border-bottom-color: #333;
-    }
-    body.night-mode .empty-state,
-    body.night-mode .top-usage-empty {
-      color: #c8d8d8 !important;
-    }
-    body.night-mode .alert-note.warn td {
-      background: #2f2a16 !important;
-      color: #ffe8a0 !important;
-    }
-    body.night-mode .alert-note.info td {
-      background: #172638 !important;
-      color: #a8d4ff !important;
-    }
-    body.night-mode .alert-note.danger td {
-      background: #351818 !important;
-      color: #ffb0b0 !important;
-    }
-    body.night-mode .detail-lbl,
-    body.night-mode .detail-val {
-      color: #f0f0f0 !important;
-    }
-    body.night-mode .detail-val span,
-    body.night-mode #client-detail-body [style*="color:#000"],
-    body.night-mode #client-detail-body [style*="color: #000"] {
-      color: #e8e8e8 !important;
-    }
-    body.night-mode .sparkline-wrap polyline[stroke="#000080"] { stroke: #8fb8ff; }
-    body.night-mode .sparkline-wrap circle[fill="#000080"] { fill: #8fb8ff; }
-    body.night-mode .sparkline-wrap text[fill="#888"] { fill: #b8c8c8; }
-    body.night-mode .sparkline-wrap line[stroke="#cc0000"] { stroke: #ff7777; }
-    body.night-mode .sparkline-wrap text[fill="#cc0000"] { fill: #ff7777; }
-    body.night-mode .sparkline-wrap line[stroke="#cc6600"] { stroke: #ffb066; }
-    body.night-mode .sparkline-wrap text[fill="#cc6600"] { fill: #ffb066; }
-    body.night-mode .stat-box .sv,
-    body.night-mode .sum-card .sc-val,
-    body.night-mode #sb-operators {
-      color: #8fb8ff;
-    }
-    body.night-mode .stat-box.s-high .sv,
-    body.night-mode .sum-card.sc-red .sc-val { color:#ff7777; }
-    body.night-mode .stat-box.s-medium .sv,
-    body.night-mode .sum-card.sc-orange .sc-val { color:#ffb066; }
-    body.night-mode .stat-box.s-light .sv { color:#dddd66; }
-    body.night-mode .stat-box.s-green .sv,
-    body.night-mode .sum-card.sc-green .sc-val { color:#66dd88; }
-    body.night-mode .badge.high { background:#4a1515; color:#ff9999; }
-    body.night-mode .badge.medium { background:#4a2b12; color:#ffc080; }
-    body.night-mode .badge.light { background:#3f3f18; color:#eeee88; }
-    body.night-mode .badge.target { background:#163f20; color:#8df0a2; }
-    body.night-mode .badge.none { background:#333; color:#bbb; }
-    body.night-mode .badge.removed { background:#581818; color:#ffaaaa; }
-    body.night-mode .scnt { background:#222; color:#ccc; border-color:#111 #666 #666 #111; }
-    body.night-mode .scnt.g { background:#12351c; color:#8df0a2; }
-    body.night-mode .scnt.a { background:#3d3510; color:#eadb72; }
-    body.night-mode .scnt.r { background:#451818; color:#ff9090; }
-    body.night-mode #view-banner,
-    body.night-mode #clip-detect-bar,
-    body.night-mode #bulk-save-bar {
-      background:#2f2a16 !important;
-      color:#ffe8a0 !important;
-      border-color:#665a22 !important;
-    }
-    body.night-mode .settings-danger {
-      background:#351818;
-      border-color:#884444;
-      color:#ffb0b0;
-    }
-    body.night-mode .settings-note {
-      background:#1c1c1c;
-      color:#c8c8c8;
-      border-top-color:#111; border-left-color:#111;
-      border-right-color:#555; border-bottom-color:#555;
-    }
-    body.night-mode a,
-    body.night-mode [style*="color:#000080"],
-    body.night-mode [style*="color: #000080"] {
-      color:#9fc2ff !important;
-    }
-    body.night-mode .tb-btn[style*="color:#000"],
-    body.night-mode .tb-btn[style*="color: #000"] {
-      color:#f0f0f0 !important;
-    }
-    body.night-mode [style*="color:#444"],
-    body.night-mode [style*="color: #444"],
-    body.night-mode [style*="color:#666"],
-    body.night-mode [style*="color: #666"],
-    body.night-mode [style*="color:#808080"],
-    body.night-mode [style*="color: #808080"] {
-      color:#c8d8d8 !important;
-    }
-    body.night-mode [style*="color:#888"],
-    body.night-mode [style*="color: #888"],
-    body.night-mode [style*="color:#999"],
-    body.night-mode [style*="color: #999"] {
-      color:#b0bcbc !important;
-    }
-    body.night-mode [style*="color:#884400"],
-    body.night-mode [style*="color: #884400"],
-    body.night-mode [style*="color:#cc6600"],
-    body.night-mode [style*="color: #cc6600"],
-    body.night-mode [style*="color:#cc4400"],
-    body.night-mode [style*="color: #cc4400"],
-    body.night-mode [style*="color:#aa2200"],
-    body.night-mode [style*="color: #aa2200"] {
-      color:#ffbd72 !important;
-    }
-    body.night-mode [style*="color:#888800"],
-    body.night-mode [style*="color: #888800"] {
-      color:#eeee88 !important;
-    }
-    body.night-mode [style*="color:#006600"],
-    body.night-mode [style*="color: #006600"],
-    body.night-mode [style*="color:#003300"],
-    body.night-mode [style*="color: #003300"] {
-      color:#78e690 !important;
-    }
-    body.night-mode [style*="color:#880000"],
-    body.night-mode [style*="color: #880000"],
-    body.night-mode [style*="color:#cc0000"],
-    body.night-mode [style*="color: #cc0000"],
-    body.night-mode [style*="color:#660000"],
-    body.night-mode [style*="color: #660000"] {
-      color:#ff8585 !important;
-    }
-    body.night-mode #tab-new-critical:not(.tab-blink-red),
-    body.night-mode #tab-new-critical.active:not(.tab-blink-red) {
-      background:#3a2a12 !important;
-      color:#fff0b8 !important;
-      border-top-color:#8a6a28;
-      border-left-color:#8a6a28;
-    }
-    body.night-mode #tab-new-critical.has-new {
-      background:#662200 !important;
-      color:#fff !important;
-      border-top-color:#ffbd72;
-      border-left-color:#ffbd72;
-      animation:newCritPulseNight 1.4s ease-in-out infinite;
-    }
-    @keyframes newCritPulseNight {
-      0%,100% { background:#662200; color:#fff; }
-      50% { background:#934000; color:#fff8d8; }
-    }
-    body.night-mode .col-item:hover,
-    body.night-mode .nav-item:hover,
-    body.night-mode .nav-item.active {
-      background:#003078;
-      color:#fff;
-    }
-    body.night-mode ::-webkit-scrollbar-track,
-    body.night-mode ::-webkit-scrollbar-button,
-    body.night-mode ::-webkit-scrollbar-corner {
-      background:#242424;
-    }
-    body.night-mode ::-webkit-scrollbar-thumb {
-      background:#3a3a3a;
-      border-top-color:#666;
-      border-left-color:#666;
-      border-right-color:#111;
-      border-bottom-color:#111;
-    }
-    body.night-mode .np-tab {
-      background: #2a2a2a; color: #d0d0d0;
-      border-top-color: #555; border-left-color: #555;
-      border-right-color: #000;
-    }
-    body.night-mode .np-tab.active {
-      background: #383838; color: #fff;
-      border-bottom-color: #383838;
-    }
-    body.night-mode .np-tab-close,
-    body.night-mode .np-tab-add {
-      background: #383838; color: #e0e0e0;
-      border-top-color: #555; border-left-color: #555;
-      border-right-color: #000; border-bottom-color: #000;
-    }
-    body.night-mode .np-tab-close:hover { background: #7a2a2a; }
-    body.night-mode #np-bold.active,
-    body.night-mode #np-italic.active,
-    body.night-mode #np-underline.active { background: #1a1a1a; }
-    body.night-mode .np-editor {
-      background: #1e1e1e; color: #e0e0e0;
-      border-top-color: #000; border-left-color: #000;
-      border-right-color: #555; border-bottom-color: #555;
-    }
-    body.night-mode .np-editor:empty:before { color: #777; }
-    body.night-mode #notepad-toolbar-label,
-    body.night-mode #stats-toolbar-label { color: #9fc2ff; }
+    /* ── Legacy inline-style remaps (JS-generated markup uses old hex colors) ── */
+    [style*="color:#000080"], [style*="color: #000080"] { color: var(--accent) !important; }
+    [style*="color:#cc0000"], [style*="color: #cc0000"],
+    [style*="color:#880000"], [style*="color: #880000"],
+    [style*="color:#660000"], [style*="color: #660000"] { color: var(--red) !important; }
+    [style*="color:#006600"], [style*="color: #006600"],
+    [style*="color:#003300"], [style*="color: #003300"] { color: var(--green) !important; }
+    [style*="color:#884400"], [style*="color: #884400"],
+    [style*="color:#cc6600"], [style*="color: #cc6600"],
+    [style*="color:#cc4400"], [style*="color: #cc4400"],
+    [style*="color:#aa2200"], [style*="color: #aa2200"],
+    [style*="color:#aa6600"], [style*="color: #aa6600"] { color: var(--orange) !important; }
+    [style*="color:#888800"], [style*="color: #888800"] { color: var(--yellow-deep) !important; }
+    [style*="color:#444"], [style*="color: #444"],
+    [style*="color:#555"], [style*="color: #555"],
+    [style*="color:#666"], [style*="color: #666"] { color: var(--text-2) !important; }
+    [style*="color:#888"], [style*="color: #888"],
+    [style*="color:#999"], [style*="color: #999"],
+    [style*="color:#808080"], [style*="color: #808080"] { color: var(--text-3) !important; }
+    [style*="background:#006600"] { background: var(--green) !important; }
+    [style*="background:#cccc00"] { background: var(--yellow) !important; }
+    [style*="background:#cc0000"] { background: var(--red) !important; }
+    [style*="background:#cc5500"] { background: var(--orange) !important; }
+    [style*="background:#888800"] { background: var(--yellow-deep) !important; }
+    [style*="background:#888888"] { background: var(--text-3) !important; }
+    [style*="Courier New"] { font-family: var(--mono) !important; }
+
+    /* Sparkline SVG legacy colors */
+    .sparkline-wrap polyline[stroke="#000080"] { stroke: var(--accent); }
+    .sparkline-wrap circle[fill="#000080"] { fill: var(--accent); }
+    .sparkline-wrap text[fill="#888"] { fill: var(--text-3); }
+    .sparkline-wrap line[stroke="#cc0000"] { stroke: var(--red); }
+    .sparkline-wrap text[fill="#cc0000"] { fill: var(--red); }
+    .sparkline-wrap line[stroke="#cc6600"] { stroke: var(--orange); }
+    .sparkline-wrap text[fill="#cc6600"] { fill: var(--orange); }
 
     @media print {
       body.night-mode,
@@ -1405,8 +1198,8 @@
       body.night-mode table,
       body.night-mode th,
       body.night-mode td {
-        background:#fff !important;
-        color:#000 !important;
+        background: #fff !important;
+        color: #000 !important;
       }
     }
   </style>
@@ -1417,14 +1210,10 @@
 <div id="win">
   <!-- Title bar -->
   <div id="titlebar">
-    <svg class="ico" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2" y="2" width="5" height="5" fill="#0ff"/><rect x="9" y="2" width="5" height="5" fill="#ff0"/>
-      <rect x="2" y="9" width="5" height="5" fill="#f0f"/><rect x="9" y="9" width="5" height="5" fill="#0f0"/>
+    <svg class="ico" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1.5 9.5, 4.5 9.5, 6.5 4.5, 9.5 12.5, 11.5 8, 12.5 9.5, 14.5 9.5"/>
     </svg>
     <span class="title">BalanceMonitor</span>
-    <div class="tb-btn">_</div>
-    <div class="tb-btn">□</div>
-    <div class="tb-btn tb-close">✕</div>
   </div>
 
   <!-- Menu bar -->
@@ -1445,36 +1234,36 @@
 
   <!-- Toolbar -->
   <div id="toolbar">
-    <button class="tbtn active" id="tnav-summary"     onclick="switchView('summary')">📊 Summary</button>
-    <button class="tbtn"        id="tnav-alerts"      onclick="switchView('alerts')">🚨 Alerts</button>
-    <button class="tbtn"        id="tnav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">👥 All Clients</button>
-    <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">📂 Client Manager</button>
-    <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">📤 Export</button>
+    <button class="tbtn active" id="tnav-summary"     onclick="switchView('summary')">Summary</button>
+    <button class="tbtn"        id="tnav-alerts"      onclick="switchView('alerts')">Alerts</button>
+    <button class="tbtn"        id="tnav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">All Clients</button>
+    <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">Client Manager</button>
+    <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">Export</button>
     <div class="tsep"></div>
-    <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">📋 Logs</button>
-    <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">📊 Summary</button>
-    <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">👥 All Clients</button>
-    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">🔴 Critical <span id="sttab-cnt-critical"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">🟠 Low <span id="sttab-cnt-low"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">⚪ Watch <span id="sttab-cnt-watch"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">🟡 Ok <span id="sttab-cnt-ok"></span></button>
-    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">🟢 Good <span id="sttab-cnt-good"></span></button>
-    <button class="tbtn" onclick="toggleSettings()">⚙ Settings</button>
-    <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">🔕 Dismiss Sound</button>
-    <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">📋 Clip Watch</button>
+    <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
+    <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
+    <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
+    <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">Critical <span id="sttab-cnt-critical"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">Low <span id="sttab-cnt-low"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
+    <button class="tbtn" onclick="toggleSettings()">Settings</button>
+    <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
+    <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">Clip Watch</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
-    <span id="notepad-toolbar-label">📝 Notepad</span>
-    <span id="stats-toolbar-label">📈 Stats Monitor</span>
+    <span id="notepad-toolbar-label">Notepad</span>
+    <span id="stats-toolbar-label">Stats Monitor</span>
     <span id="login-user-label" style="font-size:10px;color:#000080;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px"></span>
-    <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">🔓 Sign Out</button>
+    <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">Sign Out</button>
     <span id="sync-label">No data loaded</span>
   </div>
 
   <!-- Clipboard detect bar -->
   <div id="clip-detect-bar">
-    📋 New clipboard data detected! &nbsp;
-    <button class="tbtn primary" style="padding:1px 8px" onclick="processClipNow()">▶ Process Now</button>
-    <button class="tbtn" style="padding:1px 8px" onclick="dismissClipDetect()">✕ Dismiss</button>
+    New clipboard data detected! &nbsp;
+    <button class="tbtn primary" style="padding:1px 8px" onclick="processClipNow()">Process Now</button>
+    <button class="tbtn" style="padding:1px 8px" onclick="dismissClipDetect()">Dismiss</button>
   </div>
 
   <!-- App body -->
@@ -1518,33 +1307,33 @@
           </div>
         </div>
         <div id="snap-editor">
-        <div class="snap-label">📋 New Snapshot</div>
+        <div class="snap-label">New Snapshot</div>
         <textarea id="snap-ta" placeholder="Paste data here…"></textarea>
         <select id="slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
         <div style="display:flex;gap:2px;margin-top:2px">
-          <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processSnapshot()">▶ Process</button>
+          <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processSnapshot()">Process</button>
           <button class="tbtn" onclick="document.getElementById('snap-ta').value=''" title="Clear text area">✕</button>
         </div>
         <div class="snap-action-row" style="margin-top:4px">
-          <button class="tbtn" onclick="openUndoConfirm()" title="Remove the last saved snapshot and roll back to the one before it">🗑 Undo Last</button>
-          <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">🔄 Reset View</button>
+          <button class="tbtn" onclick="openUndoConfirm()" title="Remove the last saved snapshot and roll back to the one before it">Undo Last</button>
+          <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">Reset View</button>
         </div>
       </div>
     </div>
 
       <!-- Stats snapshot paste -->
       <div id="stats-sidebar-snap">
-        <div class="snap-label">📋 New Snapshot</div>
+        <div class="snap-label">New Snapshot</div>
         <textarea id="stats-snap-ta" placeholder="Paste hourly stats data here…"></textarea>
         <select id="stats-slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
         <div style="display:flex;gap:2px;margin-top:2px">
-          <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsSnapshot()">▶ Process</button>
+          <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsSnapshot()">Process</button>
           <button class="tbtn" onclick="document.getElementById('stats-snap-ta').value=''" title="Clear text area">✕</button>
         </div>
         <div class="snap-action-row" style="margin-top:4px">
-          <button class="tbtn" onclick="undoLastStatsSnapshot()" title="Remove the last saved stats snapshot">🗑 Undo Last</button>
+          <button class="tbtn" onclick="undoLastStatsSnapshot()" title="Remove the last saved stats snapshot">Undo Last</button>
         </div>
-        <div class="snap-label" style="margin-top:8px">📅 Today's Snapshots</div>
+        <div class="snap-label" style="margin-top:8px">Today's Snapshots</div>
         <div id="stats-snap-list">
           <div class="top-usage-empty">No stats snapshots yet.</div>
         </div>
@@ -1555,8 +1344,8 @@
     <div id="content">
       <!-- View banner -->
       <div id="view-banner">
-        📷 <span id="banner-text">Viewing snapshot</span>
-        <button class="tbtn" onclick="backToLive()" style="margin-left:4px">← Back to live</button>
+        <span id="banner-text">Viewing snapshot</span>
+        <button class="tbtn" onclick="backToLive()" style="margin-left:4px">Back to live</button>
       </div>
 
       <!-- ═══ SUMMARY ══════════════════════════════ -->
@@ -1566,7 +1355,7 @@
         <!-- Stats -->
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">📊 Live Statistics</div>
+            <div class="groupbox-title">Live Statistics</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body">
@@ -1576,15 +1365,15 @@
               <div class="stat-box s-green"><div class="sv" id="st-safe">—</div><div class="sl">Safe</div></div>
             </div>
             <div class="stat-row">
-              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">🔴 Critical</div></div>
-              <div class="stat-box s-medium"><div class="sv" id="st-medium">—</div><div class="sl">🟠 Medium</div></div>
-              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">⚠ Warning</div></div>
+              <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">Critical</div></div>
+              <div class="stat-box s-medium"><div class="sv" id="st-medium">—</div><div class="sl">Medium</div></div>
+              <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">Warning</div></div>
               <div class="stat-box">         <div class="sv" id="st-none">—</div><div class="sl">No threshold</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
-              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>✓ Safe — balance below Credit Limit</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cccc00"></div>⚠ Warning — balance reached Credit Limit</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>🔴 Critical — balance reached/passed Critical Balance (allowable limit)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Safe — balance below Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#cccc00"></div>Warning — balance reached Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — balance reached/passed Critical Balance (allowable limit)</div>
             </div>
           </div>
         </div>
@@ -1592,7 +1381,7 @@
         <!-- Timeline -->
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">⏱ 30-min Snapshot Timeline</div>
+            <div class="groupbox-title">30-min Snapshot Timeline</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body">
@@ -1603,7 +1392,7 @@
         <!-- Shift Summary -->
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">📋 Today's Shift Summary</div>
+            <div class="groupbox-title">Today's Shift Summary</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body" id="shift-summary-body">
@@ -1615,20 +1404,20 @@
       <!-- ═══ ALERTS ════════════════════════════════ -->
       <div class="view" id="view-alerts">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">🚨 Alert Panel</div>
+          <div class="groupbox-title">Alert Panel</div>
           <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
-            <div class="tab" onclick="setAlertFilter('high',this)">🔴 Critical</div>
-            <div class="tab" onclick="setAlertFilter('light',this)">⚠ Warning</div>
-            <div class="tab" onclick="setAlertFilter('none',this)">✓ Safe</div>
+            <div class="tab" onclick="setAlertFilter('high',this)">Critical</div>
+            <div class="tab" onclick="setAlertFilter('light',this)">Warning</div>
+            <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
-            <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">🆕 New Critical</div>
+            <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
-            <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">💤 Inactive w/ Usage</div>
-            <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">📊 30m Usage / Snapshot</div>
+            <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
+            <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
             <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
-            <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">⬇ Export View</button>
+            <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">Export View</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap" id="alert-tbl-wrap">
@@ -1641,7 +1430,7 @@
                   <th onclick="sortAlert('critical_balance')" style="text-align:right">Critical Balance</th>
                   <th onclick="sortAlert('_bw')" style="cursor:pointer">Balance Bar</th>
                   <th onclick="sortAlert('_level')">Alert</th>
-                  <th onclick="sortAlert('_eta')" style="white-space:nowrap">⏱ ETA to Critical</th>
+                  <th onclick="sortAlert('_eta')" style="white-space:nowrap">ETA to Critical</th>
                   <th>Ack</th>
                   <th>Notes</th>
                 </tr></thead>
@@ -1672,21 +1461,21 @@
             <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
             <button class="fltbtn" onclick="setClientsFilter('usage',this)">Usage only</button>
             <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
-            <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">⬇ Export View</button>
+            <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">Export View</button>
             <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
             <select class="win-sel" id="clients-manager-filter" onchange="setClientManagerFilter(this.value)" title="Filter by account manager" style="height:22px;max-width:160px">
               <option value="all">All managers</option>
             </select>
             <div class="col-wrap">
-              <button class="tbtn" onclick="toggleColDD()">⚙ Cols</button>
+              <button class="tbtn" onclick="toggleColDD()">Cols</button>
               <div class="col-dd" id="col-dd"></div>
             </div>
-            <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" style="margin-left:4px" title="Edit Credit Limit & Critical Balance for multiple clients at once">✏ Bulk Edit</button>
+            <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" style="margin-left:4px" title="Edit Credit Limit & Critical Balance for multiple clients at once">Bulk Edit</button>
           </div>
           <div id="bulk-save-bar">
-            ⚠ <span id="bulk-change-count">0</span> unsaved change(s) —
-            <button class="tbtn primary" style="padding:1px 8px" onclick="saveBulkEdits()">💾 Save All</button>
-            <button class="tbtn" style="padding:1px 8px" onclick="cancelBulkEdit()">✕ Discard</button>
+            <span id="bulk-change-count">0</span> unsaved change(s) —
+            <button class="tbtn primary" style="padding:1px 8px" onclick="saveBulkEdits()">Save All</button>
+            <button class="tbtn" style="padding:1px 8px" onclick="cancelBulkEdit()">Discard</button>
           </div>
           <div class="lv-wrap">
             <table id="clients-tbl">
@@ -1701,7 +1490,7 @@
       <!-- ═══ CLIENT MANAGER ════════════════════════ -->
       <div class="view" id="view-client-manager">
         <div class="groupbox">
-          <div class="groupbox-title">📂 CSV Upload — Client Info Manager</div>
+          <div class="groupbox-title">CSV Upload — Client Info Manager</div>
           <div class="wiz-steps">
             <div class="wstep active" id="ws1">1. Upload</div>
             <div class="wstep" id="ws2">2. Map Columns</div>
@@ -1713,7 +1502,7 @@
 
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">📜 Upload History (last 10)</div>
+            <div class="groupbox-title">Upload History (last 10)</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body" style="padding-top:4px">
@@ -1721,13 +1510,13 @@
           </div>
         </div>
 
-        <button class="tbtn" onclick="downloadTemplate()">⬇ Download Template CSV</button>
+        <button class="tbtn" onclick="downloadTemplate()">Download Template CSV</button>
       </div>
 
       <!-- ═══ EXPORT ════════════════════════════════ -->
       <div class="view" id="view-export">
         <div class="groupbox">
-          <div class="groupbox-title">📤 Report &amp; Export</div>
+          <div class="groupbox-title">Report &amp; Export</div>
           <div class="exp-form">
             <div class="exp-row">
               <span class="exp-lbl">Date range</span>
@@ -1766,9 +1555,9 @@
               <label style="margin-left:6px"><input type="checkbox" id="exp-include-inactive" checked> Include inactive</label>
             </div>
             <div class="exp-row" style="margin-top:4px">
-              <button class="tbtn primary" onclick="exportSnapshotSheet()">⬇ Export Snapshot Sheet</button>
-              <button class="tbtn" style="margin-left:4px" onclick="exportCsv()">⬇ Export Rows CSV</button>
-              <button class="tbtn" style="margin-left:4px" onclick="window.print()">🖨 Print / PDF</button>
+              <button class="tbtn primary" onclick="exportSnapshotSheet()">Export Snapshot Sheet</button>
+              <button class="tbtn" style="margin-left:4px" onclick="exportCsv()">Export Rows CSV</button>
+              <button class="tbtn" style="margin-left:4px" onclick="window.print()">Print / PDF</button>
             </div>
           </div>
         </div>
@@ -1777,14 +1566,14 @@
       <!-- ═══ LOGS ══════════════════════════════════ -->
       <div class="view" id="view-logs">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">📋 Snapshot Logs</div>
+          <div class="groupbox-title">Snapshot Logs</div>
           <div class="fbar">
             <span style="font-size:11px;color:#444">Audit trail of every snapshot posted — scheduled slot time vs. the time it was actually posted.</span>
             <span id="logs-admin-tools" style="display:none;margin-left:auto;gap:4px">
-              <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>🗑 Delete Selected</button>
-              <button class="tbtn" style="color:#880000" onclick="openDeleteAllLogsConfirm()">🗑 Delete All Logs</button>
+              <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>Delete Selected</button>
+              <button class="tbtn" style="color:#880000" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
             </span>
-            <span id="logs-viewonly-note" style="display:none;margin-left:auto;font-size:10px;color:#888;font-style:italic">🔒 View only — deleting logs is restricted to admins.</span>
+            <span id="logs-viewonly-note" style="display:none;margin-left:auto;font-size:10px;color:#888;font-style:italic">View only — deleting logs is restricted to admins.</span>
           </div>
           <div class="lv-wrap">
             <table id="logs-tbl">
@@ -1816,7 +1605,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div class="fbar">
               <button class="tbtn primary" id="sms-save-btn" onclick="saveSmsClient()">Save Client</button>
-              <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">✕ Cancel Edit</button>
+              <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">Cancel Edit</button>
               <button class="tbtn" onclick="newSmsClient()">New / Clear</button>
               <button class="tbtn" onclick="downloadSmsClientTemplate()">Download Sample CSV</button>
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
@@ -1827,7 +1616,7 @@
             </div>
             <div class="sms-form-grid">
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
-              <div class="sms-field"><label>Sender ID(s)</label><div class="sms-sender-row"><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;)" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div><button type="button" class="sms-comment-btn" id="sms-sender-id-comment-btn" onclick="openSmsCommentPopover(event)" title="Add or edit a comment about this Sender ID">💬</button></div></div>
+              <div class="sms-field"><label>Sender ID(s)</label><div class="sms-sender-row"><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;)" onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div><button type="button" class="sms-comment-btn" id="sms-sender-id-comment-btn" onclick="openSmsCommentPopover(event)" title="Add or edit a comment about this Sender ID"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.5-.7L3 21l1.7-5.1A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></button></div></div>
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" placeholder="MS Teams, Viber, …" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
@@ -1847,7 +1636,7 @@
               <select class="win-inp" id="sms-filter-account-manager" onchange="renderSmsClients()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
               <button class="tbtn" onclick="renderSmsClients()">Search</button>
               <button class="tbtn" onclick="clearSmsFilters()">Clear</button>
-              <button class="tbtn" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">✏ Bulk Edit</button>
+              <button class="tbtn" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
             </div>
             <div id="sms-bulk-panel">
@@ -1925,24 +1714,24 @@
       <div class="view" id="view-stats-summary">
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">📈 Stats Overview — <span id="st-sum-slot">no snapshot</span></div>
+            <div class="groupbox-title">Stats Overview — <span id="st-sum-slot">no snapshot</span></div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body">
             <div class="stat-row">
               <div class="stat-box">         <div class="sv" id="st-sum-total">—</div><div class="sl">Total clients</div></div>
-              <div class="stat-box s-high">  <div class="sv" id="st-sum-critical">—</div><div class="sl">🔴 Critical</div></div>
-              <div class="stat-box s-medium"><div class="sv" id="st-sum-low">—</div><div class="sl">🟠 Low</div></div>
-              <div class="stat-box s-light"> <div class="sv" id="st-sum-ok">—</div><div class="sl">🟡 Ok</div></div>
-              <div class="stat-box s-green"> <div class="sv" id="st-sum-good">—</div><div class="sl">🟢 Good</div></div>
-              <div class="stat-box">         <div class="sv" id="st-sum-watch">—</div><div class="sl">⚪ Watch (low traffic)</div></div>
+              <div class="stat-box s-high">  <div class="sv" id="st-sum-critical">—</div><div class="sl">Critical</div></div>
+              <div class="stat-box s-medium"><div class="sv" id="st-sum-low">—</div><div class="sl">Low</div></div>
+              <div class="stat-box s-light"> <div class="sv" id="st-sum-ok">—</div><div class="sl">Ok</div></div>
+              <div class="stat-box s-green"> <div class="sv" id="st-sum-good">—</div><div class="sl">Good</div></div>
+              <div class="stat-box">         <div class="sv" id="st-sum-watch">—</div><div class="sl">Watch (low traffic)</div></div>
             </div>
             <div class="stat-row">
               <div class="stat-box"><div class="sv" id="st-sum-asr">—</div><div class="sl">Overall ASR %</div></div>
               <div class="stat-box"><div class="sv" id="st-sum-attempts">—</div><div class="sl">Total Attempts</div></div>
               <div class="stat-box"><div class="sv" id="st-sum-completed">—</div><div class="sl">Total Completed</div></div>
-              <div class="stat-box s-high"><div class="sv" id="st-sum-persist">—</div><div class="sl">⚠ Persistent issues</div></div>
-              <div class="stat-box"><div class="sv" id="st-sum-new">—</div><div class="sl">🆕 New clients</div></div>
+              <div class="stat-box s-high"><div class="sv" id="st-sum-persist">—</div><div class="sl">Persistent issues</div></div>
+              <div class="stat-box"><div class="sv" id="st-sum-new">—</div><div class="sl">New clients</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
               <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
@@ -1956,7 +1745,7 @@
 
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">⚠ Persistent Problems — bad 3+ snapshots in a row</div>
+            <div class="groupbox-title">Persistent Problems — bad 3+ snapshots in a row</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:200px">
@@ -1974,7 +1763,7 @@
 
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">🔻 Performing Bad — Critical &amp; Low</div>
+            <div class="groupbox-title">Performing Bad — Critical &amp; Low</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:240px">
@@ -1991,7 +1780,7 @@
 
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">🆕 New Clients This Snapshot</div>
+            <div class="groupbox-title">New Clients This Snapshot</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:200px">
@@ -2007,7 +1796,7 @@
 
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">✅ Performing Well — Good</div>
+            <div class="groupbox-title">Performing Well — Good</div>
             <span class="caret">▼</span>
           </div>
           <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:240px">
@@ -2030,15 +1819,15 @@
             <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
             <select id="st-flag-filter" class="win-sel" onchange="renderStatsTables()" title="Filter by Status / Flags" style="width:150px">
               <option value="all">All flags</option>
-              <option value="any">⚑ Any flag</option>
-              <option value="new">🆕 New</option>
-              <option value="persistent">⚠ Persistent</option>
+              <option value="any">Any flag</option>
+              <option value="new">New</option>
+              <option value="persistent">Persistent</option>
               <option value="bad">bad 2×+ streak</option>
               <option value="improving">▲ Improving</option>
               <option value="declining">▼ Declining</option>
               <option value="none">— No flags</option>
             </select>
-            <button class="tbtn" id="st-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">🚫 Hide -DID</button>
+            <button class="tbtn" id="st-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
             <span class="sms-muted" id="st-all-count" style="margin-left:auto"></span>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
@@ -2066,7 +1855,7 @@
 
       <div class="view" id="view-stats-critical">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">🔴 Critical Clients — <span id="st-critical-count">0</span></div>
+          <div class="groupbox-title">Critical Clients — <span id="st-critical-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -2082,7 +1871,7 @@
 
       <div class="view" id="view-stats-low">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">🟠 Low Clients — <span id="st-low-count">0</span></div>
+          <div class="groupbox-title">Low Clients — <span id="st-low-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -2098,7 +1887,7 @@
 
       <div class="view" id="view-stats-watch">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">⚪ Watch Clients — <span id="st-watch-count">0</span></div>
+          <div class="groupbox-title">Watch Clients — <span id="st-watch-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -2114,7 +1903,7 @@
 
       <div class="view" id="view-stats-ok">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">🟡 Ok Clients — <span id="st-ok-count">0</span></div>
+          <div class="groupbox-title">Ok Clients — <span id="st-ok-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -2130,7 +1919,7 @@
 
       <div class="view" id="view-stats-good">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">🟢 Good Clients — <span id="st-good-count">0</span></div>
+          <div class="groupbox-title">Good Clients — <span id="st-good-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -2154,7 +1943,7 @@
     <div class="sb-pane" id="sb-lastproc" style="display:none"></div>
     <div class="sb-pane" id="sb-stats-last" style="display:none"></div>
     <div class="sb-pane" id="sb-operators"></div>
-    <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name">👤 <span id="sb-opname">Set name…</span></div>
+    <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name"><span id="sb-opname">Set name…</span></div>
   </div>
 </div><!-- /#win -->
 
@@ -2175,9 +1964,9 @@
 <!-- Sign Out Confirm Dialog -->
 <div id="signout-confirm-overlay">
   <div id="signout-confirm-box">
-    <div class="dlg-tb"><span>🔓 Confirm Sign Out</span></div>
+    <div class="dlg-tb"><span>Confirm Sign Out</span></div>
     <div class="dlg-body">
-      <div class="dlg-ico">🔓</div>
+      <div class="dlg-ico">!</div>
       <div class="dlg-text">
         <strong>Sign out of BalanceMonitor?</strong><br><br>
         You will need to enter your email and password again to log back in.
@@ -2193,7 +1982,7 @@
 <!-- Settings Dialog -->
 <div id="settings-dlg">
   <div class="win-dialog">
-    <div class="dlg-tb"><span>⚙ Settings</span></div>
+    <div class="dlg-tb"><span>Settings</span></div>
     <div class="settings-body">
       <div class="settings-grid">
         <div class="settings-row" style="display:none">
@@ -2234,11 +2023,11 @@
         <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
         <div class="settings-check">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
-          <label>🔔 Sound alert on critical</label>
+          <label>Sound alert on critical</label>
         </div>
         <div class="settings-check">
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
-          <label>🖥 Browser notification on critical</label>
+          <label>Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
@@ -2250,20 +2039,20 @@
         </div>
         <div class="settings-band">
           <div class="settings-row">
-            <label style="min-width:140px;color:#884400">🟠 Medium starts at:</label>
+            <label style="min-width:140px;color:#884400">Medium starts at:</label>
             <input class="win-inp" id="set-band-medium" type="number" value="-50" style="width:70px" onchange="saveSettings()" title="Balance at or below this → Medium warning">
           </div>
           <div class="settings-row">
-            <label style="min-width:140px;color:#cc0000">🔴 High starts at:</label>
+            <label style="min-width:140px;color:#cc0000">High starts at:</label>
             <input class="win-inp" id="set-band-high" type="number" value="-101" style="width:70px" onchange="saveSettings()" title="Balance at or below this → High (red critical)">
           </div>
           <div class="settings-row">
-            <label style="min-width:140px;color:#cc0000;font-weight:700">⚡ Blink starts at:</label>
+            <label style="min-width:140px;color:#cc0000;font-weight:700">Blink starts at:</label>
             <input class="win-inp" id="set-band-crit" type="number" value="-151" style="width:70px" onchange="saveSettings()" title="Balance at or below this → row blinks red">
           </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">🔒 Access</div>
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Access</div>
         <div class="settings-note">
           Login is managed via <strong>Firebase Authentication</strong>.<br>
           Add or remove users in the Firebase Console → Authentication → Users.
@@ -2304,13 +2093,13 @@
 <!-- Confirm Overwrite Snapshot Dialog -->
 <div id="overwrite-confirm-overlay">
   <div id="overwrite-confirm-box">
-    <div class="dlg-tb"><span>⚠ Slot Already Has Data</span></div>
+    <div class="dlg-tb"><span>Slot Already Has Data</span></div>
     <div class="dlg-body">
       <div class="dlg-ico">!</div>
       <div class="dlg-text" id="overwrite-confirm-text"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:110px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmOverwriteSnapshot()">Overwrite</button>
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmOverwriteSnapshot()">Overwrite</button>
       <button class="tbtn primary" style="min-width:72px" onclick="closeOverwriteConfirm()">Cancel</button>
     </div>
   </div>
@@ -2318,8 +2107,8 @@
 
 <!-- Delete Today Snapshots Dialog -->
 <div id="delete-today-overlay">
-  <div id="delete-today-box" style="width:390px;background:#c0c0c0;border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #404040;border-bottom:2px solid #404040;box-shadow:2px 2px 8px rgba(0,0,0,.5)">
-    <div class="dlg-tb"><span>⚠ Delete Today Snapshots</span></div>
+  <div id="delete-today-box" style="width:390px">
+    <div class="dlg-tb"><span>Delete Today Snapshots</span></div>
     <div class="dlg-body">
       <div class="dlg-ico">!</div>
       <div class="dlg-text">
@@ -2329,7 +2118,7 @@
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:110px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
       <button class="tbtn" style="min-width:72px" onclick="closeDeleteTodayConfirm()">Cancel</button>
     </div>
   </div>
@@ -2338,13 +2127,13 @@
 <!-- Delete Logs Dialog -->
 <div id="logs-confirm-overlay">
   <div id="logs-confirm-box">
-    <div class="dlg-tb"><span>⚠ Delete Snapshot Logs</span></div>
+    <div class="dlg-tb"><span>Delete Snapshot Logs</span></div>
     <div class="dlg-body">
-      <div class="dlg-ico">🗑</div>
+      <div class="dlg-ico">!</div>
       <div class="dlg-text" id="logs-confirm-text"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:90px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmDeleteLogs()">Delete</button>
+      <button class="tbtn danger" style="min-width:90px" onclick="confirmDeleteLogs()">Delete</button>
       <button class="tbtn" style="min-width:72px" onclick="closeLogsConfirm()">Cancel</button>
     </div>
   </div>
@@ -2353,7 +2142,7 @@
 <!-- Operator Name Dialog -->
 <div id="operator-dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center">
   <div class="win-dialog" style="min-width:300px">
-    <div class="dlg-tb"><span>👤 Operator Identity</span></div>
+    <div class="dlg-tb"><span>Operator Identity</span></div>
     <div style="padding:14px">
       <div style="font-size:11px;margin-bottom:8px">Enter your name so other operators can see who acknowledged alerts:</div>
       <input class="win-inp" id="operator-name-inp" type="text" placeholder="Your name…" style="width:100%;margin-bottom:12px" maxlength="30"
@@ -2369,9 +2158,9 @@
 <!-- Confirm Undo Dialog -->
 <div id="undo-confirm-overlay">
   <div id="undo-confirm-box">
-    <div class="dlg-tb"><span>⚠ Confirm Undo</span></div>
+    <div class="dlg-tb"><span>Confirm Undo</span></div>
     <div class="dlg-body">
-      <div class="dlg-ico">🗑</div>
+      <div class="dlg-ico">!</div>
       <div class="dlg-text">
         <strong>Undo Last Snapshot?</strong><br><br>
         This will remove the most recently saved snapshot and roll back to the previous one.<br><br>
@@ -2379,7 +2168,7 @@
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmUndoLast()">Yes, Undo</button>
+      <button class="tbtn danger" style="min-width:72px" onclick="confirmUndoLast()">Yes, Undo</button>
       <button class="tbtn" style="min-width:72px" onclick="closeUndoConfirm()">Cancel</button>
     </div>
   </div>
@@ -2387,8 +2176,8 @@
 
 <!-- Rollback Import Dialog -->
 <div id="rollback-overlay">
-  <div id="rollback-box" style="background:#c0c0c0;min-width:280px;max-width:360px;border-top:2px solid #fff;border-left:2px solid #fff;border-right:2px solid #404040;border-bottom:2px solid #404040;box-shadow:4px 4px 10px rgba(0,0,0,.6)">
-    <div class="dlg-tb"><span>↩ Rollback Import</span></div>
+  <div id="rollback-box">
+    <div class="dlg-tb"><span>Rollback Import</span></div>
     <div class="dlg-body">
       <div class="dlg-ico">↩</div>
       <div class="dlg-text">
@@ -2398,7 +2187,7 @@
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn" style="min-width:72px;background:#880000;color:#fff;border-color:#cc4444 #440000 #440000 #cc4444" onclick="confirmRollback()">Yes, Rollback</button>
+      <button class="tbtn danger" style="min-width:72px" onclick="confirmRollback()">Yes, Rollback</button>
       <button class="tbtn" style="min-width:72px" onclick="closeRollbackConfirm()">Cancel</button>
     </div>
   </div>
@@ -2408,22 +2197,22 @@
 <div id="client-detail-overlay">
   <div id="client-detail-box">
     <div class="dlg-tb" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
-      <span id="client-detail-title" style="color:#fff;font-size:11px;font-weight:700;padding-left:4px">Client Details</span>
-      <div class="tb-btn" onclick="closeClientDetail()" style="color:#000;margin-left:4px">✕</div>
+      <span id="client-detail-title">Client Details</span>
+      <div class="tb-btn" onclick="closeClientDetail()" style="margin-left:4px">✕</div>
     </div>
-    <div id="client-detail-body" style="padding:10px 12px;max-height:400px;overflow-y:auto;background:#fff;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;margin:8px 12px 4px"></div>
+    <div id="client-detail-body"></div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
-      <button class="tbtn" id="btn-edit-client" onclick="startEditClient()">✏ Edit</button>
-      <button class="tbtn" id="btn-save-client" style="display:none;background:#000080;color:#fff" onclick="saveClientEdit()">💾 Save</button>
+      <button class="tbtn" id="btn-edit-client" onclick="startEditClient()">Edit</button>
+      <button class="tbtn primary" id="btn-save-client" style="display:none" onclick="saveClientEdit()">Save</button>
       <button class="tbtn" id="btn-cancel-edit" style="display:none" onclick="cancelClientEdit()">Cancel</button>
       <button class="tbtn" id="btn-close-detail" onclick="closeClientDetail()">Close</button>
     </div>
   </div>
 </div>
 
-<!-- Sender ID Comment Popover (anchored to the 💬 button) -->
+<!-- Sender ID Comment Popover (anchored to the button) -->
 <div id="sms-comment-popover" onclick="event.stopPropagation()">
-  <div class="pop-head">💬 Sender ID Comment <span style="color:#888;font-weight:400">— preserved on CSV export</span></div>
+  <div class="pop-head">Sender ID Comment <span style="color:#888;font-weight:400">— preserved on CSV export</span></div>
   <textarea id="sms-sender-id-comment" placeholder="e.g. SID flagged for review by Smart Suite — pending re-approval"></textarea>
   <div class="pop-actions">
     <button class="tbtn" type="button" onclick="clearSmsCommentPopover()">Clear</button>
@@ -2435,12 +2224,12 @@
 <div id="sms-detail-overlay">
   <div id="sms-detail-box">
     <div class="dlg-tb" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
-      <span id="sms-detail-title" style="color:#fff;font-size:11px;font-weight:700;padding-left:4px">SMS Client Route</span>
-      <div class="tb-btn" onclick="closeSmsDetail()" style="color:#000;margin-left:4px">✕</div>
+      <span id="sms-detail-title">SMS Client Route</span>
+      <div class="tb-btn" onclick="closeSmsDetail()" style="margin-left:4px">✕</div>
     </div>
-    <div id="sms-detail-body" style="padding:8px 12px;max-height:60vh;overflow-y:auto;background:#fff;border-top:2px solid #808080;border-left:2px solid #808080;border-right:2px solid #fff;border-bottom:2px solid #fff;margin:8px 12px 4px"></div>
+    <div id="sms-detail-body"></div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
-      <button class="tbtn primary" onclick="editSmsFromDetail()">✏ Edit</button>
+      <button class="tbtn primary" onclick="editSmsFromDetail()">Edit</button>
       <button class="tbtn" onclick="closeSmsDetail()">Close</button>
     </div>
   </div>
@@ -2450,23 +2239,15 @@
 <div id="login-overlay" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2001;align-items:center;justify-content:center">
   <div class="win-dialog" style="min-width:340px;max-width:380px">
     <div class="dlg-tb" style="justify-content:space-between;padding-right:4px">
-      <span>🔒 Enter Network Password</span>
+      <span>Enter Network Password</span>
     </div>
     <div style="padding:14px 16px 12px">
       <!-- icon + description row -->
       <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
         <div style="width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-          <svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="2" width="28" height="20" rx="1" fill="#c0c0c0" stroke="#808080" stroke-width="1"/>
-            <rect x="4" y="4" width="24" height="14" fill="#000080"/>
-            <rect x="6" y="6" width="4" height="3" fill="#00ffff" opacity=".7"/>
-            <rect x="12" y="6" width="4" height="3" fill="#ffff00" opacity=".7"/>
-            <rect x="18" y="6" width="4" height="3" fill="#ff00ff" opacity=".7"/>
-            <rect x="12" y="22" width="8" height="3" fill="#808080"/>
-            <rect x="8" y="25" width="16" height="3" fill="#808080"/>
-            <circle cx="16" cy="11" r="4" fill="none" stroke="#ffd700" stroke-width="2"/>
-            <rect x="14" y="13" width="4" height="4" fill="#ffd700"/>
-            <circle cx="16" cy="10" r="1.5" fill="#000080"/>
+          <svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)">
+            <rect x="6" y="14" width="20" height="13" rx="3"/>
+            <path d="M11 14v-4a5 5 0 0 1 10 0v4"/>
           </svg>
         </div>
         <div>
@@ -2475,7 +2256,7 @@
         </div>
       </div>
       <!-- Win98-style inset separator -->
-      <div style="height:1px;background:#808080;border-bottom:1px solid #fff;margin-bottom:10px"></div>
+      <div style="height:1px;background:var(--border);margin-bottom:10px"></div>
       <!-- Credentials table -->
       <table style="width:100%;border:none;font-size:11px;border-collapse:collapse">
         <tr>
@@ -2501,7 +2282,7 @@
 <div id="loading">
   <div class="win-dialog" style="min-width:280px">
     <div class="dlg-tb"><span>BalanceMonitor</span></div>
-    <div class="dlg-body"><div class="dlg-ico">⏳</div><div class="dlg-text" id="loading-msg">Loading…</div></div>
+    <div class="dlg-body"><div class="dlg-ico">…</div><div class="dlg-text" id="loading-msg">Loading…</div></div>
     <div class="progress-dlg"><div class="progress-wrap"><div class="progress-fill" id="loading-bar" style="width:60%"></div></div></div>
   </div>
 </div>
@@ -2885,7 +2666,7 @@ function sendCriticalNotification(criticalRows) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const names = criticalRows.slice(0, 3).map(r => r.carrier_name).join(', ');
   const extra  = criticalRows.length > 3 ? ` +${criticalRows.length - 3} more` : '';
-  new Notification('🔴 BalanceMonitor — Critical Alert', {
+  new Notification('BalanceMonitor — Critical Alert', {
     body: `${criticalRows.length} client(s) hit Critical Balance:\n${names}${extra}`,
     tag : 'bm-critical',
     requireInteraction: true,
@@ -2911,7 +2692,7 @@ function updatePageTitle(hasCritical) {
     if (!_titleBlinkTimer) {
       let flip = false;
       _titleBlinkTimer = setInterval(() => {
-        document.title = flip ? '🔴 CRITICAL ALERT!' : 'BalanceMonitor';
+        document.title = flip ? '● CRITICAL ALERT!' : 'BalanceMonitor';
         flip = !flip;
       }, 1000);
     }
@@ -2932,10 +2713,10 @@ window.toggleClipWatch = () => {
     clearInterval(_clipWatchTimer);
     _clipWatchTimer = null;
     document.getElementById('btn-clip-watch')?.classList.remove('active');
-    toast('📋 Clipboard watch stopped', '', 2000);
+    toast('Clipboard watch stopped', '', 2000);
   } else {
     document.getElementById('btn-clip-watch')?.classList.add('active');
-    toast('📋 Clipboard watch active — will auto-detect CSV data', 'ok', 3000);
+    toast('Clipboard watch active — will auto-detect CSV data', 'ok', 3000);
     _clipWatchTimer = setInterval(checkClipboard, 3000);
     checkClipboard(); // immediate first check
   }
@@ -2959,7 +2740,7 @@ async function checkClipboard() {
       clearInterval(_clipWatchTimer); _clipWatchTimer = null;
       document.getElementById('btn-clip-watch')?.classList.remove('active');
     }
-    toast('📋 Clipboard access denied. Enable clipboard permission in browser settings.', 'err', 5000);
+    toast('Clipboard access denied. Enable clipboard permission in browser settings.', 'err', 5000);
   }
 }
 
@@ -3045,7 +2826,7 @@ function checkAndNotify(data, isNewSnapshot = false) {
     // 3. Browser notification — mention if newly critical
     if (S.browserNotif && newlyCritical.length > 0) sendCriticalNotification(newlyCritical);
 
-    // 4. Auto-switch: prefer 🆕 New Critical tab if there are new ones, else 🔴 Critical
+    // 4. Auto-switch: prefer New Critical tab if there are new ones, else Critical
     window.switchView('alerts');
     if (newlyCritical.length > 0) {
       const newTab = document.getElementById('tab-new-critical');
@@ -3153,7 +2934,7 @@ function getPrevCriticalSet() {
 function updateNewCriticalTab(newCount) {
   const tab = document.getElementById('tab-new-critical');
   if (!tab) return;
-  tab.textContent = newCount > 0 ? `🆕 New Critical (${newCount})` : '🆕 New Critical';
+  tab.textContent = newCount > 0 ? `New Critical (${newCount})` : 'New Critical';
   tab.classList.toggle('tab-blink-red', newCount > 0);
 }
 function updateRemovedCriticalTab(removedCount) {
@@ -3169,12 +2950,12 @@ function setTabBlink(id, on) {
 function updateInactiveUsageTab(count) {
   const tab = document.getElementById('tab-inactive-usage');
   if (!tab) return;
-  tab.textContent = count > 0 ? `💤 Inactive w/ Usage (${count})` : '💤 Inactive w/ Usage';
+  tab.textContent = count > 0 ? `Inactive w/ Usage (${count})` : 'Inactive w/ Usage';
   tab.classList.toggle('tab-blink-red', count > 0);
 }
 function chipInfo(row, lvl) {
-  if (lvl==='none') return ['none','✓ Safe'];
-  return [lvl, {high:'🔴 Critical', medium:'🟠 Medium', light:'⚠ Warning'}[lvl]||lvl];
+  if (lvl==='none') return ['none','Safe'];
+  return [lvl, {high:'Critical', medium:'Medium', light:'Warning'}[lvl]||lvl];
 }
 
 /* ════════════════════════════════════════════════
@@ -3535,7 +3316,7 @@ function subscribePresence() {
       const others = snap.docs.map(d=>d.data())
         .filter(d => d.operator !== operatorName && d.last_seen?.toDate() > cutoff);
       const el = document.getElementById('sb-operators');
-      if (el) el.textContent = others.length ? `👥 Also online: ${others.map(o=>o.operator).join(', ')}` : '';
+      if (el) el.textContent = others.length ? `Also online: ${others.map(o=>o.operator).join(', ')}` : '';
     });
   } catch(e) {}
 }
@@ -3628,8 +3409,8 @@ function logLateness(log){
   if (isNaN(sched.getTime())) return { min:null, label:'—', color:'#888' };
   const min = Math.round((log.processed_at - sched) / 60000);
   if (min <= 5)  return { min, label:'✓ On time',                 color:'#006600' };
-  if (min <= 15) return { min, label:`⚠ ${fmtDur(min)} late`,      color:'#aa6600' };
-  return            { min, label:`🔴 ${fmtDur(min)} late`,        color:'#cc0000' };
+  if (min <= 15) return { min, label:`${fmtDur(min)} late`,      color:'#aa6600' };
+  return            { min, label:`${fmtDur(min)} late`,        color:'#cc0000' };
 }
 
 async function writeSnapshotLog(snap, rowCount){
@@ -3685,7 +3466,7 @@ function renderLogs(){
     const postedStr = d ? d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
     const checked   = logsSelected.has(log.id) ? 'checked' : '';
     const checkCell  = admin ? `<td style="text-align:center"><input type="checkbox" ${checked} onclick="toggleLogSelect('${escAttr(log.id)}',this)"></td>` : '';
-    const actionCell = admin ? `<td><button class="tbtn" style="color:#880000;padding:0 6px;font-size:10px" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}')">🗑 Delete</button></td>` : '';
+    const actionCell = admin ? `<td><button class="tbtn" style="color:#880000;padding:0 6px;font-size:10px" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}')">Delete</button></td>` : '';
     return `<tr>
       ${checkCell}
       <td>${esc(log.session_date || '—')}</td>
@@ -3707,7 +3488,7 @@ function updateLogsSelUI(){
   if (btn){
     const n = logsSelected.size;
     btn.disabled = n === 0;
-    btn.textContent = n ? `🗑 Delete Selected (${n})` : '🗑 Delete Selected';
+    btn.textContent = n ? `Delete Selected (${n})` : 'Delete Selected';
   }
   const all = document.getElementById('logs-check-all');
   if (all) all.checked = logsData.length > 0 && logsSelected.size === logsData.length;
@@ -4038,7 +3819,7 @@ async function cleanupOldSnapshots() {
       if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
     }
     if (count > 0) await batch.commit();
-    toast(`🗑 Removed ${s.docs.length} snapshot(s) older than ${S.retentionDays} days`, 'ok', 5000);
+    toast(`Removed ${s.docs.length} snapshot(s) older than ${S.retentionDays} days`, 'ok', 5000);
   } catch(e) { console.warn('Cleanup error:', e); }
 }
 
@@ -4057,7 +3838,7 @@ async function cleanupCsvImports() {
       if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
     }
     if (count > 0) await batch.commit();
-    toast(`🗑 Removed ${stale.length} old CSV import record(s)`, 'ok', 5000);
+    toast(`Removed ${stale.length} old CSV import record(s)`, 'ok', 5000);
   } catch(e) { console.warn('CSV import cleanup error:', e); }
 }
 
@@ -4199,7 +3980,7 @@ function updateLastProcessed() {
   const d = meta?.at ? new Date(meta.at) : null;
   if (!d || isNaN(d.getTime())) { el.style.display = 'none'; el.textContent = ''; return; }
   const when = d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
-  el.textContent = `🕐 Last processed: ${when}` +
+  el.textContent = `Last processed: ${when}` +
     (meta.slot ? ` · ${fmt12(meta.slot)} slot` : '') +
     (meta.rows ? ` · ${meta.rows} clients` : '');
   el.title = 'The most recent snapshot you processed on this device';
@@ -4236,9 +4017,9 @@ function renderStats() {
   const tabNoThresh=tabRows.filter(r=>!hasClientThreshold(r)).length;
   const tabs=document.querySelectorAll('#alert-tabs .tab');
   if(tabs[0]) tabs[0].textContent=`All (${tabRows.length})`;
-  if(tabs[1]) tabs[1].textContent=`🔴 Critical (${tabHigh})`;
-  if(tabs[2]) tabs[2].textContent=`⚠ Warning (${tabLite})`;
-  if(tabs[3]) tabs[3].textContent=`✓ Safe (${tabSafe})`;
+  if(tabs[1]) tabs[1].textContent=`Critical (${tabHigh})`;
+  if(tabs[2]) tabs[2].textContent=`Warning (${tabLite})`;
+  if(tabs[3]) tabs[3].textContent=`Safe (${tabSafe})`;
   if(tabs[4]) tabs[4].textContent=`No threshold (${tabNoThresh})`;
   if(tabs[5]) tabs[5].textContent=`Usage (${tabUsage})`;
 }
@@ -4411,7 +4192,7 @@ function renderAlerts() {
   const prevSnap = getPrevSnapshot();
   const usingPriorNote = (alertFilter==='new' || alertFilter==='removed') && priorSnap && prevSnap === priorSnap
     ? `<tr class="alert-note info"><td colspan="10">
-        📅 Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
+        Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
        </td></tr>` : '';
   const removedCompareNote = alertFilter==='removed' && prevSnap
     ? `<tr class="alert-note danger"><td colspan="10">
@@ -4421,12 +4202,12 @@ function renderAlerts() {
   document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + page.map(r=>{
     const bw = balanceBarPct(r);
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
-    const newBadge = r._isNew ? '<span class="badge-isnew">🆕 NEW</span>' : '';
+    const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const ackCell  = r._removedFromCritical ? '—' : r._ack
       ? `<span style="font-size:10px;color:#006600;white-space:nowrap">✓ ${esc(r._ack.operator)}<br><span style="color:#888">${fmt12(r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0'))}</span></span>`
-      : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">✓ Ack</button>`;
+      : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">Ack</button>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
@@ -4958,9 +4739,9 @@ function renderPager(id,page,pages,fn){
     <option value="1000" ${PG===1000?'selected':''}>1000 / page</option>
   </select>`;
   if(pages<=1){el.innerHTML=pgSel;return;}
-  el.innerHTML=`<button class="tbtn" ${page===0?'disabled':''} onclick="${fn}(${page-1})">◄ Prev</button>
+  el.innerHTML=`<button class="tbtn" ${page===0?'disabled':''} onclick="${fn}(${page-1})">Prev</button>
     <span>Page ${page+1} of ${pages}</span>
-    <button class="tbtn" ${page>=pages-1?'disabled':''} onclick="${fn}(${page+1})">Next ►</button>${pgSel}`;
+    <button class="tbtn" ${page>=pages-1?'disabled':''} onclick="${fn}(${page+1})">Next</button>${pgSel}`;
 }
 window.setPG = v => { PG=parseInt(v)||500; alertPage=0; clientPage=0; renderAlerts(); window.renderClients(); };
 
@@ -4983,7 +4764,7 @@ window.renderWizard=()=>{
       <div class="drop-zone" id="dz" onclick="document.getElementById('fcsv').click()"
         ondragover="event.preventDefault();this.classList.add('over')"
         ondragleave="this.classList.remove('over')" ondrop="handleDrop(event)">
-        <div style="font-size:24px;margin-bottom:6px">📂</div>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:6px"><path d="M12 16V4"/><path d="m8 8 4-4 4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
         <div style="font-weight:700;margin-bottom:3px">Drop a CSV file here, or click to browse</div>
         <div style="font-size:10px;color:#808080">.csv files only</div>
       </div>
@@ -5005,8 +4786,8 @@ window.renderWizard=()=>{
         }).join('')}
       </div>
       <div style="display:flex;gap:4px">
-        <button class="tbtn" onclick="wizGo(1)">◄ Back</button>
-        <button class="tbtn primary" onclick="applyMapping()">Next: Review ►</button>
+        <button class="tbtn" onclick="wizGo(1)">Back</button>
+        <button class="tbtn primary" onclick="applyMapping()">Next: Review</button>
       </div>`;
   }
   if(wStep===3){
@@ -5041,20 +4822,20 @@ window.renderWizard=()=>{
         </table>
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
-        <button class="tbtn" onclick="wizGo(2)">◄ Back</button>
-        <button class="tbtn primary" onclick="wizGo(4)">Confirm & Save ►</button>
+        <button class="tbtn" onclick="wizGo(2)">Back</button>
+        <button class="tbtn primary" onclick="wizGo(4)">Confirm & Save</button>
       </div>`;
   }
   if(wStep===4){
     const n=wChanges.filter(c=>wChecked[c._id]!==false).length;
     c.innerHTML=`
       <div style="text-align:center;padding:24px">
-        <div style="font-size:28px;margin-bottom:8px">💾</div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg>
         <div style="font-weight:700;margin-bottom:4px">${n} changes ready to save</div>
         <div style="font-size:10px;color:#444;margin-bottom:16px">This will update the Firestore clients collection.</div>
         <div style="display:flex;gap:6px;justify-content:center">
-          <button class="tbtn" onclick="wizGo(3)">◄ Back</button>
-          <button class="tbtn primary" onclick="saveWizard()">✓ Save ${n} changes</button>
+          <button class="tbtn" onclick="wizGo(3)">Back</button>
+          <button class="tbtn primary" onclick="saveWizard()">Save ${n} changes</button>
         </div>
       </div>`;
   }
@@ -5076,9 +4857,9 @@ window.handleFile=file=>{
     document.getElementById('csv-sum').innerHTML=`
       <div class="csv-summary-card">
         <b>${esc(file.name)}</b> — ${res.data.length} rows · ${wHeaders.length} cols · ${(file.size/1024).toFixed(1)} KB<br>
-        <span style="color:#000080">📥 ${isNew} new clients</span>${matched?` · <span style="color:#006600">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
+        <span style="color:#000080">${isNew} new clients</span>${matched?` · <span style="color:#006600">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
       </div>
-      <div style="margin-top:6px"><button class="tbtn primary" onclick="wizGo(2)">Next: Map Columns ►</button></div>`;
+      <div style="margin-top:6px"><button class="tbtn primary" onclick="wizGo(2)">Next: Map Columns</button></div>`;
   },error:e=>toast('CSV error: '+e.message,'err')});
 };
 window.applyMapping=()=>{
@@ -5177,7 +4958,7 @@ async function renderImpHist(){
       <span style="color:#666">${dt.toLocaleDateString()} ${fmt12(dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0'))}</span>
       <span style="color:#006600">${imp.new_clients||0}↑ ${imp.updated_clients||0}✎ ${imp.removed||0}✗</span>
       ${imp.rolled_back?'<span class="badge none">Rolled back</span>':'<span class="badge target">Applied ✓</span>'}
-      ${canRollback?`<button class="tbtn" style="font-size:10px;padding:0 6px;color:#880000" onclick="promptRollback(${i})">↩ Rollback</button>`:''}
+      ${canRollback?`<button class="tbtn" style="font-size:10px;padding:0 6px;color:#880000" onclick="promptRollback(${i})">Rollback</button>`:''}
     </div>`;
   }).join('');
 }
@@ -5967,7 +5748,7 @@ function smsFillForm(row) {
   refreshSmsCommentBtn();
 }
 
-// Visually mark the 💬 button when this Sender ID has a saved comment
+// Visually mark the button when this Sender ID has a saved comment
 function refreshSmsCommentBtn() {
   const btn = document.getElementById('sms-sender-id-comment-btn');
   if (!btn) return;
@@ -5976,7 +5757,7 @@ function refreshSmsCommentBtn() {
   btn.title = txt ? `Comment: ${txt}` : 'Add or edit a comment about this Sender ID';
 }
 
-// Position the popover just below the 💬 button and focus the textarea
+// Position the popover just below the button and focus the textarea
 window.openSmsCommentPopover = e => {
   e?.stopPropagation();
   const btn = document.getElementById('sms-sender-id-comment-btn');
@@ -6050,7 +5831,7 @@ window.editSmsClient = id => {
   const st = document.getElementById('sms-edit-status');
   if (st) st.textContent = `Editing: ${row.client} / ${row.destination}`;
   const saveBtn = document.getElementById('sms-save-btn');
-  if (saveBtn) saveBtn.textContent = '💾 Save Changes';
+  if (saveBtn) saveBtn.textContent = 'Save Changes';
   const cancelBtn = document.getElementById('sms-cancel-edit-btn');
   if (cancelBtn) cancelBtn.style.display = '';
   const clientEl = document.getElementById('sms-client');
@@ -6141,7 +5922,7 @@ function showUndoToast(msg, onUndo, seconds=5) {
   const t = document.createElement('div');
   t.className = 'toast undo-toast';
   t.innerHTML = `<span class="undo-msg">${esc(msg)}</span>` +
-    `<button class="tbtn" style="font-size:10px;padding:1px 6px">↩ Undo (<span class="undo-count">${remaining}</span>)</button>`;
+    `<button class="tbtn" style="font-size:10px;padding:1px 6px">Undo (<span class="undo-count">${remaining}</span>)</button>`;
   const countEl = t.querySelector('.undo-count');
   const btn = t.querySelector('button');
   const dismiss = () => { t.classList.add('leaving'); setTimeout(() => t.remove(), 180); };
@@ -6396,7 +6177,7 @@ window.renderSmsClients = () => {
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
-    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
+    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
   }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?14:13}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
@@ -7031,11 +6812,11 @@ function renderShiftSummary() {
     </div>
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
-    ${payments.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">💰 Payments today (clients with negative 30m usage):</div>
+    ${payments.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">Payments today (clients with negative 30m usage):</div>
     <table class="sum-movers" style="width:100%">
       ${payments.map((p,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(p.name)}</td><td class="num" style="color:#006600;font-family:'Courier New',monospace">-${fmt(p.amt)}</td></tr>`).join('')}
-    </table>` : '<div style="font-size:11px;color:#666;margin-top:6px">💰 No payments detected today.</div>'}
-    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">⚠ Biggest balance growth since shift start (higher = more credit consumed):</div>
+    </table>` : '<div style="font-size:11px;color:#666;margin-top:6px">No payments detected today.</div>'}
+    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">Biggest balance growth since shift start (higher = more credit consumed):</div>
     <table class="sum-movers" style="width:100%">
       ${movers.map((m,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:#cc0000;font-family:'Courier New',monospace">+${fmt(m.change)}</td></tr>`).join('')}
     </table>` : ''}`;
@@ -7260,8 +7041,8 @@ function statsCurrentRows() {
 
 function statsFlags(r) {
   const h = [];
-  if (r.isNew) h.push('<span class="stbadge newc">🆕 NEW</span>');
-  if (r.persistent) h.push(`<span class="stbadge persist">⚠ PERSISTENT ${r.badStreak}×</span>`);
+  if (r.isNew) h.push('<span class="stbadge newc">NEW</span>');
+  if (r.persistent) h.push(`<span class="stbadge persist">PERSISTENT ${r.badStreak}×</span>`);
   else if (r.badStreak >= 2) h.push(`<span class="stbadge watch">bad ${r.badStreak}×</span>`);
   if (r.trend === 'improving') h.push('<span class="stbadge improving">▲ improving</span>');
   if (r.trend === 'declining') h.push('<span class="stbadge declining">▼ declining</span>');
@@ -7290,7 +7071,7 @@ window.toggleStatsHideDID = () => {
   const btn = document.getElementById('st-hide-did');
   if (btn) {
     btn.classList.toggle('active', statsHideDID);
-    btn.textContent = statsHideDID ? '👁 Show -DID' : '🚫 Hide -DID';
+    btn.textContent = statsHideDID ? 'Show -DID' : 'Hide -DID';
   }
   statsRender();
 };
@@ -7493,7 +7274,7 @@ function renderStatsSummary() {
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td>${stClsBadge(r.cls)}</td>
       <td>${statsFlags(r)}</td></tr>`,
-    'No clients performing badly. 🎉');
+    'No clients performing badly. ');
 
   const fresh = statsSummarySortRows('new', rows.filter(r => r.isNew),
     list => list.sort((a,b) => b.attempts - a.attempts));
@@ -7530,11 +7311,11 @@ function updateStatsStatusBar() {
   if (snaps.length) {
     const last = snaps[snaps.length-1];
     pane.style.display = '';
-    pane.textContent = `📈 Last stats snapshot: ${fmt12(last.time_slot)} · ${last.data?.length||0} rows`;
+    pane.textContent = `Last stats snapshot: ${fmt12(last.time_slot)} · ${last.data?.length||0} rows`;
   } else {
     let meta = null;
     try { meta = JSON.parse(localStorage.getItem('bm_stats_last') || 'null'); } catch(e) {}
-    if (meta) { pane.style.display = ''; pane.textContent = `📈 Last stats snapshot: ${fmt12(meta.slot)} · ${meta.rows} rows`; }
+    if (meta) { pane.style.display = ''; pane.textContent = `Last stats snapshot: ${fmt12(meta.slot)} · ${meta.rows} rows`; }
     else pane.style.display = 'none';
   }
 }
