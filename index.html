@@ -313,13 +313,22 @@
     .badge.none   { background: #e8e8e8; color: #666; }
     .badge.removed { background: #ffcccc; color: #880000; }
 
-    /* Usage bar */
+    /* Usage bar — Win98 segmented progress bar */
     .ubar-wrap { display: flex; align-items: center; gap: 4px; }
-    .ubar { width: 50px; height: 8px; background: #e0e0e0; border-top: 1px solid #808080; border-left: 1px solid #808080; flex-shrink: 0; overflow: hidden; }
-    .ubar-fill { height: 100%; }
-    .ubar-fill.light  { background: repeating-linear-gradient(to right,#cccc00 0,#cccc00 4px,#aaaa00 4px,#aaaa00 5px); }
-    .ubar-fill.medium { background: repeating-linear-gradient(to right,#cc6600 0,#cc6600 4px,#aa4400 4px,#aa4400 5px); }
-    .ubar-fill.high   { background: repeating-linear-gradient(to right,#cc0000 0,#cc0000 4px,#aa0000 4px,#aa0000 5px); }
+    .ubar {
+      width: 54px; height: 10px; background: #fff; flex-shrink: 0; overflow: hidden; padding: 1px;
+      border-top: 1px solid #808080; border-left: 1px solid #808080;
+      border-right: 1px solid #dfdfdf; border-bottom: 1px solid #dfdfdf;
+      box-shadow: inset 1px 1px 0 #404040;
+    }
+    .ubar-fill {
+      height: 100%;
+      -webkit-mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px);
+              mask: repeating-linear-gradient(to right, #000 0 3px, transparent 3px 4px);
+    }
+    .ubar-fill.light  { background: #d4b800; }
+    .ubar-fill.medium { background: #c05a00; }
+    .ubar-fill.high   { background: #b40000; }
 
     /* ── Filter tabs (tab control) ── */
     .tab-bar {
@@ -4399,8 +4408,8 @@ function renderAlerts() {
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
-        <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(0)}%"></div></div>
-        <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(0)}%</span>
+        <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(2)}%"></div></div>
+        <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
