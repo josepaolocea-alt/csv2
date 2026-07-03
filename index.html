@@ -1832,6 +1832,7 @@
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" placeholder="MS Teams, Viber, …" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
               <div class="sms-field"><label>Type</label><div class="sms-combo" data-combo="type"><input class="win-inp" id="sms-type" autocomplete="off" readonly placeholder="(none)" onfocus="openSmsCombo('type')" onclick="openSmsCombo('type')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('type',event)">▼</button><div class="sms-combo-options" id="sms-type-options"></div></div></div>
+              <div class="sms-field"><label>Message Type</label><div class="sms-combo" data-combo="msg_type"><input class="win-inp" id="sms-msg-type" autocomplete="off" readonly placeholder="(none)" onfocus="openSmsCombo('msg_type')" onclick="openSmsCombo('msg_type')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('msg_type',event)">▼</button><div class="sms-combo-options" id="sms-msg-type-options"></div></div></div>
               <div class="sms-field"><label>Status</label><div class="sms-combo" data-combo="status"><input class="win-inp" id="sms-status" autocomplete="off" readonly onfocus="openSmsCombo('status')" onclick="openSmsCombo('status')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('status',event)">▼</button><div class="sms-combo-options" id="sms-status-options"></div></div></div>
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
@@ -1855,6 +1856,7 @@
                 <div class="bulk-field"><label>Account Manager</label><input id="sms-bulk-account-manager" style="width:130px"></div>
                 <div class="bulk-field"><label>Platform</label><input id="sms-bulk-platform" style="width:120px" placeholder="MS Teams, Viber, …"></div>
                 <div class="bulk-field"><label>Type</label><select id="sms-bulk-type" style="width:120px"><option value="">— skip —</option><option>Wholesale</option><option>Retail</option></select></div>
+                <div class="bulk-field"><label>Message Type</label><select id="sms-bulk-msg-type" style="width:120px"><option value="">— skip —</option><option>Marketing</option><option>OTP</option></select></div>
                 <div class="bulk-field"><label>Status</label><select id="sms-bulk-status" style="width:110px"><option value="">— skip —</option><option>Active</option><option>Inactive</option></select></div>
                 <div class="bulk-field"><label>Opt-Out</label><select id="sms-bulk-opt-out" style="width:110px"><option value="">— skip —</option><option>With</option><option>Without</option></select></div>
                 <div class="bulk-field"><label>Overdraft</label><input id="sms-bulk-overdraft" style="width:130px" placeholder="Allowed / Blocked"></div>
@@ -1878,6 +1880,7 @@
                   <th onclick="sortSms('account_manager')" id="sms-th-account_manager" style="cursor:pointer">Account Manager</th>
                   <th onclick="sortSms('platform')" id="sms-th-platform" style="cursor:pointer">Platform</th>
                   <th onclick="sortSms('type')" id="sms-th-type" style="cursor:pointer">Type</th>
+                  <th onclick="sortSms('msg_type')" id="sms-th-msg_type" style="cursor:pointer">Message Type</th>
                   <th class="sms-col-status" onclick="sortSms('status')" id="sms-th-status" style="cursor:pointer">Status</th>
                   <th onclick="sortSms('opt_out')" id="sms-th-opt_out" style="cursor:pointer">Opt-Out</th>
                   <th onclick="sortSms('overdraft')" id="sms-th-overdraft" style="cursor:pointer">Overdraft</th>
@@ -5479,7 +5482,7 @@ window.exportCurrentAlertView=()=>{
    HELPERS
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
-const SMS_FIELDS = ['client','sender_id','sender_id_comment','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_FIELDS = ['client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
 const SMS_HEADER_MAP = {
   client:'client', clientname:'client', customer:'client', customername:'client',
   senderid:'sender_id', senderids:'sender_id', sender:'sender_id', senderidlist:'sender_id',
@@ -5491,6 +5494,7 @@ const SMS_HEADER_MAP = {
   accountmanager:'account_manager', manager:'account_manager', am:'account_manager',
   platform:'platform',
   type:'type',
+  msgtype:'msg_type', messagetype:'msg_type', traffictype:'msg_type', messagecategory:'msg_type', smscategory:'msg_type', category:'msg_type',
   status:'status', clientstatus:'status', active:'status',
   optout:'opt_out', opt:'opt_out',
   overdraft:'overdraft',
@@ -5567,6 +5571,15 @@ function normalizeSmsType(v) {
   return s === 'retail' ? 'Retail' : 'Wholesale';
 }
 
+// Message Type: Marketing (promotional) vs OTP (transactional). Blank stays blank.
+function normalizeSmsMsgType(v) {
+  const s = String(v || '').trim().toLowerCase();
+  if (!s) return '';
+  if (s === 'otp' || s === 'transactional' || s === 'transaction' || s === 'otac') return 'OTP';
+  if (s === 'marketing' || s === 'promotional' || s === 'promo' || s === 'mktg') return 'Marketing';
+  return String(v).trim();
+}
+
 function normalizeSmsOptOut(v) {
   const s = String(v || '').trim().toLowerCase();
   if (!s) return '';
@@ -5584,6 +5597,7 @@ function normalizeSmsClient(row) {
   SMS_FIELDS.forEach(f => out[f] = String(row?.[f] ?? '').trim());
   out.platform = normalizeSmsPlatform(out.platform);
   out.type = normalizeSmsType(out.type);
+  out.msg_type = normalizeSmsMsgType(out.msg_type);
   out.status = normalizeSmsStatus(out.status);
   out.opt_out = normalizeSmsOptOut(out.opt_out);
   out.sender_id = normalizeSmsSenderIds(out.sender_id);
@@ -5661,7 +5675,7 @@ async function subscribeSmsClients(tab=smsActiveTab) {
 }
 
 // Combos with a fixed, non-editable option list (picked from, not typed into)
-const SMS_FIXED_COMBOS = new Set(['type','status','opt_out']);
+const SMS_FIXED_COMBOS = new Set(['type','msg_type','status','opt_out']);
 
 function smsComboOptions(kind) {
   if (kind === 'sender_id') return smsClients.flatMap(r => smsSplitMulti(r.sender_id));
@@ -5669,6 +5683,7 @@ function smsComboOptions(kind) {
   if (kind === 'account_manager') return smsClients.map(r => r.account_manager);
   if (kind === 'platform') return [...SMS_DEFAULT_PLATFORMS, ...smsClients.map(r => r.platform)];
   if (kind === 'type') return ['Wholesale','Retail'];
+  if (kind === 'msg_type') return ['Marketing','OTP'];
   if (kind === 'status') return ['Active','Inactive'];
   if (kind === 'opt_out') return ['Without','With'];
   return [];
@@ -5681,6 +5696,7 @@ function smsComboInputId(kind) {
     account_manager:'sms-account-manager',
     platform:'sms-platform',
     type:'sms-type',
+    msg_type:'sms-msg-type',
     status:'sms-status',
     opt_out:'sms-opt-out'
   })[kind];
@@ -5693,6 +5709,7 @@ function smsComboMenuId(kind) {
     account_manager:'sms-account-manager-options',
     platform:'sms-platform-options',
     type:'sms-type-options',
+    msg_type:'sms-msg-type-options',
     status:'sms-status-options',
     opt_out:'sms-opt-out-options'
   })[kind];
@@ -5761,7 +5778,7 @@ function smsUniqueDisplayValues(values) {
 }
 
 function updateSmsDatalists() {
-  ['sender_id','destination','account_manager','platform','type','status','opt_out'].forEach(kind => {
+  ['sender_id','destination','account_manager','platform','type','msg_type','status','opt_out'].forEach(kind => {
     const input = document.getElementById(smsComboInputId(kind));
     updateSmsComboOptions(kind, input?.value || '');
   });
@@ -5920,6 +5937,7 @@ function smsReadForm() {
     account_manager: smsFormValue('sms-account-manager'),
     platform: smsFormValue('sms-platform'),
     type: smsFormValue('sms-type'),
+    msg_type: smsFormValue('sms-msg-type'),
     status: smsFormValue('sms-status'),
     opt_out: smsFormValue('sms-opt-out'),
     overdraft: smsFormValue('sms-overdraft'),
@@ -5938,6 +5956,7 @@ function smsFillForm(row) {
   smsSetValue('sms-account-manager', r.account_manager);
   smsSetValue('sms-platform', r.platform);
   smsSetValue('sms-type', r.type);
+  smsSetValue('sms-msg-type', r.msg_type);
   smsSetValue('sms-status', r.status);
   smsSetValue('sms-opt-out', r.opt_out);
   smsSetValue('sms-overdraft', r.overdraft);
@@ -6186,6 +6205,7 @@ window.showSmsDetail = id => {
     ['Account Manager', r.account_manager],
     ['Platform', r.platform],
     ['Type', r.type],
+    ['Message Type', r.msg_type],
     ['Status', r.status],
     ['Opt-Out', r.opt_out],
     ['Overdraft', r.overdraft],
@@ -6222,7 +6242,7 @@ let smsBulkMode = false;
 const smsBulkSelected = new Set();
 
 const SMS_BULK_INPUT_IDS = [
-  'sms-bulk-account-manager','sms-bulk-platform','sms-bulk-type','sms-bulk-status',
+  'sms-bulk-account-manager','sms-bulk-platform','sms-bulk-type','sms-bulk-msg-type','sms-bulk-status',
   'sms-bulk-opt-out','sms-bulk-overdraft','sms-bulk-vendor','sms-bulk-emails','sms-bulk-notes'
 ];
 
@@ -6289,6 +6309,7 @@ window.applySmsBulkEdit = () => {
     account_manager: val('sms-bulk-account-manager'),
     platform:        val('sms-bulk-platform'),
     type:            val('sms-bulk-type'),
+    msg_type:        val('sms-bulk-msg-type'),
     status:          val('sms-bulk-status'),
     opt_out:         val('sms-bulk-opt-out'),
     overdraft:       val('sms-bulk-overdraft'),
@@ -6321,7 +6342,7 @@ window.applySmsBulkEdit = () => {
 };
 /* ─────────────────────────────────────────────────────────── */
 
-const SMS_SORTABLE_COLS = ['client','sender_id','destination','account_manager','platform','type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_SORTABLE_COLS = ['client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
 
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
@@ -6368,6 +6389,7 @@ window.renderSmsClients = () => {
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
     <td>${esc(r.type)}</td>
+    <td>${esc(r.msg_type)}</td>
     <td class="sms-col-status">${esc(r.status)}</td>
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
@@ -6376,7 +6398,7 @@ window.renderSmsClients = () => {
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">⬇</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
-  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?13:12}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?14:13}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
   const allCb = document.getElementById('sms-bulk-all');
   if (allCb) {
@@ -6387,11 +6409,11 @@ window.renderSmsClients = () => {
 
 window.downloadSmsClientTemplate = () => {
   const rows = [
-    ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
-    ['Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','Active','Without','Allowed','M360','','Single sender ID / vendor'],
-    ['Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
-    ['Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+    ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
+    ['Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
+    ['Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','','Single sender ID / vendor'],
+    ['Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
+    ['Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
@@ -6405,11 +6427,11 @@ window.downloadSmsClientTemplate = () => {
 
 window.exportSmsClientsCsv = () => {
   if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
-  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
   const rows = smsClients
     .slice()
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
-    .map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+    .map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
@@ -6430,8 +6452,8 @@ window.exportSmsClientByRow = id => {
     .slice()
     .sort((a,b) => String(a.destination).localeCompare(String(b.destination)));
   if (!rows.length) { toast(`No routes found for "${clientName}"`, 'err'); return; }
-  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
-  const data = rows.map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const data = rows.map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
