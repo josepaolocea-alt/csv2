@@ -5592,9 +5592,11 @@ function normalizeSmsClient(row) {
   return out;
 }
 
-// One route = one client + one destination (each holding multiple sender IDs / vendors)
+// One entry = one client + one destination + one Sender ID.
+// Same client & destination but a different Sender ID is a separate entry, so
+// adding it no longer overwrites/merges into the existing one.
 function smsRouteKey(r) {
-  return [r.client, r.destination].map(v => String(v || '').trim().toLowerCase()).join('|');
+  return [r.client, r.destination, r.sender_id].map(v => String(v || '').trim().toLowerCase()).join('|');
 }
 
 function smsTabCfg(tab=smsActiveTab) {
@@ -6472,11 +6474,22 @@ window.importSmsClientCsv = file => {
         if (provided.size === 0) return;                       // blank line — ignore
         if (!row.client) { errors.push(`Row ${rowNum}: missing Client`); return; }
 
-        if (provided.has('destination')) {
-          // Destination given — match (or create) that exact Client + Destination route
+        if (provided.has('destination') && provided.has('sender_id')) {
+          // Full identity — match (or create) that exact Client + Destination + Sender ID entry
           const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
           if (idx >= 0) { smsApplyPartial(idx, provided, row); updated++; }
           else { smsClients.push(row); added++; }
+        } else if (provided.has('destination')) {
+          // Destination but no Sender ID — match existing entries by Client + Destination
+          const hits = [];
+          smsClients.forEach((r, i) => {
+            if (String(r.client).trim().toLowerCase() === row.client.toLowerCase()
+                && String(r.destination).trim().toLowerCase() === row.destination.toLowerCase()) hits.push(i);
+          });
+          if (hits.length === 1) { smsApplyPartial(hits[0], provided, row); updated++; }
+          else if (hits.length > 1) {
+            errors.push(`Row ${rowNum}: "${row.client}" / "${row.destination}" has ${hits.length} entries — add a Sender ID to specify which one`);
+          } else { smsClients.push(row); added++; }
         } else {
           // No Destination — match by Client only
           const hits = [];
