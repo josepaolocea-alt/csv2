@@ -6347,6 +6347,7 @@ window.importSmsClientCsv = file => {
 const NP_KEY = 'bm_notepad';
 const NP_FONT_DEFAULT = 14;
 let npState = { tabs: [], activeId: null, updatedAt: 0 };
+let npEditorTabId = null;
 let npSaveTimer = null;
 let npRemoteApplying = false;
 let npSubscribed = false;
@@ -6364,7 +6365,10 @@ function npActiveTab() {
   return npState.tabs.find(t => t.id === npState.activeId) || null;
 }
 function npSyncEditor() {
-  const t = npActiveTab(), ed = document.getElementById('np-editor');
+  // Sync back to the tab the editor is showing — activeId may already point
+  // to a different tab mid add/close/switch.
+  const ed = document.getElementById('np-editor');
+  const t = npState.tabs.find(x => x.id === npEditorTabId);
   if (t && ed) t.html = ed.innerHTML;
 }
 function npSerializable() {
@@ -6475,6 +6479,7 @@ function npRenderTabs() {
 function npRenderEditor() {
   const t = npActiveTab(), ed = document.getElementById('np-editor');
   if (!t || !ed) return;
+  npEditorTabId = t.id;
   ed.innerHTML = t.html;
   ed.style.fontSize = t.fontSize + 'px';
   const fs = document.getElementById('np-fontsize');
