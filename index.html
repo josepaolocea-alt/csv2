@@ -1024,10 +1024,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -1132,6 +1132,7 @@
     #logs-confirm-overlay.open #logs-confirm-box,
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
+    #wipe-all-overlay.open #wipe-all-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-detail-overlay.open #sms-detail-box {
       animation: winPop .16s ease-out;
@@ -2059,6 +2060,9 @@
         <div class="settings-danger">
           <div style="margin-bottom:5px">Delete today's stored snapshots only if you intentionally want to remove today's history. This can affect New Critical comparisons.</div>
           <button class="tbtn" style="color:#880000" onclick="toggleSettings(); openDeleteTodayConfirm()">Delete Today Snapshots</button>
+          <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin only.</div>
+          <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
+          <button class="tbtn" style="color:#880000;margin-left:4px" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
@@ -2117,6 +2121,21 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
       <button class="tbtn" style="min-width:72px" onclick="closeDeleteTodayConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete ALL Snapshots / Stats Snapshots (Wipe Collection) Dialog -->
+<div id="wipe-all-overlay">
+  <div id="wipe-all-box" style="width:390px">
+    <div class="dlg-tb"><span id="wipe-all-title">Delete All Snapshots</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="wipe-all-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeAll()">Delete All</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeWipeAllConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -3761,6 +3780,70 @@ window.confirmDeleteTodaySnapshots = async () => {
   } finally {
     setLoading(false);
   }
+};
+
+let pendingWipeAll = null; // 'snapshots' | 'stats'
+
+window.openWipeAllConfirm = kind => {
+  if (!isAdmin()){ toast('Only admins can delete all stored snapshots.','err'); return; }
+  pendingWipeAll = kind;
+  const isStats = kind === 'stats';
+  document.getElementById('wipe-all-title').textContent = isStats ? 'Delete All Stats Snapshots' : 'Delete All Snapshots';
+  document.getElementById('wipe-all-text').innerHTML = isStats
+    ? `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
+      `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today.<br><br>` +
+      `<span style="color:#880000">This cannot be undone.</span>`
+    : `<strong>Permanently delete ALL balance snapshots?</strong><br><br>` +
+      `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
+      `New Critical comparisons and trend history will be lost.<br><br>` +
+      `<span style="color:#880000">This cannot be undone.</span>`;
+  toggleSettings();
+  document.getElementById('wipe-all-overlay').classList.add('open');
+};
+window.closeWipeAllConfirm = () => {
+  document.getElementById('wipe-all-overlay').classList.remove('open');
+  pendingWipeAll = null;
+};
+window.confirmWipeAll = async () => {
+  const kind = pendingWipeAll;
+  window.closeWipeAllConfirm();
+  if (!kind || !isAdmin()) return;
+  const colName = kind === 'stats' ? 'stats_snapshots' : 'snapshots';
+  setLoading(true, kind === 'stats' ? 'Deleting all stats snapshots…' : 'Deleting all snapshots…');
+  try {
+    let deletedCount = 0;
+    if (fbOk) {
+      const s = await getDocs(collection(db, colName));
+      const BATCH_MAX = 490;
+      let batch = writeBatch(db), count = 0;
+      for (const d of s.docs) {
+        batch.delete(doc(db, colName, d.id));
+        deletedCount++;
+        if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count > 0) await batch.commit();
+    }
+    if (kind === 'stats') {
+      statsTodaySnaps = [];
+      statsViewingSlot = null;
+      try { localStorage.removeItem('bm_stats_last'); } catch(e) {}
+      statsRender();
+    } else {
+      todaySnaps = [];
+      latestSnap = null;
+      lastProcessedSnap = null;
+      priorSnap = null;
+      viewingIdx = null;
+      _historyBySlot.clear();
+      _historyLoaded = false;
+      try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+      document.getElementById('view-banner').classList.remove('visible');
+      refreshAll();
+      window.renderClients();
+    }
+    toast(`✓ Deleted ${deletedCount} ${kind === 'stats' ? 'stats ' : ''}snapshot(s) from Firestore`, 'ok');
+  } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
 };
 
 async function loadSnaps() {
