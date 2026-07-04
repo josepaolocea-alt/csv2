@@ -542,13 +542,6 @@
     tr.band-critical td { animation: rowBlink 1.3s ease-in-out infinite; }
     tr.band-critical:hover td { background: var(--row-hover) !important; animation: none !important; }
 
-    /* Clipboard detect bar */
-    #clip-detect-bar {
-      display: none; padding: 5px 12px; background: var(--yellow-soft);
-      border-bottom: 1px solid var(--border);
-      font-size: 11px; align-items: center; gap: 6px; flex-shrink: 0; color: var(--yellow-deep);
-    }
-    #clip-detect-bar.visible { display: flex; }
     /* Operators status pane */
     #sb-operators { flex: 1; font-size: 10px; color: var(--accent); }
 
@@ -592,7 +585,6 @@
     body.sms-mode #sidebar,
     body.sms-mode #toolbar .tbtn[id^="tnav-"],
     body.sms-mode #snd-dismiss-btn,
-    body.sms-mode #btn-clip-watch,
     body.sms-mode #sync-label {
       display: none !important;
     }
@@ -604,7 +596,6 @@
     body.notepad-mode #sidebar,
     body.notepad-mode #toolbar .tbtn[id^="tnav-"],
     body.notepad-mode #snd-dismiss-btn,
-    body.notepad-mode #btn-clip-watch,
     body.notepad-mode #sync-label {
       display: none !important;
     }
@@ -618,7 +609,6 @@
     body.stats-mode .stats-tab { display: inline-flex !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #snd-dismiss-btn,
-    body.stats-mode #btn-clip-watch,
     body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
     body.stats-mode #view-banner { display: none !important; }
@@ -1146,7 +1136,6 @@
     #sms-detail-overlay.open #sms-detail-box {
       animation: winPop .16s ease-out;
     }
-    #clip-detect-bar.visible,
     #view-banner.visible,
     #bulk-save-bar.visible {
       animation: slideDown .16s ease-out;
@@ -1259,20 +1248,12 @@
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
     <button class="tbtn" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
-    <button class="tbtn" id="btn-clip-watch" onclick="toggleClipWatch()" title="Auto-detect new CSV data from clipboard every 3 seconds">Clip Watch</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="notepad-toolbar-label">Notepad</span>
     <span id="stats-toolbar-label">Stats Monitor</span>
     <span id="login-user-label" style="font-size:10px;color:#000080;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:2px"></span>
     <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">Sign Out</button>
     <span id="sync-label">No data loaded</span>
-  </div>
-
-  <!-- Clipboard detect bar -->
-  <div id="clip-detect-bar">
-    New clipboard data detected! &nbsp;
-    <button class="tbtn primary" style="padding:1px 8px" onclick="processClipNow()">Process Now</button>
-    <button class="tbtn" style="padding:1px 8px" onclick="dismissClipDetect()">Dismiss</button>
   </div>
 
   <!-- App body -->
@@ -2734,57 +2715,6 @@ function updatePageTitle(hasCritical) {
     }
   }
 }
-
-/* ── Clipboard watcher ── */
-let _clipWatchTimer = null, _lastClipText = '', _clipNewData = null;
-
-window.toggleClipWatch = () => {
-  if (_clipWatchTimer) {
-    clearInterval(_clipWatchTimer);
-    _clipWatchTimer = null;
-    document.getElementById('btn-clip-watch')?.classList.remove('active');
-    toast('Clipboard watch stopped', '', 2000);
-  } else {
-    document.getElementById('btn-clip-watch')?.classList.add('active');
-    toast('Clipboard watch active — will auto-detect CSV data', 'ok', 3000);
-    _clipWatchTimer = setInterval(checkClipboard, 3000);
-    checkClipboard(); // immediate first check
-  }
-};
-
-async function checkClipboard() {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text || text === _lastClipText) return;
-    // Must look like tabular data: multiple lines with tabs or commas
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return;
-    const hasDelim = text.includes('\t') || (lines[0].match(/,/g) || []).length >= 2;
-    if (!hasDelim) return;
-    _lastClipText = text;
-    _clipNewData = text;
-    document.getElementById('clip-detect-bar')?.classList.add('visible');
-  } catch(e) {
-    // Permission denied or API unavailable — stop watching
-    if (_clipWatchTimer) {
-      clearInterval(_clipWatchTimer); _clipWatchTimer = null;
-      document.getElementById('btn-clip-watch')?.classList.remove('active');
-    }
-    toast('Clipboard access denied. Enable clipboard permission in browser settings.', 'err', 5000);
-  }
-}
-
-window.processClipNow = () => {
-  if (!_clipNewData) return;
-  document.getElementById('snap-ta').value = _clipNewData;
-  document.getElementById('clip-detect-bar')?.classList.remove('visible');
-  _clipNewData = null;
-  window.processSnapshot();
-};
-window.dismissClipDetect = () => {
-  document.getElementById('clip-detect-bar')?.classList.remove('visible');
-  _clipNewData = null;
-};
 
 /* ── Email/Password login ── */
 function showLoginOverlay() {
