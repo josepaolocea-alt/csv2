@@ -2565,6 +2565,10 @@ window.switchModule = module => {
 window.switchView = name => {
   if (name === 'sms') { window.switchModule('sms'); return; }
   if (name === 'notepad') { window.switchModule('notepad'); return; }
+  if (name === 'client-manager' && !canEditClients()) {
+    toast('Client Manager is restricted for this account.', 'err');
+    name = 'summary';
+  }
   closeViewMenu();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('notepad-mode');
@@ -2825,12 +2829,9 @@ window.signOutUser = async () => {
   try {
     await signOut(auth);
   } catch(e) { console.warn('Sign out error', e); }
-  // onAuthStateChanged will fire and show the login overlay
-  const passEl = document.getElementById('login-pass');
-  const errEl  = document.getElementById('login-error');
-  if (passEl) passEl.value = '';
-  if (errEl)  errEl.textContent = '';
-  // keep email pre-filled for convenience
+  // Reload so the next sign-in re-runs init() with that account's access
+  // (subscriptions and module restrictions differ per user).
+  location.reload();
 };
 
 // isNewSnapshot = true  → all 4 effects
@@ -3409,6 +3410,10 @@ const BALANCE_ONLY_EMAILS = [
 ];
 function isBalanceOnly(){ return !!currentUserEmail && BALANCE_ONLY_EMAILS.includes(currentUserEmail.toLowerCase()); }
 
+// Balance-only users can post/undo snapshots and export, but cannot add,
+// upload, or edit client records.
+function canEditClients(){ return !isBalanceOnly(); }
+
 // Show/hide top-level modules based on the signed-in user's access, and make
 // sure a restricted user is sitting on the Balance Monitor module.
 function applyModuleAccess(){
@@ -3417,6 +3422,15 @@ function applyModuleAccess(){
     const el = document.getElementById(id);
     if (el) el.style.display = restricted ? 'none' : '';
   });
+  // Client editing surfaces: Client Manager tab (CSV client upload wizard)
+  // and the Bulk Edit button in All Clients.
+  ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = restricted ? 'none' : '';
+  });
+  if (restricted && document.getElementById('view-client-manager')?.classList.contains('active')) {
+    window.switchView('summary');
+  }
   if (restricted && (document.body.classList.contains('sms-mode')
       || document.body.classList.contains('notepad-mode')
       || document.body.classList.contains('stats-mode'))) {
@@ -3611,7 +3625,7 @@ let _editingClient = null;
 window.openClientPopup = name => {
   _editingClient = name;
   document.getElementById('client-detail-title').textContent = name;
-  document.getElementById('btn-edit-client').style.display = '';
+  document.getElementById('btn-edit-client').style.display = canEditClients() ? '' : 'none';
   document.getElementById('btn-save-client').style.display = 'none';
   document.getElementById('btn-cancel-edit').style.display = 'none';
   document.getElementById('btn-close-detail').style.display = '';
@@ -3673,6 +3687,7 @@ function renderClientDetailBody(editMode) {
 }
 
 window.startEditClient = () => {
+  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
   renderClientDetailBody(true);
   document.getElementById('btn-edit-client').style.display = 'none';
   document.getElementById('btn-save-client').style.display = '';
@@ -3686,9 +3701,11 @@ window.cancelClientEdit = () => {
   document.getElementById('btn-save-client').style.display = 'none';
   document.getElementById('btn-cancel-edit').style.display = 'none';
   document.getElementById('btn-close-detail').style.display = '';
+  flushPendingClientRefresh();
 };
 
 window.saveClientEdit = async () => {
+  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
   const name = _editingClient; if (!name) return;
   const updates = {};
   const isActEl = document.getElementById('cde-is_active');
@@ -3712,6 +3729,7 @@ window.saveClientEdit = async () => {
     }
     if (!clientsMeta[name]) clientsMeta[name] = {};
     Object.assign(clientsMeta[name], updates);
+    _pendingClientRefresh = false; // refreshAll below renders the latest data
     refreshAll();
     toast('✓ Client updated', 'ok');
     closeClientDetail();
@@ -3722,6 +3740,7 @@ window.saveClientEdit = async () => {
 window.closeClientDetail = () => {
   document.getElementById('client-detail-overlay').classList.remove('open');
   _editingClient = null;
+  flushPendingClientRefresh();
 };
 
 async function confirmResetTodayLegacy() {
@@ -3899,17 +3918,53 @@ async function loadPrevSnap() {
   }
 }
 
-async function loadClients() {
-  if(!fbOk) return;
-  try {
-    const s=await getDocs(collection(db,'clients'));
-    clientsMeta={};
-    s.docs.forEach(d=>{
-      const dd=d.data();
-      const carrierName = dd.carrier_name || d.id;
-      clientsMeta[carrierName]={...dd, carrier_name:carrierName};
-    });
-  } catch(e){console.warn('loadClients:',e);}
+let _clientsSubscribed = false;
+let _pendingClientRefresh = false;
+
+// True while an edit form is open that a live-update re-render would disturb:
+// Bulk Edit inputs in All Clients, or the client detail popup in edit mode.
+function clientEditUiOpen() {
+  return bulkEditMode ||
+    (document.getElementById('client-detail-overlay')?.classList.contains('open') &&
+     document.getElementById('btn-save-client')?.style.display !== 'none');
+}
+
+// Apply a client update that arrived while an edit form was open.
+function flushPendingClientRefresh() {
+  if (!_pendingClientRefresh || clientEditUiOpen()) return;
+  _pendingClientRefresh = false;
+  refreshAll();
+}
+
+// Live listener on client records so edits by other signed-in users (e.g.
+// admin threshold changes) appear without a page refresh. Returns a promise
+// that resolves after the first load, so init() can await initial data the
+// same way it did with the old one-time fetch.
+function subscribeClients() {
+  if (!fbOk || _clientsSubscribed) return Promise.resolve();
+  _clientsSubscribed = true;
+  return new Promise(resolve => {
+    let first = true;
+    try {
+      onSnapshot(collection(db,'clients'), s => {
+        clientsMeta = {};
+        s.docs.forEach(d => {
+          const dd = d.data();
+          const carrierName = dd.carrier_name || d.id;
+          clientsMeta[carrierName] = { ...dd, carrier_name: carrierName };
+        });
+        if (first) { first = false; resolve(); return; } // init() renders after this
+        if (clientEditUiOpen()) _pendingClientRefresh = true;
+        else refreshAll();
+      }, e => {
+        console.warn('subscribeClients:', e);
+        if (first) { first = false; resolve(); }
+      });
+    } catch(e) {
+      console.warn('subscribeClients:', e);
+      if (first) { first = false; resolve(); }
+    }
+  });
 }
 async function loadImpHist() {
   if(!fbOk) return [];
@@ -4936,6 +4991,7 @@ function buildDiff(){
 }
 window.checkAll=chk=>{wChanges.forEach(c=>{if(wDiffF==='all'||c.type.toLowerCase()===wDiffF)wChecked[c._id]=chk.checked;});window.renderWizard();};
 window.saveWizard=async()=>{
+  if(!canEditClients()){toast('Adding or uploading clients is restricted for this account.','err');return;}
   const toSave=wChanges.filter(c=>wChecked[c._id]!==false);
   if(!toSave.length){toast('No changes selected','err');return;}
   setLoading(true,'Saving to Firestore…');
@@ -6613,16 +6669,19 @@ function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'
 let bulkEditMode = false, bulkEdits = {};
 
 window.toggleBulkEdit = () => {
+  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
   bulkEditMode = !bulkEditMode; bulkEdits = {};
   document.getElementById('btn-bulk-edit').classList.toggle('active', bulkEditMode);
   document.getElementById('bulk-save-bar').classList.remove('visible');
   window.renderClients();
+  flushPendingClientRefresh();
 };
 window.cancelBulkEdit = () => {
   bulkEditMode = false; bulkEdits = {};
   document.getElementById('btn-bulk-edit').classList.remove('active');
   document.getElementById('bulk-save-bar').classList.remove('visible');
   window.renderClients();
+  flushPendingClientRefresh();
 };
 window.setBulkEdit = (name, field, val) => {
   if (!bulkEdits[name]) bulkEdits[name] = {};
@@ -6632,6 +6691,7 @@ window.setBulkEdit = (name, field, val) => {
   document.getElementById('bulk-save-bar').classList.toggle('visible', count > 0);
 };
 window.saveBulkEdits = async () => {
+  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
   const entries = Object.entries(bulkEdits).filter(([,v]) => Object.keys(v).length > 0);
   if (!entries.length) return;
   setLoading(true, 'Saving bulk changes…');
@@ -6662,6 +6722,7 @@ window.saveBulkEdits = async () => {
     bulkEditMode = false; bulkEdits = {};
     document.getElementById('btn-bulk-edit').classList.remove('active');
     document.getElementById('bulk-save-bar').classList.remove('visible');
+    _pendingClientRefresh = false; // refreshAll below renders the latest data
     refreshAll();
   } catch(e) { toast('Save error: '+e.message,'err'); }
   finally { setLoading(false); }
@@ -6869,6 +6930,7 @@ window.closeRollbackConfirm = () => {
   _pendingRollback = null;
 };
 window.confirmRollback = async () => {
+  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
   const imp = _pendingRollback;
   closeRollbackConfirm();
   if (!imp) return;
@@ -7455,7 +7517,7 @@ async function init(){
     Notification.requestPermission();
   }
   setLoading(true,'Connecting to Firestore…');
-  await Promise.all([loadPrevSnap(), loadClients()]);
+  await Promise.all([loadPrevSnap(), subscribeClients()]);
   cleanupOldSnapshots(); // runs in background, no await needed
   cleanupCsvImports();   // runs in background, no await needed
   setLoading(false);
@@ -7482,15 +7544,19 @@ async function init(){
     toast('Firebase not configured — demo mode. Fill in firebaseConfig to connect.','',8000);
     setSbStatus('Demo mode — Firebase not configured');
   }
-  initStats();
   setInterval(populateSlots, 60000);
   setInterval(updatePresence, 60000); // heartbeat every minute
   updatePresence();
   subscribePresence();
   subscribeAcks();
   subscribeLogs();
-  subscribeSmsClients();
-  subscribeNotepad();
+  // Balance-only users have no access to Stats / SMS / Notepad, and Firestore
+  // rules deny them those collections — don't subscribe at all.
+  if (!isBalanceOnly()) {
+    initStats();
+    subscribeSmsClients();
+    subscribeNotepad();
+  }
 }
 
 /* ── Auth-gated boot ── */
