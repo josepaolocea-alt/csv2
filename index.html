@@ -3465,11 +3465,14 @@ function snapshotSourceMismatch(rows) {
     // single carrier. So judge every paste here — even a 1-row one: if its carriers match the
     // Tritel feed, or don't match the saved roster at all, it is almost certainly Tritel data.
     const looksTritel =
-      (tritelKnown.size >= 1 && tritelFrac >= 0.6 && tritelFrac > rosterFrac) ||
-      (roster.size >= 5 && rosterFrac <= 0.34);
-    if (looksTritel) return { guess: 'tritel',
-      detail: `Only ${inRoster} of ${names.length} pasted client(s) match your saved roster` +
-              (tritelKnown.size ? `, and ${inTritel} match earlier Tritel data` : '') + '.' };
+      (tritelKnown.size >= 1 && tritelFrac >= 0.6 && tritelFrac > rosterFrac) ||   // matches the Tritel feed
+      (roster.size >= 5 && rosterFrac <= 0.34) ||                                  // barely matches the roster
+      (roster.size >= 40 && names.length <= roster.size * 0.25);                   // far too few rows for the full feed
+    if (looksTritel) {
+      const bits = [`${names.length} pasted client(s)`, `${inRoster} match your All-Clients roster`];
+      if (tritelKnown.size) bits.push(`${inTritel} match earlier Tritel data`);
+      return { guess: 'tritel', detail: bits.join(', ') + '.' };
+    }
   } else {
     // Tritel is legitimately tiny and expected NOT to match the roster, so don't second-guess a
     // small paste; only warn when a clearly roster-sized paste landed on the Tritel source.
@@ -5865,16 +5868,12 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
     blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
   ).join('');
 
-  // Hide the detail columns in every snapshot block (grouped into contiguous runs → ss:Span).
+  // Hide the detail columns in every snapshot block. Emit one <Column> per hidden column with an
+  // explicit ss:Index — Excel's SpreadsheetML reader does not reliably hide ss:Span ranges, so no Span.
   const hideOffsets = SNAP_BLOCK_COLS.map((c, i) => SNAP_HIDDEN_FIELDS.has(c.f) ? i : -1).filter(i => i >= 0);
-  const hideRuns = [];
-  hideOffsets.forEach(o => {
-    const last = hideRuns[hideRuns.length - 1];
-    if (last && o === last.start + last.len) last.len++; else hideRuns.push({ start:o, len:1 });
-  });
   const hiddenCols = blocks.flatMap((_, b) => {
     const base = 3 + b * SNAP_BLOCK_COLS.length; // absolute 1-indexed column of this block's CarrierName
-    return hideRuns.map(run => `<Column ss:Index="${base + run.start}" ss:Hidden="1"${run.len > 1 ? ` ss:Span="${run.len - 1}"` : ''}/>`);
+    return hideOffsets.map(o => `<Column ss:Index="${base + o}" ss:Hidden="1" ss:AutoFitWidth="0" ss:Width="12"/>`);
   }).join('');
   const cols = '<Column ss:Width="120"/><Column ss:Width="95"/>' + hiddenCols;
   const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
