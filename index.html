@@ -5781,6 +5781,9 @@ const SNAP_BLOCK_COLS = [
   { f:'total_usage',      h:'Total usage',      t:'n'  },
 ];
 const SNAP_SUM_FIELDS = SNAP_BLOCK_COLS.filter(c => c.t === 'n' || c.t === 'u').map(c => c.f);
+// Detail columns collapsed (hidden) in the export — data stays, just out of the way. CarrierName,
+// Credit Limit, Amnt Receivable, 30mins usage and Total usage stay visible in each snapshot block.
+const SNAP_HIDDEN_FIELDS = new Set(['critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage']);
 function snapCarrierKey(v) { return String(v ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim().toUpperCase(); }
 function snapYesNo(v) {
   if (v === true) return 'Yes';
@@ -5862,7 +5865,18 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
     blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
   ).join('');
 
-  const cols = '<Column ss:Width="120"/><Column ss:Width="95"/>';
+  // Hide the detail columns in every snapshot block (grouped into contiguous runs → ss:Span).
+  const hideOffsets = SNAP_BLOCK_COLS.map((c, i) => SNAP_HIDDEN_FIELDS.has(c.f) ? i : -1).filter(i => i >= 0);
+  const hideRuns = [];
+  hideOffsets.forEach(o => {
+    const last = hideRuns[hideRuns.length - 1];
+    if (last && o === last.start + last.len) last.len++; else hideRuns.push({ start:o, len:1 });
+  });
+  const hiddenCols = blocks.flatMap((_, b) => {
+    const base = 3 + b * SNAP_BLOCK_COLS.length; // absolute 1-indexed column of this block's CarrierName
+    return hideRuns.map(run => `<Column ss:Index="${base + run.start}" ss:Hidden="1"${run.len > 1 ? ` ss:Span="${run.len - 1}"` : ''}/>`);
+  }).join('');
+  const cols = '<Column ss:Width="120"/><Column ss:Width="95"/>' + hiddenCols;
   const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
     '<SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane>' +
     '<SplitVertical>2</SplitVertical><LeftColumnRightPane>2</LeftColumnRightPane><ActivePane>3</ActivePane></WorksheetOptions>';
