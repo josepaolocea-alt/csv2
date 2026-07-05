@@ -1052,10 +1052,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -1162,6 +1162,7 @@
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #wipe-all-overlay.open #wipe-all-box,
+    #source-mismatch-overlay.open #source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-detail-overlay.open #sms-detail-box {
       animation: winPop .16s ease-out;
@@ -2149,6 +2150,22 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmOverwriteSnapshot()">Overwrite</button>
       <button class="tbtn primary" style="min-width:72px" onclick="closeOverwriteConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wrong Source Guard Dialog -->
+<div id="source-mismatch-overlay">
+  <div id="source-mismatch-box" style="width:400px">
+    <div class="dlg-tb"><span>Possible Wrong Source</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="source-mismatch-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn primary" id="source-mismatch-switch" style="min-width:120px" onclick="mismatchSwitch()">Switch</button>
+      <button class="tbtn danger" id="source-mismatch-keep" style="min-width:120px" onclick="mismatchKeep()">Post anyway</button>
+      <button class="tbtn" style="min-width:64px" onclick="closeSourceMismatch()">Cancel</button>
     </div>
   </div>
 </div>
@@ -3421,6 +3438,78 @@ function snapshotDocId(sessionDate, timeSlot) {
    PROCESS SNAPSHOT
 ════════════════════════════════════════════════ */
 let pendingSnapshotText = null, pendingSnapshotSlot = null;
+let bypassSourceGuard = false; // set true when the operator confirms the wrong-source warning
+
+/* Guess whether pasted rows belong to the All-Clients feed or the Tritel feed,
+   by how well the carrier names match the saved client roster vs. prior Tritel data.
+   Returns { guess:'all'|'tritel', detail } when the paste looks like it's going to
+   the wrong source, otherwise null. Advisory only — never blocks. */
+function snapshotSourceMismatch(rows) {
+  const norm = s => String(s || '').trim().toLowerCase();
+  const names = [...new Set(rows.map(r => norm(r.carrier_name)).filter(Boolean))];
+  if (names.length < 2) return null; // too little to judge reliably
+
+  const roster = new Set();
+  Object.keys(clientsMeta).forEach(k => roster.add(norm(k)));
+  Object.values(clientsMeta).forEach(m => { if (m?.carrier_name) roster.add(norm(m.carrier_name)); });
+  const tritelKnown = new Set();
+  (tritelSnaps || []).forEach(t => (t.data || []).forEach(r => { if (r?.carrier_name) tritelKnown.add(norm(r.carrier_name)); }));
+
+  const inRoster = names.filter(n => roster.has(n)).length;
+  const inTritel = names.filter(n => tritelKnown.has(n)).length;
+  const rosterFrac = inRoster / names.length;
+  const tritelFrac = inTritel / names.length;
+
+  if (snapSource === 'all') {
+    // Expected to match the roster. Warn if it looks like Tritel-only data instead.
+    const looksTritel =
+      (tritelKnown.size >= 2 && tritelFrac >= 0.6 && tritelFrac > rosterFrac) ||
+      (roster.size >= 5 && rosterFrac <= 0.34);
+    if (looksTritel) return { guess: 'tritel',
+      detail: `Only ${inRoster} of ${names.length} pasted client(s) match your saved roster` +
+              (tritelKnown.size ? `, and ${inTritel} match earlier Tritel data` : '') + '.' };
+  } else {
+    // Tritel is expected NOT to match the roster. Warn if it looks like All-Clients data.
+    const looksAll = roster.size >= 5 && rosterFrac >= 0.6 && rosterFrac > tritelFrac;
+    if (looksAll) return { guess: 'all',
+      detail: `${inRoster} of ${names.length} pasted client(s) match your All-Clients roster.` };
+  }
+  return null;
+}
+
+let pendingMismatch = null; // { guess } while the wrong-source dialog is open
+function openSourceMismatch(mm) {
+  pendingMismatch = mm;
+  const selLbl   = snapSource === 'tritel' ? 'Tritel' : 'All Clients';
+  const guessLbl = mm.guess === 'tritel' ? 'Tritel' : 'All Clients';
+  const risk = snapSource === 'tritel'
+    ? 'the Tritel rows below the Total'
+    : 'stats, alerts and New-Critical comparisons';
+  document.getElementById('source-mismatch-text').innerHTML =
+    `<strong>This looks like ${guessLbl} data, but the source is set to ${selLbl}.</strong><br><br>` +
+    `${mm.detail}<br><br>` +
+    `<span style="color:#880000">Posting to the wrong source can corrupt ${risk}.</span>`;
+  document.getElementById('source-mismatch-switch').textContent = `Switch to ${guessLbl}`;
+  document.getElementById('source-mismatch-keep').textContent   = `Post as ${selLbl} anyway`;
+  document.getElementById('source-mismatch-overlay').classList.add('open');
+}
+window.closeSourceMismatch = () => {
+  document.getElementById('source-mismatch-overlay').classList.remove('open');
+  pendingMismatch = null;
+};
+window.mismatchSwitch = () => {
+  const g = pendingMismatch?.guess;
+  window.closeSourceMismatch();
+  if (!g) return;
+  setSnapSource(g);          // flip the source toggle to the detected feed
+  bypassSourceGuard = true;  // guard already resolved for this paste
+  window.processSnapshot();
+};
+window.mismatchKeep = () => {
+  window.closeSourceMismatch();
+  bypassSourceGuard = true;  // keep the operator's chosen source, skip the guard
+  window.processSnapshot();
+};
 
 window.processSnapshot = async() => {
   const rows=parseText(document.getElementById('snap-ta').value);
@@ -3428,6 +3517,11 @@ window.processSnapshot = async() => {
     toast(`No valid data found. Header line ${lastParseInfo.headerLine||1}, parsed ${lastParseInfo.parsedRows||0} row(s), accepted 0 client row(s).`,'err',7000);
     return;
   }
+  if(!bypassSourceGuard){
+    const mm=snapshotSourceMismatch(rows);
+    if(mm){ openSourceMismatch(mm); return; }
+  }
+  bypassSourceGuard=false;
   if(snapSource==='tritel'){ await processTritelSnapshot(rows); return; }
   const timeSlot=document.getElementById('slot-sel').value;
   let existing=todaySnaps.find(s=>s.time_slot===timeSlot);
@@ -5667,6 +5761,37 @@ function snapshotTimeLabel(s, showDate) {
   const time = s.time_slot ? fmt12(s.time_slot).replace(' ', '') : '';
   return showDate ? `${s.session_date || ''} ${time}`.trim() : time;
 }
+// Columns repeated per 30-min snapshot block. usage_30min ("30mins usage") is highlighted when non-zero.
+const SNAP_BLOCK_COLS = [
+  { f:'carrier_name',     h:'CarrierName',      t:'s'  },
+  { f:'credit_limit',     h:'Credit Limit',     t:'n'  },
+  { f:'critical_balance', h:'Critical Balance', t:'n'  },
+  { f:'billing_cycle',    h:'Billing Cycle',    t:'s'  },
+  { f:'is_prepay',        h:'IsPrepay',         t:'yn' },
+  { f:'inv_upto',         h:'Inv Upto',         t:'s'  },
+  { f:'prev_balance',     h:'Prev Balance',     t:'n'  },
+  { f:'pay_adj',          h:'Pay&Adj',          t:'n'  },
+  { f:'current_usage',    h:'Current Usage',    t:'n'  },
+  { f:'amnt_receivable',  h:'Amnt Receivable',  t:'n'  },
+  { f:'usage_30min',      h:'30mins usage',     t:'u'  },
+  { f:'total_usage',      h:'Total usage',      t:'n'  },
+];
+const SNAP_SUM_FIELDS = SNAP_BLOCK_COLS.filter(c => c.t === 'n' || c.t === 'u').map(c => c.f);
+function snapCarrierKey(v) { return String(v ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim().toUpperCase(); }
+function snapYesNo(v) {
+  if (v === true) return 'Yes';
+  if (v === false) return 'No';
+  if (v === undefined || v === null || v === '') return '';
+  const s = String(v).toLowerCase();
+  if (['yes','true','1'].includes(s)) return 'Yes';
+  if (['no','false','0'].includes(s)) return 'No';
+  return String(v);
+}
+function snapUsed(v) { const n = amountNumber(v); return Number.isFinite(n) && Math.round(n * 1e6) !== 0; }
+
+// Wide layout: fixed CarrierName + Allow Bal on the left, then one 12-column block per 30-min
+// snapshot across the shift. Rows are aligned by carrier so every block lines up on the same row.
+// A Total row sums each block's numeric columns; Tritel (additional, per-slot) sits below the Total.
 function snapshotWorksheetXml(shift, snaps, showDate) {
   const sorted = sortSnapshotSheetSnaps(snaps, shift);
   // Tritel per slot, keyed by session_date + time_slot, so each entry lines up under its own column.
@@ -5674,44 +5799,70 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
   (tritelSnaps || []).forEach(t => {
     tritelBySlot[`${t.session_date}_${t.time_slot}`] = (t.data || []).filter(r => r?.carrier_name);
   });
-  const blocks = sorted.map(s => ({
-    time: snapshotTimeLabel(s, showDate),
-    rows: (s.data || []).filter(r => r?.carrier_name),
-    tritel: tritelBySlot[`${s.session_date}_${s.time_slot}`] || []
-  }));
-  const headerRow = blocks.map(() =>
-    ['Client','Snapshot Time','30 mins usage','Amnt Receivable'].map(h => xlsTextCell(h, 'hdr')).join('')
+  const blocks = sorted.map(s => {
+    const rows = (s.data || []).filter(r => r?.carrier_name);
+    const byCarrier = {}; rows.forEach(r => { byCarrier[snapCarrierKey(r.carrier_name)] = r; });
+    const tritel = tritelBySlot[`${s.session_date}_${s.time_slot}`] || [];
+    const triByCarrier = {}; tritel.forEach(r => { triByCarrier[snapCarrierKey(r.carrier_name)] = r; });
+    return { time: snapshotTimeLabel(s, showDate), rows, byCarrier, tritel, triByCarrier };
+  });
+
+  // Master carrier order = union across every slot, alphabetical, so all blocks share the same rows.
+  const buildOrder = pick => {
+    const order = [], seen = new Set(), allow = {};
+    blocks.forEach(b => pick(b).forEach(r => {
+      const k = snapCarrierKey(r.carrier_name);
+      if (!seen.has(k)) { seen.add(k); order.push({ key:k, name:r.carrier_name }); }
+      if (!allow[k] && r.allow_balance) allow[k] = r.allow_balance;
+    }));
+    order.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity:'base' }));
+    return { order, allow };
+  };
+  const clients = buildOrder(b => b.rows);
+  const tritel  = buildOrder(b => b.tritel);
+
+  const blockCells = (r, txtStyle, numStyle, allowHi) => SNAP_BLOCK_COLS.map(c => {
+    if (!r) return (c.t === 's' || c.t === 'yn') ? xlsTextCell('', txtStyle) : xlsNumberCell(null, numStyle);
+    if (c.t === 's')  return xlsTextCell(r[c.f] ?? '', txtStyle);
+    if (c.t === 'yn') return xlsTextCell(snapYesNo(r[c.f]), txtStyle);
+    if (c.t === 'u')  return xlsNumberCell(r[c.f], allowHi && snapUsed(r[c.f]) ? 'useHi' : numStyle);
+    return xlsNumberCell(r[c.f], numStyle);
+  }).join('');
+  const totalCells = b => {
+    const sums = {}; SNAP_SUM_FIELDS.forEach(f => sums[f] = 0);
+    clients.order.forEach(c => {
+      const r = b.byCarrier[c.key]; if (!r) return;
+      SNAP_SUM_FIELDS.forEach(f => { const n = amountNumber(r[f]); if (Number.isFinite(n)) sums[f] += n; });
+    });
+    return SNAP_BLOCK_COLS.map(c => {
+      if (c.f === 'carrier_name') return xlsTextCell('Total', 'total');
+      if (c.t === 's' || c.t === 'yn') return xlsTextCell('', 'total');
+      return xlsNumberCell(sums[c.f], 'totalNum');
+    }).join('');
+  };
+
+  const span = SNAP_BLOCK_COLS.length - 1;
+  const timeRow = '<Row><Cell ss:StyleID="time"/><Cell ss:StyleID="time"/>' +
+    blocks.map(b => `<Cell ss:StyleID="time" ss:MergeAcross="${span}"><Data ss:Type="String">${xmlEsc(b.time)}</Data></Cell>`).join('') +
+    '</Row>';
+  const headRow = '<Row>' + xlsTextCell('CarrierName', 'hdr') + xlsTextCell('Allow Bal', 'hdr') +
+    blocks.map(() => SNAP_BLOCK_COLS.map(c => xlsTextCell(c.h, 'hdr')).join('')).join('') + '</Row>';
+  const clientRows = clients.order.map(c =>
+    '<Row>' + xlsTextCell(c.name) + xlsTextCell(clients.allow[c.key] ?? '') +
+    blocks.map(b => blockCells(b.byCarrier[c.key], '', 'num', true)).join('') + '</Row>'
   ).join('');
-  const maxRows = blocks.reduce((m, b) => Math.max(m, b.rows.length), 0);
-  const blankBlock = [xlsTextCell(''), xlsTextCell(''), xlsTextCell(''), xlsTextCell('')].join('');
-  let body = '';
-  for (let i = 0; i < maxRows; i++) {
-    body += '<Row>' + blocks.map(b => {
-      const r = b.rows[i];
-      if (!r) return blankBlock;
-      return [
-        xlsTextCell(r.carrier_name || ''),
-        xlsTextCell(b.time),
-        xlsNumberCell(r.usage_30min),
-        xlsNumberCell(r.amnt_receivable)
-      ].join('');
-    }).join('') + '</Row>';
-  }
-  // Tritel is additional: append each slot's Tritel row(s) at the bottom of that slot's own block, highlighted.
-  const maxTritel = blocks.reduce((m, b) => Math.max(m, b.tritel.length), 0);
-  for (let j = 0; j < maxTritel; j++) {
-    body += '<Row>' + blocks.map(b => {
-      const tr = b.tritel[j];
-      if (!tr) return blankBlock;
-      return [
-        xlsTextCell(tr.carrier_name || '', 'total'),
-        xlsTextCell(b.time, 'total'),
-        xlsNumberCell(tr.usage_30min, 'totalNum'),
-        xlsNumberCell(tr.amnt_receivable, 'totalNum')
-      ].join('');
-    }).join('') + '</Row>';
-  }
-  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${headerRow}</Row>${body}</Table></Worksheet>`;
+  const totalRow = '<Row>' + xlsTextCell('Total', 'total') + xlsTextCell('', 'total') +
+    blocks.map(b => totalCells(b)).join('') + '</Row>';
+  const tritelRows = tritel.order.map(c =>
+    '<Row>' + xlsTextCell(c.name, 'tri') + xlsTextCell(tritel.allow[c.key] ?? '', 'tri') +
+    blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
+  ).join('');
+
+  const cols = '<Column ss:Width="120"/><Column ss:Width="95"/>';
+  const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
+    '<SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane>' +
+    '<SplitVertical>2</SplitVertical><LeftColumnRightPane>2</LeftColumnRightPane><ActivePane>3</ActivePane></WorksheetOptions>';
+  return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table>${cols}${timeRow}${headRow}${clientRows}${totalRow}${tritelRows}</Table>${options}</Worksheet>`;
 }
 window.exportSnapshotSheet = async () => {
   const range = exportDateRange();
@@ -5745,6 +5896,9 @@ window.exportSnapshotSheet = async () => {
   <Style ss:ID="num"><NumberFormat ss:Format="0.00"/></Style>
   <Style ss:ID="total"><Font ss:Bold="1"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="totalNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="useHi"><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFFF00" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="tri"><Font ss:Bold="1"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="triNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/></Style>
 </Styles>${sheets.join('')}</Workbook>`;
     const labelShift = selectedShift === 'both' ? 'both_shifts' : selectedShift.replace(/[^a-z0-9]+/gi,'_');
     const url = URL.createObjectURL(new Blob([xml], { type:'application/vnd.ms-excel;charset=utf-8' }));
