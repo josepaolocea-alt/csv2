@@ -3447,7 +3447,7 @@ let bypassSourceGuard = false; // set true when the operator confirms the wrong-
 function snapshotSourceMismatch(rows) {
   const norm = s => String(s || '').trim().toLowerCase();
   const names = [...new Set(rows.map(r => norm(r.carrier_name)).filter(Boolean))];
-  if (names.length < 2) return null; // too little to judge reliably
+  if (!names.length) return null;
 
   const roster = new Set();
   Object.keys(clientsMeta).forEach(k => roster.add(norm(k)));
@@ -3461,15 +3461,19 @@ function snapshotSourceMismatch(rows) {
   const tritelFrac = inTritel / names.length;
 
   if (snapSource === 'all') {
-    // Expected to match the roster. Warn if it looks like Tritel-only data instead.
+    // A real All-Clients feed is the full roster (hundreds of rows); the Tritel feed is often a
+    // single carrier. So judge every paste here — even a 1-row one: if its carriers match the
+    // Tritel feed, or don't match the saved roster at all, it is almost certainly Tritel data.
     const looksTritel =
-      (tritelKnown.size >= 2 && tritelFrac >= 0.6 && tritelFrac > rosterFrac) ||
+      (tritelKnown.size >= 1 && tritelFrac >= 0.6 && tritelFrac > rosterFrac) ||
       (roster.size >= 5 && rosterFrac <= 0.34);
     if (looksTritel) return { guess: 'tritel',
       detail: `Only ${inRoster} of ${names.length} pasted client(s) match your saved roster` +
               (tritelKnown.size ? `, and ${inTritel} match earlier Tritel data` : '') + '.' };
   } else {
-    // Tritel is expected NOT to match the roster. Warn if it looks like All-Clients data.
+    // Tritel is legitimately tiny and expected NOT to match the roster, so don't second-guess a
+    // small paste; only warn when a clearly roster-sized paste landed on the Tritel source.
+    if (names.length < 2) return null;
     const looksAll = roster.size >= 5 && rosterFrac >= 0.6 && rosterFrac > tritelFrac;
     if (looksAll) return { guess: 'all',
       detail: `${inRoster} of ${names.length} pasted client(s) match your All-Clients roster.` };
