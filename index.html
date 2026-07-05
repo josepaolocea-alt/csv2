@@ -1354,7 +1354,7 @@
           <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">Reset View</button>
         </div>
         <div class="snap-action-row" id="snap-tritel-actions" style="margin-top:4px;display:none;align-items:center">
-          <button class="tbtn" onclick="removeTritelSnapshot()" title="Remove the additional Tritel row(s)">Remove Tritel</button>
+          <button class="tbtn" onclick="removeTritelSnapshot()" title="Remove the Tritel entry for the time slot selected above">Remove Tritel</button>
           <span id="tritel-status" style="font-size:10px;color:var(--text-2);margin-left:6px">No Tritel data</span>
         </div>
       </div>
@@ -2426,7 +2426,7 @@ try {
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let priorSnap = null; // most recent snapshot from any day before today
-let tritelSnap = null;  // additional Tritel-only data ({ data:[...] }); persists independently of the all-client snapshots
+let tritelSnaps = [];  // additional Tritel-only data, one entry per time slot ({ session_date, time_slot, data:[...] }); persists independently of the all-client snapshots
 let snapSource = 'all';  // 'all' | 'tritel' — which source the New Snapshot paste represents
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
 let operatorName = localStorage.getItem('bm_operator') || '';
@@ -3515,17 +3515,18 @@ async function doProcessSnapshot(rows, timeSlot){
 
 /* ════════════════════════════════════════════════
    TRITEL — additional client from a separate data source.
-   Stored in its OWN Firestore collection (`tritel_snapshots/current`)
-   plus localStorage, so it survives independently of the all-client
-   snapshots and the main view works fine when it is absent.
+   Stored per time slot in its OWN Firestore collection (`tritel_snapshots`,
+   doc id `${session_date}_${slot}`) plus localStorage, so it survives
+   independently of the all-client snapshots and the main view works fine
+   when it is absent. The All Clients table shows the LATEST slot's Tritel
+   below the Total; the 30-min usage pivot / snapshot sheet shows each
+   Tritel entry under the time slot it was pasted for.
 ════════════════════════════════════════════════ */
 window.setSnapSource = (src) => {
   snapSource = (src === 'tritel') ? 'tritel' : 'all';
   const isTritel = snapSource === 'tritel';
   document.getElementById('snap-src-all')?.classList.toggle('active', !isTritel);
   document.getElementById('snap-src-tritel')?.classList.toggle('active', isTritel);
-  const slotSel = document.getElementById('slot-sel');
-  if (slotSel) slotSel.style.display = isTritel ? 'none' : '';
   const mainActions = document.getElementById('snap-main-actions');
   if (mainActions) mainActions.style.display = isTritel ? 'none' : '';
   const tritelActions = document.getElementById('snap-tritel-actions');
@@ -3535,64 +3536,93 @@ window.setSnapSource = (src) => {
   updateTritelStatus();
 };
 
+function tritelDocId(sessionDate, slot) {
+  return `${sessionDate}_${slot}`.toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+}
+function tritelSlotIdx(slot) {
+  const i = shiftSlots('24H').indexOf(slot);
+  return i >= 0 ? i : 999;
+}
+/* Most recent Tritel entry (by 24H slot order, then save time) — shown in the table. */
+function latestTritel() {
+  if (!tritelSnaps.length) return null;
+  return tritelSnaps.slice().sort((a, b) =>
+    tritelSlotIdx(a.time_slot) - tritelSlotIdx(b.time_slot) ||
+    (new Date(a.updated_at || 0)) - (new Date(b.updated_at || 0))
+  ).slice(-1)[0];
+}
+function persistTritelLocal() {
+  try { localStorage.setItem('bm_tritel_snaps', JSON.stringify(tritelSnaps)); } catch(e) {}
+}
+
 function updateTritelStatus() {
   const el = document.getElementById('tritel-status');
   if (!el) return;
-  const n = tritelSnap?.data?.length || 0;
-  el.textContent = n ? `${n} Tritel row(s) loaded` : 'No Tritel data';
+  if (!tritelSnaps.length) { el.textContent = 'No Tritel data'; return; }
+  const slots = tritelSnaps.slice()
+    .sort((a, b) => tritelSlotIdx(a.time_slot) - tritelSlotIdx(b.time_slot))
+    .map(t => fmt12(t.time_slot));
+  el.textContent = `Tritel: ${slots.join(', ')}`;
 }
 
 function loadTritelSnap() {
   try {
-    const v = localStorage.getItem('bm_tritel_snap');
-    if (!v) return;
-    const t = JSON.parse(v);
-    if (t?.data?.length) {
-      t.updated_at = t.updated_at ? new Date(t.updated_at) : new Date();
-      tritelSnap = t;
+    const v = localStorage.getItem('bm_tritel_snaps');
+    if (v) {
+      const arr = JSON.parse(v);
+      if (Array.isArray(arr)) tritelSnaps = arr.filter(t => t?.time_slot && t.session_date === todayStr());
     }
   } catch(e) {}
   updateTritelStatus();
 }
 
 async function processTritelSnapshot(rows) {
-  // Compute 30-min usage against the previous Tritel data (same-carrier match).
+  const timeSlot = document.getElementById('slot-sel').value;
+  // Compute 30-min usage against the most recent existing Tritel entry (same-carrier match).
+  const prev = latestTritel();
   const prevMap = {};
-  (tritelSnap?.data || []).forEach(r => { if (r?.carrier_name) prevMap[r.carrier_name] = r; });
+  (prev?.data || []).forEach(r => { if (r?.carrier_name) prevMap[r.carrier_name] = r; });
   const data = rows.map(r => ({ ...r, ...computeUsage(r, prevMap[r.carrier_name] || null) }));
-  tritelSnap = { data, session_date: todayStr(), updated_at: new Date() };
-  try { localStorage.setItem('bm_tritel_snap', JSON.stringify(tritelSnap)); } catch(e) {}
+  const snap = { session_date: todayStr(), time_slot: timeSlot, data, updated_at: new Date() };
+  // Upsert: replace any existing entry for this slot.
+  tritelSnaps = [...tritelSnaps.filter(t => t.time_slot !== timeSlot), snap];
+  persistTritelLocal();
   document.getElementById('snap-ta').value = '';
   updateTritelStatus();
+  refreshAll();
   window.renderClients();
   if (fbOk) {
     setLoading(true, 'Saving Tritel data…');
     try {
-      await setDoc(doc(db, 'tritel_snapshots', 'current'),
-        { ...tritelSnap, updated_at: Timestamp.fromDate(tritelSnap.updated_at) });
-      toast(`✓ Tritel data saved — ${data.length} row(s)`, 'ok');
+      await setDoc(doc(db, 'tritel_snapshots', tritelDocId(snap.session_date, snap.time_slot)),
+        { ...snap, updated_at: Timestamp.fromDate(snap.updated_at) });
+      toast(`✓ Tritel saved — ${data.length} row(s) @ ${fmt12(timeSlot)}`, 'ok');
     } catch(e) { toast('Tritel save failed (kept locally): ' + e.message, 'err', 6000); }
     finally { setLoading(false); }
   } else {
-    toast(`✓ Tritel data saved — ${data.length} row(s)`, 'ok');
+    toast(`✓ Tritel saved — ${data.length} row(s) @ ${fmt12(timeSlot)}`, 'ok');
   }
 }
 
+/* Removes the Tritel entry for the slot currently chosen in the picker. */
 window.removeTritelSnapshot = async () => {
-  if (!tritelSnap?.data?.length) { toast('No Tritel data to remove.', 'err'); return; }
-  tritelSnap = null;
-  try { localStorage.removeItem('bm_tritel_snap'); } catch(e) {}
+  const timeSlot = document.getElementById('slot-sel').value;
+  const existing = tritelSnaps.find(t => t.time_slot === timeSlot);
+  if (!existing) { toast(`No Tritel data for ${fmt12(timeSlot)}.`, 'err'); return; }
+  tritelSnaps = tritelSnaps.filter(t => t.time_slot !== timeSlot);
+  persistTritelLocal();
   updateTritelStatus();
+  refreshAll();
   window.renderClients();
   if (fbOk) {
-    try { await deleteDoc(doc(db, 'tritel_snapshots', 'current')); } catch(e) {}
+    try { await deleteDoc(doc(db, 'tritel_snapshots', tritelDocId(todayStr(), timeSlot))); } catch(e) {}
   }
-  toast('✓ Tritel data removed', 'ok');
+  toast(`✓ Tritel removed @ ${fmt12(timeSlot)}`, 'ok');
 };
 
-/* Tritel rows decorated the same way as the All Clients table rows. */
+/* Latest Tritel entry decorated the same way as the All Clients table rows. */
 function tritelDisplayRows() {
-  return (tritelSnap?.data || []).filter(r => r?.carrier_name).map(r => {
+  return (latestTritel()?.data || []).filter(r => r?.carrier_name).map(r => {
     const meta = clientMetaFor(r.carrier_name);
     const cb = parseFloat(meta.critical_balance);
     const cl = parseFloat(meta.credit_limit);
@@ -4742,7 +4772,8 @@ function renderUsageHistory() {
   const tbody = document.getElementById('usage-hist-tbody');
   const foot  = document.getElementById('usage-hist-foot');
   if (!tbody || !thead) return;
-  if (!todaySnaps.length) {
+  const tritelToday = (tritelSnaps || []).filter(t => t.session_date === todayStr());
+  if (!todaySnaps.length && !tritelToday.length) {
     thead.innerHTML = `<tr><th>Client</th></tr>`;
     tbody.innerHTML = `<tr><td style="text-align:center;padding:16px;color:#666">No snapshots yet today.</td></tr>`;
     if (foot) foot.textContent = '';
@@ -4769,7 +4800,17 @@ function renderUsageHistory() {
       (usageBy[name] = usageBy[name] || {})[slot] = amountNumber(r.usage_30min);
     });
   });
-  const slotKeys = snaps.map(s => s.time_slot || '');
+  // Tritel usage — mapped to the slot it was pasted for; shown as highlighted row(s) at the bottom.
+  const tritelUsageBy = {}; const tritelCarriers = [];
+  tritelToday.forEach(t => (t.data || []).forEach(r => {
+    if (!r?.carrier_name) return;
+    if (!tritelCarriers.includes(r.carrier_name)) tritelCarriers.push(r.carrier_name);
+    (tritelUsageBy[r.carrier_name] = tritelUsageBy[r.carrier_name] || {})[t.time_slot] = amountNumber(r.usage_30min);
+  }));
+  // Columns = union of all-client slots and Tritel slots, chronological.
+  const slotSet = new Set(snaps.map(s => s.time_slot || ''));
+  tritelToday.forEach(t => slotSet.add(t.time_slot));
+  const slotKeys = Array.from(slotSet).filter(Boolean).sort((a, b) => (slotIdx[a] ?? 999) - (slotIdx[b] ?? 999));
   const clients = Array.from(qualifyingClients);
   clients.sort((a, b) => {
     let cmp;
@@ -4789,22 +4830,22 @@ function renderUsageHistory() {
       `<th onclick="sortUsageHist('${slot}')" style="text-align:right;white-space:nowrap">${esc(fmt12(slot))}</th>`
     ).join('');
   thead.innerHTML = `<tr>${headerCells}</tr>`;
-  if (!clients.length) {
-    tbody.innerHTML = `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
-    if (foot) foot.textContent = `0 client(s) · ${snaps.length} snapshot(s)`;
-    return;
-  }
-  tbody.innerHTML = clients.map(name => {
-    const tdName = `<td class="uh-name-cell">${esc(name)}</td>`;
-    const tdCells = slotKeys.map(slot => {
-      const v = usageBy[name]?.[slot];
-      if (v === undefined) return `<td class="num"></td>`;
-      const cls = v < 0 ? 'pos' : v > 0 ? 'neg' : '';
-      return `<td class="num ${cls}">${fmt(v)}</td>`;
-    }).join('');
-    return `<tr>${tdName}${tdCells}</tr>`;
-  }).join('');
-  if (foot) foot.textContent = `${qualifyingClients.size} client(s) · ${snaps.length} snapshot(s)`;
+  const usageCell = (map, name, slot) => {
+    const v = map[name]?.[slot];
+    if (v === undefined) return `<td class="num"></td>`;
+    const cls = v < 0 ? 'pos' : v > 0 ? 'neg' : '';
+    return `<td class="num ${cls}">${fmt(v)}</td>`;
+  };
+  const clientRowsHtml = clients.map(name =>
+    `<tr><td class="uh-name-cell">${esc(name)}</td>${slotKeys.map(slot => usageCell(usageBy, name, slot)).join('')}</tr>`
+  ).join('');
+  const tritelRowsHtml = tritelCarriers.map(name =>
+    `<tr class="tritel-row"><td class="uh-name-cell" style="font-weight:600">${esc(name)}</td>${slotKeys.map(slot => usageCell(tritelUsageBy, name, slot)).join('')}</tr>`
+  ).join('');
+  tbody.innerHTML = (clients.length || tritelCarriers.length)
+    ? clientRowsHtml + tritelRowsHtml
+    : `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
+  if (foot) foot.textContent = `${qualifyingClients.size} client(s)${tritelCarriers.length ? ' + Tritel' : ''} · ${snaps.length} snapshot(s)`;
 }
 
 /* ════════════════════════════════════════════════
@@ -5611,9 +5652,15 @@ function snapshotTimeLabel(s, showDate) {
 }
 function snapshotWorksheetXml(shift, snaps, showDate) {
   const sorted = sortSnapshotSheetSnaps(snaps, shift);
+  // Tritel per slot, keyed by session_date + time_slot, so each entry lines up under its own column.
+  const tritelBySlot = {};
+  (tritelSnaps || []).forEach(t => {
+    tritelBySlot[`${t.session_date}_${t.time_slot}`] = (t.data || []).filter(r => r?.carrier_name);
+  });
   const blocks = sorted.map(s => ({
     time: snapshotTimeLabel(s, showDate),
-    rows: (s.data || []).filter(r => r?.carrier_name)
+    rows: (s.data || []).filter(r => r?.carrier_name),
+    tritel: tritelBySlot[`${s.session_date}_${s.time_slot}`] || []
   }));
   const headerRow = blocks.map(() =>
     ['Client','Snapshot Time','30 mins usage','Amnt Receivable'].map(h => xlsTextCell(h, 'hdr')).join('')
@@ -5633,16 +5680,20 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
       ].join('');
     }).join('') + '</Row>';
   }
-  // Tritel is additional: list it once at the bottom (first block's columns), highlighted, other blocks blank.
-  const tRows = (tritelSnap?.data || []).filter(r => r?.carrier_name);
-  tRows.forEach(tr => {
-    body += '<Row>' + blocks.map((b, bi) => bi !== 0 ? blankBlock : [
-      xlsTextCell(tr.carrier_name || '', 'total'),
-      xlsTextCell('Tritel', 'total'),
-      xlsNumberCell(tr.usage_30min, 'totalNum'),
-      xlsNumberCell(tr.amnt_receivable, 'totalNum')
-    ].join('')).join('') + '</Row>';
-  });
+  // Tritel is additional: append each slot's Tritel row(s) at the bottom of that slot's own block, highlighted.
+  const maxTritel = blocks.reduce((m, b) => Math.max(m, b.tritel.length), 0);
+  for (let j = 0; j < maxTritel; j++) {
+    body += '<Row>' + blocks.map(b => {
+      const tr = b.tritel[j];
+      if (!tr) return blankBlock;
+      return [
+        xlsTextCell(tr.carrier_name || '', 'total'),
+        xlsTextCell(b.time, 'total'),
+        xlsNumberCell(tr.usage_30min, 'totalNum'),
+        xlsNumberCell(tr.amnt_receivable, 'totalNum')
+      ].join('');
+    }).join('') + '</Row>';
+  }
   return `<Worksheet ss:Name="${xmlEsc(xlsSheetName(shift))}"><Table><Row>${headerRow}</Row>${body}</Table></Worksheet>`;
 }
 window.exportSnapshotSheet = async () => {
@@ -8048,14 +8099,12 @@ async function init(){
     }catch(e){console.warn('onSnapshot:',e);}
     // Tritel data lives in its own collection so it survives snapshot wipes and syncs across operators.
     try{
-      onSnapshot(doc(db,'tritel_snapshots','current'), d=>{
-        if(d.exists()){
-          const data=d.data();
-          tritelSnap={...data, updated_at:data.updated_at?.toDate?.()||new Date()};
-        } else {
-          tritelSnap=null;
-        }
+      const tq=query(collection(db,'tritel_snapshots'),where('session_date','==',todayStr()));
+      onSnapshot(tq, snap=>{
+        tritelSnaps=snap.docs.map(d=>({id:d.id,...d.data(),updated_at:d.data().updated_at?.toDate?.()||new Date()}))
+          .filter(t=>t.time_slot); // ignore any legacy docs without a slot
         updateTritelStatus();
+        refreshAll();
         if(document.getElementById('view-all-clients')?.classList.contains('active')) window.renderClients();
       });
     }catch(e){console.warn('tritel onSnapshot:',e);}
