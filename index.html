@@ -567,6 +567,11 @@
       font-size: 9px; font-weight: 600; padding: 0 5px; margin-left: 4px;
       border-radius: 999px; vertical-align: middle;
     }
+    .badge-spam {
+      display: inline-block; background: var(--red); color: #fff;
+      font-size: 9px; font-weight: 700; padding: 0 5px; margin-left: 4px;
+      border-radius: 999px; vertical-align: middle; letter-spacing: .3px;
+    }
     .win-search {
       height: 24px; font-size: 11px; font-family: inherit; padding: 0 8px;
       background: var(--surface); color: var(--text);
@@ -1432,6 +1437,7 @@
             <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
+            <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage is far above their own historical baseline — possible spam. Month-start days (1–2) are excluded because recurring charges make usage normally high.">Possible Spam</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
@@ -2046,11 +2052,6 @@
           </select>
         </div>
         <div class="settings-check">
-          <input type="checkbox" id="set-night" onchange="saveSettings()" style="margin:0">
-          <label>Night mode</label>
-        </div>
-        <hr style="border:none;border-top:1px solid #808080;margin:4px 0">
-        <div class="settings-check">
           <input type="checkbox" id="set-sound" onchange="saveSettings()" style="margin:0">
           <label>Sound alert on critical</label>
         </div>
@@ -2478,7 +2479,6 @@ function loadSettings() {
   document.getElementById('set-band-medium').value = S.bandMedium;
   document.getElementById('set-band-high').value   = S.bandHigh;
   document.getElementById('set-band-crit').value   = S.bandCritical;
-  document.getElementById('set-night').checked     = !!S.nightMode;
 }
 function loadLastProcessedSnap() {
   if (fbOk) {
@@ -2507,10 +2507,14 @@ window.saveSettings = () => {
   S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
   S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
-  S.nightMode     = document.getElementById('set-night').checked;
   applyNightMode();
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
+};
+window.toggleNightMode = () => {
+  S.nightMode = !S.nightMode;
+  applyNightMode();
+  localStorage.setItem('bm_s98', JSON.stringify(S));
 };
 
 /* ════════════════════════════════════════════════
@@ -2627,7 +2631,7 @@ window.switchView = name => {
   document.getElementById('tnav-'+name)?.classList.add('active');
   document.getElementById('snav-'+name)?.classList.add('active');
   setSbStatus('Viewing: '+name.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()));
-  if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); }
+  if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); ensureSpamHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { renderLogs(); }
@@ -3024,6 +3028,219 @@ function usageChipInfo(row) {
 }
 
 /* ════════════════════════════════════════════════
+   USAGE PROFILE / SPAM ANOMALY DETECTION
+   Baseline lives in its OWN persistent Firestore collection (`usage_profiles`),
+   NOT in `snapshots` — so it survives deleting/wiping the snapshots collection.
+   Each client doc holds a capped rolling buffer of recent positive 30-min usage
+   samples (keyed by date+slot). A live slot is flagged when its usage exceeds
+   median + K·MAD of the client's baseline (robust to occasional legit spikes).
+   Month-start days (recurring monthly charges) never feed the baseline and never
+   alert. See recordUsageSamples() (fed on every processed snapshot).
+════════════════════════════════════════════════ */
+const SPAM_CFG = {
+  monthStartExcludeDays: 2, // ignore day 1..N of the month (monthly recurring charges)
+  minSamples: 8,            // need this many prior consumption points for a stable baseline
+  k: 4,                     // threshold = median + k · scaledMAD  ("Balanced")
+  hardFloor: 50,            // never flag a spike below this absolute 30-min usage
+  madFallbackMult: 2,       // if MAD == 0 (all baseline points identical), use median × this
+  sampleCap: 300            // max recent usage samples kept per client (rolling window)
+};
+
+function dayOfMonth(dateStr) {
+  const p = String(dateStr || '').split('-'); // YYYY-MM-DD
+  return p.length === 3 ? parseInt(p[2], 10) : NaN;
+}
+function isMonthStart(dateStr) {
+  const d = dayOfMonth(dateStr);
+  return Number.isFinite(d) && d <= SPAM_CFG.monthStartExcludeDays;
+}
+function medianOf(arr) {
+  if (!arr.length) return 0;
+  const a = arr.slice().sort((x, y) => x - y);
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function profileDocId(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+}
+
+/* Persistent baseline store — in-memory mirror of the `usage_profiles` collection. */
+let _profileSamples = null;   // Map<name, Array<{d, s, u}>>
+let _profilesLoaded = false;
+let _profilesLoading = null;
+let _usageProfiles = null;    // computed baseline cache (median/MAD/threshold per client)
+function invalidateUsageProfiles() { _usageProfiles = null; }
+
+function sampleKey(d, s) { return `${d} ${s}`; }
+function capSamples(arr) {
+  if (arr.length > SPAM_CFG.sampleCap) arr.splice(0, arr.length - SPAM_CFG.sampleCap);
+  return arr;
+}
+
+async function loadUsageProfiles() {
+  if (_profilesLoaded) return;
+  if (_profilesLoading) return _profilesLoading;
+  _profilesLoading = (async () => {
+    try {
+      if (fbOk) {
+        const map = new Map();
+        const s = await getDocs(collection(db, 'usage_profiles'));
+        s.docs.forEach(d => {
+          const data = d.data();
+          const name = data.carrier_name;
+          if (name && Array.isArray(data.samples)) {
+            const arr = data.samples
+              .map(o => (typeof o === 'number'
+                ? { d: '', s: '', u: o }
+                : { d: o.d || '', s: o.s || '', u: amountNumber(o.u) }))
+              .filter(o => Number.isFinite(o.u));
+            map.set(name, arr);
+          }
+        });
+        _profileSamples = map;
+      } else {
+        _profileSamples = _profileSamples || new Map();
+      }
+      _profilesLoaded = true;
+      invalidateUsageProfiles();
+      // First run (or after a full wipe while snapshots still exist): seed the store.
+      if (_profileSamples.size === 0) await backfillUsageProfilesFromSnapshots();
+    } finally { _profilesLoading = null; }
+  })();
+  return _profilesLoading;
+}
+
+// One-time seed of the persistent store from whatever snapshots currently exist.
+async function backfillUsageProfilesFromSnapshots() {
+  await loadAllSnapshotHistory();
+  const map = new Map();
+  snapsAllSorted().forEach(snap => {
+    if (!snap || !snap.session_date || isMonthStart(snap.session_date)) return;
+    (snap.data || []).forEach(r => {
+      const name = r?.carrier_name; if (!name) return;
+      const u = amountNumber(r.usage_30min);
+      if (u > 0) {
+        let arr = map.get(name); if (!arr) { arr = []; map.set(name, arr); }
+        arr.push({ d: snap.session_date, s: snap.time_slot || '', u });
+      }
+    });
+  });
+  map.forEach(arr => capSamples(arr)); // snaps already sorted by date+slot → keep most recent N
+  if (map.size === 0) return;
+  _profileSamples = map;
+  invalidateUsageProfiles();
+  await persistProfileDocs([...map.keys()]);
+}
+
+// Fold a processed snapshot into each client's rolling buffer. Deduped by
+// date+slot so re-processing/overwriting a slot replaces rather than duplicates.
+function recordUsageSamples(date, slot, rows) {
+  if (isMonthStart(date)) return;             // recurring-charge days never feed the baseline
+  if (!_profileSamples) _profileSamples = new Map();
+  const changed = new Set();
+  const key = sampleKey(date, slot);
+  (rows || []).forEach(r => {
+    const name = r?.carrier_name; if (!name) return;
+    const u = amountNumber(r.usage_30min);
+    let arr = _profileSamples.get(name);
+    if (arr) { // drop any prior sample for this exact date+slot (overwrite case)
+      const i = arr.findIndex(o => sampleKey(o.d, o.s) === key);
+      if (i >= 0) { arr.splice(i, 1); changed.add(name); }
+    }
+    if (u > 0) {
+      if (!arr) { arr = []; _profileSamples.set(name, arr); }
+      arr.push({ d: date, s: slot, u }); capSamples(arr); changed.add(name);
+    }
+  });
+  if (changed.size) { invalidateUsageProfiles(); persistProfileDocs([...changed]); }
+}
+
+// Remove a snapshot's samples (used on Undo Last).
+function removeUsageSamples(date, slot, rows) {
+  if (!_profileSamples) return;
+  const changed = new Set();
+  const key = sampleKey(date, slot);
+  (rows || []).forEach(r => {
+    const name = r?.carrier_name; if (!name) return;
+    const arr = _profileSamples.get(name); if (!arr) return;
+    const i = arr.findIndex(o => sampleKey(o.d, o.s) === key);
+    if (i >= 0) { arr.splice(i, 1); changed.add(name); }
+  });
+  if (changed.size) { invalidateUsageProfiles(); persistProfileDocs([...changed]); }
+}
+
+async function persistProfileDocs(names) {
+  if (!fbOk || !names || !names.length || !_profileSamples) return;
+  try {
+    let batch = writeBatch(db), count = 0;
+    for (const name of names) {
+      const arr = _profileSamples.get(name) || [];
+      const ref = doc(db, 'usage_profiles', profileDocId(name));
+      batch.set(ref, { carrier_name: name, samples: arr, count: arr.length, updated_at: Timestamp.now() }, { merge: true });
+      if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+  } catch (e) { /* non-fatal: baseline still lives in memory for this session */ }
+}
+
+function getUsageProfiles() {
+  if (_usageProfiles) return _usageProfiles;
+  const today = todayStr();
+  const samples = _profileSamples || new Map();
+  const profiles = new Map();
+  samples.forEach((arr, name) => {
+    // Baseline = established prior days only: skip today (so a spike can't judge
+    // itself) and skip month-start days as a safeguard.
+    const vals = (arr || []).filter(o => o && o.u > 0 && o.d !== today && !isMonthStart(o.d)).map(o => o.u);
+    const n = vals.length;
+    if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n }); return; }
+    const med  = medianOf(vals);
+    const smad = 1.4826 * medianOf(vals.map(v => Math.abs(v - med)));
+    let threshold = smad > 0 ? med + SPAM_CFG.k * smad : med * SPAM_CFG.madFallbackMult;
+    threshold = Math.max(threshold, SPAM_CFG.hardFloor);
+    profiles.set(name, { ready: true, n, median: med, smad, threshold });
+  });
+  _usageProfiles = profiles;
+  return profiles;
+}
+
+// Evaluate a live row against its baseline. Returns an info object or null.
+function spamCheck(row) {
+  if (isMonthStart(todayStr())) return null;   // suppressed on monthly-charge days
+  const u = amountNumber(row?.usage_30min);
+  if (!(u > 0) || u < SPAM_CFG.hardFloor) return null;
+  const p = getUsageProfiles().get(row?.carrier_name);
+  if (!p || !p.ready) return null;
+  if (u > p.threshold) {
+    return { usage: u, median: p.median, threshold: p.threshold,
+             ratio: p.median > 0 ? u / p.median : Infinity, n: p.n };
+  }
+  return null;
+}
+function spamChipInfo(row) {
+  const s = row._spamInfo;
+  if (!s) return ['none', 'Within normal range'];
+  const detail = Number.isFinite(s.ratio) ? `${s.ratio.toFixed(1)}× normal` : 'no prior usage';
+  return ['high', `Possible spam · ${detail}`];
+}
+function updateSpamTab(count) {
+  const tab = document.getElementById('tab-spam');
+  if (!tab) return;
+  tab.textContent = count > 0 ? `Possible Spam (${count})` : 'Possible Spam';
+  tab.classList.toggle('tab-blink-red', count > 0);
+}
+// Load the persistent baseline once (lazily), then re-render so the Possible
+// Spam tab count/rows populate without blocking the initial paint.
+let _spamKicked = false;
+function ensureSpamHistory() {
+  if (_profilesLoaded || _spamKicked) return;
+  _spamKicked = true;
+  loadUsageProfiles()
+    .then(() => { if (document.getElementById('view-alerts')?.classList.contains('active')) renderAlerts(); })
+    .catch(() => { _spamKicked = false; });
+}
+
+/* ════════════════════════════════════════════════
    PARSE TEXT
 ════════════════════════════════════════════════ */
 const FMAP = {
@@ -3262,6 +3479,8 @@ async function doProcessSnapshot(rows, timeSlot){
   refreshAll();
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
+  // Feed the persistent usage baseline (survives snapshot deletion).
+  safeRender('Usage baseline', () => recordUsageSamples(snap.session_date, snap.time_slot, data));
   if(fbOk){
     setLoading(true,'Saving to Firestore…');
     try {
@@ -3286,6 +3505,7 @@ window.undoLastSnapshot = async () => {
   setLoading(true, 'Removing last snapshot…');
   try {
     if (fbOk && last.id) await deleteDoc(doc(db, 'snapshots', last.id));
+    removeUsageSamples(last.session_date, last.time_slot, last.data);
     todaySnaps.pop();
     viewingIdx = null;
     latestSnap = todaySnaps.length ? todaySnaps[todaySnaps.length - 1] : null;
@@ -4221,6 +4441,7 @@ function balanceBarPct(r) {
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
+  if (f === 'spam')  { alertSortCol = 'usage_30min'; alertSortDir = -1; ensureSpamHistory(); }
   document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const isHist = (f === 'usagehistory');
@@ -4251,6 +4472,7 @@ function alertRows() {
     const level   = alertLevel(r);
     // _isNew: critical NOW and either no prior snapshot OR was not critical before
     const _isNew  = !!compareForNew && level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
+    const _spamInfo = compareForNew ? spamCheck(r) : null; // only for current (live) rows
     return {
       ...r,
       _level: level,
@@ -4262,6 +4484,8 @@ function alertRows() {
       critical_balance: critBal,
       _hasThreshold: hasThreshold,
       _inactive: isClientInactive(meta),
+      _spamInfo,
+      _spam: !!_spamInfo,
     };
   };
   const data=activeData().map(r=>toAlertRow(r, true));
@@ -4293,8 +4517,10 @@ function alertRows() {
   else                                    rows = visibleData;
   const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
+  const spamCount      = visibleData.filter(r=>r._spam).length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
+  if(alertFilter==='spam')     rows=rows.filter(r=>r._spam);
   if(alertFilter==='light')    rows=rows.filter(r=>r._level==='light');
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
   if(alertFilter==='nothresh') rows=rows.filter(r=>!r._hasThreshold);
@@ -4307,16 +4533,17 @@ function alertRows() {
     if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
     return((av??0)-(bv??0))*alertSortDir;
   });
-  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount };
+  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount };
 }
 
 function renderAlerts() {
-  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount } = alertRows();
+  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount } = alertRows();
   updateNewCriticalTab(newCount);
   updateRemovedCriticalTab(removedCount);
   setTabBlink('tab-usage',    usageHighCount > 0);
   setTabBlink('tab-nothresh', noThreshCount > 0);
   updateInactiveUsageTab(inactiveUsageCount);
+  updateSpamTab(spamCount);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
@@ -4339,11 +4566,28 @@ function renderAlerts() {
     ? `<tr class="alert-note danger"><td colspan="10">
         Showing clients critical in ${prevSnap.session_date || ''} ${fmt12(prevSnap.time_slot)} but not critical in the current snapshot.
        </td></tr>` : '';
+  let spamNote = '';
+  if (alertFilter === 'spam') {
+    if (isMonthStart(todayStr())) {
+      spamNote = `<tr class="alert-note info"><td colspan="10">
+        ⓘ Spam detection is paused on days 1–${SPAM_CFG.monthStartExcludeDays} of the month — monthly recurring charges make 30-min usage normally high.
+       </td></tr>`;
+    } else if (!_profilesLoaded) {
+      spamNote = `<tr class="alert-note info"><td colspan="10">
+        Loading usage baselines…
+       </td></tr>`;
+    } else if (!rows.length) {
+      spamNote = `<tr class="alert-note info"><td colspan="10">
+        ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds its own baseline (median + ${SPAM_CFG.k}·MAD from prior days, floor ${SPAM_CFG.hardFloor}). Needs ≥${SPAM_CFG.minSamples} prior consumption points per client.
+       </td></tr>`;
+    }
+  }
 
-  document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + page.map(r=>{
+  document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + spamNote + page.map(r=>{
     const bw = balanceBarPct(r);
-    const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
+    const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='spam' ? spamChipInfo(r) : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
+    const spamBadge = (r._spam && alertFilter!=='spam') ? '<span class="badge-spam" title="Current 30-min usage is far above this client\'s baseline">SPAM?</span>' : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const ackCell  = r._removedFromCritical ? '—' : r._ack
@@ -4360,7 +4604,7 @@ function renderAlerts() {
         <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(2)}%"></div></div>
         <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
       </div></td>
-      <td><span class="badge ${cls}">${lbl}</span>${newBadge}</td>
+      <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
       <td style="text-align:center">${ackCell}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
@@ -6891,6 +7135,7 @@ async function loadAllSnapshotHistory() {
         if (!prev || snapshotTimeMs(s) >= snapshotTimeMs(prev)) _historyBySlot.set(key, s);
       });
       _historyLoaded = true;
+      invalidateUsageProfiles(); // baselines now have full prior-day history
     } finally { _historyLoading = null; }
   })();
   return _historyLoading;
