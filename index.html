@@ -5819,14 +5819,14 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
 
   // Master carrier order = union across every slot, alphabetical, so all blocks share the same rows.
   const buildOrder = pick => {
-    const order = [], seen = new Set(), allow = {};
+    const order = [], seen = new Set(), notes = {};
     blocks.forEach(b => pick(b).forEach(r => {
       const k = snapCarrierKey(r.carrier_name);
       if (!seen.has(k)) { seen.add(k); order.push({ key:k, name:r.carrier_name }); }
-      if (!allow[k] && r.allow_balance) allow[k] = r.allow_balance;
+      if (!notes[k] && r.notes) notes[k] = r.notes;
     }));
     order.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity:'base' }));
-    return { order, allow };
+    return { order, notes };
   };
   const clients = buildOrder(b => b.rows);
   const tritel  = buildOrder(b => b.tritel);
@@ -5855,16 +5855,16 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
   const timeRow = '<Row><Cell ss:StyleID="time"/><Cell ss:StyleID="time"/>' +
     blocks.map(b => `<Cell ss:StyleID="time" ss:MergeAcross="${span}"><Data ss:Type="String">${xmlEsc(b.time)}</Data></Cell>`).join('') +
     '</Row>';
-  const headRow = '<Row>' + xlsTextCell('CarrierName', 'hdr') + xlsTextCell('Allow Bal', 'hdr') +
+  const headRow = '<Row>' + xlsTextCell('CarrierName', 'hdr') + xlsTextCell('Notes', 'hdr') +
     blocks.map(() => SNAP_BLOCK_COLS.map(c => xlsTextCell(c.h, 'hdr')).join('')).join('') + '</Row>';
   const clientRows = clients.order.map(c =>
-    '<Row>' + xlsTextCell(c.name) + xlsTextCell(clients.allow[c.key] ?? '') +
+    '<Row>' + xlsTextCell(c.name) + xlsTextCell(clients.notes[c.key] ?? '') +
     blocks.map(b => blockCells(b.byCarrier[c.key], '', 'num', true)).join('') + '</Row>'
   ).join('');
   const totalRow = '<Row>' + xlsTextCell('Total', 'total') + xlsTextCell('', 'total') +
     blocks.map(b => totalCells(b)).join('') + '</Row>';
   const tritelRows = tritel.order.map(c =>
-    '<Row>' + xlsTextCell(c.name, 'tri') + xlsTextCell(tritel.allow[c.key] ?? '', 'tri') +
+    '<Row>' + xlsTextCell(c.name, 'tri') + xlsTextCell(tritel.notes[c.key] ?? '', 'tri') +
     blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
   ).join('');
 
@@ -5880,7 +5880,7 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
       return '';
     }).filter(Boolean);
   }).join('');
-  const cols = '<Column ss:Width="160"/><Column ss:Width="95"/>' + blockColDefs;
+  const cols = '<Column ss:Width="160"/><Column ss:Width="200"/>' + blockColDefs;
   const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
     '<SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane>' +
     '<SplitVertical>2</SplitVertical><LeftColumnRightPane>2</LeftColumnRightPane><ActivePane>3</ActivePane></WorksheetOptions>';
