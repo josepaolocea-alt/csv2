@@ -2162,10 +2162,10 @@
       <div class="dlg-ico">!</div>
       <div class="dlg-text" id="source-mismatch-text"></div>
     </div>
-    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn primary" id="source-mismatch-switch" style="min-width:120px" onclick="mismatchSwitch()">Switch</button>
-      <button class="tbtn danger" id="source-mismatch-keep" style="min-width:120px" onclick="mismatchKeep()">Post anyway</button>
-      <button class="tbtn" style="min-width:64px" onclick="closeSourceMismatch()">Cancel</button>
+    <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:0 12px 12px">
+      <button class="tbtn primary" id="source-mismatch-switch" style="min-width:120px;padding:5px 16px" onclick="mismatchSwitch()">Switch</button>
+      <button class="tbtn danger" id="source-mismatch-keep" style="min-width:120px;padding:5px 16px" onclick="mismatchKeep()">Post anyway</button>
+      <button class="tbtn" style="min-width:72px;padding:5px 16px" onclick="closeSourceMismatch()">Cancel</button>
     </div>
   </div>
 </div>
@@ -5770,7 +5770,7 @@ function snapshotTimeLabel(s, showDate) {
 }
 // Columns repeated per 30-min snapshot block. usage_30min ("30mins usage") is highlighted when non-zero.
 const SNAP_BLOCK_COLS = [
-  { f:'carrier_name',     h:'CarrierName',      t:'s'  },
+  { f:'carrier_name',     h:'CarrierName',      t:'s', w:150 },
   { f:'credit_limit',     h:'Credit Limit',     t:'n'  },
   { f:'critical_balance', h:'Critical Balance', t:'n'  },
   { f:'billing_cycle',    h:'Billing Cycle',    t:'s'  },
@@ -5779,14 +5779,14 @@ const SNAP_BLOCK_COLS = [
   { f:'prev_balance',     h:'Prev Balance',     t:'n'  },
   { f:'pay_adj',          h:'Pay&Adj',          t:'n'  },
   { f:'current_usage',    h:'Current Usage',    t:'n'  },
-  { f:'amnt_receivable',  h:'Amnt Receivable',  t:'n'  },
-  { f:'usage_30min',      h:'30mins usage',     t:'u'  },
-  { f:'total_usage',      h:'Total usage',      t:'n'  },
+  { f:'amnt_receivable',  h:'Amnt Receivable',  t:'n', w:105 },
+  { f:'usage_30min',      h:'30mins usage',     t:'u', w:95  },
+  { f:'total_usage',      h:'Total usage',      t:'n', w:95  },
 ];
 const SNAP_SUM_FIELDS = SNAP_BLOCK_COLS.filter(c => c.t === 'n' || c.t === 'u').map(c => c.f);
 // Detail columns collapsed (hidden) in the export — data stays, just out of the way. CarrierName,
-// Credit Limit, Amnt Receivable, 30mins usage and Total usage stay visible in each snapshot block.
-const SNAP_HIDDEN_FIELDS = new Set(['critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage']);
+// Amnt Receivable, 30mins usage and Total usage stay visible in each snapshot block.
+const SNAP_HIDDEN_FIELDS = new Set(['credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage']);
 function snapCarrierKey(v) { return String(v ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim().toUpperCase(); }
 function snapYesNo(v) {
   if (v === true) return 'Yes';
@@ -5868,14 +5868,19 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
     blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
   ).join('');
 
-  // Hide the detail columns in every snapshot block. Emit one <Column> per hidden column with an
-  // explicit ss:Index — Excel's SpreadsheetML reader does not reliably hide ss:Span ranges, so no Span.
-  const hideOffsets = SNAP_BLOCK_COLS.map((c, i) => SNAP_HIDDEN_FIELDS.has(c.f) ? i : -1).filter(i => i >= 0);
-  const hiddenCols = blocks.flatMap((_, b) => {
+  // Per-block <Column> defs, emitted in column order: hidden detail columns collapsed, visible data
+  // columns given explicit widths (c.w). Each carries an explicit ss:Index — Excel's SpreadsheetML
+  // reader does not reliably apply ss:Span ranges, so every column is addressed individually.
+  const blockColDefs = blocks.flatMap((_, b) => {
     const base = 3 + b * SNAP_BLOCK_COLS.length; // absolute 1-indexed column of this block's CarrierName
-    return hideOffsets.map(o => `<Column ss:Index="${base + o}" ss:Hidden="1" ss:AutoFitWidth="0" ss:Width="12"/>`);
+    return SNAP_BLOCK_COLS.map((c, o) => {
+      const idx = base + o;
+      if (SNAP_HIDDEN_FIELDS.has(c.f)) return `<Column ss:Index="${idx}" ss:Hidden="1" ss:AutoFitWidth="0" ss:Width="12"/>`;
+      if (c.w) return `<Column ss:Index="${idx}" ss:AutoFitWidth="0" ss:Width="${c.w}"/>`;
+      return '';
+    }).filter(Boolean);
   }).join('');
-  const cols = '<Column ss:Width="120"/><Column ss:Width="95"/>' + hiddenCols;
+  const cols = '<Column ss:Width="160"/><Column ss:Width="95"/>' + blockColDefs;
   const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/>' +
     '<SplitHorizontal>2</SplitHorizontal><TopRowBottomPane>2</TopRowBottomPane>' +
     '<SplitVertical>2</SplitVertical><LeftColumnRightPane>2</LeftColumnRightPane><ActivePane>3</ActivePane></WorksheetOptions>';
