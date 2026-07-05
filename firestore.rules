@@ -1,8 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
     }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'jpgc06.2023@gmail.com';
+    }
+    function isSupport() {
+      return signedIn() && request.auth.token.email == 'customersupport@cynsolutions.ph';
+    }
+
+    // Balance Monitor data — support can post/undo snapshots and acknowledge
+    match /snapshots/{id}       { allow read, write: if isAdmin() || isSupport(); }
+    // Tritel — additional client from a separate data source, kept in its own
+    // collection so it persists independently of the snapshots collection.
+    match /tritel_snapshots/{id} { allow read, write: if isAdmin() || isSupport(); }
+    match /acknowledgments/{id} { allow read, write: if isAdmin() || isSupport(); }
+    match /presence/{id}        { allow read, write: if isAdmin() || isSupport(); }
+
+    // Usage baseline for spam/anomaly detection — updated when snapshots are
+    // processed; persists independently of the snapshots collection.
+    match /usage_profiles/{id}  { allow read, write: if isAdmin() || isSupport(); }
+
+    // Snapshot audit logs — support writes logs when posting, only admin deletes
+    match /snapshot_logs/{id} {
+      allow read, create: if isAdmin() || isSupport();
+      allow update, delete: if isAdmin();
+    }
+
+    // Client records — support can read (needed for thresholds/alerts)
+    // but cannot add, edit, or upload clients
+    match /clients/{id}     { allow read: if isAdmin() || isSupport(); allow write: if isAdmin(); }
+    match /csv_imports/{id} { allow read: if isAdmin() || isSupport(); allow write: if isAdmin(); }
+
+    // Admin-only modules: Stats, SMS, Notepad
+    match /stats_snapshots/{id}     { allow read, write: if isAdmin(); }
+    match /sms/{id}                 { allow read, write: if isAdmin(); }
+    match /users/{uid}/{document=**} { allow read, write: if isAdmin(); }
   }
 }
