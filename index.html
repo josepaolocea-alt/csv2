@@ -2109,6 +2109,7 @@
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin only.</div>
           <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
           <button class="tbtn" style="color:#880000;margin-left:4px" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
+          <button class="tbtn" style="color:#880000;margin-left:4px" onclick="openWipeAllConfirm('tritel')">Delete ALL Tritel Snapshots</button>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
@@ -4194,21 +4195,28 @@ window.confirmDeleteTodaySnapshots = async () => {
   }
 };
 
-let pendingWipeAll = null; // 'snapshots' | 'stats'
+let pendingWipeAll = null; // 'snapshots' | 'stats' | 'tritel'
 
 window.openWipeAllConfirm = kind => {
   if (!isAdmin()){ toast('Only admins can delete all stored snapshots.','err'); return; }
   pendingWipeAll = kind;
-  const isStats = kind === 'stats';
-  document.getElementById('wipe-all-title').textContent = isStats ? 'Delete All Stats Snapshots' : 'Delete All Snapshots';
-  document.getElementById('wipe-all-text').innerHTML = isStats
-    ? `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
+  const titles = { stats: 'Delete All Stats Snapshots', tritel: 'Delete All Tritel Snapshots' };
+  const texts = {
+    stats:
+      `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
       `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today.<br><br>` +
-      `<span style="color:#880000">This cannot be undone.</span>`
-    : `<strong>Permanently delete ALL balance snapshots?</strong><br><br>` +
-      `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
-      `New Critical comparisons and trend history will be lost.<br><br>` +
-      `<span style="color:#880000">This cannot be undone.</span>`;
+      `<span style="color:#880000">This cannot be undone.</span>`,
+    tritel:
+      `<strong>Permanently delete ALL Tritel snapshots?</strong><br><br>` +
+      `This wipes the entire <strong>tritel_snapshots</strong> collection in Firestore — every stored day and time slot, not just today.<br><br>` +
+      `<span style="color:#880000">This cannot be undone.</span>`,
+  };
+  document.getElementById('wipe-all-title').textContent = titles[kind] || 'Delete All Snapshots';
+  document.getElementById('wipe-all-text').innerHTML = texts[kind] ||
+    `<strong>Permanently delete ALL balance snapshots?</strong><br><br>` +
+    `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
+    `New Critical comparisons and trend history will be lost.<br><br>` +
+    `<span style="color:#880000">This cannot be undone.</span>`;
   toggleSettings();
   document.getElementById('wipe-all-overlay').classList.add('open');
 };
@@ -4220,8 +4228,10 @@ window.confirmWipeAll = async () => {
   const kind = pendingWipeAll;
   window.closeWipeAllConfirm();
   if (!kind || !isAdmin()) return;
-  const colName = kind === 'stats' ? 'stats_snapshots' : 'snapshots';
-  setLoading(true, kind === 'stats' ? 'Deleting all stats snapshots…' : 'Deleting all snapshots…');
+  const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
+  const loadingMsg = kind === 'stats' ? 'Deleting all stats snapshots…'
+    : kind === 'tritel' ? 'Deleting all Tritel snapshots…' : 'Deleting all snapshots…';
+  setLoading(true, loadingMsg);
   try {
     let deletedCount = 0;
     if (fbOk) {
@@ -4240,6 +4250,12 @@ window.confirmWipeAll = async () => {
       statsViewingSlot = null;
       try { localStorage.removeItem('bm_stats_last'); } catch(e) {}
       statsRender();
+    } else if (kind === 'tritel') {
+      tritelSnaps = [];
+      try { localStorage.removeItem('bm_tritel_snaps'); } catch(e) {}
+      updateTritelStatus();
+      refreshAll();
+      window.renderClients();
     } else {
       todaySnaps = [];
       latestSnap = null;
@@ -4253,7 +4269,8 @@ window.confirmWipeAll = async () => {
       refreshAll();
       window.renderClients();
     }
-    toast(`✓ Deleted ${deletedCount} ${kind === 'stats' ? 'stats ' : ''}snapshot(s) from Firestore`, 'ok');
+    const label = kind === 'stats' ? 'stats ' : kind === 'tritel' ? 'Tritel ' : '';
+    toast(`✓ Deleted ${deletedCount} ${label}snapshot(s) from Firestore`, 'ok');
   } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
