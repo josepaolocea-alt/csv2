@@ -5823,7 +5823,9 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
     blocks.forEach(b => pick(b).forEach(r => {
       const k = snapCarrierKey(r.carrier_name);
       if (!seen.has(k)) { seen.add(k); order.push({ key:k, name:r.carrier_name }); }
-      if (!notes[k] && r.notes) notes[k] = r.notes;
+      // Notes usually live in per-client metadata, not the posted snapshot row — mirror the
+      // on-screen `r.notes || meta.notes` fallback so column B is populated for every client.
+      if (!notes[k]) { const n = r.notes || clientMetaFor(r.carrier_name).notes; if (n) notes[k] = n; }
     }));
     order.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity:'base' }));
     return { order, notes };
