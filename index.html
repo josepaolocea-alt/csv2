@@ -4699,10 +4699,10 @@ window.openWipeAllConfirm = kind => {
     `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
     `New Critical comparisons and trend history will be lost.<br><br>` +
     `<span style="color:#880000">This cannot be undone.</span>`;
-  // "Keep a range" applies to the snapshots and stats wipes; reset it each open.
+  // "Keep a range" applies to the snapshots, stats and Tritel wipes; reset it each open.
   const keepBlock = document.getElementById('wipe-keep-block');
   if (keepBlock) {
-    keepBlock.style.display = (kind === 'snapshots' || kind === 'stats') ? '' : 'none';
+    keepBlock.style.display = (kind === 'snapshots' || kind === 'stats' || kind === 'tritel') ? '' : 'none';
     const en = document.getElementById('wipe-keep-enable'); if (en) en.checked = false;
     const ins = document.getElementById('wipe-keep-inputs'); if (ins) ins.style.display = 'none';
     const kf = document.getElementById('wipe-keep-from'); if (kf) kf.value = '';
@@ -4721,8 +4721,8 @@ window.closeWipeAllConfirm = () => {
 };
 window.confirmWipeAll = async () => {
   const kind = pendingWipeAll;
-  // Optional "keep this range" — offered for the main snapshots and stats wipes.
-  const keepOn = (kind === 'snapshots' || kind === 'stats') && !!document.getElementById('wipe-keep-enable')?.checked;
+  // Optional "keep this range" — offered for the main snapshots, stats and Tritel wipes.
+  const keepOn = (kind === 'snapshots' || kind === 'stats' || kind === 'tritel') && !!document.getElementById('wipe-keep-enable')?.checked;
   let keepFrom = '', keepTo = '';
   if (keepOn) {
     keepFrom = document.getElementById('wipe-keep-from')?.value || '';
