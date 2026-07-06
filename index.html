@@ -1649,7 +1649,7 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Critical History</div>
           <div class="fbar">
-            <span style="font-size:11px;color:#444">Every client that has hit Critical Balance — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
+            <span style="font-size:11px;color:#444">Every client that reached the Critical Balance set on them — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
             <input class="win-search" id="crithist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="critHistSearchInput(this.value)" style="margin-left:auto">
             <button class="tbtn" onclick="exportCritHistory()" title="Export the Critical History table to CSV">Export</button>
           </div>
@@ -3350,16 +3350,31 @@ function ensureSpamHistory() {
 
 /* ════════════════════════════════════════════════
    CRITICAL HISTORY
-   Persistent log of every client that has hit Critical Balance. Lives in its
-   OWN Firestore collection (`critical_history`), so it survives deleting/wiping
-   the snapshots collection — the whole point is to still know who hit critical
-   after today's snapshots are gone. Fed on every processed snapshot (see
-   recordCriticalHits in doProcessSnapshot) and one-time seeded from whatever
-   snapshots exist the first time it loads. Cleared only via the Danger Zone
-   button, which also sets the "seeded" flag so it never auto-reseeds.
+   Persistent log of every client that reached the Critical Balance EXPLICITLY
+   SET on them (via realCritical below — the Settings −1 "fallback critical" is
+   deliberately NOT counted here, so clients without a real Critical Balance are
+   never logged). Lives in its OWN Firestore collection (`critical_history`), so
+   it survives deleting/wiping the snapshots collection — the whole point is to
+   still know who hit critical after today's snapshots are gone. Fed on every
+   processed snapshot (see recordCriticalHits in doProcessSnapshot) and one-time
+   seeded from whatever snapshots exist the first time it loads. Cleared only via
+   the Danger Zone button, which also sets the "seeded" flag so it never auto-reseeds.
    One doc per client: { carrier_name, count, first_*, last_*, events:[{d,s,bal,crit,ts}] }.
 ════════════════════════════════════════════════ */
 const CRIT_HIST_CAP = 500;             // max hit events kept per client (rolling)
+
+// A "critical hit" for the history = balance reached a Critical Balance that is
+// explicitly set on the client (meta or row). Unlike alertLevel()'s 'high', this
+// ignores the S.mediumMax fallback, so clients with no Critical Balance set are
+// never recorded. Returns { crit, bal } on a hit, else null.
+function realCritical(r) {
+  const name = r?.carrier_name; if (!name) return null;
+  const meta = clientsMeta[name] || {};
+  const critBal = getThreshold(meta, r, 'critical_balance', null); // null = none explicitly set
+  if (critBal === null) return null;
+  const bal = amountNumber(r?.amnt_receivable);
+  return bal >= critBal ? { crit: critBal, bal } : null;
+}
 let _critHits = null;                  // Map<name, { events: Array<{d,s,bal,crit,ts}> }>
 let _critHistLoaded = false;
 let _critHistLoading = null;
@@ -3414,12 +3429,11 @@ async function backfillCritHistoryFromSnapshots() {
     if (!snap || !snap.session_date) return;
     const ts = (snap.timestamp instanceof Date) ? snap.timestamp : (snap.timestamp?.toDate?.() || null);
     (snap.data || []).forEach(r => {
-      if (alertLevel(r) !== 'high') return;
-      const name = r?.carrier_name; if (!name) return;
+      const hit = realCritical(r); // only clients that reached an explicitly-set Critical Balance
+      if (!hit) return;
+      const name = r.carrier_name;
       let rec = map.get(name); if (!rec) { rec = { events: [] }; map.set(name, rec); }
-      const meta = clientsMeta[name] || {};
-      const crit = getThreshold(meta, r, 'critical_balance', S.mediumMax);
-      rec.events.push({ d: snap.session_date, s: snap.time_slot || '', bal: amountNumber(r.amnt_receivable), crit: (crit ?? null), ts });
+      rec.events.push({ d: snap.session_date, s: snap.time_slot || '', bal: hit.bal, crit: hit.crit, ts });
     });
   });
   // snaps already sorted → dedup same date+slot (keep the last seen) and cap.
@@ -3444,17 +3458,15 @@ async function recordCriticalHits(date, slot, ts, rows) {
   const changed = new Set();
   (rows || []).forEach(r => {
     const name = r?.carrier_name; if (!name) return;
-    const isCrit = alertLevel(r) === 'high';
+    const hit = realCritical(r); // null unless balance reached an explicitly-set Critical Balance
     let rec = _critHits.get(name);
     if (rec) { // drop any prior hit for this exact date+slot (overwrite case)
       const i = rec.events.findIndex(e => critKey(e.d, e.s) === key);
       if (i >= 0) { rec.events.splice(i, 1); changed.add(name); }
     }
-    if (isCrit) {
+    if (hit) {
       if (!rec) { rec = { events: [] }; _critHits.set(name, rec); }
-      const meta = clientsMeta[name] || {};
-      const crit = getThreshold(meta, r, 'critical_balance', S.mediumMax);
-      rec.events.push({ d: date, s: slot, bal: amountNumber(r.amnt_receivable), crit: (crit ?? null), ts: when });
+      rec.events.push({ d: date, s: slot, bal: hit.bal, crit: hit.crit, ts: when });
       sortEventsInPlace(rec.events);
       if (rec.events.length > CRIT_HIST_CAP) rec.events.splice(0, rec.events.length - CRIT_HIST_CAP);
       changed.add(name);
