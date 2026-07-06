@@ -23,6 +23,11 @@ service cloud.firestore {
     // processed; persists independently of the snapshots collection.
     match /usage_profiles/{id}  { allow read, write: if isAdmin() || isSupport(); }
 
+    // Critical History — persistent log of every client that hit Critical
+    // Balance; fed when snapshots are processed, persists independently of the
+    // snapshots collection, cleared via Settings → Danger Zone.
+    match /critical_history/{id} { allow read, write: if isAdmin() || isSupport(); }
+
     // Snapshot audit logs — support writes logs when posting, only admin deletes
     match /snapshot_logs/{id} {
       allow read, create: if isAdmin() || isSupport();

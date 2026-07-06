@@ -1052,10 +1052,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -1162,6 +1162,7 @@
     #rollback-overlay.open #rollback-box,
     #delete-today-overlay.open #delete-today-box,
     #wipe-all-overlay.open #wipe-all-box,
+    #crithist-wipe-overlay.open #crithist-wipe-box,
     #source-mismatch-overlay.open #source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-detail-overlay.open #sms-detail-box {
@@ -1282,6 +1283,7 @@
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">Export</button>
     <div class="tsep"></div>
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
+    <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
     <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">Critical <span id="sttab-cnt-critical"></span></button>
@@ -1327,6 +1329,10 @@
       <div class="nav-item" id="snav-logs" onclick="switchView('logs')">
         <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="1" width="12" height="14" rx="1" fill="none" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="5" x2="11" y2="5" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="8" x2="11" y2="8" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="11" x2="9" y2="11" stroke="#000080" stroke-width="1.5"/></svg>
         Logs
+      </div>
+      <div class="nav-item" id="snav-crit-history" onclick="switchView('crit-history')">
+        <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#cc0000" stroke-width="2"/><rect x="7" y="4" width="2" height="5" fill="#cc0000"/><rect x="7" y="10" width="2" height="2" fill="#cc0000"/><path d="M13 3l1.5 1.5" stroke="#cc0000" stroke-width="1.2"/></svg>
+        Critical History
       </div>
       <div class="nav-divider"></div>
 
@@ -1631,6 +1637,36 @@
             </table>
           </div>
           <div style="font-size:10px;color:#888;margin-top:4px" id="logs-count">No logs yet.</div>
+        </div>
+      </div>
+
+      <!-- ═══ CRITICAL HISTORY ═══════════════════════
+           Persistent log of every client that has hit Critical Balance.
+           Lives in its OWN Firestore collection (`critical_history`), so it
+           survives deleting/wiping the snapshots. Cleared only via the button
+           in Settings → Danger Zone. -->
+      <div class="view" id="view-crit-history">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Critical History</div>
+          <div class="fbar">
+            <span style="font-size:11px;color:#444">Every client that has hit Critical Balance — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
+            <input class="win-search" id="crithist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="critHistSearchInput(this.value)" style="margin-left:auto">
+            <button class="tbtn" onclick="exportCritHistory()" title="Export the Critical History table to CSV">Export</button>
+          </div>
+          <div class="lv-wrap">
+            <table id="crithist-tbl">
+              <thead><tr>
+                <th onclick="sortCritHist('name')">Client</th>
+                <th onclick="sortCritHist('count')" style="text-align:right" title="Number of snapshots where this client was at Critical Balance">Times Hit</th>
+                <th onclick="sortCritHist('lastBal')" style="text-align:right">Balance at Last Hit</th>
+                <th onclick="sortCritHist('crit')" style="text-align:right">Critical Balance</th>
+                <th onclick="sortCritHist('first')">First Hit</th>
+                <th onclick="sortCritHist('last')">Last Hit ▼</th>
+              </tr></thead>
+              <tbody id="crithist-tbody"></tbody>
+            </table>
+          </div>
+          <div style="font-size:10px;color:#888;margin-top:4px" id="crithist-count">Loading…</div>
         </div>
       </div>
 
@@ -2111,6 +2147,8 @@
           <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
           <button class="tbtn" style="color:#880000;margin-left:4px" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
           <button class="tbtn" style="color:#880000;margin-left:4px" onclick="openWipeAllConfirm('tritel')">Delete ALL Tritel Snapshots</button>
+          <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected.</div>
+          <button class="tbtn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
         </div>
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
@@ -2197,9 +2235,44 @@
       <div class="dlg-ico">!</div>
       <div class="dlg-text" id="wipe-all-text"></div>
     </div>
+    <div id="wipe-keep-block" style="display:none;margin:0 12px 4px;padding:8px;border:1px solid #808080;background:#f4f4f4;text-align:left">
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer">
+        <input type="checkbox" id="wipe-keep-enable" onclick="toggleWipeKeep(this)"> Keep a range (don't delete these)
+      </label>
+      <div id="wipe-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="width:34px">From</span>
+          <input type="datetime-local" id="wipe-keep-from" step="1800" style="flex:1">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:34px">To</span>
+          <input type="datetime-local" id="wipe-keep-to" step="1800" style="flex:1">
+        </div>
+        <div style="color:var(--text-2);margin-top:5px;font-size:10px">Snapshots inside this window (inclusive) are preserved; everything else in the collection is deleted.</div>
+      </div>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeAll()">Delete All</button>
       <button class="tbtn" style="min-width:72px" onclick="closeWipeAllConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete ALL Critical History Dialog -->
+<div id="crithist-wipe-overlay">
+  <div id="crithist-wipe-box" style="width:390px">
+    <div class="dlg-tb"><span>Delete All Critical History</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text">
+        <strong>Permanently delete ALL Critical History?</strong><br><br>
+        This wipes the entire <strong>critical_history</strong> collection — every client record of hitting Critical Balance. Your stored snapshots are <strong>not</strong> affected.<br><br>
+        <span style="color:#880000">This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeCritHistory()">Delete All</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeCritHistWipeConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2669,6 +2742,7 @@ window.switchView = name => {
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { renderLogs(); }
+  if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
 };
 
 window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
@@ -3275,6 +3349,281 @@ function ensureSpamHistory() {
 }
 
 /* ════════════════════════════════════════════════
+   CRITICAL HISTORY
+   Persistent log of every client that has hit Critical Balance. Lives in its
+   OWN Firestore collection (`critical_history`), so it survives deleting/wiping
+   the snapshots collection — the whole point is to still know who hit critical
+   after today's snapshots are gone. Fed on every processed snapshot (see
+   recordCriticalHits in doProcessSnapshot) and one-time seeded from whatever
+   snapshots exist the first time it loads. Cleared only via the Danger Zone
+   button, which also sets the "seeded" flag so it never auto-reseeds.
+   One doc per client: { carrier_name, count, first_*, last_*, events:[{d,s,bal,crit,ts}] }.
+════════════════════════════════════════════════ */
+const CRIT_HIST_CAP = 500;             // max hit events kept per client (rolling)
+let _critHits = null;                  // Map<name, { events: Array<{d,s,bal,crit,ts}> }>
+let _critHistLoaded = false;
+let _critHistLoading = null;
+let _critKicked = false;
+let critHistSortCol = 'last', critHistSortDir = -1, critHistSearch = '';
+
+function critHistDocId(name){ return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
+function critKey(d, s){ return `${d} ${s}`; }
+function critHistWasSeeded(){ try { return localStorage.getItem('bm_crithist_seeded') === '1'; } catch(e) { return false; } }
+function markCritHistSeeded(){ try { localStorage.setItem('bm_crithist_seeded', '1'); } catch(e) {} }
+function sortEventsInPlace(events){ events.sort((a, b) => critKey(a.d, a.s) < critKey(b.d, b.s) ? -1 : critKey(a.d, a.s) > critKey(b.d, b.s) ? 1 : 0); }
+
+async function loadCritHistory() {
+  if (_critHistLoaded) return;
+  if (_critHistLoading) return _critHistLoading;
+  _critHistLoading = (async () => {
+    try {
+      if (fbOk) {
+        const map = new Map();
+        const s = await getDocs(collection(db, 'critical_history'));
+        s.docs.forEach(d => {
+          const data = d.data();
+          const name = data.carrier_name;
+          if (name && Array.isArray(data.events)) {
+            const events = data.events.map(e => ({
+              d: e.d || '', s: e.s || '',
+              bal: amountNumber(e.bal),
+              crit: (e.crit === null || e.crit === undefined) ? null : amountNumber(e.crit),
+              ts: e.ts?.toDate?.() || (e.ts instanceof Date ? e.ts : null)
+            })).filter(e => e.d);
+            if (events.length) { sortEventsInPlace(events); map.set(name, { events }); }
+          }
+        });
+        _critHits = map;
+      } else {
+        _critHits = _critHits || new Map();
+      }
+      _critHistLoaded = true;
+      // First run only: seed from existing snapshots so pre-existing hits show up.
+      // Never reseed after a wipe (the flag is set on seed and on wipe).
+      if (_critHits.size === 0 && !critHistWasSeeded()) await backfillCritHistoryFromSnapshots();
+    } finally { _critHistLoading = null; }
+  })();
+  return _critHistLoading;
+}
+
+// One-time seed of the persistent store from whatever snapshots currently exist.
+async function backfillCritHistoryFromSnapshots() {
+  await loadAllSnapshotHistory();
+  const map = new Map();
+  snapsAllSorted().forEach(snap => {
+    if (!snap || !snap.session_date) return;
+    const ts = (snap.timestamp instanceof Date) ? snap.timestamp : (snap.timestamp?.toDate?.() || null);
+    (snap.data || []).forEach(r => {
+      if (alertLevel(r) !== 'high') return;
+      const name = r?.carrier_name; if (!name) return;
+      let rec = map.get(name); if (!rec) { rec = { events: [] }; map.set(name, rec); }
+      const meta = clientsMeta[name] || {};
+      const crit = getThreshold(meta, r, 'critical_balance', S.mediumMax);
+      rec.events.push({ d: snap.session_date, s: snap.time_slot || '', bal: amountNumber(r.amnt_receivable), crit: (crit ?? null), ts });
+    });
+  });
+  // snaps already sorted → dedup same date+slot (keep the last seen) and cap.
+  map.forEach(rec => {
+    const seen = new Map();
+    rec.events.forEach(e => seen.set(critKey(e.d, e.s), e));
+    rec.events = [...seen.values()];
+    if (rec.events.length > CRIT_HIST_CAP) rec.events.splice(0, rec.events.length - CRIT_HIST_CAP);
+  });
+  _critHits = map;
+  markCritHistSeeded();
+  if (map.size) await persistCritHistDocs([...map.keys()]);
+}
+
+// Fold a processed snapshot into the store. Deduped by date+slot so
+// re-processing/overwriting a slot replaces rather than duplicates its hit.
+async function recordCriticalHits(date, slot, ts, rows) {
+  await loadCritHistory();                 // ensure prior history is in memory first
+  if (!_critHits) _critHits = new Map();
+  const key = critKey(date, slot);
+  const when = (ts instanceof Date) ? ts : new Date();
+  const changed = new Set();
+  (rows || []).forEach(r => {
+    const name = r?.carrier_name; if (!name) return;
+    const isCrit = alertLevel(r) === 'high';
+    let rec = _critHits.get(name);
+    if (rec) { // drop any prior hit for this exact date+slot (overwrite case)
+      const i = rec.events.findIndex(e => critKey(e.d, e.s) === key);
+      if (i >= 0) { rec.events.splice(i, 1); changed.add(name); }
+    }
+    if (isCrit) {
+      if (!rec) { rec = { events: [] }; _critHits.set(name, rec); }
+      const meta = clientsMeta[name] || {};
+      const crit = getThreshold(meta, r, 'critical_balance', S.mediumMax);
+      rec.events.push({ d: date, s: slot, bal: amountNumber(r.amnt_receivable), crit: (crit ?? null), ts: when });
+      sortEventsInPlace(rec.events);
+      if (rec.events.length > CRIT_HIST_CAP) rec.events.splice(0, rec.events.length - CRIT_HIST_CAP);
+      changed.add(name);
+    } else if (rec && rec.events.length === 0) {
+      _critHits.delete(name); changed.add(name); // no hits left → drop the record
+    }
+  });
+  markCritHistSeeded();
+  if (changed.size) {
+    await persistCritHistDocs([...changed]);
+    if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
+  }
+}
+
+async function persistCritHistDocs(names) {
+  if (!fbOk || !names || !names.length) return;
+  const toTs = t => Timestamp.fromDate(t instanceof Date ? t : new Date());
+  try {
+    let batch = writeBatch(db), count = 0;
+    for (const name of names) {
+      const ref = doc(db, 'critical_history', critHistDocId(name));
+      const rec = _critHits && _critHits.get(name);
+      if (rec && rec.events.length) {
+        const first = rec.events[0], last = rec.events[rec.events.length - 1];
+        batch.set(ref, {
+          carrier_name: name,
+          count: rec.events.length,
+          first_d: first.d, first_s: first.s, first_ts: toTs(first.ts),
+          last_d: last.d, last_s: last.s, last_ts: toTs(last.ts),
+          last_balance: last.bal,
+          last_critical: (last.crit ?? null),
+          events: rec.events.map(e => ({ d: e.d, s: e.s, bal: e.bal, crit: (e.crit ?? null), ts: toTs(e.ts) })),
+          updated_at: Timestamp.now()
+        });
+      } else {
+        batch.delete(ref);
+      }
+      if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+  } catch (e) { /* non-fatal: history still lives in memory for this session */ }
+}
+
+// Load the persistent history once (lazily), then re-render so the tab
+// populates without blocking. Mirrors ensureSpamHistory.
+function ensureCritHistory() {
+  if (_critHistLoaded || _critKicked) return;
+  _critKicked = true;
+  const countEl = document.getElementById('crithist-count');
+  if (countEl) countEl.textContent = 'Loading…';
+  loadCritHistory()
+    .then(() => { if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory(); })
+    .catch(() => { _critKicked = false; });
+}
+
+window.critHistSearchInput = v => { critHistSearch = String(v || '').toLowerCase().trim(); renderCriticalHistory(); };
+window.sortCritHist = col => {
+  // Default direction: name ascending, everything else descending (most/latest first).
+  critHistSortDir = (critHistSortCol === col) ? -critHistSortDir : (col === 'name' ? 1 : -1);
+  critHistSortCol = col;
+  renderCriticalHistory();
+};
+
+function critHistRows() {
+  const out = [];
+  (_critHits || new Map()).forEach((rec, name) => {
+    if (!rec || !rec.events || !rec.events.length) return;
+    const first = rec.events[0], last = rec.events[rec.events.length - 1];
+    out.push({
+      name, count: rec.events.length,
+      lastBal: last.bal, lastCrit: last.crit,
+      firstD: first.d, firstS: first.s, lastD: last.d, lastS: last.s,
+      _first: critKey(first.d, first.s), _last: critKey(last.d, last.s)
+    });
+  });
+  return out;
+}
+function critWhen(d, s){ return esc(d || '—') + (s ? ` · ${esc(fmt12(s))}` : ''); }
+
+function renderCriticalHistory() {
+  const tbody = document.getElementById('crithist-tbody');
+  if (!tbody) return;
+  const countEl = document.getElementById('crithist-count');
+  let rows = critHistRows();
+  if (critHistSearch) rows = rows.filter(r => r.name.toLowerCase().includes(critHistSearch));
+  const dir = critHistSortDir;
+  rows.sort((a, b) => {
+    let av, bv;
+    switch (critHistSortCol) {
+      case 'name':    av = a.name.toLowerCase(); bv = b.name.toLowerCase(); break;
+      case 'count':   av = a.count; bv = b.count; break;
+      case 'lastBal': av = a.lastBal; bv = b.lastBal; break;
+      case 'crit':    av = (a.lastCrit ?? -Infinity); bv = (b.lastCrit ?? -Infinity); break;
+      case 'first':   av = a._first; bv = b._first; break;
+      case 'last':
+      default:        av = a._last; bv = b._last; break;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return  1 * dir;
+    return a.name.localeCompare(b.name);
+  });
+  if (countEl) {
+    countEl.textContent = !_critHistLoaded ? 'Loading…'
+      : rows.length ? `${rows.length} client(s) have hit Critical Balance`
+      : (critHistSearch ? 'No matching clients.' : 'No clients have hit Critical Balance yet.');
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
+      <td>${esc(r.name)}</td>
+      <td class="num">${r.count}</td>
+      <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
+      <td class="num" style="color:#884400">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
+      <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
+      <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
+    </tr>`).join('') ||
+    `<tr><td colspan="6" style="text-align:center;padding:16px;color:#666">${critHistSearch ? 'No clients match your search.' : 'No clients have hit Critical Balance yet.'}</td></tr>`;
+}
+
+window.exportCritHistory = () => {
+  let rows = critHistRows();
+  if (critHistSearch) rows = rows.filter(r => r.name.toLowerCase().includes(critHistSearch));
+  if (!rows.length) { toast('Nothing to export.', 'err'); return; }
+  rows.sort((a, b) => (a._last < b._last ? 1 : a._last > b._last ? -1 : a.name.localeCompare(b.name)));
+  const head = ['Client', 'Times Hit', 'Balance at Last Hit', 'Critical Balance', 'First Hit', 'Last Hit'];
+  const csvCell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const whenPlain = (d, s) => (d || '') + (s ? ` ${fmt12(s)}` : '');
+  const lines = [head.map(csvCell).join(',')];
+  rows.forEach(r => lines.push([
+    r.name, r.count, fmt(r.lastBal), (r.lastCrit == null ? '' : fmt(r.lastCrit)),
+    whenPlain(r.firstD, r.firstS), whenPlain(r.lastD, r.lastS)
+  ].map(csvCell).join(',')));
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `critical_history_${todayStr()}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+};
+
+window.openCritHistWipeConfirm = () => {
+  toggleSettings();
+  document.getElementById('crithist-wipe-overlay')?.classList.add('open');
+};
+window.closeCritHistWipeConfirm = () => document.getElementById('crithist-wipe-overlay')?.classList.remove('open');
+window.confirmWipeCritHistory = async () => {
+  window.closeCritHistWipeConfirm();
+  setLoading(true, 'Deleting critical history…');
+  try {
+    let deleted = 0;
+    if (fbOk) {
+      const s = await getDocs(collection(db, 'critical_history'));
+      let batch = writeBatch(db), count = 0;
+      for (const d of s.docs) {
+        batch.delete(doc(db, 'critical_history', d.id));
+        deleted++;
+        if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count > 0) await batch.commit();
+    }
+    _critHits = new Map();
+    _critHistLoaded = true;
+    markCritHistSeeded();   // don't auto-reseed from snapshots after an explicit wipe
+    renderCriticalHistory();
+    toast(`✓ Deleted ${deleted} critical-history record(s)`, 'ok');
+  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
+
+/* ════════════════════════════════════════════════
    PARSE TEXT
 ════════════════════════════════════════════════ */
 const FMAP = {
@@ -3600,6 +3949,10 @@ async function doProcessSnapshot(rows, timeSlot){
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
   // Feed the persistent usage baseline (survives snapshot deletion).
   safeRender('Usage baseline', () => recordUsageSamples(snap.session_date, snap.time_slot, data));
+  // Record any clients at Critical Balance into the persistent critical_history
+  // collection (survives snapshot deletion). Async so it can load prior history
+  // first; errors are non-fatal to snapshot processing.
+  recordCriticalHits(snap.session_date, snap.time_slot, snap.timestamp, data).catch(e => console.error('Critical history record failed:', e));
   if(fbOk){
     setLoading(true,'Saving to Firestore…');
     try {
@@ -3911,6 +4264,10 @@ function logLateness(log){
   const sched = new Date(`${log.session_date}T${log.time_slot}:00`);
   if (isNaN(sched.getTime())) return { min:null, label:'—', color:'#888' };
   const min = Math.round((log.processed_at - sched) / 60000);
+  // Negative = posted before the slot. A few minutes early is fine, but posting
+  // well ahead of the scheduled slot is a data-entry problem, not "on time".
+  if (min < -15) return { min, label:`${fmtDur(-min)} early`,    color:'#cc0000' };
+  if (min < -5)  return { min, label:`${fmtDur(-min)} early`,    color:'#aa6600' };
   if (min <= 5)  return { min, label:'✓ On time',                 color:'#006600' };
   if (min <= 15) return { min, label:`${fmtDur(min)} late`,      color:'#aa6600' };
   return            { min, label:`${fmtDur(min)} late`,        color:'#cc0000' };
@@ -4318,8 +4675,21 @@ window.openWipeAllConfirm = kind => {
     `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
     `New Critical comparisons and trend history will be lost.<br><br>` +
     `<span style="color:#880000">This cannot be undone.</span>`;
+  // "Keep a range" is only meaningful for the main snapshots wipe; reset it each open.
+  const keepBlock = document.getElementById('wipe-keep-block');
+  if (keepBlock) {
+    keepBlock.style.display = kind === 'snapshots' ? '' : 'none';
+    const en = document.getElementById('wipe-keep-enable'); if (en) en.checked = false;
+    const ins = document.getElementById('wipe-keep-inputs'); if (ins) ins.style.display = 'none';
+    const kf = document.getElementById('wipe-keep-from'); if (kf) kf.value = '';
+    const kt = document.getElementById('wipe-keep-to');   if (kt) kt.value = '';
+  }
   toggleSettings();
   document.getElementById('wipe-all-overlay').classList.add('open');
+};
+window.toggleWipeKeep = (cb) => {
+  const ins = document.getElementById('wipe-keep-inputs');
+  if (ins) ins.style.display = cb.checked ? '' : 'none';
 };
 window.closeWipeAllConfirm = () => {
   document.getElementById('wipe-all-overlay').classList.remove('open');
@@ -4327,6 +4697,15 @@ window.closeWipeAllConfirm = () => {
 };
 window.confirmWipeAll = async () => {
   const kind = pendingWipeAll;
+  // Optional "keep this range" — only offered for the main snapshots wipe.
+  const keepOn = kind === 'snapshots' && !!document.getElementById('wipe-keep-enable')?.checked;
+  let keepFrom = '', keepTo = '';
+  if (keepOn) {
+    keepFrom = document.getElementById('wipe-keep-from')?.value || '';
+    keepTo   = document.getElementById('wipe-keep-to')?.value || '';
+    if (!keepFrom || !keepTo) { toast('Enter both From and To for the keep range, or uncheck it.', 'err'); return; }
+    if (keepFrom > keepTo) { const t = keepFrom; keepFrom = keepTo; keepTo = t; }  // swap if reversed
+  }
   window.closeWipeAllConfirm();
   if (!kind || !isAdmin()) return;
   const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
@@ -4334,12 +4713,19 @@ window.confirmWipeAll = async () => {
     : kind === 'tritel' ? 'Deleting all Tritel snapshots…' : 'Deleting all snapshots…';
   setLoading(true, loadingMsg);
   try {
-    let deletedCount = 0;
+    let deletedCount = 0, keptCount = 0;
     if (fbOk) {
       const s = await getDocs(collection(db, colName));
       const BATCH_MAX = 490;
       let batch = writeBatch(db), count = 0;
       for (const d of s.docs) {
+        if (keepOn) {
+          // session_date is YYYY-MM-DD and time_slot is HH:MM, so a "YYYY-MM-DDTHH:MM"
+          // string sorts chronologically and compares directly to the datetime-local inputs.
+          const dd = d.data();
+          const dt = `${dd.session_date || ''}T${dd.time_slot || ''}`;
+          if (dd.session_date && dd.time_slot && dt >= keepFrom && dt <= keepTo) { keptCount++; continue; }
+        }
         batch.delete(doc(db, colName, d.id));
         deletedCount++;
         if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
@@ -4367,11 +4753,16 @@ window.confirmWipeAll = async () => {
       _historyLoaded = false;
       try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
       document.getElementById('view-banner').classList.remove('visible');
+      // Some of today's snapshots may have been preserved by the keep range —
+      // reload them so the view isn't left blank.
+      if (keepOn) await loadSnaps();
       refreshAll();
       window.renderClients();
     }
     const label = kind === 'stats' ? 'stats ' : kind === 'tritel' ? 'Tritel ' : '';
-    toast(`✓ Deleted ${deletedCount} ${label}snapshot(s) from Firestore`, 'ok');
+    let doneMsg = `✓ Deleted ${deletedCount} ${label}snapshot(s) from Firestore`;
+    if (keepOn) doneMsg += ` · kept ${keptCount} in range`;
+    toast(doneMsg, 'ok');
   } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
