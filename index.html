@@ -2246,7 +2246,7 @@
       <div class="dlg-ico">!</div>
       <div class="dlg-text" id="wipe-all-text"></div>
     </div>
-    <div id="wipe-keep-block" style="display:none;margin:0 12px 4px;padding:8px;border:1px solid #808080;background:#f4f4f4;text-align:left">
+    <div id="wipe-keep-block" style="display:none;margin:0 12px 4px;padding:8px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);text-align:left">
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer">
         <input type="checkbox" id="wipe-keep-enable" onclick="toggleWipeKeep(this)"> Keep a range (don't delete these)
       </label>
@@ -4685,7 +4685,8 @@ window.openWipeAllConfirm = kind => {
   const texts = {
     stats:
       `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
-      `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today.<br><br>` +
+      `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today. ` +
+      `Your balance snapshots, New Critical comparison and spam baseline are <strong>not</strong> affected.<br><br>` +
       `<span style="color:#880000">This cannot be undone.</span>`,
     tritel:
       `<strong>Permanently delete ALL Tritel snapshots?</strong><br><br>` +
@@ -4698,10 +4699,10 @@ window.openWipeAllConfirm = kind => {
     `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
     `New Critical comparisons and trend history will be lost.<br><br>` +
     `<span style="color:#880000">This cannot be undone.</span>`;
-  // "Keep a range" is only meaningful for the main snapshots wipe; reset it each open.
+  // "Keep a range" applies to the snapshots and stats wipes; reset it each open.
   const keepBlock = document.getElementById('wipe-keep-block');
   if (keepBlock) {
-    keepBlock.style.display = kind === 'snapshots' ? '' : 'none';
+    keepBlock.style.display = (kind === 'snapshots' || kind === 'stats') ? '' : 'none';
     const en = document.getElementById('wipe-keep-enable'); if (en) en.checked = false;
     const ins = document.getElementById('wipe-keep-inputs'); if (ins) ins.style.display = 'none';
     const kf = document.getElementById('wipe-keep-from'); if (kf) kf.value = '';
@@ -4720,8 +4721,8 @@ window.closeWipeAllConfirm = () => {
 };
 window.confirmWipeAll = async () => {
   const kind = pendingWipeAll;
-  // Optional "keep this range" — only offered for the main snapshots wipe.
-  const keepOn = kind === 'snapshots' && !!document.getElementById('wipe-keep-enable')?.checked;
+  // Optional "keep this range" — offered for the main snapshots and stats wipes.
+  const keepOn = (kind === 'snapshots' || kind === 'stats') && !!document.getElementById('wipe-keep-enable')?.checked;
   let keepFrom = '', keepTo = '';
   if (keepOn) {
     keepFrom = document.getElementById('wipe-keep-from')?.value || '';
@@ -4759,6 +4760,8 @@ window.confirmWipeAll = async () => {
       statsTodaySnaps = [];
       statsViewingSlot = null;
       try { localStorage.removeItem('bm_stats_last'); } catch(e) {}
+      // Some of today's stats may have been preserved by the keep range — reload them.
+      if (keepOn) await loadStatsSnaps();
       statsRender();
     } else if (kind === 'tritel') {
       tritelSnaps = [];
