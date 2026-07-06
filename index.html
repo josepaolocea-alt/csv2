@@ -636,6 +636,7 @@
     .stats-tab { display: none !important; }
     body.stats-mode .stats-tab { display: inline-flex !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
+    body.stats-mode #btn-settings,
     body.stats-mode #snd-dismiss-btn,
     body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
@@ -1296,7 +1297,7 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
-    <button class="tbtn" onclick="toggleSettings()">Settings</button>
+    <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="notepad-toolbar-label">Notepad</span>
@@ -1383,6 +1384,7 @@
         </div>
         <div class="snap-action-row" style="margin-top:4px">
           <button class="tbtn" onclick="undoLastStatsSnapshot()" title="Remove the last saved stats snapshot">Undo Last</button>
+          <button class="tbtn" onclick="exportStatsSheet()" title="Download an Excel spreadsheet — one column-block per hourly snapshot (Account Code, Destination, Attempts, Completed, ASR, ACD + STATS)">Generate Spreadsheet</button>
         </div>
         <div class="snap-label" style="margin-top:8px">Today's Snapshots</div>
         <div id="stats-snap-list">
@@ -2546,6 +2548,8 @@ const SMS_TAB_CONFIG = {
   phoenix: { label:'SMS Phoenix Platform', storageKey:'bm_sms_phoenix_clients', firestoreDoc:'phoenix_platform_clients', filePrefix:'sms_phoenix_platform' }
 };
 const smsDataByTab = { client: [], phoenix: [] };
+// Most recently added/edited route per tab — pinned to the top of the table
+const smsRecentIdByTab = { client: null, phoenix: null };
 const smsRemoteApplyingByTab = { client: false, phoenix: false };
 const smsSubscribedTabs = new Set();
 
@@ -6996,13 +7000,16 @@ window.saveSmsClient = () => {
   if (row.platform === 'Email' && !row.emails) { toast('Email platform needs email address(es)', 'err'); document.getElementById('sms-emails')?.focus(); return; }
   const idx = smsEditingId ? smsClients.findIndex(r => r.id === smsEditingId) : -1;
   const wasEdit = idx >= 0;
+  let savedId = row.id;
   if (idx >= 0) {
     smsClients[idx] = row;
   } else {
     const dupeIdx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
-    if (dupeIdx >= 0) smsClients[dupeIdx] = smsMergeRoute(smsClients[dupeIdx], row);
+    if (dupeIdx >= 0) { smsClients[dupeIdx] = smsMergeRoute(smsClients[dupeIdx], row); savedId = smsClients[dupeIdx].id; }
     else smsClients.push(row);
   }
+  // Pin this route to the top of the table until the user sorts a column
+  smsRecentIdByTab[smsActiveTab] = savedId;
   saveSmsClients();
   updateSmsDatalists();
   renderSmsClients();
@@ -7201,6 +7208,8 @@ window.editSmsFromDetail = () => {
 };
 
 window.sortSms = col => {
+  // Explicit sort takes over — drop the "recently edited" pin
+  smsRecentIdByTab[smsActiveTab] = null;
   smsSortDir = smsSortCol === col ? smsSortDir * -1 : 1;
   smsSortCol = col;
   renderSmsClients();
@@ -7337,6 +7346,12 @@ window.renderSmsClients = () => {
       // Stable tiebreaker so equal primary keys stay grouped sensibly
       return String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination));
     });
+  // Keep the most recently added/edited route at the top of the list
+  const recentId = smsRecentIdByTab[smsActiveTab];
+  if (recentId) {
+    const ri = rows.findIndex(r => r.id === recentId);
+    if (ri > 0) rows.unshift(rows.splice(ri, 1)[0]);
+  }
   // Sort indicator on the active header
   SMS_SORTABLE_COLS.forEach(c => {
     const th = document.getElementById('sms-th-' + c);
@@ -8627,6 +8642,116 @@ window.undoLastStatsSnapshot = async () => {
     toast('✓ Stats snapshot removed', 'ok');
   } catch(e) { toast('Undo error: ' + e.message, 'err'); }
   finally { setLoading(false); }
+};
+
+// ── Stats spreadsheet export ─────────────────────────────
+// One horizontal block per hourly snapshot: Account Code, Destination, Attempts,
+// Completed, ASR, ACD, then a STATS section (ASR class / ACD band). Blocks are
+// independent — each hour keeps its own client list, matching the on-screen view.
+const STATS_BLOCK_COLS = [
+  { key:'acct',      h:'Account Code', t:'s',   w:110 },
+  { key:'dest',      h:'Destination',  t:'s',   w:130 },
+  { key:'attempts',  h:'Attempts',     t:'i',   w:70  },
+  { key:'completed', h:'Completed',    t:'i',   w:75  },
+  { key:'asr',       h:'ASR',          t:'d',   w:55  },
+  { key:'acd',       h:'ACD',          t:'d',   w:55  },
+  { key:'asrcls',    h:'ASR',          t:'cls', w:78  },
+  { key:'acdcls',    h:'ACD',          t:'cls', w:78  },
+];
+const ST_MAIN_COLS = STATS_BLOCK_COLS.filter(c => c.t !== 'cls').length;   // 6 → time-header span
+const ST_STAT_COLS = STATS_BLOCK_COLS.length - ST_MAIN_COLS;               // 2 → STATS-header span
+const ST_CLS_CELL  = { critical:'stcCrit', low:'stcLow', watch:'stcWatch', ok:'stcOk', good:'stcGood' };
+
+// Grouped rows for one snapshot, sorted worst-first so each hour's problem routes surface at the top.
+function statsBlockRows(snap) {
+  const rows = [];
+  groupStatsSnapshot(snap).forEach(g => {
+    rows.push({
+      acct: g.acct_list || g.customer_name || '',
+      dest: (g.destination && g.destination !== '(no dest)') ? g.destination : '',
+      attempts: g.attempts, completed: g.completed,
+      asr: g.asr, acd: g.acd,
+      asrcls: g.cls, acdcls: g.acdcls,
+    });
+  });
+  rows.sort((a, b) =>
+    (ST_CLS_RANK[a.asrcls] - ST_CLS_RANK[b.asrcls]) ||
+    (b.attempts - a.attempts) ||
+    String(a.acct).localeCompare(String(b.acct)));
+  return rows;
+}
+
+function statsBlockDataCells(r) {
+  if (!r) return '<Cell/>'.repeat(STATS_BLOCK_COLS.length);
+  return STATS_BLOCK_COLS.map(c => {
+    const v = r[c.key];
+    if (c.t === 'cls') {
+      const style = ST_CLS_CELL[v] || 'stcWatch';
+      return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${ST_CLS_LABEL[v] || ''}</Data></Cell>`;
+    }
+    if (c.t === 's') return xlsTextCell(v, '');
+    if (c.t === 'i') return xlsNumberCell(v, 'stnum');
+    return xlsNumberCell(v, 'stdec');
+  }).join('');
+}
+
+function statsSheetWorksheetXml(snaps) {
+  const blocks = snaps.map(s => ({ time: fmt12(s.time_slot), rows: statsBlockRows(s) }));
+  const maxRows = blocks.reduce((m, b) => Math.max(m, b.rows.length), 0);
+
+  const timeRow = '<Row ss:AutoFitHeight="0" ss:Height="20">' + blocks.map(b =>
+      `<Cell ss:StyleID="sttime" ss:MergeAcross="${ST_MAIN_COLS - 1}"><Data ss:Type="String">${xmlEsc(b.time)}</Data></Cell>` +
+      `<Cell ss:StyleID="ststats" ss:MergeAcross="${ST_STAT_COLS - 1}"><Data ss:Type="String">STATS</Data></Cell>`
+    ).join('') + '</Row>';
+  const headRow = '<Row>' + blocks.map(() =>
+      STATS_BLOCK_COLS.map(c => xlsTextCell(c.h, c.t === 'cls' ? 'sthdrG' : 'sthdr')).join('')
+    ).join('') + '</Row>';
+  let body = '';
+  for (let i = 0; i < maxRows; i++) {
+    body += '<Row>' + blocks.map(b => statsBlockDataCells(b.rows[i])).join('') + '</Row>';
+  }
+  const cols = blocks.map(() =>
+    STATS_BLOCK_COLS.map(c => `<Column ss:AutoFitWidth="0" ss:Width="${c.w}"/>`).join('')).join('');
+  const options = '<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">' +
+    '<FreezePanes/><FrozenNoSplit/><SplitHorizontal>2</SplitHorizontal>' +
+    '<TopRowBottomPane>2</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>';
+  const name = xlsSheetName('Stats ' + todayStr());
+  return `<Worksheet ss:Name="${xmlEsc(name)}"><Table>${cols}${timeRow}${headRow}${body}</Table>${options}</Worksheet>`;
+}
+
+window.exportStatsSheet = () => {
+  const snaps = statsSortedSnaps();
+  if (!snaps.length) { toast('No stats snapshots to export yet.', 'err'); return; }
+  try {
+    const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+  <Style ss:ID="sttime"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#A9D08E" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="ststats"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1F4E79"/><Interior ss:Color="#BDD7EE" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sthdr"><Font ss:Bold="1"/><Interior ss:Color="#F2F2F2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sthdrG"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#C6E0B4" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="stnum"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="0"/></Style>
+  <Style ss:ID="stdec"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="0.00"/></Style>
+  <Style ss:ID="stcCrit"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#FF0000" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="stcLow"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#9C0006"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="stcWatch"><Alignment ss:Horizontal="Center"/><Font ss:Color="#595959"/><Interior ss:Color="#E7E6E6" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="stcOk"><Alignment ss:Horizontal="Center"/><Font ss:Color="#9C6500"/><Interior ss:Color="#FFEB9C" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="stcGood"><Alignment ss:Horizontal="Center"/><Font ss:Color="#006100"/><Interior ss:Color="#C6EFCE" ss:Pattern="Solid"/></Style>
+</Styles>${statsSheetWorksheetXml(snaps)}</Workbook>`;
+    const url = URL.createObjectURL(new Blob([xml], { type:'application/vnd.ms-excel;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `stats_sheet_${todayStr()}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`✓ Stats sheet exported — ${snaps.length} snapshot(s)`, 'ok');
+  } catch(e) {
+    toast('Stats export failed: ' + (e.message || e), 'err');
+  }
 };
 
 async function loadStatsSnaps() {
