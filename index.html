@@ -444,6 +444,12 @@
     .ubar-fill.light  { background: var(--yellow); }
     .ubar-fill.medium { background: var(--orange); }
     .ubar-fill.high   { background: var(--red); }
+    /* Balance-bar % text pulses red when a Warning client is ≥90% toward critical */
+    .bar-pct-danger { color: var(--red); font-weight: 700; animation: barPctPulse 1s ease-in-out infinite; }
+    @keyframes barPctPulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: .35; }
+    }
 
     /* ── Filter tabs ── */
     .tab-bar {
@@ -5286,7 +5292,7 @@ function renderAlerts() {
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
         <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(2)}%"></div></div>
-        <span style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
+        <span class="${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
