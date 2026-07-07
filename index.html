@@ -1088,6 +1088,11 @@
     .detail-row:last-child { border-bottom: none; }
     .detail-lbl { font-size: 11px; font-weight: 600; min-width: 150px; padding: 3px 8px; white-space: nowrap; color: var(--text-2); }
     .detail-val { font-size: 11px; padding: 3px 6px; }
+    .detail-row.full { display: block; }
+    .detail-row.full .detail-lbl { min-width: 0; white-space: normal; padding-bottom: 2px; }
+    .detail-row.full .detail-val { padding: 0 8px 4px; width: 100%; box-sizing: border-box; }
+    .detail-row.full .detail-val .win-ta { width: 100%; box-sizing: border-box; }
+    .detail-remarks-view { font-size: 11px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
     /* ── SMS client detail popup ── */
     #sms-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
     #sms-detail-overlay.open { display: flex; }
@@ -1377,7 +1382,7 @@
         <div class="snap-label">New Snapshot</div>
         <div class="snap-source-row" style="display:flex;gap:4px;margin-bottom:4px">
           <button class="fltbtn active" id="snap-src-all" style="flex:1" onclick="setSnapSource('all')" title="Standard all-client data (Tritel not included)">All Clients</button>
-          <button class="fltbtn" id="snap-src-tritel" style="flex:1" onclick="setSnapSource('tritel')" title="Tritel-only data — added as an extra row below the Total">Tritel</button>
+          <button class="fltbtn" id="snap-src-tritel" style="flex:1" onclick="setSnapSource('tritel')" title="Tritel-only data — paste a full row or just the Amnt Receivable amount; added as an extra row below the Total">Tritel</button>
         </div>
         <textarea id="snap-ta" placeholder="Paste data here…"></textarea>
         <select id="slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
@@ -1508,7 +1513,6 @@
                   <th onclick="sortAlert('_bw')" style="cursor:pointer">Balance Bar</th>
                   <th onclick="sortAlert('_level')">Alert</th>
                   <th onclick="sortAlert('_eta')" style="white-space:nowrap">ETA to Critical</th>
-                  <th>Ack</th>
                   <th>Notes</th>
                 </tr></thead>
                 <tbody id="alert-tbody"></tbody>
@@ -2334,7 +2338,7 @@
   <div class="win-dialog" style="min-width:300px">
     <div class="dlg-tb"><span>Operator Identity</span></div>
     <div style="padding:14px">
-      <div style="font-size:11px;margin-bottom:8px">Enter your name so other operators can see who acknowledged alerts:</div>
+      <div style="font-size:11px;margin-bottom:8px">Enter your name so other operators can see when you're online:</div>
       <input class="win-inp" id="operator-name-inp" type="text" placeholder="Your name…" style="width:100%;margin-bottom:12px" maxlength="30"
         onkeydown="if(event.key==='Enter')setOperatorName()">
       <div style="display:flex;justify-content:flex-end;gap:4px">
@@ -2558,7 +2562,6 @@ let tritelSnaps = [];  // additional Tritel-only data, one entry per time slot (
 let snapSource = 'all';  // 'all' | 'tritel' — which source the New Snapshot paste represents
 let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
 let operatorName = localStorage.getItem('bm_operator') || '';
-let ackMap = {}; // carrier_name → { operator, time }
 let alertFilter = 'all', clientFilter = 'all', clientManagerFilter = 'all', showInactive = true, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
@@ -3918,13 +3921,33 @@ window.mismatchKeep = () => {
   window.processSnapshot();
 };
 
+/* Tritel-only convenience: with the Tritel source selected, the operator can paste just
+   the Amnt Receivable amount (a single value, no carrier column) — the row is auto-labeled
+   "Tritel". Returns the parsed number, or null when the paste isn't a lone amount (in which
+   case the normal snapshot parser runs, so full Tritel rows still work). */
+function parseTritelAmountOnly(text){
+  const lines = String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  // Ignore an optional label line like "Amnt Receivable"; keep only the numeric line(s).
+  const data = lines.filter(l => /\d/.test(l));
+  if(data.length !== 1) return null;
+  // Must be a single plain amount: optional sign/currency, digits, thousands commas, decimals.
+  // Anything with a second column (tab/extra field) or letters falls through to parseText.
+  if(!/^[-(]?\s*\$?\s*[\d,]+(\.\d+)?\)?$/.test(data[0])) return null;
+  const n = amountNumber(data[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
 window.processSnapshot = async() => {
-  const rows=parseText(document.getElementById('snap-ta').value);
+  const raw = document.getElementById('snap-ta').value;
+  // In Tritel mode a bare Amnt Receivable value is accepted and auto-labeled "Tritel".
+  const tritelAmt = snapSource==='tritel' ? parseTritelAmountOnly(raw) : null;
+  const rows = tritelAmt!==null ? [{ carrier_name:'Tritel', amnt_receivable: tritelAmt }] : parseText(raw);
   if(!rows?.length){
     toast(`No valid data found. Header line ${lastParseInfo.headerLine||1}, parsed ${lastParseInfo.parsedRows||0} row(s), accepted 0 client row(s).`,'err',7000);
     return;
   }
-  if(!bypassSourceGuard){
+  // Skip the wrong-source guard for the auto-labeled Tritel amount — the source is unambiguous.
+  if(!bypassSourceGuard && tritelAmt===null){
     const mm=snapshotSourceMismatch(rows);
     if(mm){ openSourceMismatch(mm); return; }
   }
@@ -3994,7 +4017,6 @@ async function doProcessSnapshot(rows, timeSlot){
   } catch(e) {}
   updateLastProcessed();
   document.getElementById('snap-ta').value='';
-  clearAcks();
   refreshAll();
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
@@ -4038,7 +4060,7 @@ window.setSnapSource = (src) => {
   const tritelActions = document.getElementById('snap-tritel-actions');
   if (tritelActions) tritelActions.style.display = isTritel ? 'flex' : 'none';
   const ta = document.getElementById('snap-ta');
-  if (ta) ta.placeholder = isTritel ? 'Paste Tritel-only data here…' : 'Paste data here…';
+  if (ta) ta.placeholder = isTritel ? 'Paste Tritel data — or just the Amnt Receivable amount…' : 'Paste data here…';
   updateTritelStatus();
 };
 
@@ -4212,45 +4234,6 @@ function subscribePresence() {
       const el = document.getElementById('sb-operators');
       if (el) el.textContent = others.length ? `Also online: ${others.map(o=>o.operator).join(', ')}` : '';
     });
-  } catch(e) {}
-}
-
-/* ════════════════════════════════════════════════
-   ALERT ACKNOWLEDGMENT
-════════════════════════════════════════════════ */
-window.acknowledgeAlert = async name => {
-  if (!operatorName) { showOperatorDialog(); return; }
-  const entry = { operator: operatorName, time: new Date() };
-  ackMap[name] = entry;
-  if (document.getElementById('view-alerts').classList.contains('active')) renderAlerts();
-  if (fbOk) {
-    try {
-      const id = name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
-      await setDoc(doc(db,'acknowledgments',id), { carrier_name:name, operator:operatorName, ack_time:Timestamp.now(), snap_slot:latestSnap?.time_slot||'' });
-    } catch(e) { toast('Ack failed: '+e.message,'err'); }
-  }
-};
-
-function subscribeAcks() {
-  if (!fbOk) return;
-  try {
-    onSnapshot(collection(db,'acknowledgments'), snap => {
-      ackMap = {};
-      snap.docs.forEach(d => { const dd=d.data(); ackMap[dd.carrier_name]={ operator:dd.operator, time:dd.ack_time?.toDate()||new Date() }; });
-      if (document.getElementById('view-alerts').classList.contains('active')) renderAlerts();
-    });
-  } catch(e) {}
-}
-
-async function clearAcks() {
-  ackMap = {};
-  if (!fbOk) return;
-  try {
-    const s = await getDocs(collection(db,'acknowledgments'));
-    if (!s.docs.length) return;
-    const batch = writeBatch(db);
-    s.docs.forEach(d => batch.delete(doc(db,'acknowledgments',d.id)));
-    await batch.commit();
   } catch(e) {}
 }
 
@@ -4534,10 +4517,22 @@ function renderClientDetailBody(editMode) {
     { label:'Amnt Receivable',  key:'amnt_receivable', value: snap.amnt_receivable  !== undefined ? fmt(snap.amnt_receivable): '—', editable: false },
     { label:'30m Usage',        key:'usage_30min',     value: snap.usage_30min      !== undefined ? fmt(snap.usage_30min)    : '—', editable: false },
     { label:'Total Usage',      key:'total_usage',     value: snap.total_usage      !== undefined ? fmt(snap.total_usage)    : '—', editable: false },
+    { label:'Remarks',          key:'remarks',         value: meta.remarks          ?? snap.remarks          ?? '',          editable: true,  type:'textarea' },
   ];
   const chartHtml = `<div class="sparkline-wrap">${buildSparkline(name)}</div>`;
   const rows = fields.map(f => {
     let valHtml;
+    if (f.type === 'textarea') {
+      if (editMode && f.editable) {
+        valHtml = `<textarea class="win-ta" id="cde-${f.key}" rows="3" placeholder="Notes for notifying the client / account manager about the critical balance reached…">${esc(String(f.value ?? ''))}</textarea>`;
+      } else {
+        const txt = String(f.value ?? '').trim();
+        valHtml = txt
+          ? `<div class="detail-remarks-view">${esc(txt)}</div>`
+          : `<span style="color:var(--text-3)">—</span>`;
+      }
+      return `<div class="detail-row full"><div class="detail-lbl">${esc(f.label)}</div><div class="detail-val">${valHtml}</div></div>`;
+    }
     if (editMode && f.editable) {
       if (f.type === 'select') {
         valHtml = `<select class="win-sel" id="cde-${f.key}" style="width:140px">
@@ -4589,6 +4584,8 @@ window.saveClientEdit = async () => {
   if (cbEl && cbEl.value !== '') updates.critical_balance = parseFloat(cbEl.value) || 0;
   const nEl = document.getElementById('cde-notes');
   if (nEl) updates.notes = nEl.value;
+  const rmEl = document.getElementById('cde-remarks');
+  if (rmEl) updates.remarks = rmEl.value;
   const amEl = document.getElementById('cde-account_manager');
   if (amEl) updates.account_manager = amEl.value.trim();
   setLoading(true, 'Saving client…');
@@ -5186,7 +5183,6 @@ function alertRows() {
       _level: level,
       _isNew,
       _eta:  etaMinutes(r),
-      _ack:  ackMap[r.carrier_name] || null,
       notes: r.notes||meta.notes||'',
       credit_limit: credLim,
       critical_balance: critBal,
@@ -5258,34 +5254,34 @@ function renderAlerts() {
 
   // Header note for 'new' filter — explain what "new" means
   const noPrevNote = alertFilter==='new' && prevCritSet===null
-    ? `<tr class="alert-note warn"><td colspan="10">
+    ? `<tr class="alert-note warn"><td colspan="9">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
        </td></tr>` : '';
   const removedNoPrevNote = alertFilter==='removed' && prevCritSet===null
-    ? `<tr class="alert-note warn"><td colspan="10">
+    ? `<tr class="alert-note warn"><td colspan="9">
         No previous snapshot to compare for removed critical clients.
        </td></tr>` : '';
   const prevSnap = getPrevSnapshot();
   const usingPriorNote = (alertFilter==='new' || alertFilter==='removed') && priorSnap && prevSnap === priorSnap
-    ? `<tr class="alert-note info"><td colspan="10">
+    ? `<tr class="alert-note info"><td colspan="9">
         Comparing against last snapshot taken — ${priorSnap.session_date} · ${fmt12(priorSnap.time_slot)}
        </td></tr>` : '';
   const removedCompareNote = alertFilter==='removed' && prevSnap
-    ? `<tr class="alert-note danger"><td colspan="10">
+    ? `<tr class="alert-note danger"><td colspan="9">
         Showing clients critical in ${prevSnap.session_date || ''} ${fmt12(prevSnap.time_slot)} but not critical in the current snapshot.
        </td></tr>` : '';
   let spamNote = '';
   if (alertFilter === 'spam') {
     if (isMonthStart(todayStr())) {
-      spamNote = `<tr class="alert-note info"><td colspan="10">
+      spamNote = `<tr class="alert-note info"><td colspan="9">
         ⓘ Spam detection is paused on days 1–${SPAM_CFG.monthStartExcludeDays} of the month — monthly recurring charges make 30-min usage normally high.
        </td></tr>`;
     } else if (!_profilesLoaded) {
-      spamNote = `<tr class="alert-note info"><td colspan="10">
+      spamNote = `<tr class="alert-note info"><td colspan="9">
         Loading usage baselines…
        </td></tr>`;
     } else if (!rows.length) {
-      spamNote = `<tr class="alert-note info"><td colspan="10">
+      spamNote = `<tr class="alert-note info"><td colspan="9">
         ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds its own baseline (median + ${SPAM_CFG.k}·MAD from prior days, floor ${SPAM_CFG.hardFloor}). Needs ≥${SPAM_CFG.minSamples} prior consumption points per client.
        </td></tr>`;
     }
@@ -5298,9 +5294,6 @@ function renderAlerts() {
     const spamBadge = (r._spam && alertFilter!=='spam') ? '<span class="badge-spam" title="Current 30-min usage is far above this client\'s baseline">SPAM?</span>' : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
-    const ackCell  = r._removedFromCritical ? '—' : r._ack
-      ? `<span style="font-size:10px;color:#006600;white-space:nowrap">✓ ${esc(r._ack.operator)}<br><span style="color:#888">${fmt12(r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0'))}</span></span>`
-      : `<button class="tbtn" style="font-size:10px;padding:0 6px;white-space:nowrap" onclick="event.stopPropagation();acknowledgeAlert('${escAttr(r.carrier_name)}')">Ack</button>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
@@ -5314,10 +5307,9 @@ function renderAlerts() {
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
-      <td style="text-align:center">${ackCell}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="10" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
 
@@ -6441,7 +6433,7 @@ function alertFilterLabel(filter) {
 window.exportCurrentAlertView=()=>{
   const { rows } = alertRows();
   if(!rows.length){toast('No data to export','err');return;}
-  const h=['Client','Amnt Receivable','30m Usage','Credit Limit','Critical Balance','Balance %','Alert','New Critical','ETA to Critical','Acknowledged By','Ack Time','Notes','Status'];
+  const h=['Client','Amnt Receivable','30m Usage','Credit Limit','Critical Balance','Balance %','Alert','New Critical','ETA to Critical','Notes','Status'];
   const csvRows=rows.map(r=>{
     const critBal=r.critical_balance, credLim=r.credit_limit, bal=r.amnt_receivable;
     let bw=0;
@@ -6451,7 +6443,6 @@ window.exportCurrentAlertView=()=>{
     }
     const[,lbl]=r._removedFromCritical?['removed','Removed from Critical']:alertFilter==='usage'?usageChipInfo(r):chipInfo(r,r._level);
     const etaTxt=r._removedFromCritical ? '' : r._eta===null ? (r._level==='high'?'AT LIMIT':'—') : fmtEta(r._eta);
-    const ackTime=r._ack ? r._ack.time.getHours().toString().padStart(2,'0')+':'+r._ack.time.getMinutes().toString().padStart(2,'0') : '';
     return [
       r.carrier_name,
       r.amnt_receivable,
@@ -6462,8 +6453,6 @@ window.exportCurrentAlertView=()=>{
       lbl,
       r._isNew?'Yes':'',
       etaTxt,
-      r._ack?r._ack.operator:'',
-      ackTime,
       r.notes||'',
       r._inactive?'Inactive':'Active'
     ];
@@ -8894,7 +8883,6 @@ async function init(){
   setInterval(updatePresence, 60000); // heartbeat every minute
   updatePresence();
   subscribePresence();
-  subscribeAcks();
   subscribeLogs();
   // Balance-only users have no access to Stats / SMS / Notepad, and Firestore
   // rules deny them those collections — don't subscribe at all.
