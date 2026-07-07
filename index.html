@@ -575,6 +575,7 @@
       font-size: 9px; font-weight: 700; padding: 0 5px; margin-left: 4px;
       border-radius: 999px; vertical-align: middle; letter-spacing: .3px;
     }
+    .badge-spam.watch { background: var(--orange); }
     .win-search {
       height: 24px; font-size: 11px; font-family: inherit; padding: 0 8px;
       background: var(--surface); color: var(--text);
@@ -2168,6 +2169,36 @@
           </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Spam Detection (30m Usage)</div>
+        <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client when its 30-min usage spikes far above its own historical baseline.</div>
+        <div class="settings-row">
+          <label style="min-width:150px">Sensitivity (k):</label>
+          <input class="win-inp" id="set-spam-k" type="number" step="0.5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Threshold = median + k × MAD. Lower = more sensitive (more flags); higher = fewer flags.">
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">Min samples:</label>
+          <input class="win-inp" id="set-spam-min" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="Prior consumption points a client needs before it can be judged.">
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">Ignore below:</label>
+          <input class="win-inp" id="set-spam-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Never flag a 30-min usage below this absolute amount.">
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">Baseline window:</label>
+          <select class="win-sel" id="set-spam-age" style="width:130px" onchange="saveSpamSettings()" title="Only use samples from the last N days for the baseline.">
+            <option value="14">14 days</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
+            <option value="0">No limit</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">High tier at:</label>
+          <input class="win-inp" id="set-spam-high" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="A flagged reading at or above this multiple of the client's normal usage is ranked High; below it is Watch.">
+          <span style="font-size:10px;color:#666;margin-left:4px">× normal</span>
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Access</div>
         <div class="settings-note">
           Login is managed via <strong>Firebase Authentication</strong>.<br>
@@ -3187,14 +3218,51 @@ function usageChipInfo(row) {
    Month-start days (recurring monthly charges) never feed the baseline and never
    alert. See recordUsageSamples() (fed on every processed snapshot).
 ════════════════════════════════════════════════ */
-const SPAM_CFG = {
+const SPAM_CFG_DEFAULTS = {
   monthStartExcludeDays: 2, // ignore day 1..N of the month (monthly recurring charges)
   minSamples: 8,            // need this many prior consumption points for a stable baseline
   k: 4,                     // threshold = median + k · scaledMAD  ("Balanced")
   hardFloor: 50,            // never flag a spike below this absolute 30-min usage
   madFallbackMult: 2,       // if MAD == 0 (all baseline points identical), use median × this
-  sampleCap: 300            // max recent usage samples kept per client (rolling window)
+  sampleCap: 300,           // max recent usage samples kept per client (rolling window)
+  maxAgeDays: 30,           // ignore baseline samples older than this many days (0 = no age limit)
+  highRatio: 8              // a flagged reading ≥ this × its median is "High", otherwise "Watch"
 };
+// Live config — operator-tunable via Settings; persisted in localStorage `bm_spamcfg`.
+const SPAM_CFG = { ...SPAM_CFG_DEFAULTS };
+function loadSpamCfg() {
+  try { const v = localStorage.getItem('bm_spamcfg'); if (v) Object.assign(SPAM_CFG, JSON.parse(v)); } catch(e) {}
+  syncSpamSettingsUI();
+}
+function persistSpamCfg() {
+  try { localStorage.setItem('bm_spamcfg', JSON.stringify(SPAM_CFG)); } catch(e) {}
+}
+function syncSpamSettingsUI() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('set-spam-k',     SPAM_CFG.k);
+  set('set-spam-min',   SPAM_CFG.minSamples);
+  set('set-spam-floor', SPAM_CFG.hardFloor);
+  set('set-spam-age',   SPAM_CFG.maxAgeDays);
+  set('set-spam-high',  SPAM_CFG.highRatio);
+}
+window.saveSpamSettings = () => {
+  const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
+  SPAM_CFG.k          = Math.max(0, num('set-spam-k',     SPAM_CFG_DEFAULTS.k));
+  SPAM_CFG.minSamples = Math.max(1, Math.round(num('set-spam-min',   SPAM_CFG_DEFAULTS.minSamples)));
+  SPAM_CFG.hardFloor  = Math.max(0, num('set-spam-floor', SPAM_CFG_DEFAULTS.hardFloor));
+  SPAM_CFG.maxAgeDays = Math.max(0, Math.round(num('set-spam-age',   SPAM_CFG_DEFAULTS.maxAgeDays)));
+  SPAM_CFG.highRatio  = Math.max(1, num('set-spam-high',  SPAM_CFG_DEFAULTS.highRatio));
+  persistSpamCfg();
+  invalidateUsageProfiles();          // recompute baseline with the new params
+  _spamAlertSeeded = false;           // re-seed silently so a config tweak doesn't blast notifications
+  safeRender('Alerts', renderAlerts);
+  scanSpamSuspects();
+};
+// YYYY-MM-DD for `n` days before today (local), matching todayStr()'s formatting.
+function dateStrDaysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 function dayOfMonth(dateStr) {
   const p = String(dateStr || '').split('-'); // YYYY-MM-DD
@@ -3227,11 +3295,82 @@ function capSamples(arr) {
   return arr;
 }
 
+/* ── Manual spam-profiling exclusions ──────────────────────────────────────
+   Readings the operator has marked as a recurring charge (e.g. a monthly bill
+   that isn't spam). Keyed by carrier+date+slot and kept in their OWN persistent
+   `usage_exclusions` collection so they survive wiping the snapshots. An excluded
+   reading never feeds the baseline (recordUsageSamples / backfill skip it) and
+   never raises a spam flag (spamCheck returns null for it). */
+let _usageExclusions = new Set();   // keys: `${name}||${date}||${slot}`
+let _exclusionsLoaded = false;
+function exclusionKey(name, date, slot) { return `${name}||${date||''}||${slot||''}`; }
+function exclusionDocId(name, date, slot) { return profileDocId(`${name}__${date}__${slot}`); }
+function isExcludedReading(name, date, slot) { return _usageExclusions.has(exclusionKey(name, date, slot)); }
+function persistExclusionsLocal() {
+  try { localStorage.setItem('bm_usage_exclusions', JSON.stringify([..._usageExclusions])); } catch(e) {}
+}
+// The snapshot the live table is currently showing — the reading a spam flag/
+// exclusion refers to (viewed historical slot, else the latest processed one).
+function currentReadingMeta() {
+  const s = (viewingIdx !== null && todaySnaps[viewingIdx]) ? todaySnaps[viewingIdx] : (latestSnap || lastProcessedSnap);
+  return { date: s?.session_date || todayStr(), slot: s?.time_slot || '' };
+}
+async function loadUsageExclusions() {
+  if (_exclusionsLoaded) return;
+  try {
+    const v = localStorage.getItem('bm_usage_exclusions');
+    if (v) { const a = JSON.parse(v); if (Array.isArray(a)) a.forEach(k => _usageExclusions.add(k)); }
+  } catch(e) {}
+  try {
+    if (fbOk) {
+      const s = await getDocs(collection(db, 'usage_exclusions'));
+      const fresh = new Set();
+      s.docs.forEach(d => { const x = d.data(); if (x?.carrier_name) fresh.add(exclusionKey(x.carrier_name, x.date, x.slot)); });
+      _usageExclusions = fresh;                 // Firestore is source of truth when reachable
+      persistExclusionsLocal();
+    }
+  } catch(e) {}
+  _exclusionsLoaded = true;
+}
+/* Toggle whether a specific reading is disregarded for spam profiling.
+   Excluding pulls the spike out of the baseline immediately; un-excluding
+   re-seeds the sample from the known reading so the baseline recovers.
+   Returns the new state (true = now excluded). */
+async function toggleUsageExclusion(name, date, slot, usageVal) {
+  const key = exclusionKey(name, date, slot);
+  const nowExcluded = !_usageExclusions.has(key);
+  if (nowExcluded) {
+    _usageExclusions.add(key);
+    const arr = _profileSamples && _profileSamples.get(name);
+    if (arr) { const i = arr.findIndex(o => sampleKey(o.d, o.s) === sampleKey(date, slot)); if (i >= 0) arr.splice(i, 1); }
+  } else {
+    _usageExclusions.delete(key);
+    if (Number.isFinite(usageVal) && usageVal > 0 && !isMonthStart(date)) {
+      if (!_profileSamples) _profileSamples = new Map();
+      let arr = _profileSamples.get(name);
+      if (!arr) { arr = []; _profileSamples.set(name, arr); }
+      if (!arr.some(o => sampleKey(o.d, o.s) === sampleKey(date, slot))) { arr.push({ d: date, s: slot, u: usageVal }); capSamples(arr); }
+    }
+  }
+  invalidateUsageProfiles();
+  persistExclusionsLocal();
+  persistProfileDocs([name]);
+  if (fbOk) {
+    try {
+      const ref = doc(db, 'usage_exclusions', exclusionDocId(name, date, slot));
+      if (nowExcluded) await setDoc(ref, { carrier_name: name, date, slot, updated_at: Timestamp.now() });
+      else await deleteDoc(ref);
+    } catch(e) {}
+  }
+  return nowExcluded;
+}
+
 async function loadUsageProfiles() {
   if (_profilesLoaded) return;
   if (_profilesLoading) return _profilesLoading;
   _profilesLoading = (async () => {
     try {
+      await loadUsageExclusions();   // so backfill/baseline honor manual exclusions
       if (fbOk) {
         const map = new Map();
         const s = await getDocs(collection(db, 'usage_profiles'));
@@ -3243,7 +3382,7 @@ async function loadUsageProfiles() {
               .map(o => (typeof o === 'number'
                 ? { d: '', s: '', u: o }
                 : { d: o.d || '', s: o.s || '', u: amountNumber(o.u) }))
-              .filter(o => Number.isFinite(o.u));
+              .filter(o => Number.isFinite(o.u) && !isExcludedReading(name, o.d, o.s));
             map.set(name, arr);
           }
         });
@@ -3269,7 +3408,7 @@ async function backfillUsageProfilesFromSnapshots() {
     (snap.data || []).forEach(r => {
       const name = r?.carrier_name; if (!name) return;
       const u = amountNumber(r.usage_30min);
-      if (u > 0) {
+      if (u > 0 && !isExcludedReading(name, snap.session_date, snap.time_slot || '')) {
         let arr = map.get(name); if (!arr) { arr = []; map.set(name, arr); }
         arr.push({ d: snap.session_date, s: snap.time_slot || '', u });
       }
@@ -3297,7 +3436,7 @@ function recordUsageSamples(date, slot, rows) {
       const i = arr.findIndex(o => sampleKey(o.d, o.s) === key);
       if (i >= 0) { arr.splice(i, 1); changed.add(name); }
     }
-    if (u > 0) {
+    if (u > 0 && !isExcludedReading(name, date, slot)) {   // recurring-charge readings are disregarded
       if (!arr) { arr = []; _profileSamples.set(name, arr); }
       arr.push({ d: date, s: slot, u }); capSamples(arr); changed.add(name);
     }
@@ -3336,12 +3475,15 @@ async function persistProfileDocs(names) {
 function getUsageProfiles() {
   if (_usageProfiles) return _usageProfiles;
   const today = todayStr();
+  // Time-box the basis: ignore samples older than maxAgeDays so the span is
+  // predictable regardless of how active a client is (0 = no age limit).
+  const minDate = SPAM_CFG.maxAgeDays > 0 ? dateStrDaysAgo(SPAM_CFG.maxAgeDays) : '';
   const samples = _profileSamples || new Map();
   const profiles = new Map();
   samples.forEach((arr, name) => {
     // Baseline = established prior days only: skip today (so a spike can't judge
-    // itself) and skip month-start days as a safeguard.
-    const vals = (arr || []).filter(o => o && o.u > 0 && o.d !== today && !isMonthStart(o.d)).map(o => o.u);
+    // itself), skip month-start days, and drop anything older than the window.
+    const vals = (arr || []).filter(o => o && o.u > 0 && o.d !== today && !isMonthStart(o.d) && (!minDate || o.d >= minDate)).map(o => o.u);
     const n = vals.length;
     if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n }); return; }
     const med  = medianOf(vals);
@@ -3359,11 +3501,14 @@ function spamCheck(row) {
   if (isMonthStart(todayStr())) return null;   // suppressed on monthly-charge days
   const u = amountNumber(row?.usage_30min);
   if (!(u > 0) || u < SPAM_CFG.hardFloor) return null;
+  const { date, slot } = currentReadingMeta();
+  if (isExcludedReading(row?.carrier_name, date, slot)) return null;  // marked as a recurring charge
   const p = getUsageProfiles().get(row?.carrier_name);
   if (!p || !p.ready) return null;
   if (u > p.threshold) {
-    return { usage: u, median: p.median, threshold: p.threshold,
-             ratio: p.median > 0 ? u / p.median : Infinity, n: p.n };
+    const ratio = p.median > 0 ? u / p.median : Infinity;
+    const tier  = ratio >= SPAM_CFG.highRatio ? 'high' : 'watch';   // High vs Watch
+    return { usage: u, median: p.median, threshold: p.threshold, ratio, n: p.n, tier };
   }
   return null;
 }
@@ -3371,13 +3516,16 @@ function spamChipInfo(row) {
   const s = row._spamInfo;
   if (!s) return ['none', 'Within normal range'];
   const detail = Number.isFinite(s.ratio) ? `${s.ratio.toFixed(1)}× normal` : 'no prior usage';
-  return ['high', `Possible spam · ${detail}`];
+  return s.tier === 'high'
+    ? ['high',   `High spam · ${detail}`]
+    : ['medium', `Watch · ${detail}`];
 }
-function updateSpamTab(count) {
+function updateSpamTab(count, highCount = 0) {
   const tab = document.getElementById('tab-spam');
   if (!tab) return;
   tab.textContent = count > 0 ? `Possible Spam (${count})` : 'Possible Spam';
-  tab.classList.toggle('tab-blink-red', count > 0);
+  // Blink red only when there's a High-tier suspect; Watch-only just shows the count.
+  tab.classList.toggle('tab-blink-red', highCount > 0);
 }
 // Load the persistent baseline once (lazily), then re-render so the Possible
 // Spam tab count/rows populate without blocking the initial paint.
@@ -3386,8 +3534,52 @@ function ensureSpamHistory() {
   if (_profilesLoaded || _spamKicked) return;
   _spamKicked = true;
   loadUsageProfiles()
-    .then(() => { if (document.getElementById('view-alerts')?.classList.contains('active')) renderAlerts(); })
+    .then(() => {
+      scanSpamSuspects(); // seed the alerter (silent first pass) now the baseline is ready
+      if (document.getElementById('view-alerts')?.classList.contains('active')) renderAlerts();
+    })
     .catch(() => { _spamKicked = false; });
+}
+
+/* Notify on a NEWLY flagged spam suspect. Deduped per client per day and seeded
+   silently on the first ready render, so passive 60s refreshes and pre-existing
+   suspects on page load don't re-ping — only genuinely new suspects alert (same
+   model as the critical-balance notification). Called from renderAlerts. */
+let _spamAlerted = new Set();
+let _spamAlertedDate = '';
+let _spamAlertSeeded = false;
+function maybeAlertSpam(suspects) {
+  if (!_profilesLoaded || isMonthStart(todayStr())) return; // no baseline / detection paused
+  const today = todayStr();
+  if (today !== _spamAlertedDate) { _spamAlertedDate = today; _spamAlerted = new Set(); _spamAlertSeeded = false; }
+  const list = suspects || [];
+  if (!_spamAlertSeeded) { list.forEach(s => _spamAlerted.add(s.name)); _spamAlertSeeded = true; return; }
+  const fresh = list.filter(s => !_spamAlerted.has(s.name));
+  if (!fresh.length) return;
+  fresh.forEach(s => _spamAlerted.add(s.name));
+  if (S.soundAlert && fresh.some(s => s.tier === 'high')) playAlertSound(); // loud alarm only for High tier
+  if (S.browserNotif) sendSpamNotification(fresh);
+}
+function sendSpamNotification(suspects) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const top = suspects.slice(0, 3).map(s => s.name).join(', ');
+  const extra = suspects.length > 3 ? ` +${suspects.length - 3} more` : '';
+  new Notification('BalanceMonitor — Possible Spam', {
+    body: `${suspects.length} client(s) with unusual 30-min usage:\n${top}${extra}`,
+    tag: 'bm-spam',
+  });
+}
+// Evaluate the current live data for spam suspects and feed the alerter. Runs on
+// every refresh (all views) so a new suspect notifies even off the Alerts tab.
+function scanSpamSuspects() {
+  if (!_profilesLoaded || isMonthStart(todayStr())) return;
+  const suspects = [];
+  activeData().forEach(r => {
+    if (!r?.carrier_name || isClientInactive(clientsMeta[r.carrier_name] || {})) return;
+    const info = spamCheck(r);
+    if (info) suspects.push({ name: r.carrier_name, tier: info.tier, ratio: info.ratio });
+  });
+  maybeAlertSpam(suspects);
 }
 
 /* ════════════════════════════════════════════════
@@ -4087,10 +4279,10 @@ function updateTritelStatus() {
   const el = document.getElementById('tritel-status');
   if (!el) return;
   if (!tritelSnaps.length) { el.textContent = 'No Tritel data'; return; }
-  const slots = tritelSnaps.slice()
-    .sort((a, b) => tritelSlotIdx(a.time_slot) - tritelSlotIdx(b.time_slot))
-    .map(t => fmt12(t.time_slot));
-  el.textContent = `Tritel: ${slots.join(', ')}`;
+  // Show only the latest sync so the status stays compact as more slots pile up.
+  const latest = latestTritel();
+  const more = tritelSnaps.length - 1;
+  el.textContent = `Tritel: ${fmt12(latest.time_slot)}${more > 0 ? ` (+${more} more)` : ''}`;
 }
 
 function loadTritelSnap() {
@@ -4548,8 +4740,38 @@ function renderClientDetailBody(editMode) {
     }
     return `<div class="detail-row"><div class="detail-lbl">${esc(f.label)}</div><div class="detail-val">${valHtml}</div></div>`;
   });
-  document.getElementById('client-detail-body').innerHTML = chartHtml + rows.join('');
+  // Spam-profiling control for the latest 30m-usage reading — lets the operator
+  // flag a recurring charge so it's disregarded by the baseline / spam alerts.
+  let spamCtrl = '';
+  const curUsage = amountNumber(snap.usage_30min);
+  if (!editMode && curUsage > 0) {
+    const cDate = latestSnap?.session_date || todayStr();
+    const cSlot = latestSnap?.time_slot || '';
+    const excluded = isExcludedReading(name, cDate, cSlot);
+    const slotLbl = cSlot ? ` @ ${fmt12(cSlot)}` : '';
+    spamCtrl = `<div class="detail-row full"><div class="detail-lbl">Spam profiling</div><div class="detail-val">${
+      excluded
+        ? `<span style="color:var(--text-2)">Disregarded${esc(slotLbl)} — this reading won't feed the baseline or raise a spam flag.</span>
+           <button class="tbtn" style="margin-left:8px" onclick="toggleReadingExclusionFromPopup()" title="Count this reading toward the spam baseline again">Undo</button>`
+        : `<button class="tbtn" onclick="toggleReadingExclusionFromPopup()" title="Mark this 30m usage as a monthly recurring charge — excludes it from the spam baseline and suppresses its spam flag">Disregard this reading (recurring charge)</button>`
+    }</div></div>`;
+  }
+  document.getElementById('client-detail-body').innerHTML = chartHtml + rows.join('') + spamCtrl;
 }
+
+/* Toggle the latest reading's spam-profiling exclusion from the client popup. */
+window.toggleReadingExclusionFromPopup = async () => {
+  const name = _editingClient; if (!name) return;
+  const snap = (latestSnap?.data || []).find(r => r.carrier_name === name) || {};
+  const date = latestSnap?.session_date || todayStr();
+  const slot = latestSnap?.time_slot || '';
+  const nowExcluded = await toggleUsageExclusion(name, date, slot, amountNumber(snap.usage_30min));
+  toast(nowExcluded
+    ? `Disregarding this 30m usage for spam profiling — ${name}`
+    : `Reading restored to spam profiling — ${name}`, 'ok');
+  renderClientDetailBody(false);
+  safeRender('Alerts', renderAlerts);
+};
 
 window.startEditClient = () => {
   if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
@@ -5027,6 +5249,7 @@ function refreshAll() {
   }
   if(document.getElementById('view-all-clients').classList.contains('active')) safeRender('All Clients', window.renderClients);
   safeRender('Notifications', () => checkAndNotify(activeData(), false)); // keep tab flash in sync on every refresh
+  safeRender('Spam scan', scanSpamSuspects); // notify on new spam suspects regardless of active view
 }
 
 function updateSync() {
@@ -5221,7 +5444,9 @@ function alertRows() {
   else                                    rows = visibleData;
   const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
-  const spamCount      = visibleData.filter(r=>r._spam).length;
+  const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, ratio:r._spamInfo?.ratio }));
+  const spamCount      = spamSuspects.length;
+  const spamHighCount  = spamSuspects.filter(s=>s.tier==='high').length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='spam')     rows=rows.filter(r=>r._spam);
@@ -5229,25 +5454,31 @@ function alertRows() {
   if(alertFilter==='none')     rows=rows.filter(r=>r._level==='none');
   if(alertFilter==='nothresh') rows=rows.filter(r=>!r._hasThreshold);
   if(alertFilter==='new')      rows=rows.filter(r=>r._isNew);
-  rows.sort((a,b)=>{
-    let av=a[alertSortCol],bv=b[alertSortCol];
-    if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
-    if(alertSortCol==='_eta'){av=a._eta??Infinity;bv=b._eta??Infinity;}
-    if(alertSortCol==='_bw'){av=balanceBarPct(a);bv=balanceBarPct(b);}
-    if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
-    return((av??0)-(bv??0))*alertSortDir;
-  });
-  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount };
+  if(alertFilter==='spam'){
+    // Rank suspects for triage: High tier first, then by how far above normal.
+    const tierOrd = t => t==='high'?2:t==='watch'?1:0;
+    rows.sort((a,b)=> tierOrd(b._spamInfo?.tier)-tierOrd(a._spamInfo?.tier) || (b._spamInfo?.ratio??0)-(a._spamInfo?.ratio??0));
+  } else {
+    rows.sort((a,b)=>{
+      let av=a[alertSortCol],bv=b[alertSortCol];
+      if(alertSortCol==='_level'){av=levelOrd(a._level);bv=levelOrd(b._level);}
+      if(alertSortCol==='_eta'){av=a._eta??Infinity;bv=b._eta??Infinity;}
+      if(alertSortCol==='_bw'){av=balanceBarPct(a);bv=balanceBarPct(b);}
+      if(typeof av==='string') return av.localeCompare(bv)*alertSortDir;
+      return((av??0)-(bv??0))*alertSortDir;
+    });
+  }
+  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
 }
 
 function renderAlerts() {
-  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount } = alertRows();
+  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount } = alertRows();
   updateNewCriticalTab(newCount);
   updateRemovedCriticalTab(removedCount);
   setTabBlink('tab-usage',    usageHighCount > 0);
   setTabBlink('tab-nothresh', noThreshCount > 0);
   updateInactiveUsageTab(inactiveUsageCount);
-  updateSpamTab(spamCount);
+  updateSpamTab(spamCount, spamHighCount);
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
@@ -5282,7 +5513,7 @@ function renderAlerts() {
        </td></tr>`;
     } else if (!rows.length) {
       spamNote = `<tr class="alert-note info"><td colspan="9">
-        ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds its own baseline (median + ${SPAM_CFG.k}·MAD from prior days, floor ${SPAM_CFG.hardFloor}). Needs ≥${SPAM_CFG.minSamples} prior consumption points per client.
+        ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds its own baseline (median + ${SPAM_CFG.k}·MAD from the last ${SPAM_CFG.maxAgeDays>0?SPAM_CFG.maxAgeDays+' days':'available data'}, floor ${SPAM_CFG.hardFloor}). Needs ≥${SPAM_CFG.minSamples} prior consumption points per client. Flags ≥${SPAM_CFG.highRatio}× normal are High, the rest Watch.
        </td></tr>`;
     }
   }
@@ -5291,7 +5522,10 @@ function renderAlerts() {
     const bw = balanceBarPct(r);
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='spam' ? spamChipInfo(r) : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
-    const spamBadge = (r._spam && alertFilter!=='spam') ? '<span class="badge-spam" title="Current 30-min usage is far above this client\'s baseline">SPAM?</span>' : '';
+    const spamBadge = (r._spam && alertFilter!=='spam')
+      ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's baseline">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
+      : '';
+    const spamIgnore = (alertFilter==='spam') ? `<button class="tbtn" style="margin-left:6px;font-size:9px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
@@ -5305,13 +5539,23 @@ function renderAlerts() {
         <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(2)}%"></div></div>
         <span class="${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
       </div></td>
-      <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}</td>
+      <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}${spamIgnore}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
       <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
   }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
+
+/* One-click dismissal from the Possible Spam tab: mark a flagged reading as a
+   recurring charge so it drops off the list and stops feeding the baseline. */
+window.ignoreSpamReading = async (name) => {
+  const { date, slot } = currentReadingMeta();
+  const row = (activeData() || []).find(r => r.carrier_name === name) || {};
+  await toggleUsageExclusion(name, date, slot, amountNumber(row.usage_30min));
+  toast(`Disregarding this 30m usage for spam profiling — ${name}`, 'ok');
+  safeRender('Alerts', renderAlerts);
+};
 
 /* ════════════════════════════════════════════════
    30M USAGE / SNAPSHOT HISTORY (today)
@@ -8832,7 +9076,7 @@ async function initStats() {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); initNotepad(); updateLastProcessed(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); initNotepad(); updateLastProcessed(); window.renderWizard(); window.renderClients();
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
@@ -8844,6 +9088,7 @@ async function init(){
   await Promise.all([loadPrevSnap(), subscribeClients()]);
   cleanupOldSnapshots(); // runs in background, no await needed
   cleanupCsvImports();   // runs in background, no await needed
+  ensureSpamHistory();   // load usage baselines in background so spam alerts work off any view
   setLoading(false);
   refreshAll();
   if(fbOk){
