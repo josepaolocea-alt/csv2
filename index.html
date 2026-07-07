@@ -688,6 +688,23 @@
     td.st-cell-client { font-size: 10px; color: var(--text-3); }
     td.st-cell-acct   { font-weight: 600; color: var(--accent); }
     .st-val-bad { color: var(--red); font-weight: 600; }
+    /* Hourly per-client pivot (today only) */
+    #st-tbl-hourly td.st-hr-cell { text-align: right; font-family: var(--mono); white-space: nowrap; }
+    #st-tbl-hourly th.st-hr-client, #st-tbl-hourly td.st-hr-client {
+      position: sticky; left: 0; z-index: 3;
+      background: var(--surface); white-space: nowrap;
+      border-right: 1px solid var(--border-strong);
+    }
+    #st-tbl-hourly thead th.st-hr-client { z-index: 4; background: var(--surface-2); }
+    #st-tbl-hourly tr:nth-child(even) td.st-hr-client { background: var(--surface-2); }
+    #st-tbl-hourly .st-hr-name { font-weight: 600; }
+    #st-tbl-hourly .st-hr-dest { font-size: 10px; color: var(--text-3); }
+    #st-tbl-hourly td.st-hr-cell.critical { background: var(--red-soft);    color: var(--red);         font-weight: 600; }
+    #st-tbl-hourly td.st-hr-cell.low      { background: var(--orange-soft); color: var(--orange);      font-weight: 600; }
+    #st-tbl-hourly td.st-hr-cell.ok       { background: var(--yellow-soft); color: var(--yellow-deep); }
+    #st-tbl-hourly td.st-hr-cell.good     { background: var(--green-soft);  color: var(--green); }
+    #st-tbl-hourly td.st-hr-cell.watch    { color: var(--text-3); }
+    #st-tbl-hourly td.st-hr-cell.empty    { color: var(--text-3); }
     #stnav-stats-critical.st-tab-alert {
       animation: stCritBlink 1.2s ease-in-out infinite;
     }
@@ -1333,6 +1350,7 @@
     <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
+    <button class="tbtn stats-tab" id="stnav-stats-hourly"   onclick="switchStatsView('hourly')">Hourly</button>
     <button class="tbtn stats-tab" id="stnav-stats-critical" onclick="switchStatsView('critical')">Critical <span id="sttab-cnt-critical"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-low"      onclick="switchStatsView('low')">Low <span id="sttab-cnt-low"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
@@ -2062,6 +2080,33 @@
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
             </table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ STATS — HOURLY (per-client pivot, today only) ══ -->
+      <div class="view" id="view-stats-hourly">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Hourly — per client · today only</div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
+          <div class="fbar">
+            <input id="st-hr-search" class="win-inp" placeholder="Search client…" oninput="renderStatsHourly()" style="width:160px">
+            <select id="st-hr-metric" class="win-sel" onchange="setStatsHourlyMetric(this.value)" title="Metric shown in each hourly cell" style="width:150px">
+              <option value="asr">ASR %</option>
+              <option value="acd">ACD (min)</option>
+              <option value="attempts">Attempts</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button class="tbtn" id="st-hr-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
+            <span class="sms-muted" id="st-hr-count" style="margin-left:auto"></span>
+          </div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap">
+              <table id="st-tbl-hourly">
+                <thead id="st-hr-thead"></thead>
+                <tbody id="st-tbody-hourly"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -8516,6 +8561,7 @@ let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
+let statsHourlyMetric = 'asr'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
@@ -8696,12 +8742,19 @@ window.viewStatsSlot = slot => {
 
 window.toggleStatsHideDID = () => {
   statsHideDID = !statsHideDID;
-  const btn = document.getElementById('st-hide-did');
-  if (btn) {
-    btn.classList.toggle('active', statsHideDID);
-    btn.textContent = statsHideDID ? 'Show -DID' : 'Hide -DID';
-  }
+  ['st-hide-did', 'st-hr-hide-did'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.classList.toggle('active', statsHideDID);
+      btn.textContent = statsHideDID ? 'Show -DID' : 'Hide -DID';
+    }
+  });
   statsRender();
+};
+
+window.setStatsHourlyMetric = v => {
+  statsHourlyMetric = v;
+  renderStatsHourly();
 };
 
 window.sortStats = col => {
@@ -8948,10 +9001,98 @@ function updateStatsStatusBar() {
   }
 }
 
+// Build the per-client × per-hour matrix for today's posted snapshots.
+// slots = sorted list of posted time_slots; clients = one entry per
+// (account, destination) group, with byHour[slot] holding that hour's stats
+// and running totals for a whole-day aggregate column.
+function statsHourlyMatrix() {
+  const snaps = statsSortedSnaps();
+  const slots = snaps.map(s => s.time_slot);
+  const clients = new Map();
+  snaps.forEach(s => {
+    groupStatsSnapshot(s).forEach((g, key) => {
+      let c = clients.get(key);
+      if (!c) {
+        c = { key, customer_name: g.customer_name, destination: g.destination,
+              acct_list: g.acct_list, byHour: {}, attempts: 0, completed: 0, raw_dur: 0 };
+        clients.set(key, c);
+      }
+      c.byHour[s.time_slot] = g;
+      c.attempts += g.attempts; c.completed += g.completed; c.raw_dur += g.raw_dur;
+      if (g.acct_list) c.acct_list = g.acct_list;
+    });
+  });
+  clients.forEach(c => {
+    c.asr = c.attempts > 0 ? (c.completed / c.attempts * 100) : 0;
+    c.acd = c.completed > 0 ? (c.raw_dur / c.completed) : 0;
+    c.cls = classifyStats(c);
+    c.acdcls = acdBand(c.acd);
+  });
+  return { slots, clients: [...clients.values()] };
+}
+
+function statsHourlyCell(g, bold) {
+  const b = bold ? ' style="font-weight:700"' : '';
+  if (!g) return '<td class="st-hr-cell empty">—</td>';
+  const metric = statsHourlyMetric;
+  if (metric === 'acd')       return `<td class="st-hr-cell ${g.acdcls}"${b}>${stN2(g.acd)}</td>`;
+  if (metric === 'attempts')  return `<td class="st-hr-cell"${b}>${stN0(g.attempts)}</td>`;
+  if (metric === 'completed') return `<td class="st-hr-cell"${b}>${stN0(g.completed)}</td>`;
+  return `<td class="st-hr-cell ${g.cls}"${b}>${stN2(g.asr)}</td>`;   // asr (default)
+}
+
+function renderStatsHourly() {
+  const thead = document.getElementById('st-hr-thead');
+  const tbody = document.getElementById('st-tbody-hourly');
+  if (!thead || !tbody) return;
+
+  const { slots, clients } = statsHourlyMatrix();
+  const search = (document.getElementById('st-hr-search')?.value || '').trim().toLowerCase();
+  let rows = clients;
+  if (statsHideDID) rows = rows.filter(r => !/-DID/i.test(r.acct_list || ''));
+  if (search) rows = rows.filter(r =>
+    (r.customer_name || '').toLowerCase().includes(search)
+    || (r.acct_list || '').toLowerCase().includes(search)
+    || (r.destination || '').toLowerCase().includes(search));
+  rows = [...rows].sort((a, b) =>
+    (a.customer_name || '').toLowerCase().localeCompare((b.customer_name || '').toLowerCase())
+    || (a.destination || '').localeCompare(b.destination || ''));
+
+  thead.innerHTML = '<tr><th class="st-hr-client">Client</th>'
+    + slots.map(s => `<th style="text-align:right">${stEsc(fmt12(s))}</th>`).join('')
+    + (slots.length ? '<th style="text-align:right">Day</th>' : '')
+    + '</tr>';
+
+  const cnt = document.getElementById('st-hr-count');
+  if (cnt) cnt.textContent = `${rows.length} client(s) · ${slots.length} hour(s)`
+    + (search || statsHideDID ? ' (filtered)' : '');
+
+  if (!slots.length) {
+    tbody.innerHTML = '<tr><td class="st-hr-client">—</td><td style="padding:8px;color:#888;text-align:center">No stats snapshots posted today yet.</td></tr>';
+    return;
+  }
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td class="st-hr-client">—</td><td colspan="${slots.length + 1}" style="padding:8px;color:#888;text-align:center">No clients match the current filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(c => {
+    const dest = (c.destination && c.destination !== '(no dest)')
+      ? `<div class="st-hr-dest">${stEsc(c.destination)}</div>` : '';
+    const clientCell = `<td class="st-hr-client"><div class="st-hr-name">${stEsc(c.customer_name)}</div>${dest}</td>`;
+    return `<tr>${clientCell}`
+      + slots.map(s => statsHourlyCell(c.byHour[s], false)).join('')
+      + statsHourlyCell(c, true)
+      + '</tr>';
+  }).join('');
+}
+window.renderStatsHourly = renderStatsHourly;
+
 function statsRender() {
   renderStatsSidebar();
   renderStatsSummary();
   renderStatsTables();
+  renderStatsHourly();
   updateStatsStatusBar();
 }
 
