@@ -705,6 +705,10 @@
     #st-tbl-hourly td.st-hr-cell.good     { background: var(--green-soft);  color: var(--green); }
     #st-tbl-hourly td.st-hr-cell.watch    { color: var(--text-3); }
     #st-tbl-hourly td.st-hr-cell.empty    { color: var(--text-3); }
+    /* Combined multi-metric cells (ASR & ACD / Attempt, ASR & ACD) */
+    #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.25; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-sub  { font-size: 10px; opacity: 0.75; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-k    { color: var(--text-3); font-weight: normal; margin-right: 4px; }
     #stnav-stats-critical.st-tab-alert {
       animation: stCritBlink 1.2s ease-in-out infinite;
     }
@@ -2096,6 +2100,8 @@
               <option value="acd">ACD (min)</option>
               <option value="attempts">Attempts</option>
               <option value="completed">Completed</option>
+              <option value="asr_acd">ASR &amp; ACD</option>
+              <option value="att_asr_acd">Attempt, ASR &amp; ACD</option>
             </select>
             <button class="tbtn" id="st-hr-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
             <span class="sms-muted" id="st-hr-count" style="margin-left:auto"></span>
@@ -8561,7 +8567,7 @@ let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
-let statsHourlyMetric = 'asr'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed
+let statsHourlyMetric = 'asr'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
@@ -9038,6 +9044,13 @@ function statsHourlyCell(g, bold) {
   if (metric === 'acd')       return `<td class="st-hr-cell ${g.acdcls}"${b}>${stN2(g.acd)}</td>`;
   if (metric === 'attempts')  return `<td class="st-hr-cell"${b}>${stN0(g.attempts)}</td>`;
   if (metric === 'completed') return `<td class="st-hr-cell"${b}>${stN0(g.completed)}</td>`;
+  if (metric === 'asr_acd')   return `<td class="st-hr-cell ${g.cls}"${b}>`
+      + `<span class="st-hr-line"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
+      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span></td>`;
+  if (metric === 'att_asr_acd') return `<td class="st-hr-cell ${g.cls}"${b}>`
+      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">Att</span>${stN0(g.attempts)}</span>`
+      + `<span class="st-hr-line"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
+      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span></td>`;
   return `<td class="st-hr-cell ${g.cls}"${b}>${stN2(g.asr)}</td>`;   // asr (default)
 }
 
