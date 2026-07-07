@@ -687,6 +687,25 @@
     tr.st-row-persist td  { background: var(--red-soft); }
     td.st-cell-client { font-size: 10px; color: var(--text-3); }
     td.st-cell-acct   { font-weight: 600; color: var(--accent); }
+    /* Hover-to-copy icon in Client / Account Code cells */
+    td.st-cell-client, td.st-cell-acct { position: relative; padding-right: 22px; }
+    .st-copy-btn {
+      position: absolute; top: 2px; right: 3px;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; padding: 0;
+      border: none; border-radius: 3px;
+      background: var(--surface-2); color: var(--text-3);
+      cursor: pointer; opacity: 0;
+      transition: opacity .12s ease-out, color .12s ease-out;
+    }
+    td.st-cell-client:hover .st-copy-btn,
+    td.st-cell-acct:hover .st-copy-btn { opacity: 1; }
+    .st-copy-btn:hover { color: var(--accent); }
+    .st-copy-btn.copied { color: var(--green); opacity: 1; }
+    .st-copy-btn svg { width: 12px; height: 12px; display: block; }
+    .st-copy-btn .ico-check { display: none; }
+    .st-copy-btn.copied .ico-copy  { display: none; }
+    .st-copy-btn.copied .ico-check { display: block; }
     .st-val-bad { color: var(--red); font-weight: 600; }
     /* Hourly per-client pivot (today only) */
     #st-tbl-hourly td.st-hr-cell { text-align: right; font-family: var(--mono); white-space: nowrap; }
@@ -2101,7 +2120,7 @@
               <option value="attempts">Attempts</option>
               <option value="completed">Completed</option>
               <option value="asr_acd">ASR &amp; ACD</option>
-              <option value="att_asr_acd">Attempt, ASR &amp; ACD</option>
+              <option value="att_asr_acd" selected>Attempt, ASR &amp; ACD</option>
             </select>
             <button class="tbtn" id="st-hr-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
             <span class="sms-muted" id="st-hr-count" style="margin-left:auto"></span>
@@ -8567,7 +8586,7 @@ let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
-let statsHourlyMetric = 'asr'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
+let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
@@ -8576,6 +8595,43 @@ const stEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&l
 const stN0  = v => Math.round(v || 0).toLocaleString();
 const stN2  = v => (v || 0).toFixed(2);
 const stVal = v => ((+v >= 0 && +v <= 0.9) ? `<span class="st-val-bad">${stN2(v)}</span>` : stN2(v));
+
+// Small hover-to-copy button for Client / Account Code table cells.
+const stCopyBtn = txt => {
+  const t = String(txt ?? '').trim();
+  if (!t) return '';
+  return `<button type="button" class="st-copy-btn" title="Copy" aria-label="Copy `
+    + stEsc(t) + `" data-copy="` + stEsc(t) + `" onclick="stCopyCell(event, this)">`
+    + `<svg class="ico-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`
+    + `<svg class="ico-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`
+    + `</button>`;
+};
+
+function stCopyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).catch(() => stCopyFallback(text));
+  }
+  stCopyFallback(text);
+}
+function stCopyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-9999px';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+}
+window.stCopyCell = (ev, btn) => {
+  ev.stopPropagation();
+  ev.preventDefault();
+  stCopyToClipboard(btn.getAttribute('data-copy') || '');
+  btn.classList.add('copied');
+  clearTimeout(btn._copyTO);
+  btn._copyTO = setTimeout(() => btn.classList.remove('copied'), 1000);
+};
 
 function statsSlots() {
   const out = [];
@@ -8845,8 +8901,8 @@ function processStatsRows(rows, tbodyId, full) {
   tb.innerHTML = rows.map(r => {
     const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
     const cells = full
-      ? `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
-         <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
+      ? `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
@@ -8856,8 +8912,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${stClsBadge(r.cls)}</td>
          <td>${stAcdBadge(r.acdcls)}</td>
          <td>${statsFlags(r)}</td>`
-      : `<td class="st-cell-client">${stEsc(r.customer_name)}</td>
-         <td class="st-cell-acct">${stEsc(r.acct_list)}</td>
+      : `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
