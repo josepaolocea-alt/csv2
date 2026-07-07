@@ -1094,6 +1094,17 @@
     .detail-row.full .detail-val { padding: 0 8px 4px; width: 100%; box-sizing: border-box; }
     .detail-row.full .detail-val .win-ta { width: 100%; box-sizing: border-box; }
     .detail-remarks-view { font-size: 11px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+    /* ── Remarks hover tooltip (client rows) ── */
+    #remarks-tip {
+      position: fixed; z-index: 1200; max-width: 340px; pointer-events: none;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border-strong); border-radius: 6px;
+      box-shadow: var(--shadow-md); padding: 7px 10px;
+      font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+      opacity: 0; transform: translateY(2px); transition: opacity .09s ease, transform .09s ease;
+    }
+    #remarks-tip.show { opacity: 1; transform: translateY(0); }
+    #remarks-tip .rt-head { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 3px; }
     /* ── SMS client detail popup ── */
     #sms-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
     #sms-detail-overlay.open { display: flex; }
@@ -4759,6 +4770,64 @@ function renderClientDetailBody(editMode) {
   document.getElementById('client-detail-body').innerHTML = chartHtml + rows.join('') + spamCtrl;
 }
 
+/* ── Remarks-on-hover for client rows ─────────────────────────────
+   Any table row that opens the client popup (ondblclick="openClientPopup('…')")
+   shows that client's Remarks in a floating tooltip while hovered. Resolved the
+   same way the popup does: per-client meta first, then the latest snapshot row. */
+function remarksFor(name) {
+  const meta = clientsMeta[name] || {};
+  const snap = (latestSnap?.data || []).find(r => r.carrier_name === name) || {};
+  return String(meta.remarks ?? snap.remarks ?? '').trim();
+}
+(function setupRemarksHover() {
+  let tip = null, hoverRow = null;
+  const ensureTip = () => {
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.id = 'remarks-tip';
+      document.body.appendChild(tip);
+    }
+    return tip;
+  };
+  const clientNameFromRow = tr => {
+    const m = /openClientPopup\('((?:\\.|[^'\\])*)'\)/.exec(tr.getAttribute('ondblclick') || '');
+    return m ? m[1].replace(/\\(['\\])/g, '$1') : null;
+  };
+  const hide = () => { hoverRow = null; if (tip) tip.classList.remove('show'); };
+  const place = (x, y) => {
+    const t = ensureTip();
+    const pad = 14, tw = t.offsetWidth, th = t.offsetHeight;
+    let left = x + pad, top = y + pad;
+    if (left + tw > window.innerWidth - 6)  left = x - pad - tw;
+    if (top + th > window.innerHeight - 6)  top = y - pad - th;
+    t.style.left = Math.max(6, left) + 'px';
+    t.style.top  = Math.max(6, top) + 'px';
+  };
+  document.addEventListener('mouseover', e => {
+    const tr = e.target.closest?.('tr[ondblclick^="openClientPopup"]');
+    if (!tr) return;
+    if (tr === hoverRow) return;
+    hoverRow = tr;
+    const name = clientNameFromRow(tr);
+    const remarks = name ? remarksFor(name) : '';
+    if (!remarks) { hide(); return; }
+    const t = ensureTip();
+    t.innerHTML = `<div class="rt-head">Remarks — ${esc(name)}</div>${esc(remarks)}`;
+    t.classList.add('show');
+    place(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', e => {
+    if (hoverRow && tip && tip.classList.contains('show')) place(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseout', e => {
+    if (!hoverRow) return;
+    const to = e.relatedTarget;
+    if (!to || !hoverRow.contains(to)) hide();
+  });
+  // Rows get re-rendered / scrolled away underneath a static pointer.
+  document.addEventListener('scroll', hide, true);
+})();
+
 /* Toggle the latest reading's spam-profiling exclusion from the client popup. */
 window.toggleReadingExclusionFromPopup = async () => {
   const name = _editingClient; if (!name) return;
@@ -8272,19 +8341,30 @@ function buildSparkline(name) {
   const lastVal = points[points.length-1].val;
   const dotColor = lastVal >= (!isNaN(critBal)?critBal:Infinity) ? '#cc0000' : lastVal >= (!isNaN(credLim)?credLim:Infinity) ? '#cc6600' : '#006600';
 
-  const threshLabel = (val, color, label, dash) => {
-    if (!Number.isFinite(val)) return '';
-    if (val >= lo && val <= hi) {
-      const y = yS(val).toFixed(1);
-      return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="${dash}"/>
-        <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="${color}">${label}</text>`;
-    }
-    // Off-chart: show direction + value at the corresponding edge of the chart.
-    const above = val > hi;
-    const y = above ? PT + 2 : H - PB - 2;
-    return `<text x="${W-PR+3}" y="${y}" font-size="8" fill="${color}">${label} ${above?'↑':'↓'} ${esc(fmt(val))}</text>`;
+  // On-chart thresholds get a dashed line + short label at the line. Off-chart
+  // thresholds get a value label pinned to the top/bottom edge. When more than
+  // one threshold is off-chart on the same edge (e.g. balance far above both the
+  // Warning and Critical limits) the labels are stacked so they never overlap,
+  // and they're right-anchored so long values stay inside the chart.
+  const onChartThresh = (val, color, label, dash) => {
+    const y = yS(val).toFixed(1);
+    return `<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="${dash}"/>
+      <text x="${W-PR+3}" y="${(+y+3).toFixed(0)}" font-size="8" fill="${color}">${label}</text>`;
   };
-  const thresh = threshLabel(critBal, '#cc0000', 'Crit', '3,2') + threshLabel(credLim, '#cc6600', 'Warn', '2,3');
+  const offTop = [], offBot = [];
+  let thresh = '';
+  [ { val: critBal, color: '#cc0000', label: 'Crit', dash: '3,2' },
+    { val: credLim, color: '#cc6600', label: 'Warn', dash: '2,3' } ].forEach(t => {
+    if (!Number.isFinite(t.val)) return;
+    if (t.val >= lo && t.val <= hi) thresh += onChartThresh(t.val, t.color, t.label, t.dash);
+    else (t.val > hi ? offTop : offBot).push(t);
+  });
+  offTop.forEach((t, i) => {
+    thresh += `<text x="${W}" y="${PT + 2 + i * 9}" font-size="8" fill="${t.color}" text-anchor="end">${t.label} ↑ ${esc(fmt(t.val))}</text>`;
+  });
+  offBot.forEach((t, i) => {
+    thresh += `<text x="${W}" y="${H - PB - 2 - i * 9}" font-size="8" fill="${t.color}" text-anchor="end">${t.label} ↓ ${esc(fmt(t.val))}</text>`;
+  });
   const fmtDateShort = d => {
     const [, m, da] = String(d).split('-');
     return m && da ? `${+m}/${+da}` : d;
