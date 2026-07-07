@@ -144,35 +144,24 @@
       border-bottom: 1px solid var(--border);
       background: var(--surface);
     }
-    .mitem {
-      padding: 3px 10px; font-size: 11px; cursor: pointer;
-      border-radius: var(--r-sm); color: var(--text-2);
+    #module-nav { display: flex; align-items: center; gap: 2px; }
+    .micon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 22px; padding: 0;
+      background: none; border: none; border-radius: var(--r-sm);
+      color: var(--text-2); cursor: pointer;
       transition: background-color .12s ease-out, color .12s ease-out;
     }
-    .mitem:hover { background: var(--surface-3); color: var(--text); }
-    .menu-wrap { position: relative; }
-    .menu-dd {
-      display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 170px;
-      background: var(--surface); z-index: 900;
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      box-shadow: var(--shadow-lg);
-      padding: 4px;
-    }
-    .menu-wrap.open .menu-dd { display: block; animation: slideDown .14s ease-out; }
-    .menu-dd-item {
-      padding: 5px 12px; font-size: 11px; white-space: nowrap; cursor: pointer;
-      border-radius: var(--r-sm); color: var(--text);
-      transition: background-color .12s ease-out;
-    }
-    .menu-dd-item:hover { background: var(--surface-2); }
-    .menu-dd-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .micon:hover { background: var(--surface-3); color: var(--text); }
+    .micon.active { background: var(--accent-soft); color: var(--accent); }
+    .micon svg { width: 15px; height: 15px; }
     #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 2px; }
     #login-user-label {
       font-size: 11px; color: var(--text-2);
       max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    #night-toggle {
+    #night-toggle,
+    #menubar-right #btn-signout {
       display: inline-flex; align-items: center; justify-content: center;
       width: 24px; height: 22px; padding: 0;
       background: none; border: none; border-radius: var(--r-sm);
@@ -180,7 +169,9 @@
       transition: background-color .12s ease-out, color .12s ease-out;
     }
     #night-toggle:hover { background: var(--surface-3); color: var(--text); }
-    #night-toggle svg { width: 14px; height: 14px; }
+    #menubar-right #btn-signout:hover { background: var(--surface-3); color: var(--danger, #cc0000); }
+    #night-toggle svg,
+    #menubar-right #btn-signout svg { width: 14px; height: 14px; }
     #night-toggle .ico-sun { display: none; }
     body.night-mode #night-toggle .ico-sun { display: block; }
     body.night-mode #night-toggle .ico-moon { display: none; }
@@ -1262,14 +1253,32 @@
 
   <!-- Menu bar -->
   <div id="menubar">
-    <div class="menu-wrap" id="view-menu">
-      <div class="mitem" onclick="toggleViewMenu(event)">Tools</div>
-      <div class="menu-dd">
-        <div class="menu-dd-item active" id="view-menu-balance" onclick="switchModule('balance')">Balance Monitor</div>
-        <div class="menu-dd-item" id="view-menu-stats" onclick="switchModule('stats')">Stats</div>
-        <div class="menu-dd-item" id="view-menu-sms" onclick="switchModule('sms')">SMS</div>
-        <div class="menu-dd-item" id="view-menu-notepad" onclick="switchModule('notepad')">Notepad</div>
-      </div>
+    <div id="module-nav">
+      <button class="micon active" id="view-menu-balance" onclick="switchModule('balance')" title="Balance Monitor">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1.5 9.5, 4.5 9.5, 6.5 4.5, 9.5 12.5, 11.5 8, 12.5 9.5, 14.5 9.5"/>
+        </svg>
+      </button>
+      <button class="micon" id="view-menu-stats" onclick="switchModule('stats')" title="Stats">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="13.5" x2="3" y2="9.5"/>
+          <line x1="8" y1="13.5" x2="8" y2="4"/>
+          <line x1="13" y1="13.5" x2="13" y2="7"/>
+        </svg>
+      </button>
+      <button class="micon" id="view-menu-sms" onclick="switchModule('sms')" title="SMS">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
+        </svg>
+      </button>
+      <button class="micon" id="view-menu-notepad" onclick="switchModule('notepad')" title="Notepad">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="2.5" width="9" height="11" rx="1.2"/>
+          <line x1="5.7" y1="5.5" x2="10.3" y2="5.5"/>
+          <line x1="5.7" y1="8" x2="10.3" y2="8"/>
+          <line x1="5.7" y1="10.5" x2="8.7" y2="10.5"/>
+        </svg>
+      </button>
     </div>
     <div id="menubar-right">
       <span id="login-user-label"></span>
@@ -1283,6 +1292,13 @@
           <line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/>
           <line x1="3.2" y1="3.2" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.8" y2="12.8"/>
           <line x1="3.2" y1="12.8" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.8" y2="3.2"/>
+        </svg>
+      </button>
+      <button id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6.2 14H3.4A1.2 1.2 0 0 1 2.2 12.8V3.2A1.2 1.2 0 0 1 3.4 2H6.2"/>
+          <path d="M10.4 11 13.4 8l-3-3"/>
+          <line x1="13.4" y1="8" x2="6.2" y2="8"/>
         </svg>
       </button>
     </div>
@@ -1310,7 +1326,6 @@
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="notepad-toolbar-label">Notepad</span>
     <span id="stats-toolbar-label">Stats Monitor</span>
-    <button class="tbtn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none;font-size:10px">Sign Out</button>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -1762,6 +1777,7 @@
               <table id="sms-clients-tbl">
                 <thead><tr>
                   <th class="sms-bulk-col"><input type="checkbox" id="sms-bulk-all" onchange="toggleSmsBulkAll(this.checked)" title="Select / deselect all visible"></th>
+                  <th onclick="sortSms('date')" id="sms-th-date" style="cursor:pointer">Date</th>
                   <th onclick="sortSms('client')" id="sms-th-client" style="cursor:pointer">Client</th>
                   <th onclick="sortSms('sender_id')" id="sms-th-sender_id" style="cursor:pointer">Sender ID(s)</th>
                   <th onclick="sortSms('destination')" id="sms-th-destination" style="cursor:pointer">Destination</th>
@@ -6462,8 +6478,9 @@ window.exportCurrentAlertView=()=>{
    HELPERS
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
-const SMS_FIELDS = ['client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_FIELDS = ['date','client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
 const SMS_HEADER_MAP = {
+  date:'date', dateadded:'date', datecreated:'date', createddate:'date', addeddate:'date', dateadd:'date',
   client:'client', clientname:'client', customer:'client', customername:'client',
   senderid:'sender_id', senderids:'sender_id', sender:'sender_id', senderidlist:'sender_id',
   senderidcomment:'sender_id_comment', senderidnote:'sender_id_comment', senderidnotes:'sender_id_comment',
@@ -6572,9 +6589,21 @@ function normalizeSmsStatus(v) {
   return s === 'inactive' || s === 'no' || s === 'false' || s === '0' ? 'Inactive' : 'Active';
 }
 
+// Date the route was added — date only (YYYY-MM-DD), no time. Blank defaults to today.
+function normalizeSmsDate(v) {
+  const s = String(v || '').trim();
+  if (!s) return todayStr();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;      // already date-only
+  const d = new Date(s);
+  if (!isNaN(d.getTime()))
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return s;
+}
+
 function normalizeSmsClient(row) {
   const out = {};
   SMS_FIELDS.forEach(f => out[f] = String(row?.[f] ?? '').trim());
+  out.date = normalizeSmsDate(out.date);
   out.platform = normalizeSmsPlatform(out.platform);
   out.type = normalizeSmsType(out.type);
   out.msg_type = normalizeSmsMsgType(out.msg_type);
@@ -6908,8 +6937,10 @@ function smsSetValue(id, value) {
 }
 
 function smsReadForm() {
+  const existing = smsEditingId ? smsClients.find(r => r.id === smsEditingId) : null;
   return normalizeSmsClient({
     id: smsEditingId || undefined,
+    date: existing?.date,
     client: smsFormValue('sms-client'),
     sender_id: smsFormValue('sms-sender-id'),
     sender_id_comment: smsFormValue('sms-sender-id-comment'),
@@ -7182,6 +7213,7 @@ window.showSmsDetail = id => {
   const title = document.getElementById('sms-detail-title');
   if (title) title.textContent = `${r.client || '(no client)'} — ${r.destination || '(no destination)'}`;
   const fields = [
+    ['Date', r.date],
     ['Client', r.client],
     ['Sender ID(s)', r.sender_id],
     ['Sender ID Comment', r.sender_id_comment, true],
@@ -7328,7 +7360,7 @@ window.applySmsBulkEdit = () => {
 };
 /* ─────────────────────────────────────────────────────────── */
 
-const SMS_SORTABLE_COLS = ['client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_SORTABLE_COLS = ['date','client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
 
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
@@ -7375,6 +7407,7 @@ window.renderSmsClients = () => {
     const selected = smsBulkSelected.has(r.id);
     return `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="onSmsRowClick(event, '${escAttr(r.id)}')" title="${smsBulkMode?'Click to toggle selection':'Click for full details'}">
     <td class="sms-bulk-col" onclick="event.stopPropagation()"><input type="checkbox" class="sms-bulk-chk" data-id="${escAttr(r.id)}" onchange="toggleSmsBulkRow('${escAttr(r.id)}', this.checked)" ${selected?'checked':''}></td>
+    <td style="white-space:nowrap">${esc(r.date)}</td>
     <td><strong>${esc(r.client)}</strong></td>
     <td class="${hasComment?'sms-has-comment':''}" style="white-space:normal;max-width:160px" ${hasComment?`title="${esc(commentTitle)}"`:''}>${esc(r.sender_id)}</td>
     <td>${esc(r.destination)}</td>
@@ -7390,7 +7423,7 @@ window.renderSmsClients = () => {
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
-  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?14:13}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?15:14}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
   const allCb = document.getElementById('sms-bulk-all');
   if (allCb) {
@@ -7401,11 +7434,11 @@ window.renderSmsClients = () => {
 
 window.downloadSmsClientTemplate = () => {
   const rows = [
-    ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    ['Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
-    ['Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','','Single sender ID / vendor'],
-    ['Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
-    ['Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+    ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
+    [todayStr(),'Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
+    [todayStr(),'Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','','Single sender ID / vendor'],
+    [todayStr(),'Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
+    [todayStr(),'Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
@@ -7419,11 +7452,11 @@ window.downloadSmsClientTemplate = () => {
 
 window.exportSmsClientsCsv = () => {
   if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
-  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
   const rows = smsClients
     .slice()
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
-    .map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+    .map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
@@ -7444,8 +7477,8 @@ window.exportSmsClientByRow = id => {
     .slice()
     .sort((a,b) => String(a.destination).localeCompare(String(b.destination)));
   if (!rows.length) { toast(`No routes found for "${clientName}"`, 'err'); return; }
-  const headers = ['Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
-  const data = rows.map(r => [r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const data = rows.map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
   const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
