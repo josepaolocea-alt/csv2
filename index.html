@@ -1749,8 +1749,8 @@
                 <th onclick="sortCritHist('count')" style="text-align:right" title="Number of snapshots where this client was at Critical Balance">Times Hit</th>
                 <th onclick="sortCritHist('lastBal')" style="text-align:right">Balance at Last Hit</th>
                 <th onclick="sortCritHist('crit')" style="text-align:right">Critical Balance</th>
-                <th onclick="sortCritHist('first')">First Hit</th>
-                <th onclick="sortCritHist('last')">Last Hit ▼</th>
+                <th onclick="sortCritHist('first')" title="When this client was first added to the history — newest on top by default">First Hit ▼</th>
+                <th onclick="sortCritHist('last')">Last Hit</th>
               </tr></thead>
               <tbody id="crithist-tbody"></tbody>
             </table>
@@ -3819,8 +3819,9 @@ function realCritical(r) {
 // on a hit, else null. (realCritical above is the older, stricter predicate.)
 function alertsCriticalHit(r) {
   const name = r?.carrier_name; if (!name) return null;
-  if (alertLevel(r) !== 'high') return null;
   const meta = clientsMeta[name] || {};
+  if (isClientInactive(meta)) return null;       // Critical tab hides inactive clients by default — match it
+  if (alertLevel(r) !== 'high') return null;
   const bal  = amountNumber(r?.amnt_receivable);
   let crit = getThreshold(meta, r, 'critical_balance', S.mediumMax); // explicit or -1 fallback
   if (crit === null || bal < crit) crit = S.bandHigh;                // else it was a usage-band critical
@@ -3830,7 +3831,7 @@ let _critHits = null;                  // Map<name, { events: Array<{d,s,bal,cri
 let _critHistLoaded = false;
 let _critHistLoading = null;
 let _critKicked = false;
-let critHistSortCol = 'last', critHistSortDir = -1, critHistSearch = '';
+let critHistSortCol = 'first', critHistSortDir = -1, critHistSearch = ''; // default: newest client added on top
 
 function critHistDocId(name){ return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
 function critKey(d, s){ return `${d} ${s}`; }
