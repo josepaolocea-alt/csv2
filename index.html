@@ -2725,7 +2725,7 @@ let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
 let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
-let smsSortCol = 'client', smsSortDir = 1;
+let smsSortCol = 'date', smsSortDir = -1;
 let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'client';
 const SMS_TAB_CONFIG = {
   client:  { label:'Client',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
@@ -3461,12 +3461,6 @@ function currentReadingGapMinutes() {
   if (Number.isFinite(cur.gap_minutes)) return cur.gap_minutes;
   const prev = getPrevSnapshot();
   return prev ? snapGapMinutes(cur, prev) : 0;
-}
-// Slot-gap (minutes) a new snapshot for `slot` today would have vs the snapshot
-// it will be diffed against (latestSnap). 0 when there is no previous reference.
-function pendingSnapGapMinutes(slot) {
-  if (!latestSnap) return 0;
-  return snapGapMinutes({ session_date: todayStr(), time_slot: slot }, latestSnap);
 }
 
 /* ── Manual spam-profiling exclusions ──────────────────────────────────────
@@ -4363,7 +4357,7 @@ window.processSnapshot = async() => {
     if(mm){ openSourceMismatch(mm); return; }
   }
   bypassSourceGuard=false;
-  if(snapSource==='tritel'){ await processTritelSnapshot(rows); return; }
+  if(snapSource==='tritel'){ await maybeConfirmGapThenProcess(rows, document.getElementById('slot-sel').value, 'tritel'); return; }
   const timeSlot=document.getElementById('slot-sel').value;
   let existing=todaySnaps.find(s=>s.time_slot===timeSlot);
   if(!existing && fbOk){
@@ -4407,11 +4401,11 @@ window.closeOverwriteConfirm = () => {
 /* ── Non-consecutive (wide-gap) post guard ──────────────────────────────────
    Snapshots are meant to be 30 min apart. If the slot being posted doesn't
    immediately follow the last snapshot (gap > maxGapMinutes — e.g. last was
-   7pm yesterday, this is 11am today), warn first: its usage accumulated over
-   the whole gap, so it won't feed the spam baseline. The operator can still
-   post it (balance/critical data is unaffected). A normal consecutive slot
-   (e.g. 10:00 → 10:30) never triggers this. */
-let pendingGapRows = null, pendingGapSlot = null;
+   7pm yesterday, this is 11am today, or a slot was skipped), warn first: its
+   usage accumulated over the whole gap. The operator can still post it. A
+   normal consecutive slot (e.g. 10:00 → 10:30) never triggers this. Applies to
+   both the All-Clients feed (kind 'all') and the Tritel feed (kind 'tritel'). */
+let pendingGapRows = null, pendingGapSlot = null, pendingGapKind = 'all';
 function fmtGap(mins) {
   if (!Number.isFinite(mins) || mins <= 0) return '0m';
   const h = Math.floor(mins / 60), m = mins % 60;
@@ -4424,33 +4418,42 @@ function fmtSnapWhen(s) {
   if (s.session_date === dateStrDaysAgo(1)) return `Yesterday ${t}`;
   return `${s.session_date} ${t}`;
 }
-async function maybeConfirmGapThenProcess(rows, timeSlot) {
-  const gap = pendingSnapGapMinutes(timeSlot);
+// The snapshot a new post for the given feed will be diffed against.
+function gapPrevSnap(kind) { return kind === 'tritel' ? latestTritel() : latestSnap; }
+function runGapProcess(kind, rows, timeSlot) {
+  return kind === 'tritel' ? processTritelSnapshot(rows, timeSlot) : doProcessSnapshot(rows, timeSlot);
+}
+async function maybeConfirmGapThenProcess(rows, timeSlot, kind = 'all') {
+  const prev = gapPrevSnap(kind);
+  const gap  = prev ? snapGapMinutes({ session_date: todayStr(), time_slot: timeSlot }, prev) : 0;
   if (isWideGap(gap)) {
-    pendingGapRows = rows; pendingGapSlot = timeSlot;
+    pendingGapRows = rows; pendingGapSlot = timeSlot; pendingGapKind = kind;
+    const isT = kind === 'tritel';
+    const feedLine = isT
+      ? `Because the gap exceeds 30 min, this Tritel reading's 30-min usage accumulated over the whole span, so the usage shown for it covers more than one interval. The Tritel row still posts and displays normally.`
+      : `Because the gap exceeds 30 min, this reading's usage accumulated over the whole span, so it will <strong>not</strong> count toward spam detection (usage profile) and won't be flagged as spam. Your balance and Critical-Balance data still post normally.`;
     const txt = document.getElementById('gap-confirm-text');
     if (txt) txt.innerHTML =
-      `<strong>This snapshot doesn't follow the last one.</strong><br><br>` +
-      `Last snapshot: <strong>${fmtSnapWhen(latestSnap)}</strong><br>` +
+      `<strong>This ${isT ? 'Tritel ' : ''}snapshot doesn't follow the last one.</strong><br><br>` +
+      `Last ${isT ? 'Tritel ' : ''}snapshot: <strong>${fmtSnapWhen(prev)}</strong><br>` +
       `Posting now: <strong>${fmtSnapWhen({ session_date: todayStr(), time_slot: timeSlot })}</strong><br>` +
       `Gap: <strong>${fmtGap(gap)}</strong> — normal is 30 min.<br><br>` +
-      `Because the gap exceeds 30 min, this reading's usage accumulated over the whole span, so it will <strong>not</strong> count toward spam detection (usage profile) and won't be flagged as spam. Your balance and Critical-Balance data still post normally.<br><br>` +
-      `Post this snapshot anyway?`;
+      feedLine + `<br><br>Post this snapshot anyway?`;
     document.getElementById('gap-confirm-overlay')?.classList.add('open');
     return;
   }
-  await doProcessSnapshot(rows, timeSlot);
+  await runGapProcess(kind, rows, timeSlot);
 }
 window.confirmGapPost = async () => {
   document.getElementById('gap-confirm-overlay')?.classList.remove('open');
   if (pendingGapRows === null) return;
-  const rows = pendingGapRows, slot = pendingGapSlot;
-  pendingGapRows = null; pendingGapSlot = null;
-  await doProcessSnapshot(rows, slot);
+  const rows = pendingGapRows, slot = pendingGapSlot, kind = pendingGapKind;
+  pendingGapRows = null; pendingGapSlot = null; pendingGapKind = 'all';
+  await runGapProcess(kind, rows, slot);
 };
 window.closeGapConfirm = () => {
   document.getElementById('gap-confirm-overlay')?.classList.remove('open');
-  pendingGapRows = null; pendingGapSlot = null;
+  pendingGapRows = null; pendingGapSlot = null; pendingGapKind = 'all';
 };
 
 async function doProcessSnapshot(rows, timeSlot){
@@ -4567,8 +4570,8 @@ function loadTritelSnap() {
   updateTritelStatus();
 }
 
-async function processTritelSnapshot(rows) {
-  const timeSlot = document.getElementById('slot-sel').value;
+async function processTritelSnapshot(rows, timeSlot) {
+  if (timeSlot == null) timeSlot = document.getElementById('slot-sel').value;
   // Compute 30-min usage against the most recent existing Tritel entry (same-carrier match).
   const prev = latestTritel();
   const prevMap = {};
