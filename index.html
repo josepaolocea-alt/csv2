@@ -3670,10 +3670,10 @@ function scanSpamSuspects() {
    deliberately NOT counted here, so clients without a real Critical Balance are
    never logged). Lives in its OWN Firestore collection (`critical_history`), so
    it survives deleting/wiping the snapshots collection — the whole point is to
-   still know who hit critical after today's snapshots are gone. Fed on every
-   processed snapshot (see recordCriticalHits in doProcessSnapshot) and one-time
-   seeded from whatever snapshots exist the first time it loads. Cleared only via
-   the Danger Zone button, which also sets the "seeded" flag so it never auto-reseeds.
+   still know who hit critical after today's snapshots are gone. Forward-only:
+   fed ONLY on newly processed snapshots (see recordCriticalHits in
+   doProcessSnapshot). It does NOT backfill from existing snapshots — it starts
+   blank and grows as new clients hit critical. Cleared via the Danger Zone button.
    One doc per client: { carrier_name, count, first_*, last_*, events:[{d,s,bal,crit,ts}] }.
 ════════════════════════════════════════════════ */
 const CRIT_HIST_CAP = 500;             // max hit events kept per client (rolling)
@@ -3728,9 +3728,11 @@ async function loadCritHistory() {
         _critHits = _critHits || new Map();
       }
       _critHistLoaded = true;
-      // First run only: seed from existing snapshots so pre-existing hits show up.
-      // Never reseed after a wipe (the flag is set on seed and on wipe).
-      if (_critHits.size === 0 && !critHistWasSeeded()) await backfillCritHistoryFromSnapshots();
+      // Forward-only log: do NOT seed from existing snapshots. The tab starts
+      // blank and records only clients that hit Critical Balance on snapshots
+      // processed from now on (see recordCriticalHits). Backfill is intentionally
+      // disabled so historical hits don't flood the tab.
+      markCritHistSeeded();
     } finally { _critHistLoading = null; }
   })();
   return _critHistLoading;
