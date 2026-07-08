@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -931,9 +932,8 @@
     }
     #sms-bulk-panel .bulk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
     #sms-bulk-panel .bulk-hint { font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
-    .sms-bulk-col { width: 24px; text-align: center; padding: 0 !important; }
-    body:not(.sms-bulk-mode) .sms-bulk-col { display: none; }
-    .sms-bulk-col input { margin: 0; cursor: pointer; accent-color: var(--accent); }
+    .sms-bulk-col { width: 30px; text-align: center; padding: 0 !important; }
+    .sms-bulk-col input { margin: 0; cursor: pointer; accent-color: var(--accent); vertical-align: middle; }
     body.sms-bulk-mode #sms-clients-tbody tr:hover td { background: var(--row-hover); }
     #sms-clients-tbody tr { cursor: pointer; }
     /* ── Inactive SMS client rows ── */
@@ -1450,7 +1450,7 @@
           <button class="tbtn" onclick="openResetConfirm()" title="Clear local view/search only. Stored snapshots are preserved for New Critical comparison.">Reset View</button>
         </div>
         <div class="snap-action-row" id="snap-tritel-actions" style="margin-top:4px;display:none;align-items:center">
-          <button class="tbtn" onclick="removeTritelSnapshot()" title="Remove the Tritel entry for the time slot selected above">Remove Tritel</button>
+          <button class="tbtn" onclick="removeTritelSnapshot()" title="Undo the Tritel entry for the time slot selected above">Undo Tritel</button>
           <span id="tritel-status" style="font-size:10px;color:var(--text-2);margin-left:6px">No Tritel data</span>
         </div>
       </div>
@@ -1811,6 +1811,13 @@
               <button class="tbtn" onclick="clearSmsFilters()">Clear</button>
               <button class="tbtn" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
+              <span id="sms-selection-actions" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
+                <span class="sms-muted" id="sms-selection-count">0 selected</span>
+                <span class="sms-muted">Download:</span>
+                <button class="tbtn" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">CSV</button>
+                <button class="tbtn" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">Excel</button>
+                <button class="tbtn" onclick="clearSmsSelection()" title="Clear the current selection">Clear selection</button>
+              </span>
             </div>
             <div id="sms-bulk-panel">
               <div class="bulk-hint">Tick the rows you want to change, then fill any fields below. <strong>Blank fields are skipped.</strong></div>
@@ -2309,7 +2316,7 @@
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
           </div>
-          <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected.</div>
+          <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected. You can optionally keep a date/time range so its samples are preserved as-is.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openSpamResetConfirm()">Reset Spam Baseline</button>
           </div>
@@ -2451,6 +2458,22 @@
         <strong>Reset the spam-detection baseline?</strong><br><br>
         This wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from your existing snapshots, <strong>skipping wide-gap readings</strong> (e.g. an overnight resume) so accumulated usage no longer pollutes it. Your stored snapshots and manual recurring-charge exclusions are <strong>not</strong> affected.<br><br>
         <span style="color:#880000">The old profiles cannot be recovered, but detection stays working using the rebuilt baseline.</span>
+      </div>
+    </div>
+    <div id="spamreset-keep-block" style="margin:0 12px 4px;padding:8px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);text-align:left">
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer">
+        <input type="checkbox" id="spamreset-keep-enable" onclick="toggleSpamResetKeep(this)"> Keep a range (don't delete these)
+      </label>
+      <div id="spamreset-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="width:34px">From</span>
+          <input type="datetime-local" id="spamreset-keep-from" step="1800" style="flex:1">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="width:34px">To</span>
+          <input type="datetime-local" id="spamreset-keep-to" step="1800" style="flex:1">
+        </div>
+        <div style="color:var(--text-2);margin-top:5px;font-size:10px">Baseline samples inside this window (inclusive) are preserved as-is; everything else is rebuilt from snapshots.</div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -4045,19 +4068,52 @@ window.confirmWipeCritHistory = async () => {
 };
 
 window.openSpamResetConfirm = () => {
+  // Reset the "keep a range" controls each time the dialog opens.
+  const en = document.getElementById('spamreset-keep-enable'); if (en) en.checked = false;
+  const ins = document.getElementById('spamreset-keep-inputs'); if (ins) ins.style.display = 'none';
+  const kf = document.getElementById('spamreset-keep-from'); if (kf) kf.value = '';
+  const kt = document.getElementById('spamreset-keep-to');   if (kt) kt.value = '';
   toggleSettings();
   document.getElementById('spamreset-overlay')?.classList.add('open');
 };
 window.closeSpamResetConfirm = () => document.getElementById('spamreset-overlay')?.classList.remove('open');
+window.toggleSpamResetKeep = (cb) => {
+  const ins = document.getElementById('spamreset-keep-inputs');
+  if (ins) ins.style.display = cb.checked ? '' : 'none';
+};
 window.confirmResetSpamBaseline = async () => {
+  // Optional "keep this range" — baseline samples whose date+slot fall inside the
+  // window survive the reset untouched; everything else is rebuilt from snapshots.
+  const keepOn = !!document.getElementById('spamreset-keep-enable')?.checked;
+  let keepFrom = '', keepTo = '';
+  if (keepOn) {
+    keepFrom = document.getElementById('spamreset-keep-from')?.value || '';
+    keepTo   = document.getElementById('spamreset-keep-to')?.value || '';
+    if (!keepFrom || !keepTo) { toast('Enter both From and To for the keep range, or uncheck it.', 'err'); return; }
+    if (keepFrom > keepTo) { const t = keepFrom; keepFrom = keepTo; keepTo = t; }  // swap if reversed
+  }
   window.closeSpamResetConfirm();
   setLoading(true, 'Resetting spam baseline…');
   try {
-    let deleted = 0;
+    let deleted = 0, kept = 0;
+    const keptSamples = new Map();          // Map<name, Array<{d,s,u}>> preserved from the deleted profiles
     if (fbOk) {
       const s = await getDocs(collection(db, 'usage_profiles'));
       let batch = writeBatch(db), count = 0;
       for (const d of s.docs) {
+        if (keepOn) {
+          // Preserve this profile's samples that land inside the keep window. session_date
+          // ("YYYY-MM-DD") + time_slot ("HH:MM") join to a string that compares directly to
+          // the datetime-local inputs.
+          const dd = d.data();
+          const name = dd.carrier_name;
+          if (name && Array.isArray(dd.samples)) {
+            const inRange = dd.samples
+              .map(o => (typeof o === 'number' ? { d: '', s: '', u: amountNumber(o) } : { d: o.d || '', s: o.s || '', u: amountNumber(o.u) }))
+              .filter(o => Number.isFinite(o.u) && o.d && o.s && `${o.d}T${o.s}` >= keepFrom && `${o.d}T${o.s}` <= keepTo);
+            if (inRange.length) { keptSamples.set(name, inRange); kept += inRange.length; }
+          }
+        }
         batch.delete(doc(db, 'usage_profiles', d.id));
         deleted++;
         if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
@@ -4072,12 +4128,35 @@ window.confirmResetSpamBaseline = async () => {
     _profilesLoaded = true;                 // don't let loadUsageProfiles re-read the now-empty collection
     await loadUsageExclusions();            // so the rebuild honors recurring-charge marks
     await backfillUsageProfilesFromSnapshots();
+    // Merge the preserved in-range samples back over the rebuild (deduped by date+slot)
+    // so the "kept" window is retained exactly, even for readings the rebuild would skip.
+    if (keepOn && keptSamples.size) {
+      if (!_profileSamples) _profileSamples = new Map();
+      const changed = [];
+      keptSamples.forEach((arr, name) => {
+        let cur = _profileSamples.get(name);
+        if (!cur) { cur = []; _profileSamples.set(name, cur); }
+        let added = false;
+        arr.forEach(o => {
+          const k = sampleKey(o.d, o.s);
+          if (!cur.some(x => sampleKey(x.d, x.s) === k)) { cur.push(o); added = true; }
+        });
+        if (added) {
+          cur.sort((a, b) => (`${a.d}T${a.s}` < `${b.d}T${b.s}` ? -1 : 1)); // keep chronological for capSamples
+          capSamples(cur);
+          changed.push(name);
+        }
+      });
+      if (changed.length) await persistProfileDocs(changed);
+    }
     invalidateUsageProfiles();
     _spamAlertSeeded = false;               // re-seed silently so the rebuild doesn't blast notifications
     scanSpamSuspects();
     safeRender('Alerts', renderAlerts);
     const rebuilt = _profileSamples ? _profileSamples.size : 0;
-    toast(`✓ Spam baseline reset — cleared ${deleted} profile(s), rebuilt ${rebuilt} client(s) from clean snapshots`, 'ok', 6000);
+    let doneMsg = `✓ Spam baseline reset — cleared ${deleted} profile(s), rebuilt ${rebuilt} client(s) from clean snapshots`;
+    if (keepOn) doneMsg += ` · kept ${kept} sample(s) in range`;
+    toast(doneMsg, 'ok', 6000);
   } catch (e) { toast('Reset failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
@@ -4611,7 +4690,7 @@ window.removeTritelSnapshot = async () => {
   if (fbOk) {
     try { await deleteDoc(doc(db, 'tritel_snapshots', tritelDocId(todayStr(), timeSlot))); } catch(e) {}
   }
-  toast(`✓ Tritel removed @ ${fmt12(timeSlot)}`, 'ok');
+  toast(`✓ Tritel undone @ ${fmt12(timeSlot)}`, 'ok');
 };
 
 /* Latest Tritel entry decorated the same way as the All Clients table rows. */
@@ -7834,8 +7913,14 @@ function resetSmsBulkInputs() {
 }
 
 function refreshSmsBulkCount() {
+  const n = smsBulkSelected.size;
   const el = document.getElementById('sms-bulk-count');
-  if (el) el.textContent = `${smsBulkSelected.size} selected`;
+  if (el) el.textContent = `${n} selected`;
+  // Show/hide the "Download selected" controls in the filter bar
+  const bar = document.getElementById('sms-selection-actions');
+  if (bar) bar.style.display = n > 0 ? 'inline-flex' : 'none';
+  const cnt = document.getElementById('sms-selection-count');
+  if (cnt) cnt.textContent = n === 1 ? '1 route selected' : `${n} routes selected`;
 }
 
 window.toggleSmsBulkEdit = () => {
@@ -7995,6 +8080,7 @@ window.renderSmsClients = () => {
     const visibleIds = rows.map(r => r.id);
     allCb.checked = visibleIds.length > 0 && visibleIds.every(id => smsBulkSelected.has(id));
   }
+  refreshSmsBulkCount();
 };
 
 window.downloadSmsClientTemplate = () => {
@@ -8053,6 +8139,46 @@ window.exportSmsClientByRow = id => {
   a.click();
   URL.revokeObjectURL(url);
   toast(`Exported ${rows.length} route(s) for "${clientName}"`, 'ok');
+};
+
+// Download only the ticked rows, as CSV or Excel (.xlsx)
+window.exportSmsSelected = format => {
+  if (!smsBulkSelected.size) { toast('Tick at least one route to download', 'err'); return; }
+  const rows = smsClients
+    .filter(r => smsBulkSelected.has(r.id))
+    .slice()
+    .sort((a,b) => String(b.date).localeCompare(String(a.date))          // newest first
+      || String(a.client).localeCompare(String(b.client))
+      || String(a.destination).localeCompare(String(b.destination)));
+  if (!rows.length) { toast('No selected routes found', 'err'); return; }
+  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const data = rows.map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const base = `${smsTabCfg().filePrefix}_selected_${todayStr()}`;
+  if (format === 'xlsx') {
+    if (!window.XLSX) { toast('Excel export is still loading — try again in a moment', 'err'); return; }
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!cols'] = headers.map(() => ({ wch: 16 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SMS Routes');
+    XLSX.writeFile(wb, `${base}.xlsx`);
+  } else {
+    const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${base}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  toast(`Downloaded ${rows.length} selected route(s) as ${format === 'xlsx' ? 'Excel' : 'CSV'}`, 'ok');
+};
+
+window.clearSmsSelection = () => {
+  smsBulkSelected.clear();
+  document.querySelectorAll('#sms-clients-tbody .sms-bulk-chk').forEach(cb => cb.checked = false);
+  const allCb = document.getElementById('sms-bulk-all');
+  if (allCb) allCb.checked = false;
+  refreshSmsBulkCount();
 };
 
 function smsRowFromCsv(raw) {
