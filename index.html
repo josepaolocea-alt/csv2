@@ -3780,15 +3780,19 @@ function scanSpamSuspects() {
 
 /* ════════════════════════════════════════════════
    CRITICAL HISTORY
-   Persistent log of every client that reached the Critical Balance EXPLICITLY
-   SET on them (via realCritical below — the Settings −1 "fallback critical" is
-   deliberately NOT counted here, so clients without a real Critical Balance are
-   never logged). Lives in its OWN Firestore collection (`critical_history`), so
+   Persistent log of every client that hit Critical — using the SAME definition
+   as the Alerts → Critical tab (alertLevel 'high', via alertsCriticalHit below),
+   so right after a wipe the very first processed snapshot records exactly the
+   clients shown as Critical in Alerts, then accumulates the union across later
+   snapshots (a client that was critical earlier but has since posted payment
+   stays logged). Lives in its OWN Firestore collection (`critical_history`), so
    it survives deleting/wiping the snapshots collection — the whole point is to
    still know who hit critical after today's snapshots are gone. Forward-only:
    fed ONLY on newly processed snapshots (see recordCriticalHits in
    doProcessSnapshot). It does NOT backfill from existing snapshots — it starts
    blank and grows as new clients hit critical. Cleared via the Danger Zone button.
+   (realCritical, the older explicit-Critical-Balance-only predicate, is kept but
+   no longer feeds the history.)
    One doc per client: { carrier_name, count, first_*, last_*, events:[{d,s,bal,crit,ts}] }.
 ════════════════════════════════════════════════ */
 const CRIT_HIST_CAP = 500;             // max hit events kept per client (rolling)
@@ -3804,6 +3808,23 @@ function realCritical(r) {
   if (critBal === null) return null;
   const bal = amountNumber(r?.amnt_receivable);
   return bal >= critBal ? { crit: critBal, bal } : null;
+}
+
+// A "critical hit" for the history — mirrors the Alerts → Critical tab EXACTLY:
+// any client the alert engine flags as 'high' (alertLevel), which includes the
+// Settings "Fallback critical" (S.mediumMax) and usage-band criticals, not only
+// clients with an explicitly-set Critical Balance. This is what makes Critical
+// History, right after a wipe + one snapshot, match the Critical count shown in
+// Alerts, then accumulate the union across later snapshots. Returns { crit, bal }
+// on a hit, else null. (realCritical above is the older, stricter predicate.)
+function alertsCriticalHit(r) {
+  const name = r?.carrier_name; if (!name) return null;
+  if (alertLevel(r) !== 'high') return null;
+  const meta = clientsMeta[name] || {};
+  const bal  = amountNumber(r?.amnt_receivable);
+  let crit = getThreshold(meta, r, 'critical_balance', S.mediumMax); // explicit or -1 fallback
+  if (crit === null || bal < crit) crit = S.bandHigh;                // else it was a usage-band critical
+  return { crit, bal };
 }
 let _critHits = null;                  // Map<name, { events: Array<{d,s,bal,crit,ts}> }>
 let _critHistLoaded = false;
@@ -3890,7 +3911,7 @@ async function recordCriticalHits(date, slot, ts, rows) {
   const changed = new Set();
   (rows || []).forEach(r => {
     const name = r?.carrier_name; if (!name) return;
-    const hit = realCritical(r); // null unless balance reached an explicitly-set Critical Balance
+    const hit = alertsCriticalHit(r); // matches the Alerts → Critical tab (alertLevel 'high')
     let rec = _critHits.get(name);
     if (rec) { // drop any prior hit for this exact date+slot (overwrite case)
       const i = rec.events.findIndex(e => critKey(e.d, e.s) === key);
