@@ -1098,10 +1098,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -1225,6 +1225,8 @@
     #delete-today-overlay.open #delete-today-box,
     #wipe-all-overlay.open #wipe-all-box,
     #crithist-wipe-overlay.open #crithist-wipe-box,
+    #spamreset-overlay.open #spamreset-box,
+    #gap-confirm-overlay.open #gap-confirm-box,
     #source-mismatch-overlay.open #source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-detail-overlay.open #sms-detail-box {
@@ -2279,6 +2281,11 @@
           <input class="win-inp" id="set-spam-high" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="A flagged reading at or above this multiple of the client's normal usage is ranked High; below it is Watch.">
           <span style="font-size:10px;color:#666;margin-left:4px">× normal</span>
         </div>
+        <div class="settings-row">
+          <label style="min-width:150px">Max gap:</label>
+          <input class="win-inp" id="set-spam-gap" type="number" step="5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Snapshots are meant to be 30 min apart. If the scheduled-slot gap to the previous snapshot exceeds this many minutes (i.e. a slot was skipped or it's the first post after a long break), that reading accumulated more than one interval: it is neither flagged as spam nor added to the baseline, and posting it prompts a confirmation. A normal consecutive 30-min reading still counts. 0 disables the guard.">
+          <span style="font-size:10px;color:#666;margin-left:4px">min (0 = off)</span>
+        </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Access</div>
         <div class="settings-note">
@@ -2301,6 +2308,10 @@
           <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
+          </div>
+          <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected.</div>
+          <div class="danger-btns">
+            <button class="tbtn" style="color:#880000" onclick="openSpamResetConfirm()">Reset Spam Baseline</button>
           </div>
         </div>
       </div>
@@ -2426,6 +2437,40 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeCritHistory()">Delete All</button>
       <button class="tbtn" style="min-width:72px" onclick="closeCritHistWipeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Spam Baseline Dialog -->
+<div id="spamreset-overlay">
+  <div id="spamreset-box" style="width:400px">
+    <div class="dlg-tb"><span>Reset Spam Baseline</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text">
+        <strong>Reset the spam-detection baseline?</strong><br><br>
+        This wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from your existing snapshots, <strong>skipping wide-gap readings</strong> (e.g. an overnight resume) so accumulated usage no longer pollutes it. Your stored snapshots and manual recurring-charge exclusions are <strong>not</strong> affected.<br><br>
+        <span style="color:#880000">The old profiles cannot be recovered, but detection stays working using the rebuilt baseline.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmResetSpamBaseline()">Reset Baseline</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeSpamResetConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Non-consecutive Snapshot (wide gap) Dialog -->
+<div id="gap-confirm-overlay">
+  <div id="gap-confirm-box" style="width:400px">
+    <div class="dlg-tb"><span>Snapshot Doesn't Follow the Last</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="gap-confirm-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmGapPost()">Post anyway</button>
+      <button class="tbtn primary" style="min-width:72px" onclick="closeGapConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -3307,7 +3352,12 @@ const SPAM_CFG_DEFAULTS = {
   madFallbackMult: 2,       // if MAD == 0 (all baseline points identical), use median × this
   sampleCap: 300,           // max recent usage samples kept per client (rolling window)
   maxAgeDays: 30,           // ignore baseline samples older than this many days (0 = no age limit)
-  highRatio: 8              // a flagged reading ≥ this × its median is "High", otherwise "Watch"
+  highRatio: 8,             // a flagged reading ≥ this × its median is "High", otherwise "Watch"
+  maxGapMinutes: 30         // snapshots are meant to be 30 min apart; if the gap to the previous
+                            // snapshot EXCEEDS this (a skipped slot / overnight resume) the reading
+                            // accumulated more than one interval: don't flag it as spam and don't
+                            // feed it to the baseline. A normal consecutive 30-min reading (gap == 30)
+                            // still counts. 0 = disable the gap guard.
 };
 // Live config — operator-tunable via Settings; persisted in localStorage `bm_spamcfg`.
 const SPAM_CFG = { ...SPAM_CFG_DEFAULTS };
@@ -3325,6 +3375,7 @@ function syncSpamSettingsUI() {
   set('set-spam-floor', SPAM_CFG.hardFloor);
   set('set-spam-age',   SPAM_CFG.maxAgeDays);
   set('set-spam-high',  SPAM_CFG.highRatio);
+  set('set-spam-gap',   SPAM_CFG.maxGapMinutes);
 }
 window.saveSpamSettings = () => {
   const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
@@ -3333,6 +3384,7 @@ window.saveSpamSettings = () => {
   SPAM_CFG.hardFloor  = Math.max(0, num('set-spam-floor', SPAM_CFG_DEFAULTS.hardFloor));
   SPAM_CFG.maxAgeDays = Math.max(0, Math.round(num('set-spam-age',   SPAM_CFG_DEFAULTS.maxAgeDays)));
   SPAM_CFG.highRatio  = Math.max(1, num('set-spam-high',  SPAM_CFG_DEFAULTS.highRatio));
+  SPAM_CFG.maxGapMinutes = Math.max(0, Math.round(num('set-spam-gap', SPAM_CFG_DEFAULTS.maxGapMinutes)));
   persistSpamCfg();
   invalidateUsageProfiles();          // recompute baseline with the new params
   _spamAlertSeeded = false;           // re-seed silently so a config tweak doesn't blast notifications
@@ -3374,6 +3426,47 @@ function sampleKey(d, s) { return `${d} ${s}`; }
 function capSamples(arr) {
   if (arr.length > SPAM_CFG.sampleCap) arr.splice(0, arr.length - SPAM_CFG.sampleCap);
   return arr;
+}
+
+/* ── Wide-gap guard ─────────────────────────────────────────────────────────
+   usage_30min is just (current balance − previous snapshot's balance), so when
+   the previous snapshot didn't immediately precede this one (e.g. last post 7pm,
+   next post 11am the following day) the "30-min" delta actually accumulates that
+   whole span and masquerades as a spike. Such a reading is neither a fair spam
+   signal nor a clean baseline sample, so we detect the gap and skip it on both
+   counts. The gap is measured from the SCHEDULED slot times (session_date +
+   time_slot), not wall-clock posting time, so posting a slot a few minutes late
+   never counts as a gap — only actually skipping a slot does. */
+function snapSlotMs(s) {   // scheduled datetime implied by session_date ("YYYY-MM-DD") + time_slot ("HH:MM")
+  if (!s || !s.session_date || !s.time_slot) return 0;
+  const dp = String(s.session_date).split('-'), tp = String(s.time_slot).split(':');
+  if (dp.length !== 3 || tp.length < 2) return 0;
+  const ms = new Date(+dp[0], +dp[1] - 1, +dp[2], +tp[0], +tp[1], 0, 0).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+function snapGapMinutes(cur, prev) {
+  const a = snapSlotMs(cur), b = snapSlotMs(prev);
+  if (!a || !b) return 0;                       // unknown slots → treat as normal (don't suppress)
+  return Math.max(0, Math.round((a - b) / 60000));
+}
+function isWideGap(gapMinutes) {
+  return SPAM_CFG.maxGapMinutes > 0 && Number.isFinite(gapMinutes) && gapMinutes > SPAM_CFG.maxGapMinutes;
+}
+// Gap (minutes) of the reading the live table currently reflects — the snapshot
+// a spam flag would refer to. Uses the value stamped at process time when present,
+// else derives it from the preceding snapshot (covers historical/loaded snaps).
+function currentReadingGapMinutes() {
+  const cur = (viewingIdx !== null && todaySnaps[viewingIdx]) ? todaySnaps[viewingIdx] : (latestSnap || lastProcessedSnap);
+  if (!cur) return 0;
+  if (Number.isFinite(cur.gap_minutes)) return cur.gap_minutes;
+  const prev = getPrevSnapshot();
+  return prev ? snapGapMinutes(cur, prev) : 0;
+}
+// Slot-gap (minutes) a new snapshot for `slot` today would have vs the snapshot
+// it will be diffed against (latestSnap). 0 when there is no previous reference.
+function pendingSnapGapMinutes(slot) {
+  if (!latestSnap) return 0;
+  return snapGapMinutes({ session_date: todayStr(), time_slot: slot }, latestSnap);
 }
 
 /* ── Manual spam-profiling exclusions ──────────────────────────────────────
@@ -3484,8 +3577,11 @@ async function loadUsageProfiles() {
 async function backfillUsageProfilesFromSnapshots() {
   await loadAllSnapshotHistory();
   const map = new Map();
+  let prevSnap = null;                          // chronologically preceding snapshot (sorted order)
   snapsAllSorted().forEach(snap => {
-    if (!snap || !snap.session_date || isMonthStart(snap.session_date)) return;
+    const wide = prevSnap ? isWideGap(snapGapMinutes(snap, prevSnap)) : false;
+    prevSnap = snap;                            // advance even when this snap is skipped below
+    if (!snap || !snap.session_date || isMonthStart(snap.session_date) || wide) return;
     (snap.data || []).forEach(r => {
       const name = r?.carrier_name; if (!name) return;
       const u = amountNumber(r.usage_30min);
@@ -3504,8 +3600,9 @@ async function backfillUsageProfilesFromSnapshots() {
 
 // Fold a processed snapshot into each client's rolling buffer. Deduped by
 // date+slot so re-processing/overwriting a slot replaces rather than duplicates.
-function recordUsageSamples(date, slot, rows) {
+function recordUsageSamples(date, slot, rows, gapMinutes = 0) {
   if (isMonthStart(date)) return;             // recurring-charge days never feed the baseline
+  if (isWideGap(gapMinutes)) return;          // gap too wide: every reading spans far more than 30 min
   if (!_profileSamples) _profileSamples = new Map();
   const changed = new Set();
   const key = sampleKey(date, slot);
@@ -3582,6 +3679,7 @@ function spamCheck(row) {
   if (isMonthStart(todayStr())) return null;   // suppressed on monthly-charge days
   const u = amountNumber(row?.usage_30min);
   if (!(u > 0) || u < SPAM_CFG.hardFloor) return null;
+  if (isWideGap(currentReadingGapMinutes())) return null;  // reading spans far more than 30 min → not a fair spike
   const { date, slot } = currentReadingMeta();
   if (isExcludedReading(row?.carrier_name, date, slot)) return null;  // marked as a recurring charge
   const p = getUsageProfiles().get(row?.carrier_name);
@@ -3952,6 +4050,44 @@ window.confirmWipeCritHistory = async () => {
   finally { setLoading(false); }
 };
 
+window.openSpamResetConfirm = () => {
+  toggleSettings();
+  document.getElementById('spamreset-overlay')?.classList.add('open');
+};
+window.closeSpamResetConfirm = () => document.getElementById('spamreset-overlay')?.classList.remove('open');
+window.confirmResetSpamBaseline = async () => {
+  window.closeSpamResetConfirm();
+  setLoading(true, 'Resetting spam baseline…');
+  try {
+    let deleted = 0;
+    if (fbOk) {
+      const s = await getDocs(collection(db, 'usage_profiles'));
+      let batch = writeBatch(db), count = 0;
+      for (const d of s.docs) {
+        batch.delete(doc(db, 'usage_profiles', d.id));
+        deleted++;
+        if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count > 0) await batch.commit();
+    }
+    // Drop the in-memory baseline, then rebuild cleanly from existing snapshots.
+    // backfill now skips wide-gap readings and honors manual exclusions, so the
+    // accumulated-usage pollution is left out and fresh clean docs are persisted.
+    _profileSamples = new Map();
+    _usageProfiles = null;
+    _profilesLoaded = true;                 // don't let loadUsageProfiles re-read the now-empty collection
+    await loadUsageExclusions();            // so the rebuild honors recurring-charge marks
+    await backfillUsageProfilesFromSnapshots();
+    invalidateUsageProfiles();
+    _spamAlertSeeded = false;               // re-seed silently so the rebuild doesn't blast notifications
+    scanSpamSuspects();
+    safeRender('Alerts', renderAlerts);
+    const rebuilt = _profileSamples ? _profileSamples.size : 0;
+    toast(`✓ Spam baseline reset — cleared ${deleted} profile(s), rebuilt ${rebuilt} client(s) from clean snapshots`, 'ok', 6000);
+  } catch (e) { toast('Reset failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
+
 /* ════════════════════════════════════════════════
    PARSE TEXT
 ════════════════════════════════════════════════ */
@@ -4252,7 +4388,7 @@ window.processSnapshot = async() => {
     document.getElementById('overwrite-confirm-overlay')?.classList.add('open');
     return;
   }
-  await doProcessSnapshot(rows, timeSlot);
+  await maybeConfirmGapThenProcess(rows, timeSlot);
 };
 
 window.confirmOverwriteSnapshot = async() => {
@@ -4260,7 +4396,7 @@ window.confirmOverwriteSnapshot = async() => {
   if(pendingSnapshotText===null) return;
   const rows=parseText(pendingSnapshotText), slot=pendingSnapshotSlot;
   pendingSnapshotText=null; pendingSnapshotSlot=null;
-  if(rows?.length) await doProcessSnapshot(rows, slot);
+  if(rows?.length) await maybeConfirmGapThenProcess(rows, slot);
 };
 
 window.closeOverwriteConfirm = () => {
@@ -4268,11 +4404,63 @@ window.closeOverwriteConfirm = () => {
   pendingSnapshotText=null; pendingSnapshotSlot=null;
 };
 
+/* ── Non-consecutive (wide-gap) post guard ──────────────────────────────────
+   Snapshots are meant to be 30 min apart. If the slot being posted doesn't
+   immediately follow the last snapshot (gap > maxGapMinutes — e.g. last was
+   7pm yesterday, this is 11am today), warn first: its usage accumulated over
+   the whole gap, so it won't feed the spam baseline. The operator can still
+   post it (balance/critical data is unaffected). A normal consecutive slot
+   (e.g. 10:00 → 10:30) never triggers this. */
+let pendingGapRows = null, pendingGapSlot = null;
+function fmtGap(mins) {
+  if (!Number.isFinite(mins) || mins <= 0) return '0m';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+}
+function fmtSnapWhen(s) {
+  if (!s || !s.time_slot) return '—';
+  const t = fmt12(s.time_slot);
+  if (s.session_date === todayStr())        return `Today ${t}`;
+  if (s.session_date === dateStrDaysAgo(1)) return `Yesterday ${t}`;
+  return `${s.session_date} ${t}`;
+}
+async function maybeConfirmGapThenProcess(rows, timeSlot) {
+  const gap = pendingSnapGapMinutes(timeSlot);
+  if (isWideGap(gap)) {
+    pendingGapRows = rows; pendingGapSlot = timeSlot;
+    const txt = document.getElementById('gap-confirm-text');
+    if (txt) txt.innerHTML =
+      `<strong>This snapshot doesn't follow the last one.</strong><br><br>` +
+      `Last snapshot: <strong>${fmtSnapWhen(latestSnap)}</strong><br>` +
+      `Posting now: <strong>${fmtSnapWhen({ session_date: todayStr(), time_slot: timeSlot })}</strong><br>` +
+      `Gap: <strong>${fmtGap(gap)}</strong> — normal is 30 min.<br><br>` +
+      `Because the gap exceeds 30 min, this reading's usage accumulated over the whole span, so it will <strong>not</strong> count toward spam detection (usage profile) and won't be flagged as spam. Your balance and Critical-Balance data still post normally.<br><br>` +
+      `Post this snapshot anyway?`;
+    document.getElementById('gap-confirm-overlay')?.classList.add('open');
+    return;
+  }
+  await doProcessSnapshot(rows, timeSlot);
+}
+window.confirmGapPost = async () => {
+  document.getElementById('gap-confirm-overlay')?.classList.remove('open');
+  if (pendingGapRows === null) return;
+  const rows = pendingGapRows, slot = pendingGapSlot;
+  pendingGapRows = null; pendingGapSlot = null;
+  await doProcessSnapshot(rows, slot);
+};
+window.closeGapConfirm = () => {
+  document.getElementById('gap-confirm-overlay')?.classList.remove('open');
+  pendingGapRows = null; pendingGapSlot = null;
+};
+
 async function doProcessSnapshot(rows, timeSlot){
+  const prevSnap=latestSnap;                 // the snapshot usage_30min is diffed against (may be a prior day)
   const prevMap={};
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
-  const snap={timestamp:new Date(),session_date:todayStr(),shift:S.shift,time_slot:timeSlot,data};
+  const now=new Date();
+  const gapMinutes=prevSnap ? snapGapMinutes({session_date:todayStr(), time_slot:timeSlot}, prevSnap) : 0;  // scheduled-slot gap vs the previous snapshot
+  const snap={timestamp:now,session_date:todayStr(),shift:S.shift,time_slot:timeSlot,gap_minutes:gapMinutes,data};
   // Update in-memory state immediately so UI reflects data regardless of Firestore outcome
   latestSnap=snap; lastProcessedSnap=snap; todaySnaps=normalizeTodaySnaps([...todaySnaps, snap]); viewingIdx=null;
   clientFilter='all'; clientManagerFilter='all'; clientPage=0; showInactive=true;
@@ -4296,7 +4484,7 @@ async function doProcessSnapshot(rows, timeSlot){
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
   // Feed the persistent usage baseline (survives snapshot deletion).
-  safeRender('Usage baseline', () => recordUsageSamples(snap.session_date, snap.time_slot, data));
+  safeRender('Usage baseline', () => recordUsageSamples(snap.session_date, snap.time_slot, data, gapMinutes));
   // Record any clients at Critical Balance into the persistent critical_history
   // collection (survives snapshot deletion). Async so it can load prior history
   // first; errors are non-fatal to snapshot processing.
