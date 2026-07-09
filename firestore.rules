@@ -41,6 +41,9 @@ service cloud.firestore {
 
     // Admin-only modules: Stats, SMS, Notepad
     match /stats_snapshots/{id}     { allow read, write: if isAdmin(); }
+    // Per-client remarks (Account Code + Destination) — persist independently of
+    // stats_snapshots so notes survive snapshot wipes and reappear on reoccurrence.
+    match /stats_remarks/{id}       { allow read, write: if isAdmin(); }
     match /sms/{id}                 { allow read, write: if isAdmin(); }
     match /users/{uid}/{document=**} { allow read, write: if isAdmin(); }
   }

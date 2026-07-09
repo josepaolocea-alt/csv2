@@ -708,6 +708,27 @@
     .st-copy-btn.copied .ico-copy  { display: none; }
     .st-copy-btn.copied .ico-check { display: block; }
     .st-val-bad { color: var(--red); font-weight: 600; }
+    /* Per-client remarks column */
+    td.st-remark-cell { text-align: center; cursor: pointer; user-select: none; width: 48px; }
+    .st-remark-ico {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 4px;
+      color: var(--text-3); opacity: 0; transition: opacity .12s ease-out, color .12s ease-out, background .12s ease-out;
+    }
+    .st-remark-ico svg { width: 14px; height: 14px; display: block; }
+    tr:hover td.st-remark-cell .st-remark-ico { opacity: .55; }         /* hint on row hover */
+    td.st-remark-cell:hover .st-remark-ico { opacity: 1; color: var(--accent); background: var(--accent-soft); }
+    .st-remark-ico.has {                                                 /* has a saved remark */
+      opacity: 1; color: var(--accent); background: var(--accent-soft);
+    }
+    .st-remark-ico.has svg { fill: color-mix(in srgb, var(--accent) 18%, transparent); }
+    #st-remark-tip {
+      display: none; position: fixed; z-index: 1200; pointer-events: none;
+      max-width: 320px; padding: 8px 10px; border-radius: 6px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border-strong); box-shadow: 0 6px 20px rgba(0,0,0,.28);
+      font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+    }
     /* Hourly per-client pivot (today only) */
     #st-tbl-hourly td.st-hr-cell { text-align: right; font-family: var(--mono); white-space: nowrap; }
     #st-tbl-hourly th.st-hr-client, #st-tbl-hourly td.st-hr-client {
@@ -2028,6 +2049,7 @@
                   <th onclick="sortStats('cls')">Classification</th>
                   <th>ACD Band</th>
                   <th>Status / Flags</th>
+                  <th>Remarks</th>
                 </tr></thead>
                 <tbody id="st-tbody-all"></tbody>
               </table>
@@ -2045,7 +2067,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-critical"></tbody>
             </table></div>
           </div>
@@ -2061,7 +2083,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
             </table></div>
           </div>
@@ -2077,7 +2099,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-watch"></tbody>
             </table></div>
           </div>
@@ -2093,7 +2115,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-ok"></tbody>
             </table></div>
           </div>
@@ -2109,7 +2131,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
             </table></div>
           </div>
@@ -2524,6 +2546,30 @@
       <div style="display:flex;justify-content:flex-end;gap:4px">
         <button class="tbtn primary" style="min-width:60px" onclick="setOperatorName()">OK</button>
         <button class="tbtn" onclick="skipOperatorName()">Skip</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating tooltip that shows a client's remark on hover -->
+<div id="st-remark-tip"></div>
+
+<!-- Client Remarks editor -->
+<div id="st-remark-dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center">
+  <div class="win-dialog" style="min-width:340px;max-width:460px">
+    <div class="dlg-tb"><span>Client Remarks</span></div>
+    <div style="padding:14px">
+      <div id="st-remark-target" style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text);word-break:break-word"></div>
+      <div style="font-size:10px;color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
+      <textarea class="win-inp" id="st-remark-ta" rows="5" maxlength="2000" placeholder="Why does this client have low stats? Previous findings, vendor status, dates…" style="width:100%;resize:vertical;margin-bottom:6px;font-family:inherit"
+        onkeydown="if(event.key==='Escape'){closeStatsRemark();}else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){saveStatsRemark();}"></textarea>
+      <div id="st-remark-meta" style="font-size:10px;color:var(--text-3);margin-bottom:10px;min-height:12px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+        <button class="tbtn" id="st-remark-clear" onclick="clearStatsRemark()" style="color:var(--danger,#cc0000)">Clear</button>
+        <div style="display:flex;gap:4px">
+          <button class="tbtn primary" style="min-width:60px" onclick="saveStatsRemark()">Save</button>
+          <button class="tbtn" style="min-width:60px" onclick="closeStatsRemark()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -8928,6 +8974,11 @@ let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
 let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
+// Per-client remarks, keyed by the group key (Account Code + Destination). Kept
+// in its own 'stats_remarks' Firestore collection so notes survive snapshot wipes
+// and reappear whenever the same client/destination shows up again.
+let statsRemarks = new Map();   // gkey -> { key, text, updated_by, updated_at }
+let statsRemarkEditKey = null;  // group key currently open in the remark editor
 
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
@@ -8973,6 +9024,126 @@ window.stCopyCell = (ev, btn) => {
   clearTimeout(btn._copyTO);
   btn._copyTO = setTimeout(() => btn.classList.remove('copied'), 1000);
 };
+
+/* ── Per-client remarks ───────────────────────────────────
+   A note attached to an Account Code + Destination combo. Stored in its own
+   'stats_remarks' collection so it is never wiped when stats snapshots are
+   cleared, and shown again whenever the same combo reappears in the table.
+   Hover the note icon to read the remark; double-click the cell to edit. */
+function statsRemarkDocId(key) {
+  // encodeURIComponent yields a Firestore-safe id (no '/'), and is reversible.
+  return encodeURIComponent(String(key ?? '')).slice(0, 1400);
+}
+function statsRemarkText(key) {
+  const e = statsRemarks.get(key);
+  return e ? (e.text || '') : '';
+}
+function stRemarkIcon(has) {
+  return `<span class="st-remark-ico${has ? ' has' : ''}" aria-hidden="true">`
+    + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`
+    + `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>`;
+}
+// Remarks cell for the stats tables (shared by every band via processStatsRows).
+function stRemarkCell(r) {
+  const key = r.gkey || '';
+  const txt = statsRemarkText(key);
+  const has = !!txt;
+  const label = (r.customer_name || '') + (r.destination && r.destination !== '(no dest)' ? ' — ' + r.destination : '');
+  const hover = has ? ` onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()"` : '';
+  return `<td class="st-remark-cell${has ? ' has' : ''}" data-rk="${stEsc(key)}" data-label="${stEsc(label)}"`
+    + ` title="${has ? '' : 'Double-click to add a remark'}" ondblclick="editStatsRemark(this)"${hover}>`
+    + stRemarkIcon(has) + `</td>`;
+}
+window.stRemarkTipShow = (e, el) => {
+  const tip = document.getElementById('st-remark-tip');
+  const txt = statsRemarkText(el.dataset.rk);
+  if (!tip || !txt) return;
+  tip.textContent = txt;
+  tip.style.display = 'block';
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + r.width  > window.innerWidth  - 8) x = e.clientX - r.width  - pad;
+  if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + 'px';
+  tip.style.top  = Math.max(8, y) + 'px';
+};
+window.stRemarkTipHide = () => {
+  const tip = document.getElementById('st-remark-tip');
+  if (tip) tip.style.display = 'none';
+};
+window.editStatsRemark = (td) => {
+  const key = td?.dataset?.rk;
+  if (!key) return;
+  stRemarkTipHide();
+  statsRemarkEditKey = key;
+  const entry = statsRemarks.get(key);
+  document.getElementById('st-remark-target').textContent = td.dataset.label || key;
+  const ta = document.getElementById('st-remark-ta');
+  ta.value = entry ? (entry.text || '') : '';
+  const meta = document.getElementById('st-remark-meta');
+  if (entry && entry.updated_at) {
+    const who = entry.updated_by ? ` by ${entry.updated_by}` : '';
+    meta.textContent = `Last updated ${entry.updated_at.toLocaleString()}${who}`;
+  } else meta.textContent = '';
+  const clearBtn = document.getElementById('st-remark-clear');
+  if (clearBtn) clearBtn.style.visibility = entry ? 'visible' : 'hidden';
+  document.getElementById('st-remark-dlg').style.display = 'flex';
+  setTimeout(() => ta.focus(), 50);
+};
+window.closeStatsRemark = () => {
+  statsRemarkEditKey = null;
+  const dlg = document.getElementById('st-remark-dlg');
+  if (dlg) dlg.style.display = 'none';
+};
+window.saveStatsRemark = async () => {
+  const key = statsRemarkEditKey;
+  if (!key) return;
+  const text = (document.getElementById('st-remark-ta').value || '').trim();
+  if (!text) { window.clearStatsRemark(); return; }
+  const entry = { key, text, updated_by: operatorName || '', updated_at: new Date() };
+  statsRemarks.set(key, entry);
+  window.closeStatsRemark();
+  statsRender();
+  if (fbOk) {
+    try {
+      await setDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)),
+        { key, text, updated_by: entry.updated_by, updated_at: Timestamp.fromDate(entry.updated_at) });
+      toast('✓ Remark saved', 'ok');
+    } catch (e) { toast('Firestore error (remark kept locally): ' + e.message, 'err', 6000); }
+  } else {
+    toast('✓ Remark saved locally', 'ok');
+  }
+};
+window.clearStatsRemark = async () => {
+  const key = statsRemarkEditKey;
+  if (!key) return;
+  const had = statsRemarks.delete(key);
+  window.closeStatsRemark();
+  statsRender();
+  if (had && fbOk) {
+    try { await deleteDoc(doc(db, 'stats_remarks', statsRemarkDocId(key))); toast('✓ Remark cleared', 'ok'); }
+    catch (e) { toast('Firestore error: ' + e.message, 'err'); }
+  }
+};
+function subscribeStatsRemarks() {
+  if (!fbOk) return;
+  try {
+    onSnapshot(collection(db, 'stats_remarks'), snap => {
+      const m = new Map();
+      snap.docs.forEach(d => {
+        const data = d.data() || {};
+        const key = data.key || decodeURIComponent(d.id);
+        if (key && data.text) m.set(key, {
+          key, text: data.text,
+          updated_by: data.updated_by || '',
+          updated_at: data.updated_at?.toDate?.() || null,
+        });
+      });
+      statsRemarks = m;
+      statsRender();
+    });
+  } catch (e) { console.warn('stats remarks subscribe:', e); }
+}
 
 function statsSlots() {
   const out = [];
@@ -9044,7 +9215,8 @@ function groupStatsSnapshot(snap) {
     const key = acct + ' | ' + dest;
     let g = m.get(key);
     if (!g) {
-      g = { customer_name: r.customer_name || r.account_code || '(unknown)',
+      g = { gkey: key,
+            customer_name: r.customer_name || r.account_code || '(unknown)',
             destination: dest,
             account_codes:new Set(), destinations:new Set(),
             attempts:0, completed:0, raw_dur:0, revenue:0 };
@@ -9235,7 +9407,7 @@ function processStatsRows(rows, tbodyId, full) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
   if (!rows.length) {
-    const span = full ? 11 : 9;
+    const span = full ? 12 : 10;
     tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
     return;
   }
@@ -9252,7 +9424,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${stClsBadge(r.cls)}</td>
          <td>${stAcdBadge(r.acdcls)}</td>
-         <td>${statsFlags(r)}</td>`
+         <td>${statsFlags(r)}</td>
+         ${stRemarkCell(r)}`
       : `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}</td>
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
@@ -9261,7 +9434,8 @@ function processStatsRows(rows, tbodyId, full) {
          <td style="text-align:right">${stVal(r.asr)}</td>
          <td style="text-align:right">${stVal(r.acd)}</td>
          <td style="text-align:right">${stN2(r.revenue)}</td>
-         <td>${statsFlags(r)}</td>`;
+         <td>${statsFlags(r)}</td>
+         ${stRemarkCell(r)}`;
     return `<tr class="${rowCls}">${cells}</tr>`;
   }).join('');
 }
@@ -9691,6 +9865,7 @@ async function initStats() {
   setInterval(populateStatsSlots, 60000);
   await loadStatsSnaps();
   cleanupOldStatsSnapshots();
+  subscribeStatsRemarks();
   statsRender();
   if (fbOk) {
     try {
