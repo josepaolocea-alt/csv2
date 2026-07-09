@@ -3230,15 +3230,10 @@ function checkAndNotify(data, isNewSnapshot = false) {
     // 3. Browser notification — mention if newly critical
     if (S.browserNotif && newlyCritical.length > 0) sendCriticalNotification(newlyCritical);
 
-    // 4. Auto-switch: prefer New Critical tab if there are new ones, else Critical
+    // 4. Auto-switch: always show the New Critical tab after posting a snapshot
     window.switchView('alerts');
-    if (newlyCritical.length > 0) {
-      const newTab = document.getElementById('tab-new-critical');
-      if (newTab) setAlertFilter('new', newTab);
-    } else {
-      const critTab = document.querySelector('#alert-tabs .tab:nth-child(2)');
-      if (critTab) setAlertFilter('high', critTab);
-    }
+    const newTab = document.getElementById('tab-new-critical');
+    if (newTab) setAlertFilter('new', newTab);
   }
 }
 
