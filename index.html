@@ -390,6 +390,11 @@
     td.num { text-align: right; font-family: var(--mono); }
     td.neg { color: var(--red); }
     td.pos { color: var(--green); }
+    /* Up/down arrow next to a 30m-usage value: higher vs previous snapshot's 30m usage */
+    .usage-trend { display:inline-block; width:10px; margin-left:5px; font-size:8px; line-height:1; text-align:center; vertical-align:middle; }
+    .usage-trend.up   { color: var(--red); }
+    .usage-trend.down { color: var(--green); }
+    .usage-trend.flat { color: var(--text-2); }
     td.credit { color: var(--green); }
     td.debit { color: var(--red); }
     tr.total-row td {
@@ -3399,6 +3404,24 @@ function usageChipInfo(row) {
   return [lvl, {high:'High usage', medium:'Medium usage', light:'Light usage'}[lvl]];
 }
 
+/* Small arrow shown beside a client's current 30m usage: is it higher (▲) or
+   lower (▼) than the SAME client's 30m usage in the previous snapshot? Returns a
+   fixed-width span (blank when there's no prior reading) so the numbers stay aligned. */
+function usageTrendArrow(row) {
+  const blank = '<span class="usage-trend"></span>';
+  const prev = getPrevSnapshot();
+  if (!prev || !Array.isArray(prev.data) || !row?.carrier_name) return blank;
+  const prevRow = prev.data.find(p => p.carrier_name === row.carrier_name);
+  if (!prevRow) return blank;
+  const cur = amountNumber(row.usage_30min);
+  const prv = amountNumber(prevRow.usage_30min);
+  const diff = cur - prv;
+  if (Math.abs(diff) < 0.005)
+    return `<span class="usage-trend flat" title="Same as previous 30m usage (${fmt(prv)})">–</span>`;
+  const up = diff > 0;
+  return `<span class="usage-trend ${up?'up':'down'}" title="${up?'Higher':'Lower'} than previous 30m usage (${fmt(prv)})">${up?'▲':'▼'}</span>`;
+}
+
 /* ════════════════════════════════════════════════
    USAGE PROFILE / SPAM ANOMALY DETECTION
    Baseline lives in its OWN persistent Firestore collection (`usage_profiles`),
@@ -6007,7 +6030,7 @@ function renderAlerts() {
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
-      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}</td>
+      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}${usageTrendArrow(r)}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
