@@ -2561,7 +2561,8 @@
     <div style="padding:14px">
       <div id="st-remark-target" style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text);word-break:break-word"></div>
       <div style="font-size:10px;color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
-      <textarea class="win-inp" id="st-remark-ta" rows="5" maxlength="2000" placeholder="Why does this client have low stats? Previous findings, vendor status, dates…" style="width:100%;resize:vertical;margin-bottom:6px;font-family:inherit"
+      <textarea class="win-inp" id="st-remark-ta" maxlength="2000" placeholder="Why does this client have low stats? Previous findings, vendor status, dates…" style="width:100%;min-height:90px;max-height:60vh;resize:none;overflow-y:auto;line-height:1.5;margin-bottom:6px;font-family:inherit"
+        oninput="stRemarkAutoGrow(this)"
         onkeydown="if(event.key==='Escape'){closeStatsRemark();}else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){saveStatsRemark();}"></textarea>
       <div id="st-remark-meta" style="font-size:10px;color:var(--text-3);margin-bottom:10px;min-height:12px"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
@@ -9043,16 +9044,11 @@ function stRemarkIcon(has) {
     + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`
     + `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>`;
 }
-// Remarks cell for the stats tables (shared by every band via processStatsRows).
+// Remarks column cell — visual indicator only. The whole row is the double-click
+// / hover target (wired in processStatsRows), so a remark is reachable from any cell.
 function stRemarkCell(r) {
-  const key = r.gkey || '';
-  const txt = statsRemarkText(key);
-  const has = !!txt;
-  const label = (r.customer_name || '') + (r.destination && r.destination !== '(no dest)' ? ' — ' + r.destination : '');
-  const hover = has ? ` onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()"` : '';
-  return `<td class="st-remark-cell${has ? ' has' : ''}" data-rk="${stEsc(key)}" data-label="${stEsc(label)}"`
-    + ` title="${has ? '' : 'Double-click to add a remark'}" ondblclick="editStatsRemark(this)"${hover}>`
-    + stRemarkIcon(has) + `</td>`;
+  const has = !!statsRemarkText(r.gkey || '');
+  return `<td class="st-remark-cell${has ? ' has' : ''}">${stRemarkIcon(has)}</td>`;
 }
 window.stRemarkTipShow = (e, el) => {
   const tip = document.getElementById('st-remark-tip');
@@ -9071,6 +9067,12 @@ window.stRemarkTipHide = () => {
   const tip = document.getElementById('st-remark-tip');
   if (tip) tip.style.display = 'none';
 };
+// Grow the remark textarea to fit its content (up to 60% of the viewport, then scroll).
+window.stRemarkAutoGrow = (ta) => {
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight + 2, Math.round(window.innerHeight * 0.6)) + 'px';
+};
 window.editStatsRemark = (td) => {
   const key = td?.dataset?.rk;
   if (!key) return;
@@ -9088,7 +9090,7 @@ window.editStatsRemark = (td) => {
   const clearBtn = document.getElementById('st-remark-clear');
   if (clearBtn) clearBtn.style.visibility = entry ? 'visible' : 'hidden';
   document.getElementById('st-remark-dlg').style.display = 'flex';
-  setTimeout(() => ta.focus(), 50);
+  setTimeout(() => { ta.focus(); stRemarkAutoGrow(ta); }, 50);
 };
 window.closeStatsRemark = () => {
   statsRemarkEditKey = null;
@@ -9436,7 +9438,13 @@ function processStatsRows(rows, tbodyId, full) {
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${statsFlags(r)}</td>
          ${stRemarkCell(r)}`;
-    return `<tr class="${rowCls}">${cells}</tr>`;
+    // The whole row is the remark target: double-click anywhere to edit, hover
+    // anywhere to read. data-rk/data-label are read by editStatsRemark / the tooltip.
+    const rk = stEsc(r.gkey || '');
+    const label = stEsc((r.customer_name || '') + (r.destination && r.destination !== '(no dest)' ? ' — ' + r.destination : ''));
+    const hasR = !!statsRemarkText(r.gkey || '');
+    return `<tr class="${rowCls}${hasR ? ' st-has-remark' : ''}" data-rk="${rk}" data-label="${label}"`
+      + ` ondblclick="editStatsRemark(this)" onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()">${cells}</tr>`;
   }).join('');
 }
 
