@@ -40,15 +40,20 @@ service cloud.firestore {
     match /csv_imports/{id} { allow read: if isAdmin() || isSupport(); allow write: if isAdmin(); }
 
     // Stats module — any signed-in user can VIEW (summary, tables, hourly,
-    // remarks); only admin can post/undo snapshots or add/edit remarks.
-    match /stats_snapshots/{id}     { allow read: if signedIn(); allow write: if isAdmin(); }
+    // remarks); admin and Customer Support can post/undo snapshots. Remarks stay
+    // admin-only (see stats_remarks below).
+    match /stats_snapshots/{id}     { allow read: if signedIn(); allow write: if isAdmin() || isSupport(); }
     // Per-client remarks (Account Code + Destination) — persist independently of
     // stats_snapshots so notes survive snapshot wipes and reappear on reoccurrence.
     // Everyone signed in can read; only admin can add/edit/clear.
     match /stats_remarks/{id}       { allow read: if signedIn(); allow write: if isAdmin(); }
     // SMS stays admin-only.
     match /sms/{id}                 { allow read, write: if isAdmin(); }
-    // Notepad — each signed-in user owns their own notes; admin keeps full access.
+    // Shared notepad — one team notepad. The admin is the basis (sole editor);
+    // every signed-in user (support included) reads it live, read-only.
+    match /shared_notepad/{id}      { allow read: if signedIn(); allow write: if isAdmin(); }
+    // Legacy per-user notepad (pre-shared) — kept so old private notes remain
+    // accessible to their owner; admin keeps full access.
     match /users/{uid}/{document=**} { allow read, write: if isAdmin() || (signedIn() && request.auth.uid == uid); }
   }
 }

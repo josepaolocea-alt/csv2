@@ -635,6 +635,12 @@
     }
     body.notepad-mode #notepad-toolbar-label { display: inline-flex; }
     body.notepad-mode #view-banner { display: none !important; }
+    /* Read-only notepad (non-admins): the notepad is a shared, admin-managed note.
+       Hide the editing tools and tab add/close so it reads as view-only. */
+    body.np-readonly #np-edit-tools,
+    body.np-readonly .np-tab-close,
+    body.np-readonly .np-tab-add { display: none !important; }
+    body.np-readonly #np-editor { cursor: default; }
 
     /* ── Stats module ── */
     #stats-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
@@ -1942,18 +1948,20 @@
           <div class="np-tabbar" id="np-tabbar"></div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div class="fbar">
-              <button class="tbtn" id="np-bold" onmousedown="event.preventDefault()" onclick="npFormat('bold')" title="Bold (Ctrl+B)" style="min-width:24px"><b>B</b></button>
-              <button class="tbtn" id="np-italic" onmousedown="event.preventDefault()" onclick="npFormat('italic')" title="Italic (Ctrl+I)" style="min-width:24px"><i>I</i></button>
-              <button class="tbtn" id="np-underline" onmousedown="event.preventDefault()" onclick="npFormat('underline')" title="Underline (Ctrl+U)" style="min-width:24px"><u>U</u></button>
-              <div class="tsep"></div>
-              <label style="font-size:11px">Font size</label>
-              <select class="win-sel" id="np-fontsize" onchange="npSetFontSize(this.value)">
-                <option>8</option><option>10</option><option>11</option><option>12</option>
-                <option>14</option><option>16</option><option>18</option><option>20</option>
-                <option>24</option><option>28</option><option>36</option><option>48</option>
-              </select>
-              <button class="tbtn" onclick="npAddTab()" title="Add a new note tab">+ New Tab</button>
-              <div class="tsep"></div>
+              <span id="np-edit-tools" style="display:contents">
+                <button class="tbtn" id="np-bold" onmousedown="event.preventDefault()" onclick="npFormat('bold')" title="Bold (Ctrl+B)" style="min-width:24px"><b>B</b></button>
+                <button class="tbtn" id="np-italic" onmousedown="event.preventDefault()" onclick="npFormat('italic')" title="Italic (Ctrl+I)" style="min-width:24px"><i>I</i></button>
+                <button class="tbtn" id="np-underline" onmousedown="event.preventDefault()" onclick="npFormat('underline')" title="Underline (Ctrl+U)" style="min-width:24px"><u>U</u></button>
+                <div class="tsep"></div>
+                <label style="font-size:11px">Font size</label>
+                <select class="win-sel" id="np-fontsize" onchange="npSetFontSize(this.value)">
+                  <option>8</option><option>10</option><option>11</option><option>12</option>
+                  <option>14</option><option>16</option><option>18</option><option>20</option>
+                  <option>24</option><option>28</option><option>36</option><option>48</option>
+                </select>
+                <button class="tbtn" onclick="npAddTab()" title="Add a new note tab">+ New Tab</button>
+                <div class="tsep"></div>
+              </span>
               <button class="tbtn" onclick="npDownloadTab()" title="Download this note as a .txt file (opens in Notepad)">Save to File</button>
               <span class="sms-muted" id="np-status" style="margin-left:auto">Saved</span>
             </div>
@@ -5214,9 +5222,13 @@ function isBalanceOnly(){ return !!currentUserEmail && BALANCE_ONLY_EMAILS.inclu
 // upload, or edit client records.
 function canEditClients(){ return !isBalanceOnly(); }
 
-// Stats is view-only for non-admins: they can browse every stats view but
-// cannot post/undo stats snapshots or add/edit/clear per-client remarks.
+// Per-client stats remarks are admin-only: non-admins (and support) can browse
+// every stats view but cannot add/edit/clear remarks.
 function canEditStats(){ return isAdmin(); }
+
+// Posting/undoing stats snapshots is allowed for the admin and Customer Support
+// (a balance-only user). Everyone else has read-only stats.
+function canPostStats(){ return isAdmin() || isBalanceOnly(); }
 
 // Show/hide top-level modules based on the signed-in user's access. Stats and
 // Notepad are available to every signed-in user (Stats is view-only for
@@ -5229,9 +5241,9 @@ function applyModuleAccess(){
   show('view-menu-stats',   true);
   show('view-menu-notepad', true);
   show('view-menu-sms',     admin);
-  // Stats posting (New Snapshot / Process / Undo Last) is admin-only; non-admins
-  // still see today's snapshots and can export the spreadsheet.
-  show('stats-post-controls', admin);
+  // Stats posting (New Snapshot / Process / Undo Last) — admin and Customer
+  // Support; other non-admins still see today's snapshots and can export.
+  show('stats-post-controls', canPostStats());
   // Client editing surfaces: Client Manager tab (CSV client upload wizard)
   // and the Bulk Edit button in All Clients.
   ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, !restricted));
@@ -8703,6 +8715,12 @@ window.importSmsClientCsv = file => {
 ════════════════════════════════════════════════ */
 const NP_KEY = 'bm_notepad';
 const NP_FONT_DEFAULT = 14;
+// The notepad is a single shared document. The admin is the basis / source of
+// truth — only the admin can edit; every other signed-in user sees the admin's
+// notes live, read-only. (Mirrors the app's other admin-write/everyone-read
+// features like stats and remarks.)
+const NP_SHARED = ['shared_notepad', 'data'];
+function npCanEdit(){ return isAdmin(); }
 let npState = { tabs: [], activeId: null, updatedAt: 0 };
 let npEditorTabId = null;
 let npSaveTimer = null;
@@ -8732,15 +8750,16 @@ function npSerializable() {
   return { tabs: npState.tabs, activeId: npState.activeId, updatedAt: npState.updatedAt };
 }
 function npSave() {
+  if (!npCanEdit()) return;   // non-admins read the shared notepad, they don't write it
   npSyncEditor();
   npState.updatedAt = Date.now();
   try { localStorage.setItem(NP_KEY, JSON.stringify(npSerializable())); } catch (e) {}
   npSaveRemote();
 }
 function npSaveRemote() {
-  if (npRemoteApplying || !fbOk || !currentUserUid) return;
+  if (npRemoteApplying || !fbOk || !npCanEdit()) return;
   try {
-    setDoc(doc(db, 'users', currentUserUid, 'notepad', 'data'), {
+    setDoc(doc(db, ...NP_SHARED), {
       tabs: npState.tabs,
       activeId: npState.activeId,
       updated_at: Timestamp.now(),
@@ -8792,22 +8811,25 @@ function npApplyRemote(data) {
   }
 }
 async function subscribeNotepad() {
-  if (!fbOk || !currentUserUid || npSubscribed) return;
+  if (!fbOk || npSubscribed) return;
   npSubscribed = true;
   try {
-    const ref = doc(db, 'users', currentUserUid, 'notepad', 'data');
+    const ref = doc(db, ...NP_SHARED);
     npRemoteUnsub = onSnapshot(ref, async snap => {
       if (snap.exists()) {
         const data = snap.data();
+        // Non-admins are read-only: the shared doc is always authoritative.
+        if (!npCanEdit()) { npApplyRemote(data); return; }
         const remoteMs = +data.updated_ms || data.updated_at?.toMillis?.() || 0;
         const ed = document.getElementById('np-editor');
         const focused = ed && document.activeElement === ed;
-        // Don't yank text from under the user while they're actively typing
+        // Don't yank text from under the admin while they're actively typing
         if (focused && (document.getElementById('np-status')?.textContent || '').startsWith('Editing')) return;
         if (remoteMs && remoteMs <= npState.updatedAt) return; // local is newer or equal
         npApplyRemote(data);
-      } else if (npState.tabs.length) {
-        // Remote doc missing — seed it from this device (one-time migration)
+      } else if (npCanEdit() && npState.tabs.length) {
+        // Remote doc missing — seed the shared notepad from the admin's device
+        // (one-time migration from the old per-user notepad).
         try {
           await setDoc(ref, {
             tabs: npState.tabs,
@@ -8823,15 +8845,15 @@ async function subscribeNotepad() {
 function npRenderTabs() {
   const bar = document.getElementById('np-tabbar');
   if (!bar) return;
+  const editable = npCanEdit();
   bar.innerHTML = npState.tabs.map(t =>
     `<div class="np-tab ${t.id === npState.activeId ? 'active' : ''}"
-          onclick="npSwitchTab('${t.id}')" ondblclick="npRenameTab('${t.id}')"
-          title="${esc(t.title)} — double-click to rename">
+          onclick="npSwitchTab('${t.id}')" ${editable ? `ondblclick="npRenameTab('${t.id}')"` : ''}
+          title="${esc(t.title)}${editable ? ' — double-click to rename' : ''}">
        <span class="np-tab-title">${esc(t.title)}</span>
-       <span class="np-tab-close" onclick="event.stopPropagation();npCloseTab('${t.id}')"
-             title="Close tab">✕</span>
+       ${editable ? `<span class="np-tab-close" onclick="event.stopPropagation();npCloseTab('${t.id}')" title="Close tab">✕</span>` : ''}
      </div>`).join('') +
-    `<div class="np-tab-add" onclick="npAddTab()" title="New tab">+</div>`;
+    (editable ? `<div class="np-tab-add" onclick="npAddTab()" title="New tab">+</div>` : '');
 }
 function npRenderEditor() {
   const t = npActiveTab(), ed = document.getElementById('np-editor');
@@ -8842,11 +8864,19 @@ function npRenderEditor() {
   const fs = document.getElementById('np-fontsize');
   if (fs) fs.value = String(t.fontSize);
 }
+function npApplyEditMode() {
+  // Only the admin edits the shared notepad; everyone else is read-only.
+  const editable = npCanEdit();
+  const ed = document.getElementById('np-editor');
+  if (ed) ed.contentEditable = editable ? 'true' : 'false';
+  document.body.classList.toggle('np-readonly', !editable);
+}
 function npRender() {
   if (!npState.tabs.length) loadNotepad();
   npRenderTabs();
   npRenderEditor();
-  npUpdateStatus('Saved');
+  npApplyEditMode();
+  npUpdateStatus(npCanEdit() ? 'Saved' : 'Read-only — managed by admin');
 }
 function npUpdateStatus(msg) {
   const s = document.getElementById('np-status');
@@ -8861,6 +8891,7 @@ window.npSwitchTab = id => {
   document.getElementById('np-editor')?.focus();
 };
 window.npAddTab = () => {
+  if (!npCanEdit()) return;
   npSyncEditor();
   const t = npNewTab('Note ' + (npState.tabs.length + 1));
   npState.tabs.push(t);
@@ -8870,6 +8901,7 @@ window.npAddTab = () => {
   document.getElementById('np-editor')?.focus();
 };
 window.npCloseTab = id => {
+  if (!npCanEdit()) return;
   const idx = npState.tabs.findIndex(t => t.id === id);
   if (idx < 0) return;
   npState.tabs.splice(idx, 1);
@@ -8885,6 +8917,7 @@ window.npCloseTab = id => {
 };
 let npRenameId = null;
 window.npRenameTab = id => {
+  if (!npCanEdit()) return;
   const t = npState.tabs.find(x => x.id === id);
   if (!t) return;
   npRenameId = id;
@@ -8894,6 +8927,7 @@ window.npRenameTab = id => {
   setTimeout(() => { inp.focus(); inp.select(); }, 50);
 };
 window.npRenameConfirm = () => {
+  if (!npCanEdit()) { window.npRenameCancel(); return; }
   const t = npState.tabs.find(x => x.id === npRenameId);
   const name = document.getElementById('np-rename-inp').value.trim();
   window.npRenameCancel();
@@ -8907,6 +8941,7 @@ window.npRenameCancel = () => {
   npRenameId = null;
 };
 window.npOnInput = () => {
+  if (!npCanEdit()) return;
   npUpdateStatus('Editing…');
   clearTimeout(npSaveTimer);
   npSaveTimer = setTimeout(() => {
@@ -8916,6 +8951,7 @@ window.npOnInput = () => {
 };
 window.npOnPaste = e => {
   e.preventDefault();
+  if (!npCanEdit()) return;
   const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
   if (!text) return;
   try {
@@ -8933,6 +8969,7 @@ window.npOnPaste = e => {
   window.npOnInput();
 };
 window.npFormat = cmd => {
+  if (!npCanEdit()) return;
   const ed = document.getElementById('np-editor');
   if (!ed) return;
   ed.focus();
@@ -8995,6 +9032,7 @@ window.npDownloadTab = () => {
   toast(`"${t.title}" saved as ${name}.txt`, 'ok');
 };
 window.npSetFontSize = px => {
+  if (!npCanEdit()) return;
   const t = npActiveTab();
   if (!t) return;
   t.fontSize = +px || NP_FONT_DEFAULT;
@@ -9004,6 +9042,7 @@ window.npSetFontSize = px => {
 };
 function initNotepad() {
   loadNotepad();
+  npApplyEditMode();
 }
 document.addEventListener('selectionchange', () => {
   if (document.body.classList.contains('notepad-mode')) npUpdateFormatState();
@@ -10066,6 +10105,7 @@ function statsRender() {
 }
 
 window.processStatsSnapshot = async () => {
+  if (!canPostStats()) { toast('Posting stats snapshots is restricted for this account.', 'err'); return; }
   const ta = document.getElementById('stats-snap-ta');
   const rows = parseStatsText(ta.value);
   if (!rows.length) { toast('No valid stats rows found — check the pasted data.', 'err', 6000); return; }
@@ -10093,6 +10133,7 @@ window.processStatsSnapshot = async () => {
 };
 
 window.undoLastStatsSnapshot = async () => {
+  if (!canPostStats()) { toast('Removing stats snapshots is restricted for this account.', 'err'); return; }
   const snaps = statsSortedSnaps();
   if (!snaps.length) { toast('No stats snapshots to undo.', 'err'); return; }
   const last = snaps[snaps.length-1];
@@ -10321,13 +10362,12 @@ async function init(){
   updatePresence();
   subscribePresence();
   subscribeLogs();
-  // Balance-only users have no access to Stats / SMS / Notepad, and Firestore
-  // rules deny them those collections — don't subscribe at all.
-  if (!isBalanceOnly()) {
-    initStats();
-    subscribeSmsClients();
-    subscribeNotepad();
-  }
+  // Stats (view + posting) and the shared Notepad are available to every signed-in
+  // user, including Customer Support. SMS and its client list stay admin/regular
+  // only — support has no SMS access and the rules deny them the sms collection.
+  initStats();
+  subscribeNotepad();
+  if (!isBalanceOnly()) subscribeSmsClients();
 }
 
 /* ── Auth-gated boot ── */
