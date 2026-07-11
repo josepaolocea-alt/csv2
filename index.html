@@ -3161,12 +3161,14 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-/* The picker defaults to the slot right AFTER the latest All-Clients snapshot posted
-   today — i.e. it tracks the "Last sync" label (4:00 posted → box shows 4:30). It's
-   anchored to posted data, not the wall clock, so it stays correct across page
-   reloads and keeps you in sequence when catching up late. Before any snapshot exists
-   today it falls back to the wall-clock next slot. No-op past the last slot of the
-   shift (nothing to advance to). */
+/* The picker tracks the latest All-Clients snapshot slot posted today, and only steps
+   to the NEXT slot once that same slot has ALSO been posted for Tritel. So the flow is:
+   post All-Clients @ 4:00 → box holds on 4:00 (Tritel still pending) → post Tritel @ 4:00
+   → box moves to 4:30. This handles either posting order (it advances as soon as the
+   latest All-Clients slot has its Tritel counterpart), is anchored to posted data rather
+   than the wall clock so it survives reloads, and keeps you in sequence when catching up
+   late. Before any snapshot exists today it falls back to the wall-clock next slot. Stays
+   put on the last slot of the shift (nothing to advance to). */
 function computeDefaultSlot() {
   const snap = (latestSnap && latestSnap.session_date === todayStr()) ? latestSnap
              : (lastProcessedSnap && lastProcessedSnap.session_date === todayStr()) ? lastProcessedSnap
@@ -3174,7 +3176,13 @@ function computeDefaultSlot() {
   const last = snap && snap.time_slot;
   if (last) {
     const slots = shiftSlots(S.shift), i = slots.indexOf(last);
-    if (i >= 0) return (i + 1 < slots.length) ? slots[i + 1] : last;
+    if (i >= 0) {
+      // Hold on this slot until its Tritel counterpart is posted too, so both feeds land
+      // on the same slot before the box moves on. Manual override still wins (slotAutoTrack).
+      const tritelDone = tritelSnaps.some(t => t.time_slot === last);
+      if (!tritelDone) return last;
+      return (i + 1 < slots.length) ? slots[i + 1] : last;
+    }
   }
   return nextSlot();
 }
@@ -5009,7 +5017,7 @@ async function doProcessSnapshot(rows, timeSlot){
   } catch(e) {}
   updateLastProcessed();
   document.getElementById('snap-ta').value='';
-  slotAutoTrack=true; populateSlots();   // step the shared box to "last sync + 1" (All-Clients feed only)
+  slotAutoTrack=true; populateSlots();   // hold the box on this slot until Tritel is posted for it too
   refreshAll();
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
@@ -5114,6 +5122,7 @@ async function processTritelSnapshot(rows, timeSlot) {
   persistTritelLocal();
   document.getElementById('snap-ta').value = '';
   updateTritelStatus();
+  slotAutoTrack = true; populateSlots();   // this slot now has both feeds → box steps to the next slot
   refreshAll();
   window.renderClients();
   if (fbOk) {
@@ -10447,7 +10456,7 @@ async function init(){
           }
         }
         refreshAll();
-        populateSlots();   // keep the time box on "last sync + 1" as snapshots load / sync across operators
+        populateSlots();   // re-anchor the time box as snapshots load / sync across operators
       });
     }catch(e){console.warn('onSnapshot:',e);}
     // Tritel data lives in its own collection so it survives snapshot wipes and syncs across operators.
@@ -10458,6 +10467,7 @@ async function init(){
           .filter(t=>t.time_slot); // ignore any legacy docs without a slot
         updateTritelStatus();
         refreshAll();
+        populateSlots();   // a Tritel slot arriving (incl. cross-operator) can release the box to the next slot
         if(document.getElementById('view-all-clients')?.classList.contains('active')) window.renderClients();
       });
     }catch(e){console.warn('tritel onSnapshot:',e);}
