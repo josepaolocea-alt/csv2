@@ -1333,6 +1333,16 @@
 </head>
 <body>
 
+<!-- Apply the saved night-mode preference immediately, before login, so the
+     login overlay matches the in-app theme (init()/loadSettings runs only
+     after sign-in). -->
+<script>
+  try {
+    var _s = JSON.parse(localStorage.getItem('bm_s98') || '{}');
+    if (_s && _s.nightMode) document.body.classList.add('night-mode');
+  } catch (e) {}
+</script>
+
 <!-- Main Window -->
 <div id="win">
   <!-- Title bar -->
@@ -7659,7 +7669,7 @@ function normalizeSmsStatus(v) {
 // Date the route was added — date only (YYYY-MM-DD), no time. Blank defaults to today.
 function normalizeSmsDate(v) {
   const s = String(v || '').trim();
-  if (!s) return todayStr();
+  if (!s) return '';                                // preserve "unknown" — a real creation date is stamped once at add time, never re-stamped on load
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;      // already date-only
   const d = new Date(s);
   if (!isNaN(d.getTime()))
@@ -7697,6 +7707,38 @@ function syncActiveSmsClients() {
   smsDataByTab[smsActiveTab] = smsClients;
 }
 
+// ── One-time correction of SMS Phoenix Platform "Date" values ──
+// Before the Date column stored a real creation date, every date-less Phoenix
+// route was re-stamped with "today" on each load, so they all collapsed onto a
+// single day. These are the known real dates, keyed by client name. The fix is
+// idempotent and keeps running (locally and against remote snapshots) until it
+// has been pushed to Firestore, so a stale copy on another device can't undo it.
+const SMS_PHOENIX_DATE_FIX = {
+  'CYN PACIFIC 1':            '2026-07-11',
+  'CYN SPEEDCLOUD':           '2026-07-06',
+  'CYN MTPNATION':            '2026-06-19',
+  'C_SMS-CYN SPEEDCLOUD MKT': '2026-06-11',
+  'C_CYN-PACIFIC 1':          '2026-05-30'
+};
+const SMS_PHOENIX_DATEFIX_FLAG = 'bm_sms_phoenix_datefix_v1';
+const _smsPhoenixFixKey = name => String(name || '').trim().replace(/\s+/g, ' ').toUpperCase();
+const _smsPhoenixFixMap = (() => {
+  const m = {};
+  Object.entries(SMS_PHOENIX_DATE_FIX).forEach(([k, v]) => { m[_smsPhoenixFixKey(k)] = v; });
+  return m;
+})();
+
+// Correct the date on each matching Phoenix route in place. Returns true if any changed.
+function applySmsPhoenixDateFix(list) {
+  if (localStorage.getItem(SMS_PHOENIX_DATEFIX_FLAG)) return false;
+  let changed = false;
+  (list || []).forEach(r => {
+    const want = _smsPhoenixFixMap[_smsPhoenixFixKey(r?.client)];
+    if (want && r.date !== want) { r.date = want; changed = true; }
+  });
+  return changed;
+}
+
 function loadSmsClients(tab=smsActiveTab) {
   const cfg = smsTabCfg(tab);
   try {
@@ -7705,6 +7747,7 @@ function loadSmsClients(tab=smsActiveTab) {
   } catch(e) {
     smsDataByTab[tab] = [];
   }
+  if (tab === 'phoenix') applySmsPhoenixDateFix(smsDataByTab[tab]);   // show corrected dates immediately, before Firestore replies
   if (tab === smsActiveTab) smsClients = smsDataByTab[tab];
 }
 
@@ -7727,6 +7770,10 @@ async function subscribeSmsClients(tab=smsActiveTab) {
       if (snap.exists()) {
         const data = snap.data();
         const remote = Array.isArray(data.clients) ? data.clients.map(normalizeSmsClient) : [];
+        // Correct the historical Phoenix dates on the authoritative remote list
+        // (so we never clobber routes added on another device), then persist the
+        // fix back once so it propagates and can stop re-running.
+        const dateFixChanged = (tab === 'phoenix') ? applySmsPhoenixDateFix(remote) : false;
         smsRemoteApplyingByTab[tab] = true;
         try {
           smsDataByTab[tab] = remote;
@@ -7739,6 +7786,12 @@ async function subscribeSmsClients(tab=smsActiveTab) {
           }
         } finally {
           smsRemoteApplyingByTab[tab] = false;
+        }
+        if (tab === 'phoenix' && fbOk && !localStorage.getItem(SMS_PHOENIX_DATEFIX_FLAG)) {
+          try {
+            if (dateFixChanged) await setDoc(doc(db, 'sms', cfg.firestoreDoc), { clients: remote, updated_at: Timestamp.now() });
+            localStorage.setItem(SMS_PHOENIX_DATEFIX_FLAG, '1');   // corrected copy is now in Firestore — stop re-applying
+          } catch(e) { console.warn('Phoenix date-fix sync failed:', e); }
         }
       } else if ((smsDataByTab[tab] || []).length) {
         // Remote doc missing — seed it from this device's local data (one-time migration)
@@ -8031,7 +8084,7 @@ function smsReadForm() {
   const existing = smsEditingId ? smsClients.find(r => r.id === smsEditingId) : null;
   return normalizeSmsClient({
     id: smsEditingId || undefined,
-    date: existing?.date,
+    date: existing?.date || todayStr(),   // new entry gets today; an edit keeps whatever it already had
     client: smsFormValue('sms-client'),
     sender_id: smsFormValue('sms-sender-id'),
     sender_id_comment: smsFormValue('sms-sender-id-comment'),
@@ -8663,7 +8716,7 @@ window.importSmsClientCsv = file => {
           // Full identity — match (or create) that exact Client + Destination + Sender ID entry
           const idx = smsClients.findIndex(r => smsRouteKey(r) === smsRouteKey(row));
           if (idx >= 0) { smsApplyPartial(idx, provided, row); updated++; }
-          else { smsClients.push(row); added++; }
+          else { if (!row.date) row.date = todayStr(); smsClients.push(row); added++; }
         } else if (provided.has('destination')) {
           // Destination but no Sender ID — match existing entries by Client + Destination
           const hits = [];
@@ -8674,7 +8727,7 @@ window.importSmsClientCsv = file => {
           if (hits.length === 1) { smsApplyPartial(hits[0], provided, row); updated++; }
           else if (hits.length > 1) {
             errors.push(`Row ${rowNum}: "${row.client}" / "${row.destination}" has ${hits.length} entries — add a Sender ID to specify which one`);
-          } else { smsClients.push(row); added++; }
+          } else { if (!row.date) row.date = todayStr(); smsClients.push(row); added++; }
         } else {
           // No Destination — match by Client only
           const hits = [];
