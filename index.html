@@ -3161,26 +3161,34 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+/* The picker defaults to the slot right AFTER the latest All-Clients snapshot posted
+   today — i.e. it tracks the "Last sync" label (4:00 posted → box shows 4:30). It's
+   anchored to posted data, not the wall clock, so it stays correct across page
+   reloads and keeps you in sequence when catching up late. Before any snapshot exists
+   today it falls back to the wall-clock next slot. No-op past the last slot of the
+   shift (nothing to advance to). */
+function computeDefaultSlot() {
+  const snap = (latestSnap && latestSnap.session_date === todayStr()) ? latestSnap
+             : (lastProcessedSnap && lastProcessedSnap.session_date === todayStr()) ? lastProcessedSnap
+             : null;
+  const last = snap && snap.time_slot;
+  if (last) {
+    const slots = shiftSlots(S.shift), i = slots.indexOf(last);
+    if (i >= 0) return (i + 1 < slots.length) ? slots[i + 1] : last;
+  }
+  return nextSlot();
+}
+// When true the picker auto-follows computeDefaultSlot() (last sync + 1). A manual
+// pick from the dropdown turns it off so the operator's choice sticks; posting an
+// All-Clients snapshot turns it back on. Only the All-Clients feed moves this box —
+// the Tritel feed shares the same box and must leave it where it is.
+let slotAutoTrack = true;
 function populateSlots() {
   const sel=document.getElementById('slot-sel'), slots=shiftSlots(S.shift);
-  // Preserve a manual selection across the 60s auto-refresh; only fall back to
-  // the default (next slot) when nothing valid is selected yet.
-  const chosen=slots.includes(sel.value)?sel.value:nextSlot();
+  const chosen = slotAutoTrack
+    ? computeDefaultSlot()
+    : (slots.includes(sel.value) ? sel.value : computeDefaultSlot());
   sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===chosen?'selected':''}>${fmt12(s)}</option>`).join('');
-}
-/* After a successful All-Clients post, move the shared time box to the slot that
-   immediately follows the one just posted (11:30 → 12:00), so the operator doesn't
-   have to re-pick it. Tied to the posted slot rather than the wall clock, which
-   also keeps you in sequence when catching up on a backlog. The 60s populateSlots()
-   refresh preserves this because the value stays a valid slot. No-op on the last
-   slot of the shift (nothing to advance to). Deliberately NOT called for Tritel
-   posts, since both feeds share this one box. */
-function advanceSlotPicker(postedSlot) {
-  const sel=document.getElementById('slot-sel');
-  if(!sel||!postedSlot) return;
-  const slots=shiftSlots(S.shift), i=slots.indexOf(postedSlot);
-  if(i<0||i+1>=slots.length) return;
-  sel.value=slots[i+1];
 }
 
 /* ════════════════════════════════════════════════
@@ -5001,7 +5009,7 @@ async function doProcessSnapshot(rows, timeSlot){
   } catch(e) {}
   updateLastProcessed();
   document.getElementById('snap-ta').value='';
-  advanceSlotPicker(timeSlot);   // bump the shared time box to the next slot (All-Clients feed only)
+  slotAutoTrack=true; populateSlots();   // step the shared box to "last sync + 1" (All-Clients feed only)
   refreshAll();
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
@@ -10406,6 +10414,8 @@ async function initStats() {
 ════════════════════════════════════════════════ */
 async function init(){
   loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); initNotepad(); updateLastProcessed(); window.renderWizard(); window.renderClients();
+  // A hand-pick of the time box stops it from auto-following "last sync + 1"; the next post re-enables tracking.
+  document.getElementById('slot-sel')?.addEventListener('change', () => { slotAutoTrack = false; });
   // operator identity
   if (operatorName) document.getElementById('sb-opname').textContent = operatorName;
   else showOperatorDialog();
@@ -10420,6 +10430,7 @@ async function init(){
   ensureSpamHistory();   // load usage baselines in background so spam alerts work off any view
   setLoading(false);
   refreshAll();
+  populateSlots();   // now that today's snapshots are loaded, re-anchor the box to "last sync + 1"
   if(fbOk){
     try{
       const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()));
@@ -10436,6 +10447,7 @@ async function init(){
           }
         }
         refreshAll();
+        populateSlots();   // keep the time box on "last sync + 1" as snapshots load / sync across operators
       });
     }catch(e){console.warn('onSnapshot:',e);}
     // Tritel data lives in its own collection so it survives snapshot wipes and syncs across operators.
