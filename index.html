@@ -3223,10 +3223,14 @@ function sendCriticalNotification(criticalRows) {
   });
 }
 
-function updateAlertTabFlash(hasCritical) {
-  document.getElementById('tnav-alerts')?.classList.toggle('critical-flash', hasCritical);
-  document.getElementById('snav-alerts')?.classList.toggle('critical-flash', hasCritical);
-  updatePageTitle(hasCritical);
+// Blink the top-level Alerts nav tab red ONLY when at least one inner Alert
+// sub-tab (New/Removed Critical, Usage, No-threshold, Inactive-usage, Spam) is
+// itself blinking red. `active` is that "any sub-tab blinking" flag — computed
+// in refreshAlertTabIndicators(). If no sub-tab blinks, the nav tab stays calm.
+function updateAlertTabFlash(active) {
+  document.getElementById('tnav-alerts')?.classList.toggle('critical-flash', active);
+  document.getElementById('snav-alerts')?.classList.toggle('critical-flash', active);
+  updatePageTitle(active);
 }
 
 /* ── Page title blink ── */
@@ -3302,14 +3306,16 @@ window.signOutUser = async () => {
   location.reload();
 };
 
-// isNewSnapshot = true  → all 4 effects
-// isNewSnapshot = false → tab flash only (called on every refresh)
+// Only runs its effects when isNewSnapshot = true (sound, browser notification,
+// auto-switch to the New Critical tab). The nav-tab blink is no longer handled
+// here — it lives in refreshAlertTabIndicators() so it tracks the sub-tabs.
 function checkAndNotify(data, isNewSnapshot = false) {
   const critical = data.filter(r => alertLevel(r) === 'high');
   const hasCritical = critical.length > 0;
 
-  // 1. Always keep tab highlight in sync
-  updateAlertTabFlash(hasCritical);
+  // Nav-tab blink is driven by refreshAlertTabIndicators() (see refreshAll),
+  // which blinks the Alerts nav tab only when an inner sub-tab is blinking.
+  // This function only handles the new-snapshot sound/notification/auto-switch.
 
   if (isNewSnapshot && hasCritical) {
     // Determine if any are newly critical (not in previous snapshot)
@@ -6087,12 +6093,16 @@ function refreshAll() {
   safeRender('Stats', renderStats);
   safeRender('Timeline', renderTimeline);
   safeRender('Shift summary', renderShiftSummary);
-  if(document.getElementById('view-alerts').classList.contains('active')) {
-    if (alertFilter === 'usagehistory') safeRender('Usage History', renderUsageHistory);
-    else                                safeRender('Alerts', renderAlerts);
+  const alertsActive = document.getElementById('view-alerts').classList.contains('active');
+  if (alertsActive && alertFilter !== 'usagehistory') {
+    safeRender('Alerts', renderAlerts); // also refreshes sub-tab blinks + nav flash
+  } else {
+    // Keep the Alert sub-tab blinks + nav-tab flash in sync even when the
+    // Alerts table itself isn't being rendered (off-view or 30m-usage view).
+    safeRender('Alert indicators', refreshAlertTabIndicators);
+    if (alertsActive) safeRender('Usage History', renderUsageHistory);
   }
   if(document.getElementById('view-all-clients').classList.contains('active')) safeRender('All Clients', window.renderClients);
-  safeRender('Notifications', () => checkAndNotify(activeData(), false)); // keep tab flash in sync on every refresh
   safeRender('Spam scan', scanSpamSuspects); // notify on new spam suspects regardless of active view
 }
 
@@ -6286,7 +6296,8 @@ function alertRows() {
   if      (alertFilter==='removed')       rows = visibleRemoved;
   else if (alertFilter==='inactiveusage') rows = inactiveUsageRows; // bypass Show-inactive toggle
   else                                    rows = visibleData;
-  const usageHighCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
+  // Usage tab blinks only for 30m usage ≥ 100 (usageAlertLevel medium/high).
+  const usageBlinkCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
   const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, ratio:r._spamInfo?.ratio }));
   const spamCount      = spamSuspects.length;
@@ -6312,17 +6323,29 @@ function alertRows() {
       return((av??0)-(bv??0))*alertSortDir;
     });
   }
-  return { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
+  return { rows, newCount, removedCount, prevCritSet, usageBlinkCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
+}
+
+// Refresh every Alert sub-tab's blink/label state, then blink the top-level
+// Alerts nav tab red only if at least one sub-tab is blinking. Runs on every
+// refresh — even when the Alerts view isn't open — so the nav tab stays honest.
+// Returns the alertRows() result so callers (renderAlerts) can reuse rows/counts.
+function refreshAlertTabIndicators() {
+  const c = alertRows();
+  updateNewCriticalTab(c.newCount);
+  updateRemovedCriticalTab(c.removedCount);
+  setTabBlink('tab-usage',    c.usageBlinkCount > 0);
+  setTabBlink('tab-nothresh', c.noThreshCount > 0);
+  updateInactiveUsageTab(c.inactiveUsageCount);
+  updateSpamTab(c.spamCount, c.spamHighCount);
+  const anyBlink = c.newCount > 0 || c.removedCount > 0 || c.usageBlinkCount > 0
+    || c.noThreshCount > 0 || c.inactiveUsageCount > 0 || c.spamHighCount > 0;
+  updateAlertTabFlash(anyBlink);
+  return c;
 }
 
 function renderAlerts() {
-  const { rows, newCount, removedCount, prevCritSet, usageHighCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount } = alertRows();
-  updateNewCriticalTab(newCount);
-  updateRemovedCriticalTab(removedCount);
-  setTabBlink('tab-usage',    usageHighCount > 0);
-  setTabBlink('tab-nothresh', noThreshCount > 0);
-  updateInactiveUsageTab(inactiveUsageCount);
-  updateSpamTab(spamCount, spamHighCount);
+  const { rows, prevCritSet } = refreshAlertTabIndicators();
   const pages=Math.max(1,Math.ceil(rows.length/PG));
   alertPage=Math.min(alertPage,pages-1);
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
