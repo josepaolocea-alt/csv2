@@ -3168,6 +3168,20 @@ function populateSlots() {
   const chosen=slots.includes(sel.value)?sel.value:nextSlot();
   sel.innerHTML=slots.map(s=>`<option value="${s}" ${s===chosen?'selected':''}>${fmt12(s)}</option>`).join('');
 }
+/* After a successful All-Clients post, move the shared time box to the slot that
+   immediately follows the one just posted (11:30 → 12:00), so the operator doesn't
+   have to re-pick it. Tied to the posted slot rather than the wall clock, which
+   also keeps you in sequence when catching up on a backlog. The 60s populateSlots()
+   refresh preserves this because the value stays a valid slot. No-op on the last
+   slot of the shift (nothing to advance to). Deliberately NOT called for Tritel
+   posts, since both feeds share this one box. */
+function advanceSlotPicker(postedSlot) {
+  const sel=document.getElementById('slot-sel');
+  if(!sel||!postedSlot) return;
+  const slots=shiftSlots(S.shift), i=slots.indexOf(postedSlot);
+  if(i<0||i+1>=slots.length) return;
+  sel.value=slots[i+1];
+}
 
 /* ════════════════════════════════════════════════
    CRITICAL ALERT NOTIFICATIONS
@@ -4987,6 +5001,7 @@ async function doProcessSnapshot(rows, timeSlot){
   } catch(e) {}
   updateLastProcessed();
   document.getElementById('snap-ta').value='';
+  advanceSlotPicker(timeSlot);   // bump the shared time box to the next slot (All-Clients feed only)
   refreshAll();
   window.renderClients();
   safeRender('Snapshot notifications', () => checkAndNotify(data, true));
