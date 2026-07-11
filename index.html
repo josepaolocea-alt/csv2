@@ -1597,7 +1597,7 @@
           <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
             <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
             <div class="tab" onclick="setAlertFilter('high',this)">Critical</div>
-            <div class="tab" onclick="setAlertFilter('light',this)">Warning</div>
+            <div class="tab" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
@@ -6299,6 +6299,10 @@ function alertRows() {
   // Usage tab blinks only for 30m usage ≥ 100 (usageAlertLevel medium/high).
   const usageBlinkCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
   const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
+  // Warning tab blinks when a Warning (light) client has usage AND its balance
+  // bar is 90–99.9% (nearly critical). A light client's bar is always <100, so
+  // ≥90 captures the 90–99.9% band. Clears next snapshot if none stay ≥90%.
+  const warnBlinkCount = visibleData.filter(r=>r._level==='light' && amountNumber(r.usage_30min)!==0 && balanceBarPct(r)>=90).length;
   const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, ratio:r._spamInfo?.ratio }));
   const spamCount      = spamSuspects.length;
   const spamHighCount  = spamSuspects.filter(s=>s.tier==='high').length;
@@ -6323,7 +6327,7 @@ function alertRows() {
       return((av??0)-(bv??0))*alertSortDir;
     });
   }
-  return { rows, newCount, removedCount, prevCritSet, usageBlinkCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
+  return { rows, newCount, removedCount, prevCritSet, usageBlinkCount, warnBlinkCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
 }
 
 // Refresh every Alert sub-tab's blink/label state, then blink the top-level
@@ -6334,12 +6338,13 @@ function refreshAlertTabIndicators() {
   const c = alertRows();
   updateNewCriticalTab(c.newCount);
   updateRemovedCriticalTab(c.removedCount);
+  setTabBlink('tab-warning',  c.warnBlinkCount > 0);
   setTabBlink('tab-usage',    c.usageBlinkCount > 0);
   setTabBlink('tab-nothresh', c.noThreshCount > 0);
   updateInactiveUsageTab(c.inactiveUsageCount);
   updateSpamTab(c.spamCount, c.spamHighCount);
   const anyBlink = c.newCount > 0 || c.removedCount > 0 || c.usageBlinkCount > 0
-    || c.noThreshCount > 0 || c.inactiveUsageCount > 0 || c.spamHighCount > 0;
+    || c.warnBlinkCount > 0 || c.noThreshCount > 0 || c.inactiveUsageCount > 0 || c.spamHighCount > 0;
   updateAlertTabFlash(anyBlink);
   return c;
 }
