@@ -3528,6 +3528,15 @@ const TRITEL_LABEL = 'Tritel';
 function normalizeTritelRows(data) {
   return (data || []).map(r => isTritelRow(r) ? { ...r, carrier_name: TRITEL_LABEL } : r);
 }
+// A pasted All-Clients export can carry a summary "Total" line (e.g. between the last
+// client and a bundled Tritel row). It is NOT a client — drop it on parse so it is never
+// listed or double-counted into the app's own Total. Match the whole cell exactly
+// (case-insensitive) so real names that merely contain "total" (e.g. "Total Access
+// Communications") are preserved.
+function isTotalRow(r) {
+  const n = String(r?.carrier_name || '').trim().toLowerCase();
+  return n === 'total' || n === 'totals' || n === 'grand total';
+}
 
 function usageAlertLevel(row) {
   const u30 = amountNumber(row?.usage_30min);
@@ -4784,7 +4793,7 @@ function parseText(text) {
     if((row.billing_cycle===undefined || row.billing_cycle==='') && row.is_prepay!==undefined) row.billing_cycle=row.is_prepay?'Prepay':'Postpay';
     return row;
   });
-  const accepted = mapped.filter(r=>r.carrier_name);
+  const accepted = mapped.filter(r=>r.carrier_name && !isTotalRow(r)); // drop any summary "Total" line
   lastParseInfo = { rawLines:lines.length, headerLine:headerLine+1, parsedRows:mapped.length, acceptedRows:accepted.length };
   return accepted;
 }
