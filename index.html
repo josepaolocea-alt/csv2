@@ -9681,12 +9681,40 @@ function statsSlots() {
   for (let h = 0; h < 24; h++) out.push(`${String(h).padStart(2,'0')}:00`);
   return out;
 }
+/* Latest hourly stats slot posted today (by slot order), or null. */
+function latestStatsSlot() {
+  const slots = statsSlots();
+  let best = null, bestIdx = -1;
+  for (const s of statsTodaySnaps) {
+    if (s.session_date !== todayStr() || !s.time_slot) continue;
+    const idx = slots.indexOf(s.time_slot);
+    if (idx > bestIdx) { bestIdx = idx; best = s.time_slot; }
+  }
+  return best;
+}
+/* Stats picker defaults to the hour right AFTER the latest stats snapshot posted today
+   (10:00 posted → box shows 11:00). Anchored to posted data rather than the wall clock,
+   so it survives reloads and keeps you in sequence when catching up. Before any stats
+   snapshot exists today it falls back to the current wall-clock hour. Stats is a single
+   feed (no Tritel), so it advances immediately on each post. */
+function computeStatsDefaultSlot() {
+  const slots = statsSlots(), last = latestStatsSlot();
+  if (last) {
+    const i = slots.indexOf(last);
+    if (i >= 0) return (i + 1 < slots.length) ? slots[i + 1] : last;
+  }
+  return `${String(new Date().getHours()).padStart(2,'0')}:00`;
+}
+// When true the stats picker auto-follows computeStatsDefaultSlot(). A manual pick turns
+// it off so the operator's choice sticks; posting a stats snapshot turns it back on.
+let statsSlotAutoTrack = true;
 function populateStatsSlots() {
   const sel = document.getElementById('stats-slot-sel');
   if (!sel) return;
   const slots = statsSlots();
-  const cur = `${String(new Date().getHours()).padStart(2,'0')}:00`;
-  const chosen = slots.includes(sel.value) ? sel.value : cur;
+  const chosen = statsSlotAutoTrack
+    ? computeStatsDefaultSlot()
+    : (slots.includes(sel.value) ? sel.value : computeStatsDefaultSlot());
   sel.innerHTML = slots.map(s => `<option value="${s}" ${s===chosen?'selected':''}>${fmt12(s)}</option>`).join('');
 }
 
@@ -10230,6 +10258,7 @@ window.processStatsSnapshot = async () => {
   statsViewingSlot = null;
   ta.value = '';
   try { localStorage.setItem('bm_stats_last', JSON.stringify({ at:snap.timestamp.toISOString(), slot, rows:rows.length })); } catch(e) {}
+  statsSlotAutoTrack = true; populateStatsSlots();   // step the stats box to the next hour after this post
   statsRender();
   if (fbOk) {
     setLoading(true, 'Saving stats snapshot…');
@@ -10402,8 +10431,11 @@ async function cleanupOldStatsSnapshots() {
 
 async function initStats() {
   populateStatsSlots();
+  // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
+  document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
   setInterval(populateStatsSlots, 60000);
   await loadStatsSnaps();
+  populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
   subscribeStatsRemarks();
   statsRender();
@@ -10413,6 +10445,7 @@ async function initStats() {
       onSnapshot(q, snap => {
         statsTodaySnaps = snap.docs.map(d => ({ id:d.id, ...d.data(), timestamp:d.data().timestamp?.toDate() }));
         statsRender();
+        populateStatsSlots();   // re-anchor as stats snapshots load / sync across operators
       });
     } catch(e) { console.warn('stats onSnapshot:', e); }
   }
