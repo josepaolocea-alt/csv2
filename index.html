@@ -3512,6 +3512,16 @@ function computeUsage(cur, prev) {
   return { usage_30min:u30, total_usage:prev?amountNumber(prev.total_usage)+u30:0 };
 }
 
+/* A row named "Tritel" may be bundled inside an All-Clients paste (CarrierName +
+   Amnt Receivable only, other columns blank). It is NOT a normal client: it is
+   split out at process time and routed into the isolated Tritel feed, so it is
+   excluded from every Total (Amnt Receivable, 30-min & total usage) and from
+   stats/alerts, and shown below the Total. Match the exact name only — the
+   standard All-Clients feed never contains a client literally named Tritel. */
+function isTritelRow(r) {
+  return String(r?.carrier_name || '').trim().toLowerCase() === 'tritel';
+}
+
 function usageAlertLevel(row) {
   const u30 = amountNumber(row?.usage_30min);
   if (!Number.isFinite(u30)) return null;
@@ -4990,7 +5000,19 @@ window.closeGapConfirm = () => {
   pendingGapRows = null; pendingGapSlot = null; pendingGapKind = 'all';
 };
 
-async function doProcessSnapshot(rows, timeSlot){
+async function doProcessSnapshot(inputRows, timeSlot){
+  // An All-Clients paste may include a bundled "Tritel" row — split it off here so
+  // it never enters the all-client data: Tritel is saved to its own isolated feed
+  // (excluded from every Total and from stats/alerts, shown below the Total).
+  const inlineTritel=(inputRows||[]).filter(isTritelRow);
+  const rows=(inputRows||[]).filter(r=>!isTritelRow(r));
+  // Tritel-only paste (no real client rows): route straight to the Tritel feed
+  // rather than overwriting this slot's all-client snapshot with empty data.
+  if(!rows.length){
+    if(inlineTritel.length){ document.getElementById('snap-ta').value=''; await processTritelSnapshot(inlineTritel, timeSlot); }
+    else toast('No client rows to process.','err');
+    return;
+  }
   const prevSnap=latestSnap;                 // the snapshot usage_30min is diffed against (may be a prior day)
   const prevMap={};
   if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
@@ -5044,6 +5066,10 @@ async function doProcessSnapshot(rows, timeSlot){
   } else {
     toast(`✓ Snapshot saved — ${data.length} clients processed`,'ok');
   }
+  // Bundled Tritel row(s) from this paste — save to the isolated Tritel feed for
+  // the same slot (reuses the full Tritel pipeline: usage vs. prior Tritel, upsert,
+  // local + Firestore persistence, render below the Total).
+  if(inlineTritel.length) await processTritelSnapshot(inlineTritel, timeSlot);
 };
 
 /* ════════════════════════════════════════════════
