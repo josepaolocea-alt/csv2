@@ -3521,6 +3521,13 @@ function computeUsage(cur, prev) {
 function isTritelRow(r) {
   return String(r?.carrier_name || '').trim().toLowerCase() === 'tritel';
 }
+// Tritel may arrive under any casing ("Tritel", "TRITEL", "tritel") from either the
+// Tritel button or a bundled All-Clients row. Collapse them to one canonical label so
+// the two never key as separate carriers (which showed as two rows: "Tritel" + "TRITEL").
+const TRITEL_LABEL = 'Tritel';
+function normalizeTritelRows(data) {
+  return (data || []).map(r => isTritelRow(r) ? { ...r, carrier_name: TRITEL_LABEL } : r);
+}
 
 function usageAlertLevel(row) {
   const u30 = amountNumber(row?.usage_30min);
@@ -5129,7 +5136,8 @@ function loadTritelSnap() {
     const v = localStorage.getItem('bm_tritel_snaps');
     if (v) {
       const arr = JSON.parse(v);
-      if (Array.isArray(arr)) tritelSnaps = arr.filter(t => t?.time_slot && t.session_date === todayStr());
+      if (Array.isArray(arr)) tritelSnaps = arr.filter(t => t?.time_slot && t.session_date === todayStr())
+        .map(t => ({ ...t, data: normalizeTritelRows(t.data) }));
     }
   } catch(e) {}
   updateTritelStatus();
@@ -5137,10 +5145,11 @@ function loadTritelSnap() {
 
 async function processTritelSnapshot(rows, timeSlot) {
   if (timeSlot == null) timeSlot = document.getElementById('slot-sel').value;
+  rows = normalizeTritelRows(rows);   // collapse Tritel casing so it never splits into two rows
   // Compute 30-min usage against the most recent existing Tritel entry (same-carrier match).
   const prev = latestTritel();
   const prevMap = {};
-  (prev?.data || []).forEach(r => { if (r?.carrier_name) prevMap[r.carrier_name] = r; });
+  (prev?.data || []).forEach(r => { const k = isTritelRow(r) ? TRITEL_LABEL : r.carrier_name; if (k) prevMap[k] = r; });
   const data = rows.map(r => ({ ...r, ...computeUsage(r, prevMap[r.carrier_name] || null) }));
   const snap = { session_date: todayStr(), time_slot: timeSlot, data, updated_at: new Date() };
   // Upsert: replace any existing entry for this slot.
@@ -10523,7 +10532,8 @@ async function init(){
       const tq=query(collection(db,'tritel_snapshots'),where('session_date','==',todayStr()));
       onSnapshot(tq, snap=>{
         tritelSnaps=snap.docs.map(d=>({id:d.id,...d.data(),updated_at:d.data().updated_at?.toDate?.()||new Date()}))
-          .filter(t=>t.time_slot); // ignore any legacy docs without a slot
+          .filter(t=>t.time_slot) // ignore any legacy docs without a slot
+          .map(t=>({...t, data: normalizeTritelRows(t.data)})); // collapse Tritel casing so it never shows twice
         updateTritelStatus();
         refreshAll();
         populateSlots();   // a Tritel slot arriving (incl. cross-operator) can release the box to the next slot
