@@ -6983,8 +6983,9 @@ window.renderClients=()=>{
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
       return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
     }).join('');
-    // Tritel is additional: only shown on the plain full list (no search/filter), below the Total, on the last page.
-    const showTritel = clientFilter==='all' && !search && clientManagerFilter==='all' && clientPage>=pages-1;
+    // Tritel is additional: shown on the plain full list (no search/filter), below the Total,
+    // on every page (matches the Total, which also repeats per page) so it's always visible.
+    const showTritel = clientFilter==='all' && !search && clientManagerFilter==='all';
     const tritelRows = showTritel ? renderTritelRows(vc, rows.length+1) : '';
     tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, clientTotalSourceRows(rows, search)) + tritelRows : (sourceRows.length===0
       ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
