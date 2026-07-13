@@ -177,6 +177,25 @@
     body.night-mode #night-toggle .ico-sun { display: block; }
     body.night-mode #night-toggle .ico-moon { display: none; }
 
+    /* ── Comfortable-density toggle (#4) ── */
+    #ui-comfy-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 27px; height: 25px; padding: 0;
+      background: none; border: none; border-radius: var(--r-sm);
+      color: var(--text-2); cursor: pointer;
+      transition: background-color .12s ease-out, color .12s ease-out;
+    }
+    #ui-comfy-toggle:hover { background: var(--surface-3); color: var(--text); }
+    #ui-comfy-toggle svg { width: 16px; height: 16px; }
+    body.comfy #ui-comfy-toggle { background: var(--accent-soft); color: var(--accent); }
+    /* Opt-in larger data text + roomier rows for long shifts. Targets the primary
+       reading surfaces only, so the fixed window chrome/layout stays intact. */
+    body.comfy { font-size: 12px; }
+    body.comfy td { padding: 6px 9px; font-size: 12px; }
+    body.comfy th { padding: 7px 9px; font-size: 11px; }
+    body.comfy .top-usage-item { font-size: 11px; padding: 4px 6px; }
+    body.comfy .nav-item { font-size: 12px; }
+
     /* ── Toolbar ── */
     #toolbar {
       height: 42px; flex-shrink: 0;
@@ -441,12 +460,9 @@
     .ubar-fill.light  { background: var(--yellow); }
     .ubar-fill.medium { background: var(--orange); }
     .ubar-fill.high   { background: var(--red); }
-    /* Balance-bar % text pulses red when a Warning client is ≥90% toward critical */
-    .bar-pct-danger { color: var(--red); font-weight: 700; animation: barPctPulse 1s ease-in-out infinite; }
-    @keyframes barPctPulse {
-      0%, 100% { opacity: 1; }
-      50%      { opacity: .35; }
-    }
+    /* Balance-bar % text: static bold red when a Warning client is ≥90% toward critical.
+       (#1) No per-row animation — many at-risk rows must not all strobe at once. */
+    .bar-pct-danger { color: var(--red); font-weight: 700; }
 
     /* ── Filter tabs ── */
     .tab-bar {
@@ -479,18 +495,28 @@
     .fltbtn.active { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
     .fltbtn:hover:not(.active) { background: var(--surface-2); border-color: var(--border-strong); color: var(--text); }
 
-    /* ── Critical alert flash on tab / nav-item ── */
-    @keyframes critFlash {
-      0%, 100% { background: var(--red); color: #fff; }
-      50%      { background: var(--red-deep); color: #fff; }
+    /* ── Keyboard focus ring (#5) — shown only for keyboard nav, never on mouse
+       click (:focus-visible), so keyboard users can see where they are. ── */
+    .tbtn:focus-visible, .tab:focus-visible, .fltbtn:focus-visible, .micon:focus-visible,
+    .tb-btn:focus-visible, #night-toggle:focus-visible, #ui-comfy-toggle:focus-visible,
+    #menubar-right #btn-signout:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
     }
-    @keyframes navFlash {
-      0%, 100% { background: var(--red); color: #fff; }
-      50%      { background: var(--red-deep); color: #fff; }
+
+    /* ── Unified alert emphasis (#1) ──
+       One calm "breathing" halo instead of several elements strobing between two
+       reds at once. A solid red fill signals urgency; the soft pulsing ring draws
+       the eye without the alarm-fatigue of multiple hard colour-flips competing. */
+    @keyframes alertPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(207, 61, 61, 0); }
+      50%      { box-shadow: 0 0 0 3px rgba(207, 61, 61, .32); }
     }
-    #tnav-alerts.critical-flash { animation: critFlash 1.2s ease-in-out infinite; color: #fff !important; border-color: transparent; font-weight: 600; }
-    #snav-alerts.critical-flash { animation: navFlash 1.2s ease-in-out infinite; color: #fff !important; font-weight: 600; }
-    #snav-alerts.critical-flash svg * { stroke: #fff !important; fill: #fff !important; }
+    #tnav-alerts.critical-flash {
+      background: var(--red); color: #fff !important;
+      border-color: transparent; font-weight: 600;
+      animation: alertPulse 1.6s ease-in-out infinite;
+    }
 
     /* ── New Critical tab & row styles ── */
     #tab-new-critical { color: var(--orange); font-weight: 600; }
@@ -507,15 +533,11 @@
     tr.row-new-crit:hover td { background: var(--row-hover) !important; }
     tr.row-removed-crit td { background: var(--red-soft) !important; }
     tr.row-removed-crit:hover td { background: var(--row-hover) !important; }
-    /* ── Alert tab red blink ── */
-    @keyframes tabBlinkRed {
-      0%, 100% { background: var(--red); color: #fff; }
-      50%      { background: var(--red-deep); color: #fff; }
-    }
+    /* ── Alert tab emphasis — shares the calm alertPulse defined above (#1) ── */
     .tab.tab-blink-red {
-      animation: tabBlinkRed 1.2s ease-in-out infinite;
-      color: #fff !important; font-weight: 600;
+      background: var(--red); color: #fff !important; font-weight: 600;
       border-radius: var(--r-sm) var(--r-sm) 0 0;
+      animation: alertPulse 1.6s ease-in-out infinite;
     }
     /* Shift summary */
     .sum-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
@@ -668,6 +690,11 @@
     body.np-readonly .np-tab-close,
     body.np-readonly .np-tab-add { display: none !important; }
     body.np-readonly #np-editor { cursor: default; }
+
+    /* Balance-only toolbar separators — hide in other modules so no divider is
+       left dangling once the tnav-* buttons around it are hidden (#2). */
+    body.stats-mode .tsep-bal, body.sms-mode .tsep-bal,
+    body.notepad-mode .tsep-bal, body.users-mode .tsep-bal { display: none !important; }
 
     /* ── Stats module ── */
     #stats-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
@@ -1223,7 +1250,7 @@
 
     /* ── Dismiss sound button (hidden by default) ── */
     #snd-dismiss-btn { display: none; }
-    #snd-dismiss-btn.active { display: inline-flex; animation: critFlash 1.2s ease-in-out infinite; color: #fff !important; border-color: transparent; }
+    #snd-dismiss-btn.active { display: inline-flex; background: var(--red); color: #fff !important; border-color: transparent; animation: alertPulse 1.6s ease-in-out infinite; }
 
     .snap-action-row { display: flex; gap: 3px; margin-top: 4px; }
     .snap-action-row .tbtn { flex: 1; justify-content: center; font-size: 10px; padding: 2px 4px; }
@@ -1371,6 +1398,24 @@
   } catch (e) {}
 </script>
 
+<!-- Comfortable-density preference (#4). Stored under its own localStorage key,
+     fully isolated from app settings/Firestore data; applied before login so the
+     login overlay matches the in-app density. -->
+<script>
+  try {
+    var _ui = JSON.parse(localStorage.getItem('bm_ui_prefs') || '{}');
+    if (_ui && _ui.comfy) document.body.classList.add('comfy');
+  } catch (e) {}
+  window.toggleComfy = function () {
+    var on = document.body.classList.toggle('comfy');
+    try {
+      var p = JSON.parse(localStorage.getItem('bm_ui_prefs') || '{}');
+      p.comfy = on;
+      localStorage.setItem('bm_ui_prefs', JSON.stringify(p));
+    } catch (e) {}
+  };
+</script>
+
 <!-- Main Window -->
 <div id="win">
   <!-- Title bar -->
@@ -1420,6 +1465,13 @@
     </div>
     <div id="menubar-right">
       <span id="login-user-label"></span>
+      <button id="ui-comfy-toggle" onclick="toggleComfy()" title="Toggle comfortable density — larger data text and roomier rows">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <line x1="3" y1="4.5" x2="13" y2="4.5"/>
+          <line x1="3" y1="8" x2="13" y2="8"/>
+          <line x1="3" y1="11.5" x2="13" y2="11.5"/>
+        </svg>
+      </button>
       <button id="night-toggle" onclick="toggleNightMode()" title="Toggle night mode">
         <svg class="ico-moon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
           <path d="M13.3 10.1A5.6 5.6 0 0 1 5.9 2.7a5.6 5.6 0 1 0 7.4 7.4z"/>
@@ -1449,7 +1501,7 @@
     <button class="tbtn"        id="tnav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">All Clients</button>
     <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">Client Manager</button>
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">Export</button>
-    <div class="tsep"></div>
+    <div class="tsep tsep-bal"></div>
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
     <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
     <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots">No Threshold</button>
@@ -1461,7 +1513,8 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
-    <button class="tbtn stats-tab" id="btn-stats-settings" onclick="toggleStatsSettings()">Settings</button>
+    <button class="tbtn stats-tab" id="btn-stats-settings" onclick="toggleStatsSettings()">Stats Settings</button>
+    <div class="tsep tsep-bal"></div>
     <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
@@ -1476,40 +1529,8 @@
 
     <!-- Left sidebar -->
     <div id="sidebar">
-      <div class="sidebar-section-label">Navigation</div>
-      <div class="nav-item active" id="snav-summary"     onclick="switchView('summary')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="1" y="8" width="4" height="7" fill="#000080"/><rect x="6" y="5" width="4" height="10" fill="#000080"/><rect x="11" y="2" width="4" height="13" fill="#000080"/></svg>
-        Summary
-      </div>
-      <div class="nav-item" id="snav-alerts" onclick="switchView('alerts')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#cc0000" stroke-width="2"/><rect x="7" y="4" width="2" height="5" fill="#cc0000"/><rect x="7" y="10" width="2" height="2" fill="#cc0000"/></svg>
-        Alerts
-      </div>
-      <div class="nav-item" id="snav-all-clients" onclick="window.switchView('all-clients'); setTimeout(function(){ if(window.renderClients) window.renderClients(); },0)">
-        <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="5" cy="5" r="3" fill="#000080"/><path d="M0 14c0-3 2-5 5-5s5 2 5 5" fill="#000080"/><circle cx="12" cy="5" r="2" fill="#808080"/><path d="M10 14c0-2 1-4 4-4" fill="#808080"/></svg>
-        All Clients
-      </div>
-      <div class="nav-item" id="snav-client-manager" onclick="switchView('client-manager')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="6" x2="11" y2="6" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="9" x2="11" y2="9" stroke="#000080" stroke-width="1.5"/></svg>
-        Client Manager
-      </div>
-      <div class="nav-item" id="snav-export" onclick="switchView('export')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="2" width="8" height="10" fill="none" stroke="#000080" stroke-width="1.5"/><path d="M8 2h4l2 2v10h-6" stroke="#000080" stroke-width="1.5" fill="none"/><line x1="8" y1="9" x2="8" y2="14" stroke="#000080" stroke-width="1.5"/><path d="M5 12l3 3 3-3" fill="#000080"/></svg>
-        Export
-      </div>
-      <div class="nav-item" id="snav-logs" onclick="switchView('logs')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="1" width="12" height="14" rx="1" fill="none" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="5" x2="11" y2="5" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="8" x2="11" y2="8" stroke="#000080" stroke-width="1.5"/><line x1="5" y1="11" x2="9" y2="11" stroke="#000080" stroke-width="1.5"/></svg>
-        Logs
-      </div>
-      <div class="nav-item" id="snav-crit-history" onclick="switchView('crit-history')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#cc0000" stroke-width="2"/><rect x="7" y="4" width="2" height="5" fill="#cc0000"/><rect x="7" y="10" width="2" height="2" fill="#cc0000"/><path d="M13 3l1.5 1.5" stroke="#cc0000" stroke-width="1.2"/></svg>
-        Critical History
-      </div>
-      <div class="nav-item" id="snav-no-threshold" onclick="switchView('no-threshold')">
-        <svg class="nav-ico" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="#884400" stroke-width="1.5"/><line x1="5" y1="6" x2="11" y2="6" stroke="#884400" stroke-width="1.5"/><line x1="5" y1="9" x2="9" y2="9" stroke="#884400" stroke-width="1.5"/><path d="M11 11l3 3M14 11l-3 3" stroke="#884400" stroke-width="1.2"/></svg>
-        No Threshold
-      </div>
-      <div class="nav-divider"></div>
+      <!-- Sidebar quick-nav removed (#3): these were display:none dead markup left
+           over from the old theme. Navigation lives in the toolbar (tnav-* / .tab). -->
 
       <!-- Snapshot paste -->
       <div id="sidebar-snap">
