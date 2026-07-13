@@ -1127,10 +1127,10 @@
     .exp-lbl { font-size: 11px; min-width: 70px; color: var(--text-2); }
 
     /* ── Settings dialog ── */
-    #settings-dlg { display: none; position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 500; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 80px); }
-    #settings-dlg.open { display: block; }
-    #settings-dlg .win-dialog { width: 100%; max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
-    #settings-dlg .settings-body { padding: 14px; overflow-y: auto; }
+    #settings-dlg, #stats-settings-dlg { display: none; position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 500; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 80px); }
+    #settings-dlg.open, #stats-settings-dlg.open { display: block; }
+    #settings-dlg .win-dialog, #stats-settings-dlg .win-dialog { width: 100%; max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
+    #settings-dlg .settings-body, #stats-settings-dlg .settings-body { padding: 14px; overflow-y: auto; }
     .settings-grid { display: grid; gap: 7px; }
     .settings-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(90px, 150px); gap: 8px; align-items: center; }
     .settings-row label { min-width: 0 !important; white-space: normal; line-height: 1.2; }
@@ -1270,6 +1270,7 @@
     .view.active { animation: viewIn .16s ease-out; }
     .groupbox, .stat-box, .sum-card { transition: background-color .12s ease-out, border-color .12s ease-out; }
     #settings-dlg.open .win-dialog,
+    #stats-settings-dlg.open .win-dialog,
     #operator-dlg .win-dialog,
     #np-rename-dlg .win-dialog,
     #login-overlay .win-dialog,
@@ -1460,6 +1461,7 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
+    <button class="tbtn stats-tab" id="btn-stats-settings" onclick="toggleStatsSettings()">Settings</button>
     <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
@@ -1637,7 +1639,7 @@
             <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
             <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
-            <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage is far above their own historical baseline — possible spam. Month-start days (1–2) are excluded because recurring charges make usage normally high.">Possible Spam</div>
+            <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage jumped to a multiple of their own usual usage (e.g. doubled) — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
@@ -2408,10 +2410,10 @@
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Spam Detection (30m Usage)</div>
-        <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client when its 30-min usage spikes far above its own historical baseline.</div>
+        <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client only when its 30-min usage jumps to a multiple of its own usual usage (e.g. doubles). Wide-gap catch-up readings are excluded.</div>
         <div class="settings-row">
           <label style="min-width:150px;font-weight:700">Preset:</label>
-          <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags more (catches subtler spikes, more false alarms); Relaxed flags fewer (only big, obvious spikes). Each preset sets Sensitivity, Ignore-below and High-tier below. Custom = manually tuned values.">
+          <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags at 1.5× usual (more flags); Balanced at 2× (doubled); Relaxed at 3× (only big jumps). Each preset sets Flag-at, Ignore-below and High-tier below. Custom = manually tuned values.">
             <option value="aggressive">Aggressive</option>
             <option value="balanced">Balanced</option>
             <option value="relaxed">Relaxed</option>
@@ -2419,8 +2421,9 @@
           </select>
         </div>
         <div class="settings-row">
-          <label style="min-width:150px">Sensitivity (k):</label>
-          <input class="win-inp" id="set-spam-k" type="number" step="0.5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Threshold = median + k × MAD. Lower = more sensitive (more flags); higher = fewer flags.">
+          <label style="min-width:150px">Flag at (× usual):</label>
+          <input class="win-inp" id="set-spam-mult" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="Flag a client only when its 30-min usage exceeds this many times its own usual (median) usage. 2 = flag when usage doubles, 3 = when it triples. Lower = more sensitive (more flags).">
+          <span style="font-size:10px;color:#666;margin-left:4px">× normal (2 = doubled)</span>
         </div>
         <div class="settings-row">
           <label style="min-width:150px">Min samples:</label>
@@ -2466,7 +2469,6 @@
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
-            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('tritel')">Delete ALL Tritel Snapshots</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected. Admin only.</div>
@@ -2485,6 +2487,31 @@
       </div>
       <div style="margin-top:10px;display:flex;justify-content:center">
         <button class="tbtn" style="min-width:72px" onclick="toggleSettings()">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Settings Dialog — settings that belong to the Stats module only -->
+<div id="stats-settings-dlg">
+  <div class="win-dialog">
+    <div class="dlg-tb"><span>Stats Settings</span></div>
+    <div class="settings-body">
+      <div class="settings-grid">
+        <div class="settings-note">
+          Settings for the <strong>Stats Monitor</strong>. Balance-monitor snapshots, alerts and spam baseline are managed separately in the main Settings.
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
+        <div class="settings-danger">
+          <div style="margin-bottom:5px">Wipe the entire <strong>stats_snapshots</strong> Firestore collection — every stored day, not just today. Balance snapshots, New Critical comparison and spam baseline are not affected. Admin &amp; semi-admin.</div>
+          <div class="danger-btns">
+            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:center">
+        <button class="tbtn" style="min-width:72px" onclick="toggleStatsSettings()">OK</button>
       </div>
     </div>
   </div>
@@ -3056,10 +3083,14 @@ window.toggleNightMode = () => {
    SETTINGS DIALOG
 ════════════════════════════════════════════════ */
 window.toggleSettings = () => document.getElementById('settings-dlg').classList.toggle('open');
+window.toggleStatsSettings = () => document.getElementById('stats-settings-dlg').classList.toggle('open');
 document.addEventListener('click', e => {
   const sd = document.getElementById('settings-dlg');
   if (sd.classList.contains('open') && !sd.contains(e.target) && !e.target.closest('[onclick*="toggleSettings"]'))
     sd.classList.remove('open');
+  const stsd = document.getElementById('stats-settings-dlg');
+  if (stsd && stsd.classList.contains('open') && !stsd.contains(e.target) && !e.target.closest('[onclick*="toggleStatsSettings"]'))
+    stsd.classList.remove('open');
   if (!e.target.closest('#view-menu')) closeViewMenu();
   if (!e.target.closest('.sms-combo')) closeSmsCombos();
   // Close the Sender ID comment popover when clicking outside it or its trigger button
@@ -3666,19 +3697,19 @@ function usageTrendArrow(row) {
    NOT in `snapshots` — so it survives deleting/wiping the snapshots collection.
    Each client doc holds a capped rolling buffer of recent positive 30-min usage
    samples (keyed by date+slot). A live slot is flagged when its usage exceeds
-   median + K·MAD of the client's baseline (robust to occasional legit spikes).
+   ratioMult × the client's own usual (median) usage — i.e. only when a client's
+   30-min usage jumps to a multiple of what is normal FOR IT (default 2× = doubled).
    Month-start days (recurring monthly charges) never feed the baseline and never
    alert. See recordUsageSamples() (fed on every processed snapshot).
 ════════════════════════════════════════════════ */
 const SPAM_CFG_DEFAULTS = {
   monthStartExcludeDays: 2, // ignore day 1..N of the month (monthly recurring charges)
   minSamples: 8,            // need this many prior consumption points for a stable baseline
-  k: 4,                     // threshold = median + k · scaledMAD  ("Balanced")
-  hardFloor: 50,            // never flag a spike below this absolute 30-min usage
-  madFallbackMult: 2,       // if MAD == 0 (all baseline points identical), use median × this
+  ratioMult: 2,             // flag when a reading exceeds this many × the client's usual (median) usage — 2 = "doubled"
+  hardFloor: 50,            // ignore-below gate: never flag a 30-min usage below this absolute amount
   sampleCap: 300,           // max recent usage samples kept per client (rolling window)
   maxAgeDays: 30,           // ignore baseline samples older than this many days (0 = no age limit)
-  highRatio: 8,             // a flagged reading ≥ this × its median is "High", otherwise "Watch"
+  highRatio: 6,             // a flagged reading ≥ this × its usual usage is "High", otherwise "Watch"
   maxGapMinutes: 30         // snapshots are meant to be 30 min apart; if the gap to the previous
                             // snapshot EXCEEDS this (a skipped slot / overnight resume) the reading
                             // accumulated more than one interval: don't flag it as spam and don't
@@ -3687,22 +3718,41 @@ const SPAM_CFG_DEFAULTS = {
 };
 // Live config — operator-tunable via Settings; persisted in localStorage `bm_spamcfg`.
 const SPAM_CFG = { ...SPAM_CFG_DEFAULTS };
-// Named sensitivity presets. Each bundles the three "how eager to flag" knobs;
-// "Balanced" mirrors SPAM_CFG_DEFAULTS. The remaining knobs (min samples,
-// baseline window, max gap) stay independent. Values matching no preset = Custom.
+// Named sensitivity presets. Each bundles the "how eager to flag" knobs; "Balanced"
+// mirrors SPAM_CFG_DEFAULTS. The remaining knobs (min samples, baseline window,
+// max gap) stay independent. Values matching no preset = Custom.
+//   ratioMult = flag when a reading exceeds this × the client's usual usage.
 const SPAM_PRESETS = {
-  aggressive: { k: 3, hardFloor: 30,  highRatio: 5  },  // flags more, catches subtler spikes
-  balanced:   { k: 4, hardFloor: 50,  highRatio: 8  },  // == SPAM_CFG_DEFAULTS
-  relaxed:    { k: 6, hardFloor: 100, highRatio: 12 },  // only big, obvious spikes
+  aggressive: { ratioMult: 1.5, hardFloor: 40, highRatio: 4 },  // flags at 1.5× usual — catches subtler jumps
+  balanced:   { ratioMult: 2,   hardFloor: 50, highRatio: 6 },  // flags at 2× usual (doubled) — == SPAM_CFG_DEFAULTS
+  relaxed:    { ratioMult: 3,   hardFloor: 80, highRatio: 8 },  // flags at 3× usual (tripled) — only big jumps
 };
 function detectSpamPreset() {
   for (const [nm, p] of Object.entries(SPAM_PRESETS)) {
-    if (SPAM_CFG.k === p.k && SPAM_CFG.hardFloor === p.hardFloor && SPAM_CFG.highRatio === p.highRatio) return nm;
+    if (SPAM_CFG.ratioMult === p.ratioMult && SPAM_CFG.hardFloor === p.hardFloor && SPAM_CFG.highRatio === p.highRatio) return nm;
   }
   return 'custom';
 }
 function loadSpamCfg() {
-  try { const v = localStorage.getItem('bm_spamcfg'); if (v) Object.assign(SPAM_CFG, JSON.parse(v)); } catch(e) {}
+  let migrated = false;
+  try {
+    const v = localStorage.getItem('bm_spamcfg');
+    if (v) {
+      const saved = JSON.parse(v);
+      // Migrate legacy MAD-model config (had `k`, no `ratioMult`) to the new
+      // ratio-of-usual model: drop the MAD knobs and adopt the Balanced ratio
+      // defaults (the old floor/highRatio meant different things under MAD).
+      if (saved && saved.k !== undefined && saved.ratioMult === undefined) {
+        delete saved.k; delete saved.madFallbackMult;
+        saved.ratioMult = SPAM_CFG_DEFAULTS.ratioMult;
+        saved.hardFloor = SPAM_CFG_DEFAULTS.hardFloor;
+        saved.highRatio = SPAM_CFG_DEFAULTS.highRatio;
+        migrated = true;
+      }
+      Object.assign(SPAM_CFG, saved);
+    }
+  } catch(e) {}
+  if (migrated) persistSpamCfg();
   syncSpamSettingsUI();
 }
 function persistSpamCfg() {
@@ -3710,7 +3760,7 @@ function persistSpamCfg() {
 }
 function syncSpamSettingsUI() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('set-spam-k',     SPAM_CFG.k);
+  set('set-spam-mult',  SPAM_CFG.ratioMult);
   set('set-spam-min',   SPAM_CFG.minSamples);
   set('set-spam-floor', SPAM_CFG.hardFloor);
   set('set-spam-age',   SPAM_CFG.maxAgeDays);
@@ -3720,7 +3770,7 @@ function syncSpamSettingsUI() {
 }
 window.saveSpamSettings = () => {
   const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
-  SPAM_CFG.k          = Math.max(0, num('set-spam-k',     SPAM_CFG_DEFAULTS.k));
+  SPAM_CFG.ratioMult  = Math.max(1, num('set-spam-mult',  SPAM_CFG_DEFAULTS.ratioMult));
   SPAM_CFG.minSamples = Math.max(1, Math.round(num('set-spam-min',   SPAM_CFG_DEFAULTS.minSamples)));
   SPAM_CFG.hardFloor  = Math.max(0, num('set-spam-floor', SPAM_CFG_DEFAULTS.hardFloor));
   SPAM_CFG.maxAgeDays = Math.max(0, Math.round(num('set-spam-age',   SPAM_CFG_DEFAULTS.maxAgeDays)));
@@ -3738,7 +3788,7 @@ window.applySpamPreset = (name) => {
   const p = SPAM_PRESETS[name];
   if (!p) return;                     // "Custom" chosen → keep the current manual values
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('set-spam-k',     p.k);
+  set('set-spam-mult',  p.ratioMult);
   set('set-spam-floor', p.hardFloor);
   set('set-spam-high',  p.highRatio);
   saveSpamSettings();                 // reads the fields back into SPAM_CFG, persists & re-scans
@@ -3771,7 +3821,7 @@ function profileDocId(name) {
 let _profileSamples = null;   // Map<name, Array<{d, s, u}>>
 let _profilesLoaded = false;
 let _profilesLoading = null;
-let _usageProfiles = null;    // computed baseline cache (median/MAD/threshold per client)
+let _usageProfiles = null;    // computed baseline cache (median/threshold per client)
 function invalidateUsageProfiles() { _usageProfiles = null; }
 
 function sampleKey(d, s) { return `${d} ${s}`; }
@@ -4011,10 +4061,13 @@ function getUsageProfiles() {
     const n = vals.length;
     if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n }); return; }
     const med  = medianOf(vals);
-    const smad = 1.4826 * medianOf(vals.map(v => Math.abs(v - med)));
-    let threshold = smad > 0 ? med + SPAM_CFG.k * smad : med * SPAM_CFG.madFallbackMult;
-    threshold = Math.max(threshold, SPAM_CFG.hardFloor);
-    profiles.set(name, { ready: true, n, median: med, smad, threshold });
+    // Flag when a reading exceeds a multiple of the client's OWN usual usage.
+    // The absolute floor (hardFloor) is applied as an ignore-below gate in
+    // spamCheck(), NOT here — so a low-usage client's trigger stays relative to
+    // its own median instead of collapsing onto the floor (the old bug where a
+    // client normally ~60 got flagged at ~67 just for clearing the 50 floor).
+    const threshold = med * SPAM_CFG.ratioMult;
+    profiles.set(name, { ready: true, n, median: med, threshold });
   });
   _usageProfiles = profiles;
   return profiles;
@@ -5363,7 +5416,12 @@ window.undoLastSnapshot = async () => {
   try {
     if (fbOk && last.id) await deleteDoc(doc(db, 'snapshots', last.id));
     removeUsageSamples(last.session_date, last.time_slot, last.data);
-    todaySnaps.pop();
+    // Remove the undone snapshot idempotently. Awaiting deleteDoc lets the real-time
+    // onSnapshot listener rebuild todaySnaps mid-undo (Firestore latency compensation),
+    // so a blind .pop() here would drop a SECOND, still-valid snapshot — e.g. undoing
+    // 3:30 would also strip 3:00 from the view even though the collection kept it.
+    // Filtering by id/slot is safe whether or not the listener already removed it.
+    todaySnaps = todaySnaps.filter(s => last.id ? s.id !== last.id : s.time_slot !== last.time_slot);
     viewingIdx = null;
     latestSnap = todaySnaps.length ? todaySnaps[todaySnaps.length - 1] : null;
     refreshAll();
@@ -6161,7 +6219,9 @@ window.openWipeAllConfirm = kind => {
     const kf = document.getElementById('wipe-keep-from'); if (kf) kf.value = '';
     const kt = document.getElementById('wipe-keep-to');   if (kt) kt.value = '';
   }
-  toggleSettings();
+  // Close whichever settings dialog launched this (main or Stats) before showing the confirm.
+  document.getElementById('settings-dlg')?.classList.remove('open');
+  document.getElementById('stats-settings-dlg')?.classList.remove('open');
   document.getElementById('wipe-all-overlay').classList.add('open');
 };
 window.toggleWipeKeep = (cb) => {
@@ -6741,7 +6801,7 @@ function renderAlerts() {
        </td></tr>`;
     } else if (!rows.length) {
       spamNote = `<tr class="alert-note info"><td colspan="9">
-        ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds its own baseline (median + ${SPAM_CFG.k}·MAD from the last ${SPAM_CFG.maxAgeDays>0?SPAM_CFG.maxAgeDays+' days':'available data'}, floor ${SPAM_CFG.hardFloor}). Needs ≥${SPAM_CFG.minSamples} prior consumption points per client. Flags ≥${SPAM_CFG.highRatio}× normal are High, the rest Watch.
+        ⓘ No unusual usage. A client is flagged when its current 30-min usage exceeds ${SPAM_CFG.ratioMult}× its own usual usage (median of the last ${SPAM_CFG.maxAgeDays>0?SPAM_CFG.maxAgeDays+' days':'available data'}) and is at least ${SPAM_CFG.hardFloor}. Needs ≥${SPAM_CFG.minSamples} prior consumption points per client. Wide-gap catch-up readings are excluded. Flags ≥${SPAM_CFG.highRatio}× usual are High, the rest Watch.
        </td></tr>`;
     }
   }
