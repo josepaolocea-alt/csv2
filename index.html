@@ -5396,14 +5396,16 @@ let usersData = [];         // all user_roles docs (admin view)
 let usersUnsub = null;      // collection subscription (admin only)
 const U_ONLINE_MS = 5*60*1000;
 
-// Upsert the signed-in user's own record. Never writes `role` (rules forbid it
-// for non-admins), so the admin's assignment is preserved.
+// Upsert the signed-in user's own record. Identity in the Users tab is the
+// account email (unique + reliable); we deliberately do NOT store the local
+// operator name here — that's a per-browser presence label, not the account.
+// Never writes `role` (rules forbid it for non-admins), so the admin's
+// assignment is preserved.
 async function upsertMyUserRole() {
   if (!fbOk || !currentUserEmail) return;
   try {
     await setDoc(doc(db,'user_roles',currentUserEmail), {
       email: currentUserEmail,
-      display_name: operatorName || '',
       last_seen: Timestamp.now()
     }, { merge:true });
   } catch(e) { /* rules may reject during transitions — harmless */ }
@@ -5461,12 +5463,12 @@ function usersRender(){
   const tb = document.getElementById('users-tbody');
   if (!tb) return;
   if (!isAdmin()) { tb.innerHTML = '<tr><td colspan="3" style="color:var(--text-3);padding:14px 10px">Admins only.</td></tr>'; return; }
-  // Sort: online first, then by display name / email.
+  // Sort: online first, then by email (the account identity).
   const rows = [...usersData].sort((a,b) => {
     const ao = (a.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS)) ? 0 : 1;
     const bo = (b.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS)) ? 0 : 1;
     if (ao !== bo) return ao - bo;
-    return (a.display_name||a.email||a.id).localeCompare(b.display_name||b.email||b.id);
+    return (a.email||a.id).localeCompare(b.email||b.id);
   });
   if (!rows.length) { tb.innerHTML = '<tr><td colspan="3" style="color:var(--text-3);padding:14px 10px">No users yet — they appear here after their first sign-in.</td></tr>'; return; }
   tb.innerHTML = rows.map(u => {
@@ -5474,7 +5476,8 @@ function usersRender(){
     const role  = usersEffectiveRole(u);
     const online = u.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS);
     const isMe  = email.toLowerCase() === currentUserEmail.toLowerCase();
-    const name  = u.display_name || email.split('@')[0];
+    // Identity is the account email — never the per-browser operator name.
+    const name  = email.split('@')[0];
     const nameCell =
       `<div class="u-name">${esc(name)}${isMe ? '<span class="u-badge self">you</span>' : ''}</div>` +
       `<div class="u-email">${esc(email)}</div>`;
