@@ -2410,6 +2410,15 @@
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Spam Detection (30m Usage)</div>
         <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client when its 30-min usage spikes far above its own historical baseline.</div>
         <div class="settings-row">
+          <label style="min-width:150px;font-weight:700">Preset:</label>
+          <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags more (catches subtler spikes, more false alarms); Relaxed flags fewer (only big, obvious spikes). Each preset sets Sensitivity, Ignore-below and High-tier below. Custom = manually tuned values.">
+            <option value="aggressive">Aggressive</option>
+            <option value="balanced">Balanced</option>
+            <option value="relaxed">Relaxed</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="settings-row">
           <label style="min-width:150px">Sensitivity (k):</label>
           <input class="win-inp" id="set-spam-k" type="number" step="0.5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Threshold = median + k × MAD. Lower = more sensitive (more flags); higher = fewer flags.">
         </div>
@@ -3678,6 +3687,20 @@ const SPAM_CFG_DEFAULTS = {
 };
 // Live config — operator-tunable via Settings; persisted in localStorage `bm_spamcfg`.
 const SPAM_CFG = { ...SPAM_CFG_DEFAULTS };
+// Named sensitivity presets. Each bundles the three "how eager to flag" knobs;
+// "Balanced" mirrors SPAM_CFG_DEFAULTS. The remaining knobs (min samples,
+// baseline window, max gap) stay independent. Values matching no preset = Custom.
+const SPAM_PRESETS = {
+  aggressive: { k: 3, hardFloor: 30,  highRatio: 5  },  // flags more, catches subtler spikes
+  balanced:   { k: 4, hardFloor: 50,  highRatio: 8  },  // == SPAM_CFG_DEFAULTS
+  relaxed:    { k: 6, hardFloor: 100, highRatio: 12 },  // only big, obvious spikes
+};
+function detectSpamPreset() {
+  for (const [nm, p] of Object.entries(SPAM_PRESETS)) {
+    if (SPAM_CFG.k === p.k && SPAM_CFG.hardFloor === p.hardFloor && SPAM_CFG.highRatio === p.highRatio) return nm;
+  }
+  return 'custom';
+}
 function loadSpamCfg() {
   try { const v = localStorage.getItem('bm_spamcfg'); if (v) Object.assign(SPAM_CFG, JSON.parse(v)); } catch(e) {}
   syncSpamSettingsUI();
@@ -3693,6 +3716,7 @@ function syncSpamSettingsUI() {
   set('set-spam-age',   SPAM_CFG.maxAgeDays);
   set('set-spam-high',  SPAM_CFG.highRatio);
   set('set-spam-gap',   SPAM_CFG.maxGapMinutes);
+  set('set-spam-preset', detectSpamPreset());
 }
 window.saveSpamSettings = () => {
   const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
@@ -3703,10 +3727,21 @@ window.saveSpamSettings = () => {
   SPAM_CFG.highRatio  = Math.max(1, num('set-spam-high',  SPAM_CFG_DEFAULTS.highRatio));
   SPAM_CFG.maxGapMinutes = Math.max(0, Math.round(num('set-spam-gap', SPAM_CFG_DEFAULTS.maxGapMinutes)));
   persistSpamCfg();
+  const ps = document.getElementById('set-spam-preset'); if (ps) ps.value = detectSpamPreset();
   invalidateUsageProfiles();          // recompute baseline with the new params
   _spamAlertSeeded = false;           // re-seed silently so a config tweak doesn't blast notifications
   safeRender('Alerts', renderAlerts);
   scanSpamSuspects();
+};
+// Apply a named preset: push its values into the fields, then reuse the normal save.
+window.applySpamPreset = (name) => {
+  const p = SPAM_PRESETS[name];
+  if (!p) return;                     // "Custom" chosen → keep the current manual values
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('set-spam-k',     p.k);
+  set('set-spam-floor', p.hardFloor);
+  set('set-spam-high',  p.highRatio);
+  saveSpamSettings();                 // reads the fields back into SPAM_CFG, persists & re-scans
 };
 // YYYY-MM-DD for `n` days before today (local), matching todayStr()'s formatting.
 function dateStrDaysAgo(n) {
