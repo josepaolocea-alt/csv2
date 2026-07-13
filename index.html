@@ -140,22 +140,22 @@
 
     /* ── Menu bar ── */
     #menubar {
-      height: 28px; flex-shrink: 0;
-      display: flex; align-items: center; padding: 0 6px; gap: 2px;
+      height: 34px; flex-shrink: 0;
+      display: flex; align-items: center; padding: 0 7px; gap: 2px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
     }
-    #module-nav { display: flex; align-items: center; gap: 2px; }
+    #module-nav { display: flex; align-items: center; gap: 3px; }
     .micon {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 30px; height: 22px; padding: 0;
+      width: 34px; height: 26px; padding: 0;
       background: none; border: none; border-radius: var(--r-sm);
       color: var(--text-2); cursor: pointer;
       transition: background-color .12s ease-out, color .12s ease-out;
     }
     .micon:hover { background: var(--surface-3); color: var(--text); }
     .micon.active { background: var(--accent-soft); color: var(--accent); }
-    .micon svg { width: 15px; height: 15px; }
+    .micon svg { width: 18px; height: 18px; }
     #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 2px; }
     #login-user-label {
       font-size: 11px; color: var(--text-2);
@@ -164,7 +164,7 @@
     #night-toggle,
     #menubar-right #btn-signout {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 22px; padding: 0;
+      width: 27px; height: 25px; padding: 0;
       background: none; border: none; border-radius: var(--r-sm);
       color: var(--text-2); cursor: pointer;
       transition: background-color .12s ease-out, color .12s ease-out;
@@ -172,23 +172,23 @@
     #night-toggle:hover { background: var(--surface-3); color: var(--text); }
     #menubar-right #btn-signout:hover { background: var(--surface-3); color: var(--danger, #cc0000); }
     #night-toggle svg,
-    #menubar-right #btn-signout svg { width: 14px; height: 14px; }
+    #menubar-right #btn-signout svg { width: 16px; height: 16px; }
     #night-toggle .ico-sun { display: none; }
     body.night-mode #night-toggle .ico-sun { display: block; }
     body.night-mode #night-toggle .ico-moon { display: none; }
 
     /* ── Toolbar ── */
     #toolbar {
-      height: 38px; flex-shrink: 0;
-      display: flex; align-items: center; gap: 4px; padding: 0 8px;
+      height: 42px; flex-shrink: 0;
+      display: flex; align-items: center; gap: 4px; padding: 0 9px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
       overflow-x: auto; overflow-y: hidden;
     }
-    .tsep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+    .tsep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
     .tbtn {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; font-size: 11px; font-family: inherit;
+      padding: 4px 11px; font-size: 11.5px; font-family: inherit;
       background: var(--surface); color: var(--text);
       cursor: pointer;
       border: 1px solid var(--border);
@@ -635,6 +635,33 @@
     }
     body.notepad-mode #notepad-toolbar-label { display: inline-flex; }
     body.notepad-mode #view-banner { display: none !important; }
+
+    /* ── Users & Roles module (admin only) ── */
+    #users-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
+    body.users-mode #sidebar,
+    body.users-mode #toolbar .tbtn[id^="tnav-"],
+    body.users-mode #btn-settings,
+    body.users-mode #snd-dismiss-btn,
+    body.users-mode #sync-label {
+      display: none !important;
+    }
+    body.users-mode #users-toolbar-label { display: inline-flex; }
+    body.users-mode #view-banner { display: none !important; }
+    /* Users table */
+    #users-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #users-table th, #users-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    #users-table th { font-size: 11px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .03em; }
+    #users-table tr:hover td { background: var(--surface-2); }
+    .u-online-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); margin-right: 6px; vertical-align: middle; }
+    .u-online-dot.on { background: #22a559; box-shadow: 0 0 0 2px rgba(34,165,89,.18); }
+    .u-name { font-weight: 600; color: var(--text); }
+    .u-email { font-size: 11px; color: var(--text-2); }
+    .u-role-sel { font-family: inherit; font-size: 11.5px; padding: 3px 6px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); color: var(--text); cursor: pointer; }
+    .u-role-sel:focus { border-color: var(--accent); outline: none; }
+    .u-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+    .u-badge.admin { background: var(--accent-soft); color: var(--accent); }
+    .u-badge.self { margin-left: 6px; background: var(--surface-3); color: var(--text-2); font-weight: 500; }
+    .u-last { font-size: 11px; color: var(--text-3); }
     /* Read-only notepad (non-admins): the notepad is a shared, admin-managed note.
        Hide the editing tools and tab add/close so it reads as view-only. */
     body.np-readonly #np-edit-tools,
@@ -1381,6 +1408,14 @@
           <line x1="5.7" y1="10.5" x2="8.7" y2="10.5"/>
         </svg>
       </button>
+      <button class="micon" id="view-menu-users" onclick="switchModule('users')" title="Users &amp; Roles" style="display:none">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="5.2" r="2.3"/>
+          <path d="M1.8 13.2c0-2.4 1.9-4 4.2-4s4.2 1.6 4.2 4"/>
+          <circle cx="11.6" cy="5.8" r="1.7"/>
+          <path d="M10.6 9.5c2 .1 3.6 1.5 3.6 3.7"/>
+        </svg>
+      </button>
     </div>
     <div id="menubar-right">
       <span id="login-user-label"></span>
@@ -1429,6 +1464,7 @@
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="notepad-toolbar-label">Notepad</span>
+    <span id="users-toolbar-label">Users &amp; Roles</span>
     <span id="stats-toolbar-label">Stats Monitor</span>
     <span id="sync-label">No data loaded</span>
   </div>
@@ -1600,7 +1636,7 @@
             <div class="tab" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</div>
             <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
             <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
-            <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage</div>
+            <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
             <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage is far above their own historical baseline — possible spam. Month-start days (1–2) are excluded because recurring charges make usage normally high.">Possible Spam</div>
             <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
@@ -1977,6 +2013,29 @@
             </div>
             <div class="np-editor" id="np-editor" contenteditable="true"
                  spellcheck="true" oninput="npOnInput()" onpaste="npOnPaste(event)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ USERS & ROLES (admin only) ════════════════ -->
+      <div class="view" id="view-users">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Users &amp; Roles</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 12px;overflow:auto">
+            <div style="font-size:11.5px;color:var(--text-2);margin-bottom:10px;line-height:1.5">
+              Everyone who signs in appears here. Set each person's role — <strong>Semi-admin</strong>
+              (post/undo Balance &amp; Stats snapshots, manage Stats remarks, delete snapshot collections;
+              no client editing or SMS) or <strong>Viewer</strong> (read-only). New logins are Viewer by default.<br>
+              <span style="color:var(--text-3)">To add a person, first create their login in Firebase Console → Authentication → Users; they show up here after their first sign-in.</span>
+            </div>
+            <table id="users-table">
+              <thead>
+                <tr><th style="width:40%">User</th><th style="width:22%">Status</th><th style="width:38%">Role</th></tr>
+              </thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="3" style="color:var(--text-3);padding:14px 10px">No users yet.</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2395,7 +2454,7 @@
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="toggleSettings(); openDeleteTodayConfirm()">Delete Today Snapshots</button>
           </div>
-          <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin only.</div>
+          <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
@@ -3012,17 +3071,20 @@ function closeViewMenu() {
 }
 
 function updateViewMenuState() {
-  const smsMode = document.body.classList.contains('sms-mode');
-  const npMode  = document.body.classList.contains('notepad-mode');
-  const stMode  = document.body.classList.contains('stats-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode && !stMode);
+  const smsMode   = document.body.classList.contains('sms-mode');
+  const npMode    = document.body.classList.contains('notepad-mode');
+  const stMode    = document.body.classList.contains('stats-mode');
+  const usersMode = document.body.classList.contains('users-mode');
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode && !stMode && !usersMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
   document.getElementById('view-menu-notepad')?.classList.toggle('active', npMode);
   document.getElementById('view-menu-stats')?.classList.toggle('active', stMode);
+  document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS'
     : npMode ? 'BalanceMonitor - Notepad'
-    : stMode ? 'BalanceMonitor - Stats' : 'BalanceMonitor';
+    : stMode ? 'BalanceMonitor - Stats'
+    : usersMode ? 'BalanceMonitor - Users' : 'BalanceMonitor';
 }
 
 window.toggleViewMenu = e => {
@@ -3032,7 +3094,24 @@ window.toggleViewMenu = e => {
 
 window.switchModule = module => {
   closeViewMenu();
-  // SMS is admin-only; send non-admins back to Balance if they reach for it.
+  document.body.classList.remove('users-mode');
+  // SMS and the Users & Roles tab are admin-only; bounce non-admins to Balance.
+  if ((module === 'sms' || module === 'users') && !isAdmin()) module = 'balance';
+  if (module === 'users') {
+    document.body.classList.remove('sms-mode');
+    document.body.classList.remove('notepad-mode');
+    document.body.classList.remove('stats-mode');
+    document.body.classList.add('users-mode');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-users')?.classList.add('active');
+    updateViewMenuState();
+    subscribeAllUsers();
+    usersRender();
+    setSbStatus('Viewing: Users & Roles');
+    return;
+  }
   if (module === 'sms' && !isAdmin()) module = 'balance';
   if (module === 'sms') {
     document.body.classList.remove('notepad-mode');
@@ -3090,6 +3169,7 @@ window.switchView = name => {
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('notepad-mode');
   document.body.classList.remove('stats-mode');
+  document.body.classList.remove('users-mode');
   updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -4903,6 +4983,7 @@ function parseTritelAmountOnly(text){
 }
 
 window.processSnapshot = async() => {
+  if(!canPostBalance()){ toast('Posting snapshots is restricted for this account.','err'); return; }
   const raw = document.getElementById('snap-ta').value;
   // In Tritel mode a bare Amnt Receivable value is accepted and auto-labeled "Tritel".
   const tritelAmt = snapSource==='tritel' ? parseTritelAmountOnly(raw) : null;
@@ -4917,7 +4998,23 @@ window.processSnapshot = async() => {
     if(mm){ openSourceMismatch(mm); return; }
   }
   bypassSourceGuard=false;
-  if(snapSource==='tritel'){ await maybeConfirmGapThenProcess(rows, document.getElementById('slot-sel').value, 'tritel'); return; }
+  if(snapSource==='tritel'){
+    const tSlot=document.getElementById('slot-sel').value;
+    // Warn before overwriting an existing Tritel entry for this slot (parity with
+    // the All-Clients and Stats feeds, which already confirm before overwriting).
+    let tEx=tritelSnaps.find(t=>t.time_slot===tSlot);
+    if(!tEx && fbOk){
+      try{
+        setLoading(true,'Checking slot…');
+        const td=await getDoc(doc(db,'tritel_snapshots',tritelDocId(todayStr(),tSlot)));
+        if(td.exists()) tEx=td.data();
+      }catch(e){ console.warn('tritel overwrite check:',e); }
+      finally{ setLoading(false); }
+    }
+    if(tEx && !confirm(`The ${fmt12(tSlot)} slot already has Tritel data today (${tEx.data?.length||0} row(s)). Overwrite it?`)) return;
+    await maybeConfirmGapThenProcess(rows, tSlot, 'tritel');
+    return;
+  }
   const timeSlot=document.getElementById('slot-sel').value;
   let existing=todaySnaps.find(s=>s.time_slot===timeSlot);
   if(!existing && fbOk){
@@ -5184,6 +5281,7 @@ async function processTritelSnapshot(rows, timeSlot) {
 
 /* Removes the Tritel entry for the slot currently chosen in the picker. */
 window.removeTritelSnapshot = async () => {
+  if(!canPostBalance()){ toast('Editing snapshots is restricted for this account.','err'); return; }
   const timeSlot = document.getElementById('slot-sel').value;
   const existing = tritelSnaps.find(t => t.time_slot === timeSlot);
   if (!existing) { toast(`No Tritel data for ${fmt12(timeSlot)}.`, 'err'); return; }
@@ -5223,6 +5321,7 @@ function renderTritelRows(cols, startNum) {
    UNDO LAST SNAPSHOT
 ════════════════════════════════════════════════ */
 window.undoLastSnapshot = async () => {
+  if(!canPostBalance()){ toast('Editing snapshots is restricted for this account.','err'); return; }
   if (!todaySnaps.length) { toast('No snapshots to undo.', 'err'); return; }
   const last = todaySnaps[todaySnaps.length - 1];
   setLoading(true, 'Removing last snapshot…');
@@ -5288,6 +5387,125 @@ function subscribePresence() {
 }
 
 /* ════════════════════════════════════════════════
+   USER ROLES  (dynamic viewer / semi-admin, managed in the Users & Roles tab)
+   One doc per account, id = email. Each login upserts its own presence fields
+   (email / display_name / last_seen) but the `role` field is admin-writable
+   only — see firestore.rules. The admin sees every account here and sets roles.
+════════════════════════════════════════════════ */
+let usersData = [];         // all user_roles docs (admin view)
+let usersUnsub = null;      // collection subscription (admin only)
+const U_ONLINE_MS = 5*60*1000;
+
+// Upsert the signed-in user's own record. Never writes `role` (rules forbid it
+// for non-admins), so the admin's assignment is preserved.
+async function upsertMyUserRole() {
+  if (!fbOk || !currentUserEmail) return;
+  try {
+    await setDoc(doc(db,'user_roles',currentUserEmail), {
+      email: currentUserEmail,
+      display_name: operatorName || '',
+      last_seen: Timestamp.now()
+    }, { merge:true });
+  } catch(e) { /* rules may reject during transitions — harmless */ }
+}
+
+// Watch my own role doc so a promotion/demotion by the admin takes effect live.
+let myRoleUnsub = null;
+function subscribeMyRole() {
+  if (!fbOk || !currentUserEmail || isAdmin()) return;   // admin role is pinned by email
+  try {
+    if (myRoleUnsub) myRoleUnsub();
+    myRoleUnsub = onSnapshot(doc(db,'user_roles',currentUserEmail), d => {
+      const role = d.exists() ? d.data().role : null;
+      const next = (role === 'semi-admin' || role === 'viewer') ? role : seedRoleForEmail(currentUserEmail);
+      if (next !== currentRole) {
+        currentRole = next;
+        applyModuleAccess();
+        // Re-render any view whose contents depend on edit rights.
+        try { if (typeof statsRender === 'function') statsRender(); } catch(e) {}
+      }
+    });
+  } catch(e) {}
+}
+
+// Admin-only: live list of every account for the Users & Roles tab.
+function subscribeAllUsers() {
+  if (!fbOk || !isAdmin()) return;
+  try {
+    if (usersUnsub) usersUnsub();
+    usersUnsub = onSnapshot(collection(db,'user_roles'), snap => {
+      usersData = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      if (document.getElementById('view-users')?.classList.contains('active')) usersRender();
+    });
+  } catch(e) {}
+}
+
+function usersEffectiveRole(u){
+  const email = (u.email || u.id || '').toLowerCase();
+  if (ADMIN_EMAILS.includes(email)) return 'admin';
+  if (u.role === 'semi-admin' || u.role === 'viewer') return u.role;
+  return seedRoleForEmail(email);
+}
+function usersRelTime(ts){
+  const d = ts?.toDate ? ts.toDate() : null;
+  if (!d) return '—';
+  const mins = Math.floor((Date.now() - d.getTime())/60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins/60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return d.toLocaleDateString();
+}
+
+function usersRender(){
+  const tb = document.getElementById('users-tbody');
+  if (!tb) return;
+  if (!isAdmin()) { tb.innerHTML = '<tr><td colspan="3" style="color:var(--text-3);padding:14px 10px">Admins only.</td></tr>'; return; }
+  // Sort: online first, then by display name / email.
+  const rows = [...usersData].sort((a,b) => {
+    const ao = (a.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS)) ? 0 : 1;
+    const bo = (b.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS)) ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return (a.display_name||a.email||a.id).localeCompare(b.display_name||b.email||b.id);
+  });
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="3" style="color:var(--text-3);padding:14px 10px">No users yet — they appear here after their first sign-in.</td></tr>'; return; }
+  tb.innerHTML = rows.map(u => {
+    const email = u.email || u.id;
+    const role  = usersEffectiveRole(u);
+    const online = u.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS);
+    const isMe  = email.toLowerCase() === currentUserEmail.toLowerCase();
+    const name  = u.display_name || email.split('@')[0];
+    const nameCell =
+      `<div class="u-name">${esc(name)}${isMe ? '<span class="u-badge self">you</span>' : ''}</div>` +
+      `<div class="u-email">${esc(email)}</div>`;
+    const statusCell =
+      `<span class="u-online-dot ${online?'on':''}"></span>` +
+      `<span class="u-last">${online ? 'Online' : usersRelTime(u.last_seen)}</span>`;
+    let roleCell;
+    if (role === 'admin') {
+      roleCell = '<span class="u-badge admin">Admin</span>';
+    } else {
+      roleCell =
+        `<select class="u-role-sel" onchange="setUserRole('${escAttr(email)}', this.value)">` +
+        `<option value="viewer"${role==='viewer'?' selected':''}>Viewer (read-only)</option>` +
+        `<option value="semi-admin"${role==='semi-admin'?' selected':''}>Semi-admin</option>` +
+        `</select>`;
+    }
+    return `<tr><td>${nameCell}</td><td>${statusCell}</td><td>${roleCell}</td></tr>`;
+  }).join('');
+}
+
+window.setUserRole = async (email, role) => {
+  if (!isAdmin()) { toast('Only the admin can change roles.','err'); return; }
+  if (ADMIN_EMAILS.includes((email||'').toLowerCase())) { toast('The admin role is fixed.','err'); return; }
+  if (role !== 'viewer' && role !== 'semi-admin') return;
+  try {
+    await setDoc(doc(db,'user_roles',email), { role, email }, { merge:true });
+    toast(`✓ ${email.split('@')[0]} set to ${role === 'semi-admin' ? 'Semi-admin' : 'Viewer'}`, 'ok');
+  } catch(e) { toast('Could not update role: ' + e.message, 'err', 6000); }
+};
+
+/* ════════════════════════════════════════════════
    SNAPSHOT LOGS  (audit trail of when snapshots were posted)
 ════════════════════════════════════════════════ */
 // Firebase login emails allowed to DELETE snapshot logs. Everyone else can
@@ -5302,48 +5520,67 @@ let logsSelected = new Set();    // log ids ticked for multi-delete
 let pendingLogDelete = null;     // { mode:'one'|'selected'|'all', id? }
 function isAdmin(){ return !!currentUserEmail && ADMIN_EMAILS.includes(currentUserEmail.toLowerCase()); }
 
-// Emails restricted to the Balance Monitor module (plus the shared Stats view
-// and Notepad). These users cannot post stats snapshots, edit stats remarks,
-// use the SMS module, or add/edit client records.
-const BALANCE_ONLY_EMAILS = [
+// ── Dynamic roles ─────────────────────────────────────────────────────────
+// Roles live in the Firestore `user_roles` collection (doc id = email), managed
+// by the admin in the Users & Roles tab. Effective role is one of:
+//   'admin'      — pinned by email (ADMIN_EMAILS); full access, unchanged.
+//   'semi-admin' — Balance Monitor + Stats + Notepad; post/undo Balance & Stats
+//                  snapshots, manage Stats remarks, delete the snapshot
+//                  collections. NO client editing, Client Manager, or SMS.
+//   'viewer'     — read-only everywhere (default for a brand-new login).
+// Seed emails are treated as semi-admin before any user_roles doc exists so the
+// existing Customer Support account keeps working out of the box.
+const SEMI_ADMIN_SEED_EMAILS = [
   'customersupport@cynsolutions.ph'
 ];
-function isBalanceOnly(){ return !!currentUserEmail && BALANCE_ONLY_EMAILS.includes(currentUserEmail.toLowerCase()); }
+let currentRole = 'viewer';   // resolved live from user_roles (see subscribeMyRole)
 
-// Balance-only users can post/undo snapshots and export, but cannot add,
-// upload, or edit client records.
-function canEditClients(){ return !isBalanceOnly(); }
+function seedRoleForEmail(email){
+  const e = (email || '').toLowerCase();
+  if (ADMIN_EMAILS.includes(e)) return 'admin';
+  if (SEMI_ADMIN_SEED_EMAILS.includes(e)) return 'semi-admin';
+  return 'viewer';
+}
+function isSemiAdmin(){ return !isAdmin() && currentRole === 'semi-admin'; }
+function isViewer(){ return !isAdmin() && !isSemiAdmin(); }
 
-// Per-client stats remarks are admin-only: non-admins (and support) can browse
-// every stats view but cannot add/edit/clear remarks.
-function canEditStats(){ return isAdmin(); }
+// Capability helpers, role-based.
+// Client records (add/upload/edit, Client Manager, Bulk Edit) — admin only.
+function canEditClients(){ return isAdmin(); }
+// Posting/undoing snapshots (Balance, Tritel, Stats) — admin & semi-admin.
+function canPostBalance(){ return isAdmin() || isSemiAdmin(); }
+function canPostStats(){ return isAdmin() || isSemiAdmin(); }
+// Stats per-client remarks (Account Code + Destination) — admin & semi-admin.
+function canEditStats(){ return isAdmin() || isSemiAdmin(); }
+// Wiping the snapshots / stats_snapshots / tritel_snapshots collections —
+// admin & semi-admin. Other Danger-Zone actions stay admin only.
+function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
 
-// Posting/undoing stats snapshots is allowed for the admin and Customer Support
-// (a balance-only user). Everyone else has read-only stats.
-function canPostStats(){ return isAdmin() || isBalanceOnly(); }
-
-// Show/hide top-level modules based on the signed-in user's access. Stats and
+// Show/hide top-level modules based on the signed-in user's role. Stats and
 // Notepad are available to every signed-in user (Stats is view-only for
-// non-admins — see canEditStats). SMS and client editing stay restricted.
+// viewers). SMS, the Users tab, and client editing stay admin only.
 function applyModuleAccess(){
-  const admin      = isAdmin();
-  const restricted = isBalanceOnly();
+  const admin = isAdmin();
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-  // Stats & Notepad: everyone. SMS: admin only.
+  // Stats & Notepad: everyone. SMS + Users & Roles: admin only.
   show('view-menu-stats',   true);
   show('view-menu-notepad', true);
   show('view-menu-sms',     admin);
-  // Stats posting (New Snapshot / Process / Undo Last) — admin and Customer
-  // Support; other non-admins still see today's snapshots and can export.
+  show('view-menu-users',   admin);
+  // Balance snapshot posting (New Snapshot / Process / Undo / Tritel) — admin &
+  // semi-admin. Viewers keep the read-only Top-30m panel but lose the editor.
+  show('snap-editor', canPostBalance());
+  // Stats posting (New Snapshot / Process / Undo Last) — admin & semi-admin;
+  // viewers still see today's snapshots and can export.
   show('stats-post-controls', canPostStats());
-  // Client editing surfaces: Client Manager tab (CSV client upload wizard)
-  // and the Bulk Edit button in All Clients.
-  ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, !restricted));
-  if (restricted && document.getElementById('view-client-manager')?.classList.contains('active')) {
+  // Client editing surfaces: Client Manager tab (CSV upload wizard) and the
+  // Bulk Edit button in All Clients — admin only.
+  ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, canEditClients()));
+  if (!canEditClients() && document.getElementById('view-client-manager')?.classList.contains('active')) {
     window.switchView('summary');
   }
-  // A non-admin should never sit on the admin-only SMS module.
-  if (!admin && document.body.classList.contains('sms-mode')) {
+  // Non-admins should never sit on the admin-only SMS or Users modules.
+  if (!admin && (document.body.classList.contains('sms-mode') || document.body.classList.contains('users-mode'))) {
     window.switchModule('balance');
   }
 }
@@ -5811,6 +6048,7 @@ window.confirmResetToday = async () => {
 };
 
 window.confirmDeleteTodaySnapshots = async () => {
+  if(!canDeleteSnapshots()){ closeDeleteTodayConfirm(); toast('Deleting snapshots is restricted for this account.','err'); return; }
   closeDeleteTodayConfirm();
   setLoading(true, 'Deleting today snapshots...');
   try {
@@ -5851,8 +6089,12 @@ window.confirmDeleteTodaySnapshots = async () => {
 
 let pendingWipeAll = null; // 'snapshots' | 'stats' | 'tritel'
 
+// Semi-admins may wipe the three snapshot collections (snapshots / stats /
+// tritel); everything else in the Danger Zone stays admin only.
+const SEMI_WIPEABLE = ['snapshots','stats','tritel'];
+function canWipe(kind){ return isAdmin() || (isSemiAdmin() && SEMI_WIPEABLE.includes(kind)); }
 window.openWipeAllConfirm = kind => {
-  if (!isAdmin()){ toast('Only admins can delete all stored snapshots.','err'); return; }
+  if (!canWipe(kind)){ toast('You do not have permission to delete these snapshots.','err'); return; }
   pendingWipeAll = kind;
   const titles = { stats: 'Delete All Stats Snapshots', tritel: 'Delete All Tritel Snapshots' };
   const texts = {
@@ -5904,7 +6146,7 @@ window.confirmWipeAll = async () => {
     if (keepFrom > keepTo) { const t = keepFrom; keepFrom = keepTo; keepTo = t; }  // swap if reversed
   }
   window.closeWipeAllConfirm();
-  if (!kind || !isAdmin()) return;
+  if (!kind || !canWipe(kind)) return;
   const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
   const loadingMsg = kind === 'stats' ? 'Deleting all stats snapshots…'
     : kind === 'tritel' ? 'Deleting all Tritel snapshots…' : 'Deleting all snapshots…';
@@ -6240,7 +6482,7 @@ function renderStats() {
   if(tabs[2]) tabs[2].textContent=`Warning (${tabLite})`;
   if(tabs[3]) tabs[3].textContent=`Safe (${tabSafe})`;
   if(tabs[4]) tabs[4].textContent=`No threshold (${tabNoThresh})`;
-  if(tabs[5]) tabs[5].textContent=`Usage (${tabUsage})`;
+  if(tabs[5]) tabs[5].textContent=`Usage >50 (${tabUsage})`;
 }
 
 /* ════════════════════════════════════════════════
@@ -6593,6 +6835,66 @@ function renderUsageHistory() {
     ? clientRowsHtml + tritelRowsHtml
     : `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
   if (foot) foot.textContent = `${qualifyingClients.size} client(s)${tritelCarriers.length ? ' + Tritel' : ''} · ${snaps.length} snapshot(s)`;
+}
+
+/* Export the 30m Usage / Snapshot pivot exactly as shown on screen: one row per
+   client, one column per 30-min snapshot slot, Tritel rows at the bottom. Rebuilds
+   from the same source (todaySnaps / tritelSnaps) and honours the current sort. */
+function exportUsageHistoryView() {
+  const tritelToday = (tritelSnaps || []).filter(t => t.session_date === todayStr());
+  if (!todaySnaps.length && !tritelToday.length) { toast('No snapshots yet today.', 'err'); return; }
+  const slotIdx = {};
+  shiftSlots('24H').forEach((s, i) => { slotIdx[s] = i; });
+  const snaps = todaySnaps.slice().sort((a, b) =>
+    (slotIdx[a.time_slot] ?? 999) - (slotIdx[b.time_slot] ?? 999)
+  );
+  const qualifyingClients = new Set();
+  snaps.forEach(s => (s.data || []).forEach(r => {
+    if (r?.carrier_name && amountNumber(r.usage_30min) !== 0) qualifyingClients.add(r.carrier_name);
+  }));
+  const usageBy = {};
+  snaps.forEach(s => {
+    const slot = s.time_slot || '';
+    (s.data || []).forEach(r => {
+      const name = r?.carrier_name;
+      if (!name || !qualifyingClients.has(name)) return;
+      (usageBy[name] = usageBy[name] || {})[slot] = amountNumber(r.usage_30min);
+    });
+  });
+  const tritelUsageBy = {}; const tritelCarriers = [];
+  tritelToday.forEach(t => (t.data || []).forEach(r => {
+    if (!r?.carrier_name) return;
+    if (!tritelCarriers.includes(r.carrier_name)) tritelCarriers.push(r.carrier_name);
+    (tritelUsageBy[r.carrier_name] = tritelUsageBy[r.carrier_name] || {})[t.time_slot] = amountNumber(r.usage_30min);
+  }));
+  const slotSet = new Set(snaps.map(s => s.time_slot || ''));
+  tritelToday.forEach(t => slotSet.add(t.time_slot));
+  const slotKeys = Array.from(slotSet).filter(Boolean).sort((a, b) => (slotIdx[a] ?? 999) - (slotIdx[b] ?? 999));
+  const clients = Array.from(qualifyingClients);
+  clients.sort((a, b) => {
+    let cmp;
+    if (usageHistSortCol === 'carrier_name' || !slotKeys.includes(usageHistSortCol)) {
+      cmp = a.localeCompare(b);
+    } else {
+      const av = usageBy[a]?.[usageHistSortCol];
+      const bv = usageBy[b]?.[usageHistSortCol];
+      const an = av === undefined ? -Infinity : av;
+      const bn = bv === undefined ? -Infinity : bv;
+      cmp = an - bn;
+    }
+    return (cmp * usageHistSortDir) || a.localeCompare(b);
+  });
+  if (!clients.length && !tritelCarriers.length) { toast('No clients with 30-min usage today.', 'err'); return; }
+  const header = ['Client', ...slotKeys.map(s => fmt12(s))];
+  const cell = (map, name, slot) => { const v = map[name]?.[slot]; return v === undefined ? '' : v; };
+  const out = [header];
+  clients.forEach(name => out.push([name, ...slotKeys.map(slot => cell(usageBy, name, slot))]));
+  tritelCarriers.forEach(name => out.push([name, ...slotKeys.map(slot => cell(tritelUsageBy, name, slot))]));
+  const csv = out.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = document.createElement('a'); a.href = url; a.download = `balance_monitor_30m_usage_snapshot_${todayStr()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast(`✓ Exported ${clients.length}${tritelCarriers.length ? ` + ${tritelCarriers.length} Tritel` : ''} row(s) × ${slotKeys.length} snapshot(s)`, 'ok');
 }
 
 /* ════════════════════════════════════════════════
@@ -7624,6 +7926,9 @@ function alertFilterLabel(filter) {
   })[filter] || 'current_view';
 }
 window.exportCurrentAlertView=()=>{
+  // The "30m Usage / Snapshot" tab shows a pivot (client × snapshot slot), not the
+  // flat alert table — export that pivot exactly as displayed instead.
+  if(alertFilter==='usagehistory'){ exportUsageHistoryView(); return; }
   const { rows } = alertRows();
   if(!rows.length){toast('No data to export','err');return;}
   const h=['Client','Amnt Receivable','30m Usage','Credit Limit','Critical Balance','Balance %','Alert','New Critical','ETA to Critical','Notes','Status'];
@@ -10559,12 +10864,18 @@ async function init(){
   updatePresence();
   subscribePresence();
   subscribeLogs();
+  // User roles: register/refresh my own record (drives the online list + lets the
+  // admin assign a role), watch my role live, and — for the admin — the whole list.
+  upsertMyUserRole();
+  setInterval(upsertMyUserRole, 60000);
+  subscribeMyRole();
+  subscribeAllUsers();
   // Stats (view + posting) and the shared Notepad are available to every signed-in
-  // user, including Customer Support. SMS and its client list stay admin/regular
-  // only — support has no SMS access and the rules deny them the sms collection.
+  // user, including semi-admins. SMS and its client list stay admin only — the
+  // rules deny non-admins the sms collection.
   initStats();
   subscribeNotepad();
-  if (!isBalanceOnly()) subscribeSmsClients();
+  if (isAdmin()) subscribeSmsClients();
 }
 
 /* ── Auth-gated boot ── */
@@ -10577,6 +10888,10 @@ if (auth) {
     if (user) {
       currentUserEmail = user.email || '';
       currentUserUid = user.uid || '';
+      // Seed the role from the email immediately (admin pinned, Customer Support
+      // seeded as semi-admin) so the UI is correct before the live user_roles
+      // snapshot arrives; subscribeMyRole() refines it from Firestore.
+      currentRole = seedRoleForEmail(currentUserEmail);
       applyModuleAccess();
       if (overlay)    overlay.style.display = 'none';
       if (userLabel)  userLabel.textContent = user.email;
@@ -10586,6 +10901,9 @@ if (auth) {
     } else {
       currentUserEmail = '';
       currentUserUid = '';
+      currentRole = 'viewer';
+      if (myRoleUnsub) { try { myRoleUnsub(); } catch(e) {} myRoleUnsub = null; }
+      if (usersUnsub)  { try { usersUnsub();  } catch(e) {} usersUnsub  = null; }
       if (userLabel)  userLabel.textContent = '';
       if (signOutBtn) signOutBtn.style.display = 'none';
       showLoginOverlay();
