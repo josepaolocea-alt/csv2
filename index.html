@@ -227,6 +227,20 @@
     .tbtn.danger:hover { background: var(--red-deep); }
     #sync-label { margin-left: auto; font-size: 10px; color: var(--text-3); white-space: nowrap; }
 
+    /* Per-row delete action (Critical History / No-Threshold tables) */
+    .col-act { width: 40px; text-align: center; white-space: nowrap; }
+    .row-del {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; padding: 0;
+      background: transparent; color: var(--text-3);
+      border: 1px solid transparent; border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
+    }
+    .row-del:hover { background: var(--red-soft); color: var(--red); border-color: var(--red); }
+    .row-del:active { transform: translateY(1px); }
+    .row-del svg { width: 14px; height: 14px; display: block; }
+
     /* ── Body layout ── */
     #app-body { flex: 1; display: flex; overflow: hidden; }
 
@@ -1863,6 +1877,7 @@
                 <th onclick="sortCritHist('crit')" style="text-align:right">Critical Balance</th>
                 <th onclick="sortCritHist('first')" title="When this client was first added to the history — newest on top by default">First Hit ▼</th>
                 <th onclick="sortCritHist('last')">Last Hit</th>
+                <th class="col-act" title="Delete an entry"></th>
               </tr></thead>
               <tbody id="crithist-tbody"></tbody>
             </table>
@@ -1896,6 +1911,7 @@
                 <th onclick="sortNoThresh('lastBal')" style="text-align:right">Balance at Last Seen</th>
                 <th onclick="sortNoThresh('first')" title="When this client was first seen with no threshold — newest on top by default">First Seen ▼</th>
                 <th onclick="sortNoThresh('last')">Last Seen</th>
+                <th class="col-act" title="Delete an entry"></th>
               </tr></thead>
               <tbody id="nothresh-tbody"></tbody>
             </table>
@@ -4403,6 +4419,17 @@ function critHistRows() {
 }
 function critWhen(d, s){ return esc(d || '—') + (s ? ` · ${esc(fmt12(s))}` : ''); }
 
+// Rightmost per-row delete control shared by the Critical History and No-Threshold
+// tables. Rendered only for admins (matches the Danger-Zone "Delete all" gate);
+// everyone else gets an empty action cell so the columns stay aligned.
+const DEL_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+function rowDelCell(handler, name){
+  if (!isAdmin()) return '<td class="col-act"></td>';
+  return `<td class="col-act"><button type="button" class="row-del" title="Delete this entry"`
+    + ` onclick="event.stopPropagation(); ${handler}('${escAttr(name)}')" ondblclick="event.stopPropagation()">`
+    + `${DEL_ICON_SVG}</button></td>`;
+}
+
 function renderCriticalHistory() {
   const tbody = document.getElementById('crithist-tbody');
   if (!tbody) return;
@@ -4438,8 +4465,9 @@ function renderCriticalHistory() {
       <td class="num" style="color:#884400">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
       <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
       <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
+      ${rowDelCell('deleteCritHistEntry', r.name)}
     </tr>`).join('') ||
-    `<tr><td colspan="6" style="text-align:center;padding:16px;color:#666">${critHistSearch ? 'No clients match your search.' : 'No clients have hit Critical Balance yet.'}</td></tr>`;
+    `<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">${critHistSearch ? 'No clients match your search.' : 'No clients have hit Critical Balance yet.'}</td></tr>`;
 }
 
 window.exportCritHistory = () => {
@@ -4490,6 +4518,22 @@ window.confirmWipeCritHistory = async () => {
     markCritHistSeeded();   // don't auto-reseed from snapshots after an explicit wipe
     renderCriticalHistory();
     toast(`✓ Deleted ${deleted} critical-history record(s)`, 'ok');
+  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
+
+// Delete a single client's Critical History record (row trash button).
+window.deleteCritHistEntry = async (name) => {
+  if (!isAdmin()){ toast('Only admins can delete critical history.','err'); return; }
+  if (!name) return;
+  if (!(_critHits instanceof Map) || !_critHits.has(name)) { renderCriticalHistory(); return; }
+  if (!confirm(`Remove "${name}" from Critical History?\n\nThis permanently deletes the stored record. It will re-appear only if the client hits Critical Balance again.`)) return;
+  setLoading(true, 'Deleting entry…');
+  try {
+    if (fbOk) await deleteDoc(doc(db, 'critical_history', critHistDocId(name)));
+    _critHits.delete(name);
+    renderCriticalHistory();
+    toast(`✓ Removed "${name}" from Critical History`, 'ok');
   } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
@@ -4680,8 +4724,9 @@ function renderNoThreshHistory() {
       <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
       <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
       <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
+      ${rowDelCell('deleteNoThreshEntry', r.name)}
     </tr>`).join('') ||
-    `<tr><td colspan="6" style="text-align:center;padding:16px;color:#666">${noThreshSearch ? 'No clients match your search.' : 'No no-threshold clients logged yet.'}</td></tr>`;
+    `<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">${noThreshSearch ? 'No clients match your search.' : 'No no-threshold clients logged yet.'}</td></tr>`;
 }
 
 window.exportNoThreshHistory = () => {
@@ -4732,6 +4777,22 @@ window.confirmWipeNoThresh = async () => {
     renderNoThreshHistory();
     toast(`✓ Cleared ${deleted} no-threshold record(s)`, 'ok');
   } catch (e) { toast('Clear failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
+
+// Delete a single client's No-Threshold record (row trash button).
+window.deleteNoThreshEntry = async (name) => {
+  if (!isAdmin()){ toast('Only admins can clear the no-threshold list.','err'); return; }
+  if (!name) return;
+  if (!(_noThreshSeen instanceof Map) || !_noThreshSeen.has(name)) { renderNoThreshHistory(); return; }
+  if (!confirm(`Remove "${name}" from the No-Threshold list?\n\nThis permanently deletes the stored record. It will re-appear only if the client shows up again with no threshold set.`)) return;
+  setLoading(true, 'Deleting entry…');
+  try {
+    if (fbOk) await deleteDoc(doc(db, 'no_threshold_history', noThreshDocId(name)));
+    _noThreshSeen.delete(name);
+    renderNoThreshHistory();
+    toast(`✓ Removed "${name}" from the No-Threshold list`, 'ok');
+  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
 
