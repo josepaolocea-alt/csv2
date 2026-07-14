@@ -6769,17 +6769,27 @@ function alertRows() {
   };
   const data=activeData().map(r=>toAlertRow(r, true));
   const currentCriticalNames = new Set(data.filter(r=>r._level==='high').map(r=>r.carrier_name));
+  // Current live rows keyed by client so a "Removed from Critical" row can show the
+  // client's CURRENT Amnt Receivable (the balance that took it out of critical, same
+  // value as All Clients) instead of the stale figure from the previous snapshot.
+  const currentByName = new Map(data.map(r=>[r.carrier_name, r]));
   const removedData = prevSnap ? (prevSnap.data || [])
     .map(r=>toAlertRow(r, false))
     .filter(r=>r._level==='high' && !currentCriticalNames.has(r.carrier_name))
-    .map(r=>({
-      ...r,
-      _isNew:false,
-      _eta:null,
-      _removedFromCritical:true,
-      _removedPrevDate:prevSnap.session_date || '',
-      _removedPrevSlot:prevSnap.time_slot || ''
-    })) : [];
+    .map(r=>{
+      const cur = currentByName.get(r.carrier_name);
+      return {
+        ...r,
+        // Prefer the current balance; fall back to the previous one only when the
+        // client is no longer present in the current snapshot.
+        amnt_receivable: cur ? cur.amnt_receivable : r.amnt_receivable,
+        _isNew:false,
+        _eta:null,
+        _removedFromCritical:true,
+        _removedPrevDate:prevSnap.session_date || '',
+        _removedPrevSlot:prevSnap.time_slot || ''
+      };
+    }) : [];
 
   const newCount = data.filter(r=>r._isNew && !r._inactive).length;
   const removedCount = removedData.filter(r=>!r._inactive).length;
