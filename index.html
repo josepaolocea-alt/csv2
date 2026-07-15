@@ -1198,10 +1198,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #nothresh-wipe-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #nothresh-wipe-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #nothresh-wipe-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -1327,6 +1327,7 @@
     #wipe-all-overlay.open #wipe-all-box,
     #crithist-wipe-overlay.open #crithist-wipe-box,
     #nothresh-wipe-overlay.open #nothresh-wipe-box,
+    #rowdel-confirm-overlay.open #rowdel-confirm-box,
     #spamreset-overlay.open #spamreset-box,
     #gap-confirm-overlay.open #gap-confirm-box,
     #source-mismatch-overlay.open #source-mismatch-box,
@@ -2688,6 +2689,22 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeNoThresh()">Clear List</button>
       <button class="tbtn" style="min-width:72px" onclick="closeNoThreshWipeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Single Entry Dialog — shared by the Critical History and No-Threshold
+     per-row trash buttons (replaces the old native confirm() prompt). -->
+<div id="rowdel-confirm-overlay">
+  <div id="rowdel-confirm-box" style="width:390px">
+    <div class="dlg-tb"><span id="rowdel-confirm-title">Remove Entry</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="rowdel-confirm-text"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" id="rowdel-confirm-ok" style="min-width:110px" onclick="confirmRowDel()">Remove</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeRowDelConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -4522,20 +4539,50 @@ window.confirmWipeCritHistory = async () => {
   finally { setLoading(false); }
 };
 
+// Shared styled confirmation for the per-row trash buttons on the Critical
+// History and No-Threshold tabs (replaces the old native confirm() prompt so it
+// matches the rest of the app's dialogs). The pending deletion is stashed and
+// run only if the user confirms.
+let _pendingRowDel = null;
+function openRowDelConfirm({ title, html, confirmLabel, run }) {
+  _pendingRowDel = run;
+  document.getElementById('rowdel-confirm-title').textContent = title;
+  document.getElementById('rowdel-confirm-text').innerHTML = html;
+  document.getElementById('rowdel-confirm-ok').textContent = confirmLabel || 'Remove';
+  document.getElementById('rowdel-confirm-overlay').classList.add('open');
+}
+window.closeRowDelConfirm = () => {
+  document.getElementById('rowdel-confirm-overlay').classList.remove('open');
+  _pendingRowDel = null;
+};
+window.confirmRowDel = async () => {
+  const run = _pendingRowDel;
+  _pendingRowDel = null;
+  document.getElementById('rowdel-confirm-overlay').classList.remove('open');
+  if (typeof run === 'function') await run();
+};
+
 // Delete a single client's Critical History record (row trash button).
-window.deleteCritHistEntry = async (name) => {
+window.deleteCritHistEntry = (name) => {
   if (!isAdmin()){ toast('Only admins can delete critical history.','err'); return; }
   if (!name) return;
   if (!(_critHits instanceof Map) || !_critHits.has(name)) { renderCriticalHistory(); return; }
-  if (!confirm(`Remove "${name}" from Critical History?\n\nThis permanently deletes the stored record. It will re-appear only if the client hits Critical Balance again.`)) return;
-  setLoading(true, 'Deleting entry…');
-  try {
-    if (fbOk) await deleteDoc(doc(db, 'critical_history', critHistDocId(name)));
-    _critHits.delete(name);
-    renderCriticalHistory();
-    toast(`✓ Removed "${name}" from Critical History`, 'ok');
-  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
-  finally { setLoading(false); }
+  openRowDelConfirm({
+    title: 'Remove from Critical History',
+    html: `<strong>Remove "${esc(name)}" from Critical History?</strong><br><br>`
+        + `This permanently deletes the stored record. It will re-appear only if the client hits Critical Balance again.`,
+    confirmLabel: 'Remove',
+    run: async () => {
+      setLoading(true, 'Deleting entry…');
+      try {
+        if (fbOk) await deleteDoc(doc(db, 'critical_history', critHistDocId(name)));
+        _critHits.delete(name);
+        renderCriticalHistory();
+        toast(`✓ Removed "${name}" from Critical History`, 'ok');
+      } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+      finally { setLoading(false); }
+    }
+  });
 };
 
 /* ════════════════════════════════════════════════
@@ -4781,19 +4828,26 @@ window.confirmWipeNoThresh = async () => {
 };
 
 // Delete a single client's No-Threshold record (row trash button).
-window.deleteNoThreshEntry = async (name) => {
+window.deleteNoThreshEntry = (name) => {
   if (!isAdmin()){ toast('Only admins can clear the no-threshold list.','err'); return; }
   if (!name) return;
   if (!(_noThreshSeen instanceof Map) || !_noThreshSeen.has(name)) { renderNoThreshHistory(); return; }
-  if (!confirm(`Remove "${name}" from the No-Threshold list?\n\nThis permanently deletes the stored record. It will re-appear only if the client shows up again with no threshold set.`)) return;
-  setLoading(true, 'Deleting entry…');
-  try {
-    if (fbOk) await deleteDoc(doc(db, 'no_threshold_history', noThreshDocId(name)));
-    _noThreshSeen.delete(name);
-    renderNoThreshHistory();
-    toast(`✓ Removed "${name}" from the No-Threshold list`, 'ok');
-  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
-  finally { setLoading(false); }
+  openRowDelConfirm({
+    title: 'Remove from No-Threshold List',
+    html: `<strong>Remove "${esc(name)}" from the No-Threshold list?</strong><br><br>`
+        + `This permanently deletes the stored record. It will re-appear only if the client shows up again with no threshold set.`,
+    confirmLabel: 'Remove',
+    run: async () => {
+      setLoading(true, 'Deleting entry…');
+      try {
+        if (fbOk) await deleteDoc(doc(db, 'no_threshold_history', noThreshDocId(name)));
+        _noThreshSeen.delete(name);
+        renderNoThreshHistory();
+        toast(`✓ Removed "${name}" from the No-Threshold list`, 'ok');
+      } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+      finally { setLoading(false); }
+    }
+  });
 };
 
 window.openSpamResetConfirm = () => {
