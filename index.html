@@ -350,10 +350,13 @@
     .collapsed .caret-body { display: none; }
     .collapsed .groupbox-title { margin-bottom: 0; }
 
-    /* ── Stats row ── */
-    .stat-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    /* ── Stats row ──
+       Tiles hold a short number, so tracks are capped and wrap instead of each
+       tile growing to a third of the window on a wide screen. Equal-width
+       tracks keep a wrapped tile the same size as the ones above it. */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 170px)); gap: 8px; margin-bottom: 8px; }
     .stat-box {
-      flex: 1; text-align: center; padding: 8px 6px;
+      text-align: center; padding: 8px 6px;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--r-md);
@@ -554,7 +557,7 @@
       animation: alertPulse 1.6s ease-in-out infinite;
     }
     /* Shift summary */
-    .sum-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }
+    .sum-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 170px)); gap: 8px; margin-bottom: 8px; }
     .sum-card {
       background: var(--surface-2);
       border: 1px solid var(--border);
@@ -566,7 +569,8 @@
     .sum-card.sc-red .sc-val { color: var(--red); }
     .sum-card.sc-green .sc-val { color: var(--green); }
     .sum-card.sc-orange .sc-val { color: var(--orange); }
-    .sum-movers { font-size: 11px; }
+    /* Name + amount only — the inline width:100% would otherwise run the full panel. */
+    .sum-movers { font-size: 11px; max-width: 480px; }
     .sum-movers td { padding: 2px 6px; }
     /* Sparkline */
     .sparkline-wrap {
@@ -1072,24 +1076,61 @@
     #sb-right { min-width: 120px; margin-left: auto; border-right: none; }
 
     /* ── CSV Wizard ── */
-    .wiz-steps { display: flex; gap: 4px; margin-bottom: 10px; }
+    /* The Client Manager tab holds a single narrow flow, so it reads as one
+       centred column instead of stretching to the full window width. */
+    .cm-shell { width: 100%; max-width: 860px; margin: 0 auto; }
+    /* Same idea for the Summary tabs, but wider — they carry data tables. */
+    .dash-shell { width: 100%; max-width: 1180px; margin: 0 auto; }
+    .cm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .cm-head .groupbox-title { margin-bottom: 2px; }
+    .cm-sub { font-size: 10px; color: var(--text-3); }
+
+    .wiz-steps { display: flex; align-items: center; margin-bottom: 12px; }
     .wstep {
-      flex: 1; text-align: center; padding: 5px; font-size: 10px;
-      background: var(--surface-2); color: var(--text-3);
-      border: 1px solid var(--border); border-radius: var(--r-sm);
-      transition: background-color .12s ease-out, color .12s ease-out;
+      display: flex; align-items: center; gap: 6px; font-size: 10px;
+      color: var(--text-3); white-space: nowrap;
     }
-    .wstep.active { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 600; }
-    .wstep.done   { background: var(--green-soft); color: var(--green); border-color: transparent; }
+    .wstep:not(:last-child) { flex: 1; }
+    .wstep:not(:last-child)::after {
+      content: ''; flex: 1; height: 1px; margin: 0 8px;
+      background: var(--border);
+      transition: background-color .12s ease-out;
+    }
+    .wstep-n {
+      flex: none; width: 18px; height: 18px; border-radius: 50%;
+      display: grid; place-items: center; font-size: 9px; font-weight: 600;
+      background: var(--surface-2); color: var(--text-3);
+      border: 1px solid var(--border);
+      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
+    }
+    .wstep.active .wstep-n { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+    .wstep.active .wstep-l { color: var(--text); font-weight: 600; }
+    .wstep.done .wstep-n  { background: var(--green-soft); color: var(--green); border-color: transparent; }
+    .wstep.done .wstep-l  { color: var(--text-2); }
+    .wstep.done::after    { background: var(--green-soft); }
+    /* The labels don't wrap, so below this the row would push past the panel —
+       drop back to circles plus the current step's label. */
+    @media (max-width: 700px) {
+      .wstep:not(.active) .wstep-l { display: none; }
+    }
+
     .drop-zone {
       border: 1.5px dashed var(--border-strong);
       border-radius: var(--r-md);
-      padding: 26px; text-align: center; cursor: pointer;
+      padding: 22px; text-align: center; cursor: pointer;
       background: var(--surface-2); color: var(--text-2);
       transition: background-color .12s ease-out, border-color .12s ease-out, color .12s ease-out;
     }
     .drop-zone:hover, .drop-zone.over { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
-    .map-grid { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 5px; align-items: center; font-size: 11px; margin-bottom: 8px; }
+    /* Mapping rows are cards that wrap into columns, so a CSV with few headers
+       doesn't leave one pair of fields stretched across the whole panel. */
+    .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 6px; margin-bottom: 8px; }
+    .map-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+      gap: 6px; align-items: center; font-size: 11px; padding: 6px 8px;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+    }
+    .map-col { font-family: var(--mono); font-size: 10px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .map-arrow { text-align: center; color: var(--text-3); font-size: 10px; }
     .inset-panel,
     .csv-summary-card {
@@ -1613,6 +1654,7 @@
 
       <!-- ═══ SUMMARY ══════════════════════════════ -->
       <div class="view active" id="view-summary">
+       <div class="dash-shell">
         <div id="print-hdr">BalanceMonitor Report — <span id="print-date"></span></div>
 
         <!-- Stats -->
@@ -1662,6 +1704,7 @@
             <div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>
           </div>
         </div>
+       </div>
       </div>
 
       <!-- ═══ ALERTS ════════════════════════════════ -->
@@ -1751,28 +1794,34 @@
 
       <!-- ═══ CLIENT MANAGER ════════════════════════ -->
       <div class="view" id="view-client-manager">
-        <div class="groupbox">
-          <div class="groupbox-title">CSV Upload — Client Info Manager</div>
-          <div class="wiz-steps">
-            <div class="wstep active" id="ws1">1. Upload</div>
-            <div class="wstep" id="ws2">2. Map Columns</div>
-            <div class="wstep" id="ws3">3. Review Changes</div>
-            <div class="wstep" id="ws4">4. Confirm &amp; Save</div>
+        <div class="cm-shell">
+          <div class="groupbox">
+            <div class="cm-head">
+              <div>
+                <div class="groupbox-title">CSV Upload — Client Info Manager</div>
+                <div class="cm-sub">Import client records from a CSV and review every change before it is saved.</div>
+              </div>
+              <button class="tbtn" onclick="downloadTemplate()">Download Template CSV</button>
+            </div>
+            <div class="wiz-steps">
+              <div class="wstep active" id="ws1"><span class="wstep-n">1</span><span class="wstep-l">Upload</span></div>
+              <div class="wstep" id="ws2"><span class="wstep-n">2</span><span class="wstep-l">Map Columns</span></div>
+              <div class="wstep" id="ws3"><span class="wstep-n">3</span><span class="wstep-l">Review Changes</span></div>
+              <div class="wstep" id="ws4"><span class="wstep-n">4</span><span class="wstep-l">Confirm &amp; Save</span></div>
+            </div>
+            <div id="wiz-content"></div>
           </div>
-          <div id="wiz-content"></div>
-        </div>
 
-        <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
-            <div class="groupbox-title">Upload History (last 10)</div>
-            <span class="caret">▼</span>
-          </div>
-          <div class="caret-body" style="padding-top:4px">
-            <div id="imp-hist-list" class="inset-panel"></div>
+          <div class="groupbox">
+            <div class="collapsible-header" onclick="toggleCollapse(this)">
+              <div class="groupbox-title">Upload History (last 10)</div>
+              <span class="caret">▼</span>
+            </div>
+            <div class="caret-body" style="padding-top:4px">
+              <div id="imp-hist-list" class="inset-panel"></div>
+            </div>
           </div>
         </div>
-
-        <button class="tbtn" onclick="downloadTemplate()">Download Template CSV</button>
       </div>
 
       <!-- ═══ EXPORT ════════════════════════════════ -->
@@ -2082,6 +2131,7 @@
 
       <!-- ═══ STATS — SUMMARY ════════════════════════ -->
       <div class="view" id="view-stats-summary">
+       <div class="dash-shell">
         <div class="groupbox">
           <div class="collapsible-header" onclick="toggleCollapse(this)">
             <div class="groupbox-title">Stats Overview — <span id="st-sum-slot">no snapshot</span></div>
@@ -2179,6 +2229,7 @@
             </tr></thead><tbody id="st-list-good"></tbody></table>
           </div></div>
         </div>
+       </div>
       </div>
 
       <!-- ═══ STATS — ALL / CRITICAL / LOW / OK / GOOD ══ -->
@@ -2424,6 +2475,25 @@
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
           <label>Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Balance Check Reminder</div>
+        <div style="font-size:10px;color:#666;margin-bottom:4px">Desktop reminder a few minutes after each snapshot slot, while this app is open. Follows the Default shift above, and stays quiet for a slot you already posted.</div>
+        <div class="settings-check">
+          <input type="checkbox" id="set-remind" onchange="saveSettings()" style="margin:0">
+          <label>Remind me to check the balance</label>
+          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
+        </div>
+        <div class="settings-band">
+          <div class="settings-row">
+            <label style="min-width:140px">Remind at slot +:</label>
+            <input class="win-inp" id="set-remind-offset" type="number" min="1" max="29" value="10" style="width:70px" onchange="saveSettings()" title="Minutes after each :00 / :30 slot to remind you. 10 → 10:10, 10:40, 11:10 …">
+            <span style="font-size:10px;color:#666;margin-left:4px">min after :00 / :30</span>
+          </div>
+          <div class="settings-row">
+            <label style="min-width:140px;color:#666" id="set-remind-preview">&nbsp;</label>
+            <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="testSlotReminder()">Test</button>
+          </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">No Threshold Balance Alerts</div>
@@ -3076,7 +3146,8 @@ let S = {
   lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM',
   soundAlert:true, browserNotif:true, retentionDays:7,
   useBands:false, bandMedium:-50, bandHigh:-101, bandCritical:-151,
-  nightMode:false
+  nightMode:false,
+  slotReminder:false, slotReminderOffset:10
 };
 function applyNightMode() {
   document.body.classList.toggle('night-mode', !!S.nightMode);
@@ -3095,6 +3166,9 @@ function loadSettings() {
   document.getElementById('set-band-medium').value = S.bandMedium;
   document.getElementById('set-band-high').value   = S.bandHigh;
   document.getElementById('set-band-crit').value   = S.bandCritical;
+  document.getElementById('set-remind').checked        = S.slotReminder;
+  document.getElementById('set-remind-offset').value   = S.slotReminderOffset;
+  updateReminderPreview();
 }
 function loadLastProcessedSnap() {
   if (fbOk) {
@@ -3123,7 +3197,12 @@ window.saveSettings = () => {
   S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
   S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
+  S.slotReminder  = document.getElementById('set-remind').checked;
+  // Keep the offset inside the slot it belongs to: 30+ would land on the next slot.
+  S.slotReminderOffset = Math.min(29, Math.max(1, +document.getElementById('set-remind-offset').value || 10));
+  document.getElementById('set-remind-offset').value = S.slotReminderOffset;
   applyNightMode();
+  updateReminderPreview();
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
 };
@@ -3426,6 +3505,81 @@ function sendCriticalNotification(criticalRows) {
     requireInteraction: true,
   });
 }
+
+/* ── Balance check reminder ──
+   Fires a desktop notification `slotReminderOffset` minutes after each :00/:30
+   slot of the current shift (offset 10 → 10:10, 10:40, 11:10 …), so it only
+   ever nags while the app is open. A slot already present in todaySnaps is
+   skipped — no reminder for work that's done. Each slot fires at most once a
+   day; the record is kept in localStorage so a reload can't re-fire it. */
+const REMIND_GRACE_MIN = 5; // still fire if a throttled/background tab wakes up late
+
+function slotToMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+function minutesToHhmm(min) {
+  const t = ((min % 1440) + 1440) % 1440;
+  return `${Math.floor(t / 60).toString().padStart(2,'0')}:${(t % 60).toString().padStart(2,'0')}`;
+}
+// The clock times the reminder will actually fire at, paired with the slot each belongs to.
+function reminderTimes() {
+  const off = S.slotReminderOffset || 10;
+  return shiftSlots(S.shift).map(slot => ({ slot, at: slotToMinutes(slot) + off }));
+}
+
+function loadRemindFired() {
+  try {
+    const v = JSON.parse(localStorage.getItem('bm_slot_remind_fired') || 'null');
+    if (v && v.date === todayStr() && Array.isArray(v.slots)) return new Set(v.slots);
+  } catch(e) {}
+  return new Set();
+}
+function saveRemindFired(set) {
+  try {
+    localStorage.setItem('bm_slot_remind_fired', JSON.stringify({ date: todayStr(), slots: [...set] }));
+  } catch(e) {}
+}
+
+function sendSlotReminder(slot) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification('BalanceMonitor — Balance Check Due', {
+    body: `The ${fmt12(slot)} snapshot hasn't been posted yet. Time to check the balance.`,
+    tag : 'bm-slot-reminder',
+    requireInteraction: true,
+  });
+}
+
+function checkSlotReminder() {
+  if (!S.slotReminder) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  const fired = loadRemindFired();
+  let changed = false;
+  for (const { slot, at } of reminderTimes()) {
+    if (fired.has(slot)) continue;
+    if (nowMin < at || nowMin >= at + REMIND_GRACE_MIN) continue;
+    // Already posted this slot → nothing to remind about, but mark it so a
+    // later undo of that snapshot doesn't resurrect a stale reminder.
+    if (!todaySnaps.some(s => s.time_slot === slot)) sendSlotReminder(slot);
+    fired.add(slot); changed = true;
+  }
+  if (changed) saveRemindFired(fired);
+}
+
+function updateReminderPreview() {
+  const el = document.getElementById('set-remind-preview');
+  if (!el) return;
+  const times = reminderTimes().slice(0, 3).map(r => fmt12(minutesToHhmm(r.at)));
+  el.textContent = times.length ? `e.g. ${times.join(', ')} …` : '';
+}
+
+window.testSlotReminder = () => {
+  if (!('Notification' in window)) { toast('Browser does not support notifications','err'); return; }
+  if (Notification.permission !== 'granted') { toast('Allow notifications first','err'); return; }
+  sendSlotReminder(nextSlot());
+  toast('Test reminder sent','ok');
+};
 
 // Blink the top-level Alerts nav tab red ONLY when at least one inner Alert
 // sub-tab (New/Removed Critical, Usage, No-threshold, Inactive-usage, Spam) is
@@ -7613,14 +7767,16 @@ window.renderWizard=()=>{
     const OPTS=['carrier_name','account_manager','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','is_active','(skip)'];
     c.innerHTML=`
       <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
-      <div class="map-grid" style="margin-bottom:8px">
+      <div class="map-grid">
         ${wHeaders.map((h,i)=>{
           const auto=autoMap(h);
-          return `<div style="font-family:'Courier New',monospace;font-size:10px;color:#444">${esc(h)}</div>
-          <div class="map-arrow">→</div>
-          <div><select class="win-sel" id="wm${i}" style="width:100%">
-            ${OPTS.map(f=>`<option value="${f}" ${f===auto?'selected':''}>${f}</option>`).join('')}
-          </select></div>`;
+          return `<div class="map-row">
+            <div class="map-col" title="${esc(h)}">${esc(h)}</div>
+            <div class="map-arrow">→</div>
+            <select class="win-sel" id="wm${i}" style="width:100%">
+              ${OPTS.map(f=>`<option value="${f}" ${f===auto?'selected':''}>${f}</option>`).join('')}
+            </select>
+          </div>`;
         }).join('')}
       </div>
       <div style="display:flex;gap:4px">
@@ -11104,6 +11260,8 @@ async function init(){
     setSbStatus('Demo mode — Firebase not configured');
   }
   setInterval(populateSlots, 60000);
+  setInterval(checkSlotReminder, 30000); // balance-check reminder, offset after each slot
+  checkSlotReminder();
   setInterval(updatePresence, 60000); // heartbeat every minute
   updatePresence();
   subscribePresence();
