@@ -1079,8 +1079,9 @@
     /* The Client Manager tab holds a single narrow flow, so it reads as one
        centred column instead of stretching to the full window width. */
     .cm-shell { width: 100%; max-width: 860px; margin: 0 auto; }
-    /* Same idea for the Summary tabs, but wider — they carry data tables. */
-    .dash-shell { width: 100%; max-width: 1180px; margin: 0 auto; }
+    /* The Summary tabs carry wide data tables, so they take the full window
+       rather than a centred column — the side gutters were dead space. */
+    .dash-shell { width: 100%; }
     .cm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .cm-head .groupbox-title { margin-bottom: 2px; }
     .cm-sub { font-size: 10px; color: var(--text-3); }
