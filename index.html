@@ -13,8 +13,46 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    /* Boot watchdog — surfaces a clear message if a CDN dependency fails to load
+       (blocked network, offline, CDN outage) instead of failing silently or
+       showing a blank page. Defined before the CDN <script> tags so their
+       onerror handlers can flip these flags. Only shows UI on real failure. */
+    window.__bmBooted = false;                 // set true once the app module runs
+    window.__bmLibs = { papa: true, xlsx: true };
+    window.__bmBanner = function (msg, level) {
+      if (document.getElementById('bm-load-banner')) return;
+      var bar = document.createElement('div');
+      bar.id = 'bm-load-banner';
+      bar.setAttribute('role', 'alert');
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;'
+        + 'padding:10px 16px;font:14px/1.4 system-ui,Segoe UI,Arial,sans-serif;color:#fff;'
+        + 'background:' + (level === 'warn' ? '#a15c00' : '#8a1f1f')
+        + ';box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;gap:12px;align-items:center';
+      var span = document.createElement('span'); span.style.flex = '1'; span.textContent = msg;
+      var reload = document.createElement('a');
+      reload.textContent = 'Reload'; reload.href = location.href;
+      reload.style.cssText = 'color:#fff;font-weight:600;text-decoration:underline';
+      var close = document.createElement('span'); close.textContent = '×';
+      close.style.cssText = 'cursor:pointer;font-size:18px;line-height:1;padding:0 4px';
+      close.onclick = function () { bar.remove(); };
+      bar.appendChild(span); bar.appendChild(reload); bar.appendChild(close);
+      document.body.appendChild(bar);
+    };
+    window.addEventListener('DOMContentLoaded', function () {
+      setTimeout(function () {
+        if (!window.__bmBooted) {
+          window.__bmBanner('BalanceMonitor could not load its core libraries (Firebase). '
+            + 'Check your internet connection or network/firewall restrictions, then reload.', 'error');
+        } else if (!window.__bmLibs.papa || !window.__bmLibs.xlsx) {
+          window.__bmBanner('CSV/Excel import libraries failed to load, so importing is disabled. '
+            + 'The rest of the app works — reload to try again.', 'warn');
+        }
+      }, 12000);
+    });
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" onerror="window.__bmLibs.papa=false"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.__bmLibs.xlsx=false"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -3073,6 +3111,10 @@ import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+// Reaching here means the Firebase CDN modules resolved — tell the boot
+// watchdog (in <head>) so it does NOT show the "failed to load" banner.
+window.__bmBooted = true;
+
 const firebaseConfig = {
   apiKey: "AIzaSyCVLznvPbjcx7L7-jCvq-bCoZk_JVX4lRE",
   authDomain: "csv2-f6ed6.firebaseapp.com",
@@ -4054,7 +4096,7 @@ let _profilesLoading = null;
 let _usageProfiles = null;    // computed baseline cache (median/threshold per client)
 function invalidateUsageProfiles() { _usageProfiles = null; }
 
-function sampleKey(d, s) { return `${d} ${s}`; }
+function sampleKey(d, s) { return `${d}|${s}`; }
 function capSamples(arr) {
   if (arr.length > SPAM_CFG.sampleCap) arr.splice(0, arr.length - SPAM_CFG.sampleCap);
   return arr;
