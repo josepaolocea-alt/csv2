@@ -3206,6 +3206,8 @@ window.saveSettings = () => {
   updateReminderPreview();
   localStorage.setItem('bm_s98', JSON.stringify(S));
   populateSlots(); refreshAll();
+  checkSlotReminder();   // fire right away if a slot is currently due (e.g. just enabled)
+  updateReminderPreview();
 };
 window.toggleNightMode = () => {
   S.nightMode = !S.nightMode;
@@ -3513,7 +3515,7 @@ function sendCriticalNotification(criticalRows) {
    ever nags while the app is open. A slot already present in todaySnaps is
    skipped — no reminder for work that's done. Each slot fires at most once a
    day; the record is kept in localStorage so a reload can't re-fire it. */
-const REMIND_GRACE_MIN = 5; // still fire if a throttled/background tab wakes up late
+const REMIND_GRACE_MIN = 20; // wide window so a minimized/throttled/asleep tab that wakes late still fires
 
 function slotToMinutes(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -3568,11 +3570,30 @@ function checkSlotReminder() {
   if (changed) saveRemindFired(fired);
 }
 
+// The next reminder that will actually fire today — skips slots already posted or
+// already reminded, and skips any whose grace window has fully closed. null = none left.
+function nextReminderTime() {
+  const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  const fired = loadRemindFired();
+  for (const { slot, at } of reminderTimes()) {
+    if (nowMin >= at + REMIND_GRACE_MIN) continue;              // window already closed
+    if (fired.has(slot)) continue;                             // already reminded/handled today
+    if (todaySnaps.some(s => s.time_slot === slot)) continue;   // slot already posted
+    return { slot, at };
+  }
+  return null;
+}
+
 function updateReminderPreview() {
   const el = document.getElementById('set-remind-preview');
   if (!el) return;
-  const times = reminderTimes().slice(0, 3).map(r => fmt12(minutesToHhmm(r.at)));
-  el.textContent = times.length ? `e.g. ${times.join(', ')} …` : '';
+  if (S.slotReminder) {
+    const nxt = nextReminderTime();
+    el.textContent = nxt ? `Next reminder ~ ${fmt12(minutesToHhmm(nxt.at))}` : 'No more reminders today';
+  } else {
+    const times = reminderTimes().slice(0, 3).map(r => fmt12(minutesToHhmm(r.at)));
+    el.textContent = times.length ? `e.g. ${times.join(', ')} …` : '';
+  }
 }
 
 window.testSlotReminder = () => {
@@ -11261,8 +11282,8 @@ async function init(){
     setSbStatus('Demo mode — Firebase not configured');
   }
   setInterval(populateSlots, 60000);
-  setInterval(checkSlotReminder, 30000); // balance-check reminder, offset after each slot
-  checkSlotReminder();
+  setInterval(() => { checkSlotReminder(); updateReminderPreview(); }, 30000); // balance-check reminder, offset after each slot
+  checkSlotReminder(); updateReminderPreview();
   setInterval(updatePresence, 60000); // heartbeat every minute
   updatePresence();
   subscribePresence();
