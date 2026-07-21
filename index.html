@@ -1955,6 +1955,7 @@
           <div class="fbar">
             <span style="font-size:11px;color:#444">Every client that reached the Critical Balance set on them — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
             <input class="win-search" id="crithist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="critHistSearchInput(this.value)" style="margin-left:auto">
+            <button class="tbtn" id="crithist-restore-btn" onclick="restoreDismissedCritHist()" title="Clients you removed while they were still critical are hidden until they recover. Restore them all now." style="display:none;color:#555">Dismissed: 0</button>
             <button class="tbtn" onclick="exportCritHistory()" title="Export the Critical History table to CSV">Export</button>
           </div>
           <div class="lv-wrap">
@@ -4493,6 +4494,42 @@ function critHistWasSeeded(){ try { return localStorage.getItem('bm_crithist_see
 function markCritHistSeeded(){ try { localStorage.setItem('bm_crithist_seeded', '1'); } catch(e) {} }
 function sortEventsInPlace(events){ events.sort((a, b) => critKey(a.d, a.s) < critKey(b.d, b.s) ? -1 : critKey(a.d, a.s) > critKey(b.d, b.s) ? 1 : 0); }
 
+/* ── Dismissal (suppression) list ─────────────────────────────────────────
+   Clients the user removed from Critical History with the per-row trash button
+   while they were still critical. A dismissed client is NOT re-logged by
+   recordCriticalHits() while it stays critical, so the tab shows only NEW /
+   upcoming criticals. It is un-dismissed automatically the first time a
+   processed snapshot shows it OUT of critical — so if it later hits Critical
+   Balance again (a genuinely new event) it re-appears. Persisted in one doc
+   (critical_history_meta/suppressed → { names: { <docId>: name } }) so the
+   dismissal survives page reloads and snapshot wipes, same as the history. */
+let _critSuppressed = null;            // Set<carrier_name>
+let _critSuppLoaded = false;
+const critSuppRef = () => doc(db, 'critical_history_meta', 'suppressed');
+function critSuppCount(){ return _critSuppressed ? _critSuppressed.size : 0; }
+
+async function loadCritSuppressed() {
+  if (_critSuppLoaded) return;
+  const set = new Set();
+  try {
+    if (fbOk) {
+      const d = await getDoc(critSuppRef());
+      const names = (d.exists() && d.data().names) ? d.data().names : {};
+      Object.values(names).forEach(n => { if (n) set.add(n); });
+    }
+  } catch (e) { /* non-fatal: dismissals just won't be honoured this session */ }
+  _critSuppressed = set;
+  _critSuppLoaded = true;
+}
+
+async function persistCritSuppressed() {
+  if (!fbOk) return;
+  const names = {};
+  (_critSuppressed || new Set()).forEach(n => { if (n) names[critHistDocId(n)] = n; });
+  try { await setDoc(critSuppRef(), { names, updated_at: Timestamp.now() }); }
+  catch (e) { /* non-fatal */ }
+}
+
 async function loadCritHistory() {
   if (_critHistLoaded) return;
   if (_critHistLoading) return _critHistLoading;
@@ -4560,13 +4597,23 @@ async function backfillCritHistoryFromSnapshots() {
 // re-processing/overwriting a slot replaces rather than duplicates its hit.
 async function recordCriticalHits(date, slot, ts, rows) {
   await loadCritHistory();                 // ensure prior history is in memory first
+  await loadCritSuppressed();              // ...and which clients were dismissed
   if (!_critHits) _critHits = new Map();
+  if (!_critSuppressed) _critSuppressed = new Set();
   const key = critKey(date, slot);
   const when = (ts instanceof Date) ? ts : new Date();
   const changed = new Set();
+  let suppChanged = false;
   (rows || []).forEach(r => {
     const name = r?.carrier_name; if (!name) return;
     const hit = alertsCriticalHit(r); // matches the Alerts → Critical tab (alertLevel 'high')
+    // Dismissed while still critical → keep it out of the log. Once a snapshot
+    // shows it out of critical it recovered, so clear the dismissal; a later
+    // critical hit is then a genuinely new one and gets logged again.
+    if (_critSuppressed.has(name)) {
+      if (!hit) { _critSuppressed.delete(name); suppChanged = true; }
+      return; // never (re)log a dismissed client on this snapshot
+    }
     let rec = _critHits.get(name);
     if (rec) { // drop any prior hit for this exact date+slot (overwrite case)
       const i = rec.events.findIndex(e => critKey(e.d, e.s) === key);
@@ -4583,8 +4630,9 @@ async function recordCriticalHits(date, slot, ts, rows) {
     }
   });
   markCritHistSeeded();
-  if (changed.size) {
-    await persistCritHistDocs([...changed]);
+  if (suppChanged) await persistCritSuppressed();
+  if (changed.size || suppChanged) {
+    if (changed.size) await persistCritHistDocs([...changed]);
     if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
   }
 }
@@ -4625,7 +4673,7 @@ function ensureCritHistory() {
   _critKicked = true;
   const countEl = document.getElementById('crithist-count');
   if (countEl) countEl.textContent = 'Loading…';
-  loadCritHistory()
+  Promise.all([loadCritHistory(), loadCritSuppressed()])
     .then(() => { if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory(); })
     .catch(() => { _critKicked = false; });
 }
@@ -4669,6 +4717,12 @@ function renderCriticalHistory() {
   const tbody = document.getElementById('crithist-tbody');
   if (!tbody) return;
   const countEl = document.getElementById('crithist-count');
+  const restoreBtn = document.getElementById('crithist-restore-btn');
+  if (restoreBtn) {
+    const n = critSuppCount();
+    restoreBtn.style.display = (n && isAdmin()) ? '' : 'none';
+    restoreBtn.textContent = `Dismissed: ${n} — Restore`;
+  }
   let rows = critHistRows();
   if (critHistSearch) rows = rows.filter(r => r.name.toLowerCase().includes(critHistSearch));
   const dir = critHistSortDir;
@@ -4747,9 +4801,12 @@ window.confirmWipeCritHistory = async () => {
         if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
       }
       if (count > 0) await batch.commit();
+      try { await deleteDoc(critSuppRef()); } catch (e) { /* non-fatal */ }
     }
     _critHits = new Map();
     _critHistLoaded = true;
+    _critSuppressed = new Set();   // full reset: drop all dismissals too
+    _critSuppLoaded = true;
     markCritHistSeeded();   // don't auto-reseed from snapshots after an explicit wipe
     renderCriticalHistory();
     toast(`✓ Deleted ${deleted} critical-history record(s)`, 'ok');
@@ -4788,16 +4845,49 @@ window.deleteCritHistEntry = (name) => {
   openRowDelConfirm({
     title: 'Remove from Critical History',
     html: `<strong>Remove "${esc(name)}" from Critical History?</strong><br><br>`
-        + `This permanently deletes the stored record. It will re-appear only if the client hits Critical Balance again.`,
+        + `This deletes the stored record and stops it being re-logged while it stays critical. `
+        + `It comes back only if it recovers and then hits Critical Balance again.`,
     confirmLabel: 'Remove',
     run: async () => {
       setLoading(true, 'Deleting entry…');
       try {
         if (fbOk) await deleteDoc(doc(db, 'critical_history', critHistDocId(name)));
         _critHits.delete(name);
+        // Remember the dismissal so a still-critical client isn't re-added on the
+        // next snapshot; it auto-clears once seen out of critical (recovered).
+        await loadCritSuppressed();
+        if (!_critSuppressed) _critSuppressed = new Set();
+        _critSuppressed.add(name);
+        await persistCritSuppressed();
         renderCriticalHistory();
         toast(`✓ Removed "${name}" from Critical History`, 'ok');
       } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+      finally { setLoading(false); }
+    }
+  });
+};
+
+// Bring back every client that was dismissed (removed while still critical).
+// They re-enter Critical History on the next snapshot if they are still at
+// Critical Balance. Admin only, matching the per-row delete gate.
+window.restoreDismissedCritHist = () => {
+  if (!isAdmin()){ toast('Only admins can manage critical history.','err'); return; }
+  const n = critSuppCount();
+  if (!n) { toast('No dismissed clients to restore.', 'err'); return; }
+  openRowDelConfirm({
+    title: 'Restore dismissed clients',
+    html: `<strong>Restore all ${n} dismissed client(s)?</strong><br><br>`
+        + `Any that are still at Critical Balance will be logged back into Critical History on the next snapshot.`,
+    confirmLabel: 'Restore all',
+    run: async () => {
+      setLoading(true, 'Restoring…');
+      try {
+        _critSuppressed = new Set();
+        _critSuppLoaded = true;
+        await persistCritSuppressed();
+        renderCriticalHistory();
+        toast('✓ Restored dismissed clients', 'ok');
+      } catch (e) { toast('Restore failed: ' + e.message, 'err', 6000); }
       finally { setLoading(false); }
     }
   });
