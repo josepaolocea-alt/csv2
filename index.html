@@ -610,6 +610,22 @@
     /* Name + amount only — the inline width:100% would otherwise run the full panel. */
     .sum-movers { font-size: 11px; max-width: 480px; }
     .sum-movers td { padding: 2px 6px; }
+    /* Payments / balance-growth blocks — same card background as .sum-card */
+    .sum-section {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 8px 10px;
+      margin-top: 8px;
+      max-width: 480px;
+    }
+    .sum-section.ss-green { border-left: 3px solid var(--green); }
+    .sum-section.ss-red   { border-left: 3px solid var(--red); }
+    .sum-section .ss-title { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+    .sum-section.ss-green .ss-title { color: var(--green); }
+    .sum-section.ss-red   .ss-title { color: var(--red); }
+    .sum-section .ss-empty { font-size: 11px; color: var(--text-2); }
+    .sum-section .sum-movers { margin-top: 0; }
     /* Sparkline */
     .sparkline-wrap {
       margin-bottom: 8px; padding: 6px;
@@ -10319,14 +10335,18 @@ function renderShiftSummary() {
     </div>
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
-    ${payments.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">Payments today (clients with negative 30m usage):</div>
-    <table class="sum-movers" style="width:100%">
-      ${payments.map((p,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(p.name)}</td><td class="num" style="color:#006600;font-family:'Courier New',monospace">-${fmt(p.amt)}</td></tr>`).join('')}
-    </table>` : '<div style="font-size:11px;color:#666;margin-top:6px">No payments detected today.</div>'}
-    ${movers.length ? `<div style="font-size:11px;font-weight:700;margin-bottom:2px;margin-top:6px">Biggest balance growth since shift start (higher = more credit consumed):</div>
-    <table class="sum-movers" style="width:100%">
-      ${movers.map((m,i)=>`<tr><td style="color:#888;width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:#cc0000;font-family:'Courier New',monospace">+${fmt(m.change)}</td></tr>`).join('')}
-    </table>` : ''}`;
+    <div class="sum-section ss-green">
+      <div class="ss-title">Payments today (clients with negative 30m usage):</div>
+      ${payments.length ? `<table class="sum-movers" style="width:100%">
+        ${payments.map((p,i)=>`<tr><td style="color:var(--text-2);width:20px">${i+1}.</td><td>${esc(p.name)}</td><td class="num" style="color:var(--green);font-family:var(--mono)">-${fmt(p.amt)}</td></tr>`).join('')}
+      </table>` : '<div class="ss-empty">No payments detected today.</div>'}
+    </div>
+    ${movers.length ? `<div class="sum-section ss-red">
+      <div class="ss-title">Biggest balance growth since shift start (higher = more credit consumed):</div>
+      <table class="sum-movers" style="width:100%">
+        ${movers.map((m,i)=>`<tr><td style="color:var(--text-2);width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:var(--red);font-family:var(--mono)">+${fmt(m.change)}</td></tr>`).join('')}
+      </table>
+    </div>` : ''}`;
 }
 
 
