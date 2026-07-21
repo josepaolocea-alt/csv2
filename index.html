@@ -718,18 +718,6 @@
     body.sms-mode #sms-toolbar-label { display: inline-flex; }
     body.sms-mode #view-banner { display: none !important; }
 
-    /* ── Notepad module ── */
-    #notepad-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
-    body.notepad-mode #sidebar,
-    body.notepad-mode #toolbar .tbtn[id^="tnav-"],
-    body.notepad-mode #btn-settings,
-    body.notepad-mode #snd-dismiss-btn,
-    body.notepad-mode #sync-label {
-      display: none !important;
-    }
-    body.notepad-mode #notepad-toolbar-label { display: inline-flex; }
-    body.notepad-mode #view-banner { display: none !important; }
-
     /* ── Users & Roles module (admin only) ── */
     #users-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.users-mode #sidebar,
@@ -756,17 +744,11 @@
     .u-badge.admin { background: var(--accent-soft); color: var(--accent); }
     .u-badge.self { margin-left: 6px; background: var(--surface-3); color: var(--text-2); font-weight: 500; }
     .u-last { font-size: 11px; color: var(--text-3); }
-    /* Read-only notepad (non-admins): the notepad is a shared, admin-managed note.
-       Hide the editing tools and tab add/close so it reads as view-only. */
-    body.np-readonly #np-edit-tools,
-    body.np-readonly .np-tab-close,
-    body.np-readonly .np-tab-add { display: none !important; }
-    body.np-readonly #np-editor { cursor: default; }
 
     /* Balance-only toolbar separators — hide in other modules so no divider is
        left dangling once the tnav-* buttons around it are hidden (#2). */
     body.stats-mode .tsep-bal, body.sms-mode .tsep-bal,
-    body.notepad-mode .tsep-bal, body.users-mode .tsep-bal { display: none !important; }
+    body.users-mode .tsep-bal { display: none !important; }
 
     /* ── Stats module ── */
     #stats-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
@@ -893,53 +875,6 @@
     @keyframes stCritBlink {
       0%, 100% { background: var(--red); color: #fff; border-color: transparent; }
       50%      { background: var(--red-deep); color: #fff; border-color: transparent; }
-    }
-    .np-tabbar {
-      display: flex; gap: 2px; padding: 0; margin-bottom: -1px;
-      flex-wrap: wrap; align-items: flex-end;
-    }
-    .np-tab {
-      display: flex; align-items: center; gap: 5px;
-      padding: 4px 6px 4px 10px; font-size: 11px; font-family: inherit;
-      background: transparent; cursor: pointer; max-width: 180px;
-      color: var(--text-2);
-      border: none; border-bottom: 2px solid transparent;
-      transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out;
-    }
-    .np-tab:hover { background: var(--surface-2); border-radius: var(--r-sm) var(--r-sm) 0 0; }
-    .np-tab.active {
-      color: var(--accent); font-weight: 600;
-      border-bottom-color: var(--accent); z-index: 1;
-    }
-    .np-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .np-tab-close {
-      width: 15px; height: 15px; line-height: 14px; text-align: center;
-      font-size: 10px; flex: none;
-      background: transparent; color: var(--text-3);
-      border-radius: var(--r-sm);
-      transition: background-color .12s ease-out, color .12s ease-out;
-    }
-    .np-tab-close:hover { background: var(--red-soft); color: var(--red); }
-    .np-tab-add {
-      padding: 3px 10px; font-size: 13px; font-weight: 600; line-height: 15px;
-      background: transparent; cursor: pointer; color: var(--text-2);
-      border: none; border-radius: var(--r-sm);
-      transition: background-color .12s ease-out, color .12s ease-out;
-    }
-    .np-tab-add:hover { background: var(--surface-2); color: var(--text); }
-    #np-bold.active, #np-italic.active, #np-underline.active {
-      background: var(--accent-soft); color: var(--accent); border-color: transparent;
-    }
-    .np-editor {
-      flex: 1; min-height: 0; overflow-y: auto;
-      font-size: 14px; font-family: var(--font);
-      padding: 10px 12px; background: var(--surface); color: var(--text);
-      border: 1px solid var(--border); border-radius: var(--r-md);
-      white-space: pre-wrap; word-break: break-word;
-      line-height: 1.5; outline: none;
-    }
-    .np-editor:empty:before {
-      content: 'Start typing your notes…'; color: var(--text-3);
     }
     .sms-form-grid {
       display: grid;
@@ -1409,7 +1344,6 @@
     #settings-dlg.open .win-dialog,
     #stats-settings-dlg.open .win-dialog,
     #operator-dlg .win-dialog,
-    #np-rename-dlg .win-dialog,
     #login-overlay .win-dialog,
     #loading.on .win-dialog,
     #confirm-overlay.open #confirm-box,
@@ -1557,14 +1491,6 @@
           <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-notepad" onclick="switchModule('notepad')" title="Notepad">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3.5" y="2.5" width="9" height="11" rx="1.2"/>
-          <line x1="5.7" y1="5.5" x2="10.3" y2="5.5"/>
-          <line x1="5.7" y1="8" x2="10.3" y2="8"/>
-          <line x1="5.7" y1="10.5" x2="8.7" y2="10.5"/>
-        </svg>
-      </button>
       <button class="micon" id="view-menu-users" onclick="switchModule('users')" title="Users &amp; Roles" style="display:none">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="6" cy="5.2" r="2.3"/>
@@ -1629,7 +1555,6 @@
     <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="sms-toolbar-label">SMS Module - Client</span>
-    <span id="notepad-toolbar-label">Notepad</span>
     <span id="users-toolbar-label">Users &amp; Roles</span>
     <span id="stats-toolbar-label">Stats Monitor</span>
     <span id="sync-label">No data loaded</span>
@@ -2129,35 +2054,6 @@
                 <tbody id="sms-clients-tbody"></tbody>
               </table>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="view" id="view-notepad">
-        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Notepad</div>
-          <div class="np-tabbar" id="np-tabbar"></div>
-          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
-            <div class="fbar">
-              <span id="np-edit-tools" style="display:contents">
-                <button class="tbtn" id="np-bold" onmousedown="event.preventDefault()" onclick="npFormat('bold')" title="Bold (Ctrl+B)" style="min-width:24px"><b>B</b></button>
-                <button class="tbtn" id="np-italic" onmousedown="event.preventDefault()" onclick="npFormat('italic')" title="Italic (Ctrl+I)" style="min-width:24px"><i>I</i></button>
-                <button class="tbtn" id="np-underline" onmousedown="event.preventDefault()" onclick="npFormat('underline')" title="Underline (Ctrl+U)" style="min-width:24px"><u>U</u></button>
-                <div class="tsep"></div>
-                <label style="font-size:11px">Font size</label>
-                <select class="win-sel" id="np-fontsize" onchange="npSetFontSize(this.value)">
-                  <option>8</option><option>10</option><option>11</option><option>12</option>
-                  <option>14</option><option>16</option><option>18</option><option>20</option>
-                  <option>24</option><option>28</option><option>36</option><option>48</option>
-                </select>
-                <button class="tbtn" onclick="npAddTab()" title="Add a new note tab">+ New Tab</button>
-                <div class="tsep"></div>
-              </span>
-              <button class="tbtn" onclick="npDownloadTab()" title="Download this note as a .txt file (opens in Notepad)">Save to File</button>
-              <span class="sms-muted" id="np-status" style="margin-left:auto">Saved</span>
-            </div>
-            <div class="np-editor" id="np-editor" contenteditable="true"
-                 spellcheck="true" oninput="npOnInput()" onpaste="npOnPaste(event)"></div>
           </div>
         </div>
       </div>
@@ -2942,22 +2838,6 @@
   </div>
 </div>
 
-<!-- Notepad Rename Tab Dialog -->
-<div id="np-rename-dlg" style="display:none;position:fixed;inset:0;background:rgba(10,14,22,.4);z-index:1100;align-items:center;justify-content:center">
-  <div class="win-dialog" style="min-width:300px">
-    <div class="dlg-tb"><span>Rename Tab</span></div>
-    <div style="padding:14px">
-      <div style="font-size:11px;margin-bottom:8px;color:var(--text-2)">Enter a new name for this tab:</div>
-      <input class="win-inp" id="np-rename-inp" type="text" placeholder="Tab name…" style="width:100%;margin-bottom:12px" maxlength="40"
-        onkeydown="if(event.key==='Enter')npRenameConfirm();else if(event.key==='Escape')npRenameCancel()">
-      <div style="display:flex;justify-content:flex-end;gap:4px">
-        <button class="tbtn primary" style="min-width:60px" onclick="npRenameConfirm()">OK</button>
-        <button class="tbtn" style="min-width:60px" onclick="npRenameCancel()">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Confirm Undo Dialog -->
 <div id="undo-confirm-overlay">
   <div id="undo-confirm-box">
@@ -3307,17 +3187,14 @@ function closeViewMenu() {
 
 function updateViewMenuState() {
   const smsMode   = document.body.classList.contains('sms-mode');
-  const npMode    = document.body.classList.contains('notepad-mode');
   const stMode    = document.body.classList.contains('stats-mode');
   const usersMode = document.body.classList.contains('users-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !npMode && !stMode && !usersMode);
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !stMode && !usersMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
-  document.getElementById('view-menu-notepad')?.classList.toggle('active', npMode);
   document.getElementById('view-menu-stats')?.classList.toggle('active', stMode);
   document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS'
-    : npMode ? 'BalanceMonitor - Notepad'
     : stMode ? 'BalanceMonitor - Stats'
     : usersMode ? 'BalanceMonitor - Users' : 'BalanceMonitor';
 }
@@ -3334,7 +3211,6 @@ window.switchModule = module => {
   if ((module === 'sms' || module === 'users') && !isAdmin()) module = 'balance';
   if (module === 'users') {
     document.body.classList.remove('sms-mode');
-    document.body.classList.remove('notepad-mode');
     document.body.classList.remove('stats-mode');
     document.body.classList.add('users-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -3349,7 +3225,6 @@ window.switchModule = module => {
   }
   if (module === 'sms' && !isAdmin()) module = 'balance';
   if (module === 'sms') {
-    document.body.classList.remove('notepad-mode');
     document.body.classList.remove('stats-mode');
     document.body.classList.add('sms-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -3362,22 +3237,8 @@ window.switchModule = module => {
     setSbStatus('Viewing: SMS Module');
     return;
   }
-  if (module === 'notepad') {
-    document.body.classList.remove('sms-mode');
-    document.body.classList.remove('stats-mode');
-    document.body.classList.add('notepad-mode');
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
-    document.getElementById('view-notepad')?.classList.add('active');
-    updateViewMenuState();
-    npRender();
-    setSbStatus('Viewing: Notepad');
-    return;
-  }
   if (module === 'stats') {
     document.body.classList.remove('sms-mode');
-    document.body.classList.remove('notepad-mode');
     document.body.classList.add('stats-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
@@ -3387,7 +3248,6 @@ window.switchModule = module => {
     return;
   }
   document.body.classList.remove('sms-mode');
-  document.body.classList.remove('notepad-mode');
   document.body.classList.remove('stats-mode');
   updateViewMenuState();
   window.switchView('summary');
@@ -3395,14 +3255,12 @@ window.switchModule = module => {
 
 window.switchView = name => {
   if (name === 'sms') { window.switchModule('sms'); return; }
-  if (name === 'notepad') { window.switchModule('notepad'); return; }
   if (name === 'client-manager' && !canEditClients()) {
     toast('Client Manager is restricted for this account.', 'err');
     name = 'summary';
   }
   closeViewMenu();
   document.body.classList.remove('sms-mode');
-  document.body.classList.remove('notepad-mode');
   document.body.classList.remove('stats-mode');
   document.body.classList.remove('users-mode');
   updateViewMenuState();
@@ -6080,7 +5938,7 @@ function isAdmin(){ return !!currentUserEmail && ADMIN_EMAILS.includes(currentUs
 // Roles live in the Firestore `user_roles` collection (doc id = email), managed
 // by the admin in the Users & Roles tab. Effective role is one of:
 //   'admin'      — pinned by email (ADMIN_EMAILS); full access, unchanged.
-//   'semi-admin' — Balance Monitor + Stats + Notepad; post/undo Balance & Stats
+//   'semi-admin' — Balance Monitor + Stats; post/undo Balance & Stats
 //                  snapshots, manage Stats remarks, delete the snapshot
 //                  collections. NO client editing, Client Manager, or SMS.
 //   'viewer'     — read-only everywhere (default for a brand-new login).
@@ -6112,15 +5970,14 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
 
-// Show/hide top-level modules based on the signed-in user's role. Stats and
-// Notepad are available to every signed-in user (Stats is view-only for
-// viewers). SMS, the Users tab, and client editing stay admin only.
+// Show/hide top-level modules based on the signed-in user's role. Stats is
+// available to every signed-in user (view-only for viewers). SMS, the Users
+// tab, and client editing stay admin only.
 function applyModuleAccess(){
   const admin = isAdmin();
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-  // Stats & Notepad: everyone. SMS + Users & Roles: admin only.
+  // Stats: everyone. SMS + Users & Roles: admin only.
   show('view-menu-stats',   true);
-  show('view-menu-notepad', true);
   show('view-menu-sms',     admin);
   show('view-menu-users',   admin);
   // Balance snapshot posting (New Snapshot / Process / Undo / Tritel) — admin &
@@ -9743,344 +9600,6 @@ window.importSmsClientCsv = file => {
   });
 };
 
-/* ════════════════════════════════════════════════
-   NOTEPAD MODULE
-════════════════════════════════════════════════ */
-const NP_KEY = 'bm_notepad';
-const NP_FONT_DEFAULT = 14;
-// The notepad is a single shared document. The admin is the basis / source of
-// truth — only the admin can edit; every other signed-in user sees the admin's
-// notes live, read-only. (Mirrors the app's other admin-write/everyone-read
-// features like stats and remarks.)
-const NP_SHARED = ['shared_notepad', 'data'];
-function npCanEdit(){ return isAdmin(); }
-let npState = { tabs: [], activeId: null, updatedAt: 0 };
-let npEditorTabId = null;
-let npSaveTimer = null;
-let npRemoteApplying = false;
-let npSubscribed = false;
-let npRemoteUnsub = null;
-
-function npNewTab(title) {
-  return {
-    id: 'np' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    title: title || 'Untitled',
-    html: '',
-    fontSize: NP_FONT_DEFAULT
-  };
-}
-function npActiveTab() {
-  return npState.tabs.find(t => t.id === npState.activeId) || null;
-}
-function npSyncEditor() {
-  // Sync back to the tab the editor is showing — activeId may already point
-  // to a different tab mid add/close/switch.
-  const ed = document.getElementById('np-editor');
-  const t = npState.tabs.find(x => x.id === npEditorTabId);
-  if (t && ed) t.html = ed.innerHTML;
-}
-function npSerializable() {
-  return { tabs: npState.tabs, activeId: npState.activeId, updatedAt: npState.updatedAt };
-}
-function npSave() {
-  if (!npCanEdit()) return;   // non-admins read the shared notepad, they don't write it
-  npSyncEditor();
-  npState.updatedAt = Date.now();
-  try { localStorage.setItem(NP_KEY, JSON.stringify(npSerializable())); } catch (e) {}
-  npSaveRemote();
-}
-function npSaveRemote() {
-  if (npRemoteApplying || !fbOk || !npCanEdit()) return;
-  try {
-    setDoc(doc(db, ...NP_SHARED), {
-      tabs: npState.tabs,
-      activeId: npState.activeId,
-      updated_at: Timestamp.now(),
-      updated_ms: npState.updatedAt
-    }).catch(e => console.warn('Notepad Firestore sync failed:', e));
-  } catch (e) { console.warn('Notepad Firestore sync failed:', e); }
-}
-function loadNotepad() {
-  try {
-    const raw = localStorage.getItem(NP_KEY);
-    if (raw) {
-      const d = JSON.parse(raw);
-      if (d && Array.isArray(d.tabs) && d.tabs.length) {
-        npState.tabs = d.tabs.map(t => ({
-          id: t.id || npNewTab().id,
-          title: t.title || 'Untitled',
-          html: typeof t.html === 'string' ? t.html : '',
-          fontSize: +t.fontSize || NP_FONT_DEFAULT
-        }));
-        npState.activeId = npState.tabs.some(t => t.id === d.activeId)
-          ? d.activeId : npState.tabs[0].id;
-        npState.updatedAt = +d.updatedAt || 0;
-        return;
-      }
-    }
-  } catch (e) {}
-  const t = npNewTab('Note 1');
-  npState.tabs = [t];
-  npState.activeId = t.id;
-  npState.updatedAt = 0;
-}
-function npApplyRemote(data) {
-  const tabs = Array.isArray(data?.tabs) ? data.tabs.map(t => ({
-    id: t.id || npNewTab().id,
-    title: t.title || 'Untitled',
-    html: typeof t.html === 'string' ? t.html : '',
-    fontSize: +t.fontSize || NP_FONT_DEFAULT
-  })) : [];
-  if (!tabs.length) return;
-  npRemoteApplying = true;
-  try {
-    npState.tabs = tabs;
-    npState.activeId = tabs.some(t => t.id === data.activeId) ? data.activeId : tabs[0].id;
-    npState.updatedAt = +data.updated_ms || Date.now();
-    try { localStorage.setItem(NP_KEY, JSON.stringify(npSerializable())); } catch (e) {}
-    if (document.body.classList.contains('notepad-mode')) npRender();
-  } finally {
-    npRemoteApplying = false;
-  }
-}
-async function subscribeNotepad() {
-  if (!fbOk || npSubscribed) return;
-  npSubscribed = true;
-  try {
-    const ref = doc(db, ...NP_SHARED);
-    npRemoteUnsub = onSnapshot(ref, async snap => {
-      if (snap.exists()) {
-        const data = snap.data();
-        // Non-admins are read-only: the shared doc is always authoritative.
-        if (!npCanEdit()) { npApplyRemote(data); return; }
-        const remoteMs = +data.updated_ms || data.updated_at?.toMillis?.() || 0;
-        const ed = document.getElementById('np-editor');
-        const focused = ed && document.activeElement === ed;
-        // Don't yank text from under the admin while they're actively typing
-        if (focused && (document.getElementById('np-status')?.textContent || '').startsWith('Editing')) return;
-        if (remoteMs && remoteMs <= npState.updatedAt) return; // local is newer or equal
-        npApplyRemote(data);
-      } else if (npCanEdit() && npState.tabs.length) {
-        // Remote doc missing — seed the shared notepad from the admin's device
-        // (one-time migration from the old per-user notepad).
-        try {
-          await setDoc(ref, {
-            tabs: npState.tabs,
-            activeId: npState.activeId,
-            updated_at: Timestamp.now(),
-            updated_ms: npState.updatedAt || Date.now()
-          });
-        } catch (e) { console.warn('Notepad Firestore seed failed:', e); }
-      }
-    }, err => console.warn('Notepad onSnapshot error:', err));
-  } catch (e) { console.warn('Notepad subscribe failed:', e); npSubscribed = false; }
-}
-function npRenderTabs() {
-  const bar = document.getElementById('np-tabbar');
-  if (!bar) return;
-  const editable = npCanEdit();
-  bar.innerHTML = npState.tabs.map(t =>
-    `<div class="np-tab ${t.id === npState.activeId ? 'active' : ''}"
-          onclick="npSwitchTab('${t.id}')" ${editable ? `ondblclick="npRenameTab('${t.id}')"` : ''}
-          title="${esc(t.title)}${editable ? ' — double-click to rename' : ''}">
-       <span class="np-tab-title">${esc(t.title)}</span>
-       ${editable ? `<span class="np-tab-close" onclick="event.stopPropagation();npCloseTab('${t.id}')" title="Close tab">✕</span>` : ''}
-     </div>`).join('') +
-    (editable ? `<div class="np-tab-add" onclick="npAddTab()" title="New tab">+</div>` : '');
-}
-function npRenderEditor() {
-  const t = npActiveTab(), ed = document.getElementById('np-editor');
-  if (!t || !ed) return;
-  npEditorTabId = t.id;
-  ed.innerHTML = t.html;
-  ed.style.fontSize = t.fontSize + 'px';
-  const fs = document.getElementById('np-fontsize');
-  if (fs) fs.value = String(t.fontSize);
-}
-function npApplyEditMode() {
-  // Only the admin edits the shared notepad; everyone else is read-only.
-  const editable = npCanEdit();
-  const ed = document.getElementById('np-editor');
-  if (ed) ed.contentEditable = editable ? 'true' : 'false';
-  document.body.classList.toggle('np-readonly', !editable);
-}
-function npRender() {
-  if (!npState.tabs.length) loadNotepad();
-  npRenderTabs();
-  npRenderEditor();
-  npApplyEditMode();
-  npUpdateStatus(npCanEdit() ? 'Saved' : 'Read-only — managed by admin');
-}
-function npUpdateStatus(msg) {
-  const s = document.getElementById('np-status');
-  if (s) s.textContent = msg;
-}
-window.npSwitchTab = id => {
-  if (id === npState.activeId) return;
-  npSyncEditor();
-  npSave();
-  npState.activeId = id;
-  npRender();
-  document.getElementById('np-editor')?.focus();
-};
-window.npAddTab = () => {
-  if (!npCanEdit()) return;
-  npSyncEditor();
-  const t = npNewTab('Note ' + (npState.tabs.length + 1));
-  npState.tabs.push(t);
-  npState.activeId = t.id;
-  npSave();
-  npRender();
-  document.getElementById('np-editor')?.focus();
-};
-window.npCloseTab = id => {
-  if (!npCanEdit()) return;
-  const idx = npState.tabs.findIndex(t => t.id === id);
-  if (idx < 0) return;
-  npState.tabs.splice(idx, 1);
-  if (!npState.tabs.length) {
-    const t = npNewTab('Note 1');
-    npState.tabs = [t];
-    npState.activeId = t.id;
-  } else if (npState.activeId === id) {
-    npState.activeId = npState.tabs[Math.max(0, idx - 1)].id;
-  }
-  npSave();
-  npRender();
-};
-let npRenameId = null;
-window.npRenameTab = id => {
-  if (!npCanEdit()) return;
-  const t = npState.tabs.find(x => x.id === id);
-  if (!t) return;
-  npRenameId = id;
-  const inp = document.getElementById('np-rename-inp');
-  inp.value = t.title;
-  document.getElementById('np-rename-dlg').style.display = 'flex';
-  setTimeout(() => { inp.focus(); inp.select(); }, 50);
-};
-window.npRenameConfirm = () => {
-  if (!npCanEdit()) { window.npRenameCancel(); return; }
-  const t = npState.tabs.find(x => x.id === npRenameId);
-  const name = document.getElementById('np-rename-inp').value.trim();
-  window.npRenameCancel();
-  if (!t || !name) return;
-  t.title = name.slice(0, 40);
-  npSave();
-  npRenderTabs();
-};
-window.npRenameCancel = () => {
-  document.getElementById('np-rename-dlg').style.display = 'none';
-  npRenameId = null;
-};
-window.npOnInput = () => {
-  if (!npCanEdit()) return;
-  npUpdateStatus('Editing…');
-  clearTimeout(npSaveTimer);
-  npSaveTimer = setTimeout(() => {
-    npSave();
-    npUpdateStatus('Saved');
-  }, 400);
-};
-window.npOnPaste = e => {
-  e.preventDefault();
-  if (!npCanEdit()) return;
-  const text = (e.clipboardData || window.clipboardData)?.getData('text/plain') || '';
-  if (!text) return;
-  try {
-    document.execCommand('insertText', false, text);
-  } catch (err) {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  }
-  window.npOnInput();
-};
-window.npFormat = cmd => {
-  if (!npCanEdit()) return;
-  const ed = document.getElementById('np-editor');
-  if (!ed) return;
-  ed.focus();
-  try { document.execCommand(cmd, false, null); } catch (e) {}
-  npUpdateFormatState();
-  window.npOnInput();
-};
-function npUpdateFormatState() {
-  [['bold', 'np-bold'], ['italic', 'np-italic'], ['underline', 'np-underline']]
-    .forEach(([cmd, id]) => {
-      let on = false;
-      try { on = document.queryCommandState(cmd); } catch (e) {}
-      document.getElementById(id)?.classList.toggle('active', on);
-    });
-}
-function npPlainText(html) {
-  // The editor's DOM is predictable (plain-text paste only): one div per line,
-  // <div><br></div> for blank lines, inline b/i/u/span for formatting. Serialize
-  // that structure directly — innerText double-counts <div><br></div>.
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  const inline = node => {
-    let s = '';
-    node.childNodes.forEach(ch => {
-      if (ch.nodeName === 'BR') s += '\n';
-      else if (ch.nodeType === 3) s += ch.nodeValue;
-      else if (ch.nodeType === 1) s += inline(ch);
-    });
-    return s;
-  };
-  const lines = [];
-  let cur = null;
-  tmp.childNodes.forEach(n => {
-    if (n.nodeType === 1 && (n.nodeName === 'DIV' || n.nodeName === 'P')) {
-      if (cur !== null) { lines.push(cur); cur = null; }
-      const t = inline(n);
-      lines.push(t === '\n' ? '' : t.replace(/\n$/, ''));
-    } else if (n.nodeName === 'BR') {
-      lines.push(cur === null ? '' : cur);
-      cur = null;
-    } else {
-      cur = (cur === null ? '' : cur) + (n.nodeType === 3 ? n.nodeValue : inline(n));
-    }
-  });
-  if (cur !== null) lines.push(cur);
-  return lines.join('\n');
-}
-window.npDownloadTab = () => {
-  npSyncEditor();
-  const t = npActiveTab();
-  if (!t) return;
-  const text = npPlainText(t.html).replace(/\r?\n/g, '\r\n');
-  const name = (t.title || 'note').replace(/[\\/:*?"<>|]/g, '_').trim() || 'note';
-  const url = URL.createObjectURL(new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name + '.txt';
-  a.click();
-  URL.revokeObjectURL(url);
-  toast(`"${t.title}" saved as ${name}.txt`, 'ok');
-};
-window.npSetFontSize = px => {
-  if (!npCanEdit()) return;
-  const t = npActiveTab();
-  if (!t) return;
-  t.fontSize = +px || NP_FONT_DEFAULT;
-  const ed = document.getElementById('np-editor');
-  if (ed) ed.style.fontSize = t.fontSize + 'px';
-  npSave();
-};
-function initNotepad() {
-  loadNotepad();
-  npApplyEditMode();
-}
-document.addEventListener('selectionchange', () => {
-  if (document.body.classList.contains('notepad-mode')) npUpdateFormatState();
-});
-
 function fmt(v){if(v===null||v===undefined||v==='')return '—';return amountNumber(v).toFixed(2);}
 function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function escAttr(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -11379,7 +10898,7 @@ async function initStats() {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); initNotepad(); updateLastProcessed(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); updateLastProcessed(); window.renderWizard(); window.renderClients();
   // A hand-pick of the time box stops it from auto-following "last sync + 1"; the next post re-enables tracking.
   document.getElementById('slot-sel')?.addEventListener('change', () => { slotAutoTrack = false; });
   // operator identity
@@ -11446,11 +10965,10 @@ async function init(){
   setInterval(upsertMyUserRole, 60000);
   subscribeMyRole();
   subscribeAllUsers();
-  // Stats (view + posting) and the shared Notepad are available to every signed-in
-  // user, including semi-admins. SMS and its client list stay admin only — the
-  // rules deny non-admins the sms collection.
+  // Stats (view + posting) is available to every signed-in user, including
+  // semi-admins. SMS and its client list stay admin only — the rules deny
+  // non-admins the sms collection.
   initStats();
-  subscribeNotepad();
   if (isAdmin()) subscribeSmsClients();
 }
 
