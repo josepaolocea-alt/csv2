@@ -4254,6 +4254,51 @@ function getUsageProfiles() {
   return profiles;
 }
 
+/* Console debug helper — inspect exactly what a client's spam baseline is built
+   from. Usage from the browser console:  spamDebug('CYN TONIK')
+   Returns the raw stored samples plus the filtered baseline (what actually feeds
+   the median), so you can see whether a low "× normal" median is representative
+   or deflated by dropped/excluded readings. Exposed on window because the module
+   scope is otherwise invisible to the console. */
+window.spamDebug = function (name) {
+  const today = todayStr();
+  const minDate = SPAM_CFG.maxAgeDays > 0 ? dateStrDaysAgo(SPAM_CFG.maxAgeDays) : '';
+  const raw = (_profileSamples && _profileSamples.get(name)) || [];
+  const dropped = { today: [], monthStart: [], tooOld: [], nonPositive: [] };
+  const kept = [];
+  raw.forEach(o => {
+    if (!o || !(o.u > 0)) { dropped.nonPositive.push(o); return; }
+    if (o.d === today)       { dropped.today.push(o);      return; }
+    if (isMonthStart(o.d))   { dropped.monthStart.push(o); return; }
+    if (minDate && o.d < minDate) { dropped.tooOld.push(o); return; }
+    kept.push(o);
+  });
+  const vals = kept.map(o => o.u);
+  const med = medianOf(vals);
+  const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  const sorted = vals.slice().sort((a, b) => a - b);
+  const out = {
+    client: name,
+    config: { ratioMult: SPAM_CFG.ratioMult, highRatio: SPAM_CFG.highRatio, hardFloor: SPAM_CFG.hardFloor,
+              minSamples: SPAM_CFG.minSamples, maxAgeDays: SPAM_CFG.maxAgeDays, maxGapMinutes: SPAM_CFG.maxGapMinutes },
+    rawSampleCount: raw.length,
+    baselineSampleCount: vals.length,
+    ready: vals.length >= SPAM_CFG.minSamples,
+    median: med,
+    mean: Math.round(mean * 100) / 100,
+    min: sorted[0], max: sorted[sorted.length - 1],
+    flagAt: med * SPAM_CFG.ratioMult,        // reading above this trips Watch
+    highAt: med * SPAM_CFG.highRatio,         // reading above this trips High
+    droppedCounts: { today: dropped.today.length, monthStart: dropped.monthStart.length,
+                     tooOld: dropped.tooOld.length, nonPositive: dropped.nonPositive.length },
+    baselineSamples: kept.slice().sort((a, b) => (a.d + a.s < b.d + b.s ? -1 : 1)),
+    droppedSamples: dropped,
+  };
+  console.table(out.baselineSamples);
+  console.log('%cBaseline summary', 'font-weight:bold', out);
+  return out;
+};
+
 // Evaluate a live row against its baseline. Returns an info object or null.
 function spamCheck(row) {
   if (isMonthStart(todayStr())) return null;   // suppressed on monthly-charge days
