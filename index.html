@@ -895,9 +895,14 @@
     #st-tbl-hourly td.st-hr-cell.watch    { color: var(--text-3); }
     #st-tbl-hourly td.st-hr-cell.empty    { color: var(--text-3); }
     /* Combined multi-metric cells (ASR & ACD / Attempt, ASR & ACD) */
-    #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.25; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.3; }
     #st-tbl-hourly td.st-hr-cell .st-hr-sub  { font-size: 10px; opacity: 0.75; }
     #st-tbl-hourly td.st-hr-cell .st-hr-k    { color: var(--text-3); font-weight: normal; margin-right: 4px; }
+    /* Attempt (row 1) muted by colour, not opacity, so it stays crisp */
+    #st-tbl-hourly td.st-hr-cell .st-hr-att  { font-size: 10px; color: var(--text-3); }
+    /* ASR + ACD share row 2, aligned right with a clear gap */
+    #st-tbl-hourly td.st-hr-cell .st-hr-pair { display: flex; justify-content: flex-end; gap: 12px; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-pair .st-hr-seg { white-space: nowrap; }
     #stnav-stats-critical.st-tab-alert {
       animation: stCritBlink 1.2s ease-in-out infinite;
     }
@@ -10868,9 +10873,11 @@ function statsHourlyCell(g, bold) {
       + `<span class="st-hr-line"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
       + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span></td>`;
   if (metric === 'att_asr_acd') return `<td class="st-hr-cell ${g.cls}"${b}>`
-      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">Att</span>${stN0(g.attempts)}</span>`
-      + `<span class="st-hr-line"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
-      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span></td>`;
+      + `<span class="st-hr-line st-hr-att"><span class="st-hr-k">Att</span>${stN0(g.attempts)}</span>`
+      + `<span class="st-hr-line st-hr-pair">`
+      +   `<span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
+      +   `<span class="st-hr-seg"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span>`
+      + `</span></td>`;
   return `<td class="st-hr-cell ${g.cls}"${b}>${stN2(g.asr)}</td>`;   // asr (default)
 }
 
