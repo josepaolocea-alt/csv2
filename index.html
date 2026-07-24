@@ -10519,6 +10519,7 @@ function statsFlags(r) {
 }
 
 window.switchStatsView = name => {
+  stRemarkTipHide();   // dismiss any lingering remark hover tooltip (mouseleave won't fire once the row is swapped out)
   statsViewName = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
