@@ -543,13 +543,13 @@
        SMS module so alert tabs and other tab bars keep the subtle style. ── */
     #view-sms > .groupbox > .tab-bar {
       display: inline-flex; align-self: flex-start;
-      gap: 3px; margin-bottom: 10px; padding: 3px;
+      gap: 2px; margin-bottom: 8px; padding: 2px;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--r-md);
     }
     #view-sms > .groupbox > .tab-bar .tab {
-      padding: 7px 18px; font-size: 13px; font-weight: 600;
+      padding: 4px 12px; font-size: 11.5px; font-weight: 600;
       color: var(--text-2);
       border: none; border-bottom: none; border-radius: var(--r-sm);
     }
@@ -962,8 +962,11 @@
       border: 1px solid var(--border);
       border-radius: var(--r-md);
       padding: 8px 10px;
-      transition: flex-basis .3s ease, width .3s ease, padding .3s ease,
-                  background-color .12s ease-out, border-color .12s ease-out;
+      transition: flex-basis .38s cubic-bezier(.22, 1, .36, 1),
+                  width .38s cubic-bezier(.22, 1, .36, 1),
+                  padding .38s cubic-bezier(.22, 1, .36, 1),
+                  background-color .14s ease-out, border-color .14s ease-out;
+      will-change: flex-basis;
     }
     #sms-form-section .collapsible-header { padding: 0 0 6px; flex: none; }
     #sms-form-section .groupbox-title { margin-bottom: 0; }
@@ -976,12 +979,15 @@
     }
     /* Narrower panel → 2-column field grid so inputs keep a usable width. */
     #sms-form-section .sms-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    /* The form content slides in from the left each time the panel opens. */
+    /* The form content eases in from the left, in step with the panel opening
+       (same duration + easing so the two motions feel like one). */
     @keyframes smsFormSlideIn {
-      from { opacity: 0; transform: translateX(-26px); }
+      from { opacity: 0; transform: translateX(-14px); }
       to   { opacity: 1; transform: translateX(0); }
     }
-    #sms-form-section:not(.collapsed) .caret-body { animation: smsFormSlideIn .3s ease-out; }
+    #sms-form-section:not(.collapsed) .caret-body {
+      animation: smsFormSlideIn .38s cubic-bezier(.22, 1, .36, 1) .04s both;
+    }
 
     /* Collapsed → slim, full-height vertical toggle strip on the left. */
     #sms-form-section.collapsed {
