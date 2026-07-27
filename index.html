@@ -941,11 +941,84 @@
       gap: 8px;
       margin-bottom: 8px;
     }
-    /* ── Collapsible SMS form section (hidden by default) ── */
-    #sms-form-section { margin-bottom: 6px; }
-    #sms-form-section .collapsible-header { padding: 2px 2px 4px; }
+    /* ── SMS workspace: Add/Edit form (left) beside the table (right) ──
+       Opening "Add / Edit Route Form" slides the form panel in from the left
+       and the table shares the row on the right, so a long list of inputs no
+       longer stacks on top of the table and squeezes it into the lower strip.
+       Collapsed, the form shrinks to a slim full-height toggle strip and the
+       table spans the whole row. */
+    .sms-workspace {
+      display: flex; align-items: stretch;
+      gap: 10px; flex: 1; min-height: 0;
+    }
+    .sms-table-col {
+      flex: 1 1 0; min-width: 0;
+      display: flex; flex-direction: column; min-height: 0;
+    }
+    #sms-form-section {
+      flex: 0 0 460px; width: 460px; margin-bottom: 0;
+      display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 8px 10px;
+      transition: flex-basis .3s ease, width .3s ease, padding .3s ease,
+                  background-color .12s ease-out, border-color .12s ease-out;
+    }
+    #sms-form-section .collapsible-header { padding: 0 0 6px; flex: none; }
     #sms-form-section .groupbox-title { margin-bottom: 0; }
-    #sms-form-section .caret-body { padding-top: 4px; }
+    /* Expanded → the header caret points left, toward where the panel folds
+       back to. (It is hidden entirely in the collapsed strip.) */
+    #sms-form-section:not(.collapsed) .caret { transform: rotate(90deg); }
+    #sms-form-section .caret-body {
+      flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+      padding: 4px 4px 0 0;
+    }
+    /* Narrower panel → 2-column field grid so inputs keep a usable width. */
+    #sms-form-section .sms-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* The form content slides in from the left each time the panel opens. */
+    @keyframes smsFormSlideIn {
+      from { opacity: 0; transform: translateX(-26px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    #sms-form-section:not(.collapsed) .caret-body { animation: smsFormSlideIn .3s ease-out; }
+
+    /* Collapsed → slim, full-height vertical toggle strip on the left. */
+    #sms-form-section.collapsed {
+      flex-basis: 40px; width: 40px; padding: 8px 0;
+      cursor: pointer; align-items: center;
+    }
+    #sms-form-section.collapsed:hover { background: var(--accent-soft); border-color: var(--accent); }
+    #sms-form-section.collapsed .collapsible-header {
+      flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; width: 100%; padding: 0;
+    }
+    #sms-form-section.collapsed .caret { display: none; }
+    #sms-form-section.collapsed .groupbox-title {
+      writing-mode: vertical-rl; transform: rotate(180deg);
+      margin: 0; white-space: nowrap; font-size: 11px; letter-spacing: .3px;
+    }
+    #sms-form-section.collapsed:hover .groupbox-title { color: var(--accent); }
+
+    /* Narrow screens: fall back to stacking the form above the table. */
+    @media (max-width: 900px) {
+      #sms-form-section:not(.collapsed) { flex-basis: 360px; width: 360px; }
+    }
+    @media (max-width: 720px) {
+      .sms-workspace { flex-direction: column; }
+      #sms-form-section, #sms-form-section:not(.collapsed) {
+        flex-basis: auto; width: auto; max-height: 60vh;
+      }
+      #sms-form-section.collapsed {
+        flex-basis: auto; width: auto; padding: 6px 10px; align-items: stretch;
+      }
+      #sms-form-section.collapsed .collapsible-header {
+        flex-direction: row; justify-content: space-between;
+        height: auto; width: auto;
+      }
+      #sms-form-section.collapsed .caret { display: block; }
+      #sms-form-section.collapsed .groupbox-title { writing-mode: horizontal-tb; transform: none; }
+    }
     .sms-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .sms-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
     .sms-field.full { grid-column: span 2; }
@@ -2019,6 +2092,7 @@
             <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
+            <div class="sms-workspace">
             <div id="sms-form-section" class="collapsed">
             <div class="collapsible-header" onclick="toggleSmsForm()">
               <div class="groupbox-title" id="sms-form-toggle-title">Add / Edit Route Form</div>
@@ -2054,6 +2128,7 @@
             </div>
             </div>
             </div>
+            <div class="sms-table-col">
             <div class="fbar">
               <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:240px">
               <select class="win-inp" id="sms-filter-client"          onchange="renderSmsClients()" title="Filter by Client"><option value="">All Clients</option></select>
@@ -2113,6 +2188,8 @@
                 </tr></thead>
                 <tbody id="sms-clients-tbody"></tbody>
               </table>
+            </div>
+            </div>
             </div>
           </div>
         </div>
