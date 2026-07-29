@@ -263,6 +263,13 @@
     .tbtn.primary:hover { background: var(--accent-strong); }
     .tbtn.danger { background: var(--red); color: #fff; border-color: transparent; font-weight: 600; }
     .tbtn.danger:hover { background: var(--red-deep); }
+    /* "Cancel Edit" (SMS form) — amber outline so it stands out beside the
+       blue "Save Changes" and reads as "discard", distinct from red delete. */
+    #sms-cancel-edit-btn {
+      background: var(--orange-soft); color: var(--orange);
+      border-color: var(--orange); font-weight: 600;
+    }
+    #sms-cancel-edit-btn:hover { background: var(--orange); color: #fff; border-color: transparent; }
     #sync-label { margin-left: auto; font-size: 10px; color: var(--text-3); white-space: nowrap; }
 
     /* Per-row delete action (Critical History / No-Threshold tables) */
@@ -2149,6 +2156,7 @@
                 <span class="sms-muted">Download:</span>
                 <button class="tbtn" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">CSV</button>
                 <button class="tbtn" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">Excel</button>
+                <button class="tbtn" style="color:#880000" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
                 <button class="tbtn" onclick="clearSmsSelection()" title="Clear the current selection">Clear selection</button>
               </span>
             </div>
@@ -9823,6 +9831,35 @@ window.exportSmsSelected = format => {
     URL.revokeObjectURL(url);
   }
   toast(`Downloaded ${rows.length} selected route(s) as ${format === 'xlsx' ? 'Excel' : 'CSV'}`, 'ok');
+};
+
+window.deleteSmsSelected = () => {
+  if (!smsBulkSelected.size) { toast('Tick at least one route to delete', 'err'); return; }
+  const ids = new Set(smsBulkSelected);
+  const n = ids.size;
+  openSmsConfirm(
+    `Delete <strong>${n}</strong> selected SMS route(s)?<br><br>` +
+    `<span style="color:#880000">This removes the ticked routes.</span>`,
+    'Delete',
+    () => {
+      const backup = smsClients.slice();
+      smsClients = smsClients.filter(r => !ids.has(r.id));
+      if (ids.has(smsEditingId)) newSmsClient(false);
+      smsBulkSelected.clear();
+      saveSmsClients();
+      updateSmsDatalists();
+      renderSmsClients();
+      refreshSmsBulkCount();
+      showUndoToast(`Deleted ${n} selected route(s)`, () => {
+        smsClients = backup;
+        saveSmsClients();
+        updateSmsDatalists();
+        renderSmsClients();
+        refreshSmsBulkCount();
+        toast('Deletion undone — routes restored', 'ok');
+      });
+    }
+  );
 };
 
 window.clearSmsSelection = () => {
