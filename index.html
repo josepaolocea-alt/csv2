@@ -1185,12 +1185,32 @@
     tr.sms-inactive td { color: var(--text-3); font-style: italic; background: var(--surface-2); }
     tr.sms-inactive:nth-child(even) td { background: var(--surface-3); }
     tr.sms-inactive td strong { color: var(--text-3); font-weight: normal; }
+    /* SMS credentials tab */
+    #sms-credentials-panel { flex: 1; min-height: 0; flex-direction: column; gap: 6px; }
+    #sms-credentials-form {
+      flex: none; border: 1px solid var(--border); border-radius: var(--r-sm);
+      padding: 7px; background: var(--surface-2);
+    }
+    #sms-credentials-form .collapsible-header { padding: 0 0 6px; }
+    #sms-credentials-form.collapsed .collapsible-header { padding-bottom: 0; cursor: pointer; }
+    #sms-credentials-form.collapsed .caret-body { display: none; }
+    #sms-credentials-form:not(.collapsed) .caret { transform: rotate(90deg); }
+    .sms-cred-form-grid {
+      display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 7px 9px; margin-top: 6px;
+    }
+    .sms-cred-mono { font-family: Consolas, "SFMono-Regular", monospace; }
+    .sms-cred-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sms-credentials-tbl th { white-space: nowrap; cursor: pointer; }
+    #sms-credentials-tbl td { vertical-align: top; }
+    #sms-credentials-tbl .sms-cred-actions { white-space: nowrap; }
     /* ── Undo toast ── */
     .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left: 3px solid var(--orange); }
     .toast.undo-toast .undo-msg { flex: 1; }
     .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+      .sms-cred-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
     }
     label { font-size: 11px; }
     input[type="checkbox"] { accent-color: var(--accent); }
@@ -2110,9 +2130,10 @@
           <div class="tab-bar">
             <div class="tab active" id="sms-tab-client" onclick="switchSmsTab('client')">Client</div>
             <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
+            <div class="tab" id="sms-tab-credentials" onclick="switchSmsTab('credentials')">Credentials</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
-            <div class="sms-workspace">
+            <div class="sms-workspace" id="sms-routes-panel">
             <div id="sms-form-section" class="collapsed">
             <div class="collapsible-header" onclick="toggleSmsForm()">
               <div class="groupbox-title" id="sms-form-toggle-title">Add / Edit Route Form</div>
@@ -2211,6 +2232,69 @@
               </table>
             </div>
             </div>
+            </div>
+            <div id="sms-credentials-panel" style="display:none">
+              <div id="sms-credentials-form" class="collapsed">
+                <div class="collapsible-header" onclick="toggleSmsCredentialForm()">
+                  <div class="groupbox-title" id="sms-credentials-form-title">Add / Edit Credential</div>
+                  <span class="caret">▶</span>
+                </div>
+                <div class="caret-body">
+                  <div class="fbar">
+                    <button class="tbtn primary" id="sms-cred-save-btn" onclick="saveSmsCredential()">Save Credential</button>
+                    <button class="tbtn" id="sms-cred-cancel-btn" onclick="cancelSmsCredentialEdit()" style="display:none">Cancel Edit</button>
+                    <button class="tbtn" onclick="newSmsCredential()">New / Clear</button>
+                    <span class="sms-muted" id="sms-cred-edit-status">Adding new credential</span>
+                  </div>
+                  <div class="sms-cred-form-grid">
+                    <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-cred-client"></div>
+                    <div class="sms-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
+                    <div class="sms-field"><label>User Name</label><input class="win-inp" id="sms-cred-user-name" autocomplete="off"></div>
+                    <div class="sms-field"><label>Password</label><input class="win-inp sms-cred-mono" id="sms-cred-password" autocomplete="new-password"></div>
+                    <div class="sms-field"><label>New Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-password" autocomplete="new-password"></div>
+                    <div class="sms-field"><label>API ID</label><input class="win-inp sms-cred-mono" id="sms-cred-api-id"></div>
+                    <div class="sms-field"><label>API Token</label><input class="win-inp sms-cred-mono" id="sms-cred-api-token"></div>
+                    <div class="sms-field"><label>API URL</label><input class="win-inp" id="sms-cred-api-url"></div>
+                    <div class="sms-field"><label>New API Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-api-password" autocomplete="new-password"></div>
+                    <div class="sms-field"><label>Login Link</label><input class="win-inp" id="sms-cred-login-link"></div>
+                    <div class="sms-field"><label>New Login Link</label><input class="win-inp" id="sms-cred-new-login-link"></div>
+                    <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm"></div>
+                    <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="fbar">
+                <input class="win-search" id="sms-cred-search" type="search" placeholder="Search all credential columns..." oninput="renderSmsCredentials()" style="min-width:250px">
+                <select class="win-inp" id="sms-cred-filter-account-type" onchange="renderSmsCredentials()"><option value="">All Account Types</option></select>
+                <select class="win-inp" id="sms-cred-filter-platform" onchange="renderSmsCredentials()"><option value="">All Platforms</option></select>
+                <button class="tbtn" onclick="renderSmsCredentials()">Search</button>
+                <button class="tbtn" onclick="clearSmsCredentialFilters()">Clear</button>
+                <input type="file" id="sms-cred-workbook-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importSmsCredentialWorkbook(this.files[0]); this.value=''">
+                <button class="tbtn" onclick="document.getElementById('sms-cred-workbook-file').click()" title="Import all credential rows from the attached workbook format">Import Workbook</button>
+                <button class="tbtn" onclick="exportSmsCredentialView()" title="Export only the rows currently shown by the filters">Export View</button>
+                <span class="sms-muted" id="sms-cred-count">0 credentials</span>
+              </div>
+              <div class="lv-wrap" style="flex:1;min-height:0">
+                <table id="sms-credentials-tbl">
+                  <thead><tr>
+                    <th id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client</th>
+                    <th id="sms-cred-th-account_type" onclick="sortSmsCredentials('account_type')">Account Type</th>
+                    <th id="sms-cred-th-user_name" onclick="sortSmsCredentials('user_name')">User Name</th>
+                    <th id="sms-cred-th-password" onclick="sortSmsCredentials('password')">Password</th>
+                    <th id="sms-cred-th-new_password" onclick="sortSmsCredentials('new_password')">New Password</th>
+                    <th id="sms-cred-th-api_id" onclick="sortSmsCredentials('api_id')">API ID</th>
+                    <th id="sms-cred-th-api_token" onclick="sortSmsCredentials('api_token')">API Token</th>
+                    <th id="sms-cred-th-api_url" onclick="sortSmsCredentials('api_url')">API URL</th>
+                    <th id="sms-cred-th-new_api_password" onclick="sortSmsCredentials('new_api_password')">New API Password</th>
+                    <th id="sms-cred-th-login_link" onclick="sortSmsCredentials('login_link')">Login Link</th>
+                    <th id="sms-cred-th-new_login_link" onclick="sortSmsCredentials('new_login_link')">New Login Link</th>
+                    <th id="sms-cred-th-date_updated" onclick="sortSmsCredentials('date_updated')">Date Updated</th>
+                    <th id="sms-cred-th-platform" onclick="sortSmsCredentials('platform')">Platform</th>
+                    <th style="cursor:default">Action</th>
+                  </tr></thead>
+                  <tbody id="sms-credentials-tbody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -3214,11 +3298,15 @@ let alertPage = 0, clientPage = 0;
 let PG = 500;
 let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
 let smsSortCol = 'date', smsSortDir = -1;
+let smsCredentials = [], smsCredentialEditingId = null;
+let smsCredentialSortCol = 'client', smsCredentialSortDir = 1;
+let smsCredentialRemoteApplying = false, smsCredentialSubscribed = false;
 let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'client';
 const SMS_TAB_CONFIG = {
   client:  { label:'Client',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
   phoenix: { label:'SMS Phoenix Platform', storageKey:'bm_sms_phoenix_clients', firestoreDoc:'phoenix_platform_clients', filePrefix:'sms_phoenix_platform' }
 };
+const SMS_ALL_TABS = new Set([...Object.keys(SMS_TAB_CONFIG), 'credentials']);
 const smsDataByTab = { client: [], phoenix: [] };
 // Most recently added/edited route per tab — pinned to the top of the table
 const smsRecentIdByTab = { client: null, phoenix: null };
@@ -3401,7 +3489,7 @@ window.switchModule = module => {
     document.getElementById('view-sms')?.classList.add('active');
     updateViewMenuState();
     updateSmsTabUi();
-    renderSmsClients();
+    renderActiveSmsView();
     setSbStatus('Viewing: SMS Module');
     return;
   }
@@ -9010,6 +9098,323 @@ async function subscribeSmsClients(tab=smsActiveTab) {
   } catch(e) { console.warn('SMS subscribe failed:', e); }
 }
 
+/* SMS credential register — separate from the route tabs because its schema
+   mirrors the attached credential workbook rather than the routing fields. */
+const SMS_CREDENTIAL_FIELDS = [
+  'client','account_type','user_name','password','new_password','api_id','api_token',
+  'api_url','new_api_password','login_link','new_login_link','date_updated','platform'
+];
+const SMS_CREDENTIAL_LABELS = {
+  client:'Client', account_type:'Account Type', user_name:'User Name', password:'Password',
+  new_password:'New Password', api_id:'API ID', api_token:'API Token', api_url:'API URL',
+  new_api_password:'New API Password', login_link:'Login Link', new_login_link:'New Login Link',
+  date_updated:'Date Updated', platform:'Platform'
+};
+const SMS_CREDENTIAL_INPUTS = {
+  client:'sms-cred-client', account_type:'sms-cred-account-type', user_name:'sms-cred-user-name',
+  password:'sms-cred-password', new_password:'sms-cred-new-password', api_id:'sms-cred-api-id',
+  api_token:'sms-cred-api-token', api_url:'sms-cred-api-url', new_api_password:'sms-cred-new-api-password',
+  login_link:'sms-cred-login-link', new_login_link:'sms-cred-new-login-link',
+  date_updated:'sms-cred-date-updated', platform:'sms-cred-platform'
+};
+
+function normalizeSmsCredential(row) {
+  const out = {};
+  SMS_CREDENTIAL_FIELDS.forEach(field => out[field] = String(row?.[field] ?? '').trim());
+  out.id = String(row?.id || ('cred_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)));
+  return out;
+}
+
+function loadSmsCredentials() {
+  try {
+    const raw = localStorage.getItem('bm_sms_credentials');
+    const source = raw === null ? [] : JSON.parse(raw);
+    smsCredentials = Array.isArray(source) ? source.map(normalizeSmsCredential) : [];
+  } catch(e) {
+    smsCredentials = [];
+  }
+}
+
+function saveSmsCredentials() {
+  try { localStorage.setItem('bm_sms_credentials', JSON.stringify(smsCredentials)); } catch(e) {}
+  if (smsCredentialRemoteApplying || !fbOk) return;
+  setDoc(doc(db, 'sms', 'credentials'), { credentials: smsCredentials, updated_at: Timestamp.now() })
+    .catch(e => console.warn('SMS credentials sync failed:', e));
+}
+
+async function subscribeSmsCredentials() {
+  if (!fbOk || smsCredentialSubscribed) return;
+  smsCredentialSubscribed = true;
+  try {
+    onSnapshot(doc(db, 'sms', 'credentials'), async snap => {
+      if (snap.exists()) {
+        const data = snap.data() || {};
+        const remote = Array.isArray(data.credentials) ? data.credentials.map(normalizeSmsCredential) : [];
+        smsCredentialRemoteApplying = true;
+        try {
+          smsCredentials = remote;
+          try { localStorage.setItem('bm_sms_credentials', JSON.stringify(remote)); } catch(e) {}
+          if (smsActiveTab === 'credentials') renderSmsCredentials();
+        } finally { smsCredentialRemoteApplying = false; }
+      } else if (smsCredentials.length) {
+        await setDoc(doc(db, 'sms', 'credentials'), { credentials: smsCredentials, updated_at: Timestamp.now() });
+      }
+    }, err => console.warn('SMS credentials onSnapshot error:', err));
+  } catch(e) { console.warn('SMS credentials subscribe failed:', e); }
+}
+
+window.toggleSmsCredentialForm = () => {
+  document.getElementById('sms-credentials-form')?.classList.toggle('collapsed');
+};
+
+function setSmsCredentialInput(field, value) {
+  const input = document.getElementById(SMS_CREDENTIAL_INPUTS[field]);
+  if (input) input.value = value ?? '';
+}
+
+function readSmsCredentialForm() {
+  const row = { id: smsCredentialEditingId || undefined };
+  SMS_CREDENTIAL_FIELDS.forEach(field => {
+    row[field] = document.getElementById(SMS_CREDENTIAL_INPUTS[field])?.value?.trim() || '';
+  });
+  return normalizeSmsCredential(row);
+}
+
+window.newSmsCredential = (open=true) => {
+  smsCredentialEditingId = null;
+  SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, ''));
+  const status = document.getElementById('sms-cred-edit-status');
+  if (status) status.textContent = 'Adding new credential';
+  const title = document.getElementById('sms-credentials-form-title');
+  if (title) title.textContent = 'Add Credential';
+  const cancel = document.getElementById('sms-cred-cancel-btn');
+  if (cancel) cancel.style.display = 'none';
+  if (open) document.getElementById('sms-credentials-form')?.classList.remove('collapsed');
+};
+
+window.cancelSmsCredentialEdit = () => newSmsCredential(false);
+
+window.editSmsCredential = id => {
+  const row = smsCredentials.find(item => item.id === id);
+  if (!row) return;
+  smsCredentialEditingId = id;
+  SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, row[field]));
+  const status = document.getElementById('sms-cred-edit-status');
+  if (status) status.textContent = `Editing ${row.client || 'credential'}`;
+  const title = document.getElementById('sms-credentials-form-title');
+  if (title) title.textContent = 'Edit Credential';
+  const cancel = document.getElementById('sms-cred-cancel-btn');
+  if (cancel) cancel.style.display = '';
+  const form = document.getElementById('sms-credentials-form');
+  form?.classList.remove('collapsed');
+  form?.scrollIntoView({ behavior:'smooth', block:'start' });
+};
+
+window.saveSmsCredential = () => {
+  const row = readSmsCredentialForm();
+  if (!row.client) { toast('Client is required.', 'err'); return; }
+  const idx = smsCredentialEditingId ? smsCredentials.findIndex(item => item.id === smsCredentialEditingId) : -1;
+  if (idx >= 0) smsCredentials[idx] = row;
+  else smsCredentials.push(row);
+  saveSmsCredentials();
+  renderSmsCredentials();
+  toast(idx >= 0 ? 'Credential updated' : 'Credential added', 'ok');
+  newSmsCredential(false);
+  document.getElementById('sms-credentials-form')?.classList.add('collapsed');
+};
+
+window.deleteSmsCredential = id => {
+  const row = smsCredentials.find(item => item.id === id);
+  if (!row) return;
+  openSmsConfirm(`Delete the credential record for <strong>${esc(row.client)}</strong>?`, 'Delete', () => {
+    const backup = smsCredentials.slice();
+    smsCredentials = smsCredentials.filter(item => item.id !== id);
+    if (smsCredentialEditingId === id) newSmsCredential(false);
+    saveSmsCredentials();
+    renderSmsCredentials();
+    showUndoToast(`Deleted credential: ${row.client}`, () => {
+      smsCredentials = backup;
+      saveSmsCredentials();
+      renderSmsCredentials();
+      toast('Deletion undone — credential restored', 'ok');
+    });
+  });
+};
+
+function refreshSmsCredentialFilters() {
+  const configs = [
+    ['sms-cred-filter-account-type','account_type','All Account Types'],
+    ['sms-cred-filter-platform','platform','All Platforms']
+  ];
+  configs.forEach(([id, field, label]) => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const current = select.value;
+    const values = smsUniqueDisplayValues(smsCredentials.map(row => row[field]));
+    select.innerHTML = `<option value="">${label}</option>` + values.map(value =>
+      `<option value="${esc(value)}"${smsTextSame(value, current) ? ' selected' : ''}>${esc(value)}</option>`
+    ).join('');
+  });
+}
+
+function filteredSmsCredentials() {
+  const query = document.getElementById('sms-cred-search')?.value?.trim() || '';
+  const accountType = document.getElementById('sms-cred-filter-account-type')?.value || '';
+  const platform = document.getElementById('sms-cred-filter-platform')?.value || '';
+  return smsCredentials
+    .filter(row => !accountType || smsTextSame(row.account_type, accountType))
+    .filter(row => !platform || smsTextSame(row.platform, platform))
+    .filter(row => !query || smsTextMatches(SMS_CREDENTIAL_FIELDS.map(field => row[field]).join(' '), query))
+    .slice()
+    .sort((a,b) => {
+      const cmp = String(a[smsCredentialSortCol] || '').localeCompare(String(b[smsCredentialSortCol] || ''), undefined, { sensitivity:'base' });
+      return (cmp || String(a.client).localeCompare(String(b.client))) * smsCredentialSortDir;
+    });
+}
+
+window.sortSmsCredentials = field => {
+  if (!SMS_CREDENTIAL_FIELDS.includes(field)) return;
+  if (smsCredentialSortCol === field) smsCredentialSortDir *= -1;
+  else { smsCredentialSortCol = field; smsCredentialSortDir = 1; }
+  renderSmsCredentials();
+};
+
+window.renderSmsCredentials = () => {
+  const tbody = document.getElementById('sms-credentials-tbody');
+  if (!tbody) return;
+  refreshSmsCredentialFilters();
+  const rows = filteredSmsCredentials();
+  SMS_CREDENTIAL_FIELDS.forEach(field => {
+    const th = document.getElementById('sms-cred-th-' + field);
+    if (!th) return;
+    th.textContent = SMS_CREDENTIAL_LABELS[field] + (field === smsCredentialSortCol ? (smsCredentialSortDir > 0 ? ' ▲' : ' ▼') : '');
+  });
+  const count = document.getElementById('sms-cred-count');
+  if (count) count.textContent = `${rows.length} of ${smsCredentials.length} credential(s)`;
+  const clipped = (value, mono=false) => `<div class="sms-cred-clip${mono ? ' sms-cred-mono' : ''}" title="${esc(value)}">${esc(value)}</div>`;
+  tbody.innerHTML = rows.length ? rows.map(row => `<tr>
+    <td><strong>${esc(row.client)}</strong></td>
+    <td>${esc(row.account_type)}</td>
+    <td>${clipped(row.user_name)}</td>
+    <td>${clipped(row.password, true)}</td>
+    <td>${clipped(row.new_password, true)}</td>
+    <td>${clipped(row.api_id, true)}</td>
+    <td>${clipped(row.api_token, true)}</td>
+    <td>${clipped(row.api_url)}</td>
+    <td>${clipped(row.new_api_password, true)}</td>
+    <td>${clipped(row.login_link)}</td>
+    <td>${clipped(row.new_login_link)}</td>
+    <td style="white-space:nowrap">${esc(row.date_updated)}</td>
+    <td>${esc(row.platform)}</td>
+    <td class="sms-cred-actions"><button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
+  </tr>`).join('') : '<tr><td colspan="14" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
+};
+
+window.clearSmsCredentialFilters = () => {
+  const search = document.getElementById('sms-cred-search');
+  const accountType = document.getElementById('sms-cred-filter-account-type');
+  const platform = document.getElementById('sms-cred-filter-platform');
+  if (search) search.value = '';
+  if (accountType) accountType.value = '';
+  if (platform) platform.value = '';
+  renderSmsCredentials();
+};
+
+function smsCredentialDateText(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    const iso = value.toISOString();
+    return iso.slice(0, 10) + (iso.slice(11, 16) === '00:00' ? '' : ' ' + iso.slice(11, 16));
+  }
+  if (typeof value !== 'number' || !isFinite(value)) return String(value ?? '').trim();
+  const date = new Date(Math.round((value - 25569) * 86400000));
+  if (isNaN(date.getTime())) return String(value);
+  const ymd = date.toISOString().slice(0, 10);
+  const hhmm = date.toISOString().slice(11, 16);
+  return Math.abs(value - Math.round(value)) < 1e-8 ? ymd : `${ymd} ${hhmm}`;
+}
+
+window.importSmsCredentialWorkbook = async file => {
+  if (!file) return;
+  if (!window.XLSX) { toast('Excel importer is still loading. Please try again.', 'err'); return; }
+  setLoading(true, 'Reading credential workbook…');
+  try {
+    const xlsx = window.XLSX;
+    const workbook = xlsx.read(await file.arrayBuffer(), { type:'array', cellDates:false });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const matrix = xlsx.utils.sheet_to_json(sheet, { header:1, defval:'', raw:true });
+    if (!matrix.length) throw new Error('The workbook is empty.');
+    const headerMap = {};
+    matrix[0].forEach((header, index) => { headerMap[smsNormKey(header)] = index; });
+    const expected = {
+      client:'client', account_type:'accounttype', user_name:'username', password:'password',
+      new_password:'newpassword', api_id:'apiid', api_token:'apitoken', api_url:'apiurl',
+      new_api_password:'newapipassword', login_link:'loginlink', new_login_link:'newloginlink',
+      date_updated:'dateupdated', platform:'platform'
+    };
+    if (headerMap.client === undefined) throw new Error('A Client column was not found.');
+    const imported = matrix.slice(1).map(values => {
+      const row = {};
+      SMS_CREDENTIAL_FIELDS.forEach(field => {
+        const column = headerMap[expected[field]];
+        const value = column === undefined ? '' : values[column];
+        row[field] = field === 'date_updated' ? smsCredentialDateText(value) : String(value ?? '').trim();
+      });
+      return normalizeSmsCredential(row);
+    }).filter(row => SMS_CREDENTIAL_FIELDS.some(field => row[field]));
+    if (!imported.length) throw new Error('No populated credential rows were found.');
+
+    const applyImport = () => {
+      let added = 0, updated = 0;
+      const keyFor = row => [row.client, row.account_type, row.user_name].map(value => smsSearchKey(value)).join('|');
+      const existingByKey = new Map(smsCredentials.map((row, index) => [keyFor(row), index]));
+      imported.forEach(row => {
+        const key = keyFor(row);
+        const index = existingByKey.get(key);
+        if (index === undefined) {
+          existingByKey.set(key, smsCredentials.length);
+          smsCredentials.push(row);
+          added++;
+        } else {
+          smsCredentials[index] = { ...row, id:smsCredentials[index].id };
+          updated++;
+        }
+      });
+      saveSmsCredentials();
+      renderSmsCredentials();
+      toast(`Imported ${imported.length} row(s): ${added} added, ${updated} updated`, 'ok', 6000);
+    };
+
+    if (smsCredentials.length) {
+      openSmsConfirm(
+        `Import <strong>${imported.length}</strong> credential row(s)?<br><br>Matching Client + Account Type + User Name records will be updated; new records will be added.`,
+        'Import', applyImport
+      );
+    } else applyImport();
+  } catch(e) {
+    toast('Credential import failed: ' + e.message, 'err', 7000);
+  } finally { setLoading(false); }
+};
+
+window.exportSmsCredentialView = () => {
+  const rows = filteredSmsCredentials();
+  if (!rows.length) { toast('No credential rows in the current view.', 'err'); return; }
+  const headers = SMS_CREDENTIAL_FIELDS.map(field => SMS_CREDENTIAL_LABELS[field]);
+  const csvRows = rows.map(row => SMS_CREDENTIAL_FIELDS.map(field => row[field]));
+  const csv = [headers, ...csvRows].map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sms_credentials_view_${todayStr()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} credential record(s)`, 'ok');
+};
+
+function renderActiveSmsView() {
+  if (smsActiveTab === 'credentials') renderSmsCredentials();
+  else renderSmsClients();
+}
+
 // Combos with a fixed, non-editable option list (picked from, not typed into)
 const SMS_FIXED_COMBOS = new Set(['type','msg_type','status','opt_out']);
 
@@ -9233,19 +9638,24 @@ function smsSetVendors(str) {
 }
 
 function updateSmsTabUi() {
-  if (!SMS_TAB_CONFIG[smsActiveTab]) smsActiveTab = 'client';
-  const cfg = smsTabCfg();
+  if (!SMS_ALL_TABS.has(smsActiveTab)) smsActiveTab = 'client';
+  const isCredentials = smsActiveTab === 'credentials';
+  const cfg = isCredentials ? { label:'Credentials' } : smsTabCfg();
   document.querySelectorAll('#view-sms .tab-bar .tab').forEach(t => t.classList.remove('active'));
   document.getElementById(`sms-tab-${smsActiveTab}`)?.classList.add('active');
+  const routesPanel = document.getElementById('sms-routes-panel');
+  const credentialsPanel = document.getElementById('sms-credentials-panel');
+  if (routesPanel) routesPanel.style.display = isCredentials ? 'none' : 'flex';
+  if (credentialsPanel) credentialsPanel.style.display = isCredentials ? 'flex' : 'none';
   const toolbar = document.getElementById('sms-toolbar-label');
   if (toolbar) toolbar.textContent = `SMS Module - ${cfg.label}`;
   const status = document.getElementById('sms-edit-status');
-  if (status && !smsEditingId) status.textContent = `Adding new ${cfg.label} route`;
+  if (!isCredentials && status && !smsEditingId) status.textContent = `Adding new ${cfg.label} route`;
 }
 
 window.switchSmsTab = tab => {
-  if (!SMS_TAB_CONFIG[tab] || tab === smsActiveTab) return;
-  syncActiveSmsClients();
+  if (!SMS_ALL_TABS.has(tab) || tab === smsActiveTab) return;
+  if (smsActiveTab !== 'credentials') syncActiveSmsClients();
   if (smsBulkMode) {
     smsBulkMode = false;
     document.body.classList.remove('sms-bulk-mode');
@@ -9256,6 +9666,14 @@ window.switchSmsTab = tab => {
   smsEditingId = null;
   smsActiveTab = tab;
   localStorage.setItem('bm_sms_active_tab', smsActiveTab);
+  if (tab === 'credentials') {
+    subscribeSmsCredentials();
+    updateSmsTabUi();
+    clearSmsCredentialFilters();
+    newSmsCredential(false);
+    renderSmsCredentials();
+    return;
+  }
   if (!smsDataByTab[tab]?.length) loadSmsClients(tab);
   smsClients = smsDataByTab[tab] || [];
   subscribeSmsClients(tab);
@@ -9268,14 +9686,16 @@ window.switchSmsTab = tab => {
 };
 
 function initSmsModule() {
-  if (!SMS_TAB_CONFIG[smsActiveTab]) smsActiveTab = 'client';
+  if (!SMS_ALL_TABS.has(smsActiveTab)) smsActiveTab = 'client';
   Object.keys(SMS_TAB_CONFIG).forEach(loadSmsClients);
-  smsClients = smsDataByTab[smsActiveTab] || [];
+  loadSmsCredentials();
+  smsClients = smsDataByTab[smsActiveTab === 'credentials' ? 'client' : smsActiveTab] || [];
   updateSmsTabUi();
   buildSmsVendorBox();
   updateSmsDatalists();
   newSmsClient(false);
-  renderSmsClients();
+  newSmsCredential(false);
+  renderActiveSmsView();
 }
 
 function smsFormValue(id) {
@@ -11427,7 +11847,10 @@ async function init(){
   // semi-admins. SMS and its client list stay admin only — the rules deny
   // non-admins the sms collection.
   initStats();
-  if (isAdmin()) subscribeSmsClients();
+  if (isAdmin()) {
+    Object.keys(SMS_TAB_CONFIG).forEach(tab => subscribeSmsClients(tab));
+    subscribeSmsCredentials();
+  }
 }
 
 /* ── Auth-gated boot ── */
