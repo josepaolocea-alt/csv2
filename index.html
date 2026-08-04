@@ -53,6 +53,7 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" onerror="window.__bmLibs.papa=false"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.__bmLibs.xlsx=false"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" onerror="window._jsQrFailed=true"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1226,6 +1227,17 @@
     .sms-otp-secret-row { display: flex; gap: 4px; }
     .sms-otp-secret-row .win-inp { flex: 1; min-width: 0; }
     .sms-otp-actions { display: flex; gap: 6px; margin-top: 12px; }
+    .sms-otp-qr-zone {
+      margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border-strong);
+      border-radius: 8px; background: var(--surface-2); color: var(--text-2);
+      font-size: 11px; line-height: 1.45; text-align: center; cursor: pointer;
+    }
+    .sms-otp-qr-zone:focus, .sms-otp-qr-zone.dragover {
+      outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+    }
+    .sms-cred-otp-warning { margin-top: 4px; color: var(--orange); font-size: 9.5px; line-height: 1.35; }
+    .sms-cred-secret-mask { font-family: var(--mono); letter-spacing: .08em; white-space: nowrap; }
     .sms-otp-output {
       margin-top: 18px; padding: 20px; text-align: center; border: 1px solid var(--border);
       border-radius: var(--r-md); background: var(--surface-2);
@@ -2297,6 +2309,17 @@
                     <div class="sms-field"><label>New Login Link</label><input class="win-inp" id="sms-cred-new-login-link"></div>
                     <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm"></div>
                     <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
+                    <div class="sms-field">
+                      <label>OTP Secret Key (Base32)</label>
+                      <div class="sms-otp-secret-row">
+                        <input class="win-inp sms-cred-mono" id="sms-cred-otp-secret" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false">
+                        <button type="button" class="tbtn" id="sms-cred-otp-show-btn" onclick="toggleSmsCredentialOtpSecretVisibility()">Show</button>
+                      </div>
+                      <div class="sms-cred-otp-warning">Sensitive: saved with this credential record and synced to the credential database.</div>
+                    </div>
+                    <div class="sms-field"><label>OTP Algorithm</label><select class="win-inp" id="sms-cred-otp-algorithm"><option value="SHA-1">SHA-1</option><option value="SHA-256">SHA-256</option><option value="SHA-512">SHA-512</option></select></div>
+                    <div class="sms-field"><label>OTP Digits</label><select class="win-inp" id="sms-cred-otp-digits"><option value="6">6 digits</option><option value="8">8 digits</option></select></div>
+                    <div class="sms-field"><label>OTP Period</label><select class="win-inp" id="sms-cred-otp-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
                   </div>
                 </div>
               </div>
@@ -2328,6 +2351,7 @@
                     <th id="sms-cred-th-new_login_link" onclick="sortSmsCredentials('new_login_link')">New Login Link</th>
                     <th id="sms-cred-th-date_updated" onclick="sortSmsCredentials('date_updated')">Date Updated</th>
                     <th id="sms-cred-th-platform" onclick="sortSmsCredentials('platform')">Platform</th>
+                    <th id="sms-cred-th-otp_secret" onclick="sortSmsCredentials('otp_secret')">OTP</th>
                     <th style="cursor:default">Action</th>
                   </tr></thead>
                   <tbody id="sms-credentials-tbody"></tbody>
@@ -2338,7 +2362,7 @@
                 <div class="sms-otp-card">
                   <div class="sms-otp-title">Manual Secret Key for OTP</div>
                   <div class="sms-otp-note">
-                    Generate a time-based one-time password from a Base32 secret key. The secret is processed only in this browser tab and is never saved or synced to Firestore.
+                    Generate a time-based one-time password from a Base32 secret key or an authenticator QR image. Manual inputs are not saved automatically; saved Credential Register keys can be loaded here.
                   </div>
                   <div class="sms-otp-grid">
                     <div class="sms-field">
@@ -2365,6 +2389,14 @@
                     <button type="button" class="tbtn primary" onclick="generateManualOtp()">Generate OTP</button>
                     <button type="button" class="tbtn" onclick="copyManualOtp()">Copy Code</button>
                     <button type="button" class="tbtn" onclick="clearManualOtp()">Clear</button>
+                    <input type="file" id="sms-otp-qr-file" accept="image/*" style="display:none" onchange="scanSmsOtpQrFile(this.files[0]); this.value=''">
+                    <button type="button" class="tbtn" onclick="document.getElementById('sms-otp-qr-file').click()">Upload QR Image</button>
+                    <button type="button" class="tbtn" onclick="useManualOtpInCredentialForm()">Use in Credential Form</button>
+                  </div>
+                  <div class="sms-otp-qr-zone" id="sms-otp-qr-zone" tabindex="0"
+                    onclick="this.focus()" onpaste="onSmsOtpQrPaste(event)"
+                    ondragover="onSmsOtpQrDragOver(event)" ondragleave="onSmsOtpQrDragLeave(event)" ondrop="onSmsOtpQrDrop(event)">
+                    Click here and press <strong>Ctrl+V</strong> to paste a QR screenshot, or drag and drop an image here.
                   </div>
                   <div class="sms-otp-output" aria-live="polite">
                     <div id="sms-otp-code">------</div>
@@ -9183,20 +9215,24 @@ async function subscribeSmsClients(tab=smsActiveTab) {
    mirrors the attached credential workbook rather than the routing fields. */
 const SMS_CREDENTIAL_FIELDS = [
   'client','account_type','user_name','password','new_password','api_id','api_token',
-  'api_url','new_api_password','login_link','new_login_link','date_updated','platform'
+  'api_url','new_api_password','login_link','new_login_link','date_updated','platform',
+  'otp_secret','otp_algorithm','otp_digits','otp_period'
 ];
 const SMS_CREDENTIAL_LABELS = {
   client:'Client', account_type:'Account Type', user_name:'User Name', password:'Password',
   new_password:'New Password', api_id:'API ID', api_token:'API Token', api_url:'API URL',
   new_api_password:'New API Password', login_link:'Login Link', new_login_link:'New Login Link',
-  date_updated:'Date Updated', platform:'Platform'
+  date_updated:'Date Updated', platform:'Platform', otp_secret:'OTP Secret Key',
+  otp_algorithm:'OTP Algorithm', otp_digits:'OTP Digits', otp_period:'OTP Period'
 };
 const SMS_CREDENTIAL_INPUTS = {
   client:'sms-cred-client', account_type:'sms-cred-account-type', user_name:'sms-cred-user-name',
   password:'sms-cred-password', new_password:'sms-cred-new-password', api_id:'sms-cred-api-id',
   api_token:'sms-cred-api-token', api_url:'sms-cred-api-url', new_api_password:'sms-cred-new-api-password',
   login_link:'sms-cred-login-link', new_login_link:'sms-cred-new-login-link',
-  date_updated:'sms-cred-date-updated', platform:'sms-cred-platform'
+  date_updated:'sms-cred-date-updated', platform:'sms-cred-platform',
+  otp_secret:'sms-cred-otp-secret', otp_algorithm:'sms-cred-otp-algorithm',
+  otp_digits:'sms-cred-otp-digits', otp_period:'sms-cred-otp-period'
 };
 
 function normalizeSmsCredential(row) {
@@ -9271,7 +9307,12 @@ function smsOtpBase32Bytes(secret) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const normalized = String(secret || '').toUpperCase().replace(/[\s-]+/g, '').replace(/=+$/g, '');
   if (!normalized) throw new Error('Enter a Base32 secret key.');
-  if (!/^[A-Z2-7]+$/.test(normalized)) throw new Error('Secret must use Base32 characters A-Z and 2-7.');
+  const invalidIndex = normalized.search(/[^A-Z2-7]/);
+  if (invalidIndex >= 0) {
+    const character = normalized[invalidIndex];
+    const display = /[\x20-\x7E]/.test(character) ? `"${character}"` : `Unicode U+${character.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+    throw new Error(`Invalid Base32 character ${display} at position ${invalidIndex + 1}. Use only A-Z and 2-7.`);
+  }
   let buffer = 0, bits = 0;
   const bytes = [];
   for (const character of normalized) {
@@ -9286,6 +9327,111 @@ function smsOtpBase32Bytes(secret) {
   if (!bytes.length) throw new Error('Secret key is too short.');
   return new Uint8Array(bytes);
 }
+
+function smsNormalizeOtpAlgorithm(value) {
+  const compact = String(value || 'SHA-1').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (compact === 'SHA256') return 'SHA-256';
+  if (compact === 'SHA512') return 'SHA-512';
+  return 'SHA-1';
+}
+
+function smsParseOtpPayload(value) {
+  const text = String(value || '').trim();
+  let secret = text, algorithm = 'SHA-1', digits = 6, period = 30, label = '';
+  if (/^otpauth:\/\//i.test(text)) {
+    const uri = new URL(text);
+    if (uri.hostname.toLowerCase() !== 'totp') throw new Error('Only time-based TOTP QR codes are supported.');
+    secret = uri.searchParams.get('secret') || '';
+    algorithm = smsNormalizeOtpAlgorithm(uri.searchParams.get('algorithm'));
+    digits = Number(uri.searchParams.get('digits')) === 8 ? 8 : 6;
+    period = Number(uri.searchParams.get('period')) === 60 ? 60 : 30;
+    label = decodeURIComponent(uri.pathname.replace(/^\//, ''));
+  }
+  const normalizedSecret = String(secret).toUpperCase().replace(/[\s-]+/g, '').replace(/=+$/g, '');
+  smsOtpBase32Bytes(normalizedSecret);
+  return { secret:normalizedSecret, algorithm, digits, period, label };
+}
+
+function applySmsOtpPayload(payload, source='OTP data') {
+  const secret = document.getElementById('sms-otp-secret');
+  const algorithm = document.getElementById('sms-otp-algorithm');
+  const digits = document.getElementById('sms-otp-digits');
+  const period = document.getElementById('sms-otp-period');
+  if (secret) { secret.value = payload.secret; secret.type = 'password'; }
+  if (algorithm) algorithm.value = payload.algorithm;
+  if (digits) digits.value = String(payload.digits);
+  if (period) period.value = String(payload.period);
+  const show = document.getElementById('sms-otp-show-btn');
+  if (show) show.textContent = 'Show';
+  onSmsOtpSecretInput();
+  smsOtpStatus(`${source} loaded${payload.label ? ` for ${payload.label}` : ''}.`);
+}
+
+async function smsDecodeQrImage(file) {
+  if (!file || !String(file.type || '').startsWith('image/')) throw new Error('Choose or paste an image file containing a QR code.');
+  const imageUrl = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = imageUrl;
+    await image.decode();
+    const maxSide = 1800;
+    const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const context = canvas.getContext('2d', { willReadFrequently:true });
+    if (!context) throw new Error('This browser cannot read the QR image.');
+    context.drawImage(image, 0, 0, width, height);
+
+    if ('BarcodeDetector' in window) {
+      try {
+        const detector = new BarcodeDetector({ formats:['qr_code'] });
+        const detected = await detector.detect(canvas);
+        if (detected?.[0]?.rawValue) return detected[0].rawValue;
+      } catch(e) { /* jsQR fallback below */ }
+    }
+    if (typeof window.jsQR !== 'function') {
+      throw new Error('The QR reader did not load. Check the internet connection, reload, and try again.');
+    }
+    const imageData = context.getImageData(0, 0, width, height);
+    const result = window.jsQR(imageData.data, width, height, { inversionAttempts:'attemptBoth' });
+    if (!result?.data) throw new Error('No readable QR code was found. Use a clear, uncropped screenshot.');
+    return result.data;
+  } finally { URL.revokeObjectURL(imageUrl); }
+}
+
+window.scanSmsOtpQrFile = async file => {
+  if (!file) return;
+  smsOtpStatus('Reading QR image...');
+  try {
+    const payload = smsParseOtpPayload(await smsDecodeQrImage(file));
+    applySmsOtpPayload(payload, 'QR code');
+    await generateManualOtp();
+    toast('QR code read and OTP generated', 'ok');
+  } catch(e) {
+    smsOtpStatus(e.message, true);
+    toast('QR scan failed: ' + e.message, 'err', 7000);
+  }
+};
+
+window.onSmsOtpQrPaste = event => {
+  const imageItem = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith('image/'));
+  if (!imageItem) { smsOtpStatus('The clipboard does not contain an image.', true); return; }
+  event.preventDefault();
+  scanSmsOtpQrFile(imageItem.getAsFile());
+};
+
+window.onSmsOtpQrDragOver = event => {
+  event.preventDefault();
+  document.getElementById('sms-otp-qr-zone')?.classList.add('dragover');
+};
+window.onSmsOtpQrDragLeave = () => document.getElementById('sms-otp-qr-zone')?.classList.remove('dragover');
+window.onSmsOtpQrDrop = event => {
+  event.preventDefault();
+  document.getElementById('sms-otp-qr-zone')?.classList.remove('dragover');
+  scanSmsOtpQrFile(Array.from(event.dataTransfer?.files || []).find(file => file.type.startsWith('image/')));
+};
 
 async function smsTotpFromBase32(secret, options={}) {
   if (!globalThis.crypto?.subtle) throw new Error('Secure OTP generation is unavailable in this browser.');
@@ -9339,11 +9485,16 @@ function refreshSmsOtpCountdown() {
 }
 
 window.generateManualOtp = async (quiet=false) => {
-  const secret = document.getElementById('sms-otp-secret')?.value || '';
-  const algorithm = document.getElementById('sms-otp-algorithm')?.value || 'SHA-1';
-  const digits = Number(document.getElementById('sms-otp-digits')?.value) || 6;
-  const period = Number(document.getElementById('sms-otp-period')?.value) || 30;
+  let secret = document.getElementById('sms-otp-secret')?.value || '';
+  let algorithm = document.getElementById('sms-otp-algorithm')?.value || 'SHA-1';
+  let digits = Number(document.getElementById('sms-otp-digits')?.value) || 6;
+  let period = Number(document.getElementById('sms-otp-period')?.value) || 30;
   try {
+    if (/^otpauth:\/\//i.test(secret.trim())) {
+      const payload = smsParseOtpPayload(secret);
+      applySmsOtpPayload(payload, 'Authenticator link');
+      secret = payload.secret; algorithm = payload.algorithm; digits = payload.digits; period = payload.period;
+    }
     const result = await smsTotpFromBase32(secret, { algorithm, digits, period });
     smsOtpActive = true;
     smsOtpLastCounter = result.counter;
@@ -9420,14 +9571,44 @@ window.clearManualOtp = () => {
   smsOtpStatus('Secret cleared from this tab.');
 };
 
+window.useManualOtpInCredentialForm = () => {
+  try {
+    const secret = document.getElementById('sms-otp-secret')?.value || '';
+    const payload = smsParseOtpPayload(secret);
+    payload.algorithm = smsNormalizeOtpAlgorithm(document.getElementById('sms-otp-algorithm')?.value || payload.algorithm);
+    payload.digits = Number(document.getElementById('sms-otp-digits')?.value) === 8 ? 8 : 6;
+    payload.period = Number(document.getElementById('sms-otp-period')?.value) === 60 ? 60 : 30;
+    if (!smsCredentialEditingId) newSmsCredential(false);
+    setSmsCredentialInput('otp_secret', payload.secret);
+    setSmsCredentialInput('otp_algorithm', payload.algorithm);
+    setSmsCredentialInput('otp_digits', String(payload.digits));
+    setSmsCredentialInput('otp_period', String(payload.period));
+    switchSmsCredentialSubtab('register');
+    document.getElementById('sms-credentials-form')?.classList.remove('collapsed');
+    document.getElementById('sms-cred-otp-secret')?.scrollIntoView({ behavior:'smooth', block:'center' });
+    toast(smsCredentialEditingId ? 'OTP settings placed in the credential being edited. Click Save Credential to store them.' : 'OTP settings placed in a new credential form. Add the client details and save.', 'ok', 7000);
+  } catch(e) { toast('Could not use this OTP key: ' + e.message, 'err', 7000); }
+};
+
 window.toggleSmsCredentialForm = () => {
   document.getElementById('sms-credentials-form')?.classList.toggle('collapsed');
 };
 
 function setSmsCredentialInput(field, value) {
   const input = document.getElementById(SMS_CREDENTIAL_INPUTS[field]);
-  if (input) input.value = value ?? '';
+  if (!input) return;
+  const defaults = { otp_algorithm:'SHA-1', otp_digits:'6', otp_period:'30' };
+  input.value = value || defaults[field] || '';
 }
+
+window.toggleSmsCredentialOtpSecretVisibility = () => {
+  const input = document.getElementById('sms-cred-otp-secret');
+  const button = document.getElementById('sms-cred-otp-show-btn');
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if (button) button.textContent = showing ? 'Show' : 'Hide';
+};
 
 function readSmsCredentialForm() {
   const row = { id: smsCredentialEditingId || undefined };
@@ -9440,6 +9621,10 @@ function readSmsCredentialForm() {
 window.newSmsCredential = (open=true) => {
   smsCredentialEditingId = null;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, ''));
+  const otpSecret = document.getElementById('sms-cred-otp-secret');
+  if (otpSecret) otpSecret.type = 'password';
+  const otpShow = document.getElementById('sms-cred-otp-show-btn');
+  if (otpShow) otpShow.textContent = 'Show';
   const status = document.getElementById('sms-cred-edit-status');
   if (status) status.textContent = 'Adding new credential';
   const title = document.getElementById('sms-credentials-form-title');
@@ -9456,6 +9641,10 @@ window.editSmsCredential = id => {
   if (!row) return;
   smsCredentialEditingId = id;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, row[field]));
+  const otpSecret = document.getElementById('sms-cred-otp-secret');
+  if (otpSecret) otpSecret.type = 'password';
+  const otpShow = document.getElementById('sms-cred-otp-show-btn');
+  if (otpShow) otpShow.textContent = 'Show';
   const status = document.getElementById('sms-cred-edit-status');
   if (status) status.textContent = `Editing ${row.client || 'credential'}`;
   const title = document.getElementById('sms-credentials-form-title');
@@ -9470,6 +9659,17 @@ window.editSmsCredential = id => {
 window.saveSmsCredential = () => {
   const row = readSmsCredentialForm();
   if (!row.client) { toast('Client is required.', 'err'); return; }
+  if (row.otp_secret) {
+    try {
+      const payload = smsParseOtpPayload(row.otp_secret);
+      row.otp_secret = payload.secret;
+      if (/^otpauth:\/\//i.test(document.getElementById('sms-cred-otp-secret')?.value || '')) {
+        row.otp_algorithm = payload.algorithm;
+        row.otp_digits = String(payload.digits);
+        row.otp_period = String(payload.period);
+      }
+    } catch(e) { toast('OTP secret was not saved: ' + e.message, 'err', 7000); return; }
+  }
   const idx = smsCredentialEditingId ? smsCredentials.findIndex(item => item.id === smsCredentialEditingId) : -1;
   if (idx >= 0) smsCredentials[idx] = row;
   else smsCredentials.push(row);
@@ -9478,6 +9678,20 @@ window.saveSmsCredential = () => {
   toast(idx >= 0 ? 'Credential updated' : 'Credential added', 'ok');
   newSmsCredential(false);
   document.getElementById('sms-credentials-form')?.classList.add('collapsed');
+};
+
+window.generateSmsCredentialOtp = async id => {
+  const row = smsCredentials.find(item => item.id === id);
+  if (!row?.otp_secret) { toast('This credential has no saved OTP secret.', 'err'); return; }
+  try {
+    const payload = smsParseOtpPayload(row.otp_secret);
+    payload.algorithm = smsNormalizeOtpAlgorithm(row.otp_algorithm || payload.algorithm);
+    payload.digits = Number(row.otp_digits) === 8 ? 8 : 6;
+    payload.period = Number(row.otp_period) === 60 ? 60 : 30;
+    applySmsOtpPayload(payload, `Saved credential: ${row.client || 'credential'}`);
+    switchSmsCredentialSubtab('otp');
+    await generateManualOtp();
+  } catch(e) { toast('Could not use the saved OTP key: ' + e.message, 'err', 7000); }
 };
 
 window.deleteSmsCredential = id => {
@@ -9549,6 +9763,12 @@ window.renderSmsCredentials = () => {
   const count = document.getElementById('sms-cred-count');
   if (count) count.textContent = `${rows.length} of ${smsCredentials.length} credential(s)`;
   const clipped = (value, mono=false) => `<div class="sms-cred-clip${mono ? ' sms-cred-mono' : ''}" title="${esc(value)}">${esc(value)}</div>`;
+  const otpCell = row => {
+    if (!row.otp_secret) return '<span class="sms-muted">Not configured</span>';
+    const compact = String(row.otp_secret).replace(/[\s-]+/g, '');
+    const suffix = compact.slice(-4);
+    return `<div class="sms-cred-secret-mask" title="OTP secret saved (masked)">•••• ${esc(suffix)}</div><div class="sms-muted">${esc(row.otp_algorithm || 'SHA-1')} · ${esc(row.otp_digits || '6')} digits · ${esc(row.otp_period || '30')}s</div>`;
+  };
   tbody.innerHTML = rows.length ? rows.map(row => `<tr>
     <td><strong>${esc(row.client)}</strong></td>
     <td>${esc(row.account_type)}</td>
@@ -9563,8 +9783,9 @@ window.renderSmsCredentials = () => {
     <td>${clipped(row.new_login_link)}</td>
     <td style="white-space:nowrap">${esc(row.date_updated)}</td>
     <td>${esc(row.platform)}</td>
-    <td class="sms-cred-actions"><button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
-  </tr>`).join('') : '<tr><td colspan="14" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
+    <td>${otpCell(row)}</td>
+    <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}')">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
+  </tr>`).join('') : '<tr><td colspan="15" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
 };
 
 window.clearSmsCredentialFilters = () => {
@@ -9584,14 +9805,14 @@ window.downloadSmsCredentialSample = () => {
     const headers = SMS_CREDENTIAL_FIELDS.map(field => SMS_CREDENTIAL_LABELS[field]);
     const rows = [
       headers,
-      ['Sample Retail Client','Retail Client','sample.user@example.com','ExamplePassword123!','','API123456789','','https://api.example.com','','https://login.example.com','','2026-08-04 10:30','Viber'],
-      ['Sample Wholesale Client','Wholesale Client','wholesale@example.com','AnotherExample123!','','','','','','https://carrier.example.com','','',''],
+      ['Sample Retail Client','Retail Client','sample.user@example.com','ExamplePassword123!','','API123456789','','https://api.example.com','','https://login.example.com','','2026-08-04 10:30','Viber','JBSWY3DPEHPK3PXP','SHA-1','6','30'],
+      ['Sample Wholesale Client','Wholesale Client','wholesale@example.com','AnotherExample123!','','','','','','https://carrier.example.com','','','','','','',''],
     ];
     const sheet = xlsx.utils.aoa_to_sheet(rows);
-    sheet['!autofilter'] = { ref:'A1:M3' };
+    sheet['!autofilter'] = { ref:'A1:Q3' };
     sheet['!cols'] = [
       {wch:28},{wch:20},{wch:28},{wch:22},{wch:22},{wch:18},{wch:22},
-      {wch:30},{wch:24},{wch:34},{wch:34},{wch:21},{wch:16},
+      {wch:30},{wch:24},{wch:34},{wch:34},{wch:21},{wch:16},{wch:28},{wch:14},{wch:12},{wch:12},
     ];
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, sheet, 'Credentials');
@@ -9629,7 +9850,8 @@ window.importSmsCredentialWorkbook = async file => {
       client:'client', account_type:'accounttype', user_name:'username', password:'password',
       new_password:'newpassword', api_id:'apiid', api_token:'apitoken', api_url:'apiurl',
       new_api_password:'newapipassword', login_link:'loginlink', new_login_link:'newloginlink',
-      date_updated:'dateupdated', platform:'platform'
+      date_updated:'dateupdated', platform:'platform', otp_secret:'otpsecretkey',
+      otp_algorithm:'otpalgorithm', otp_digits:'otpdigits', otp_period:'otpperiod'
     };
     if (headerMap.client === undefined) throw new Error('A Client column was not found.');
     const imported = matrix.slice(1).map(values => {
