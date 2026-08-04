@@ -708,6 +708,13 @@
       border-radius: 999px; vertical-align: middle; letter-spacing: .3px;
     }
     .badge-spam.watch { background: var(--orange); }
+    .spam-max-ref {
+      display: block; margin-top: 2px; font-size: 9px; line-height: 1.15;
+      color: var(--text-2); font-family: 'Courier New', monospace; white-space: nowrap;
+    }
+    .spam-max-ref.over {
+      color: var(--orange); font-weight: 700;
+    }
     .win-search {
       height: 24px; font-size: 11px; font-family: inherit; padding: 0 8px;
       background: var(--surface); color: var(--text);
@@ -4381,11 +4388,23 @@ function getUsageProfiles() {
   const samples = _profileSamples || new Map();
   const profiles = new Map();
   samples.forEach((arr, name) => {
+    let profileMax = null;
+    let profileMaxDate = '';
+    let profileMaxSlot = '';
+    (arr || []).forEach(o => {
+      const u = amountNumber(o?.u);
+      if (!(u > 0)) return;
+      if (profileMax === null || u > profileMax) {
+        profileMax = u;
+        profileMaxDate = o?.d || '';
+        profileMaxSlot = o?.s || '';
+      }
+    });
     // Baseline = established prior days only: skip today (so a spike can't judge
     // itself), skip month-start days, and drop anything before the recent window.
     const vals = (arr || []).filter(o => o && o.u > 0 && o.d !== today && !isMonthStart(o.d) && (!minDate || o.d >= minDate)).map(o => o.u);
     const n = vals.length;
-    if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n }); return; }
+    if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n, profileMax, profileMaxDate, profileMaxSlot }); return; }
     const med = medianOf(vals);
     // Robust spread: scaled MAD (median absolute deviation) — the jump is judged in
     // the client's OWN noise units, so a naturally spiky client needs a bigger jump
@@ -4393,7 +4412,7 @@ function getUsageProfiles() {
     // so a low-variance client can't collapse sigma toward 0 and flag on nothing.
     const mad = medianOf(vals.map(v => Math.abs(v - med)));
     const sigma = Math.max(1.4826 * mad, SPAM_CFG.madFloorFrac * med, SPAM_CFG.absMinSigma);
-    profiles.set(name, { ready: true, n, median: med, mad, sigma });
+    profiles.set(name, { ready: true, n, median: med, mad, sigma, profileMax, profileMaxDate, profileMaxSlot });
   });
   _usageProfiles = profiles;
   return profiles;
@@ -4405,6 +4424,24 @@ function getUsageProfiles() {
    the median), so you can see whether a low "× normal" median is representative
    or deflated by dropped/excluded readings. Exposed on window because the module
    scope is otherwise invisible to the console. */
+function usageProfileMaxRef(name, skipDate = '', skipSlot = '') {
+  let profileMax = null;
+  let profileMaxDate = '';
+  let profileMaxSlot = '';
+  const arr = (_profileSamples && _profileSamples.get(name)) || [];
+  (arr || []).forEach(o => {
+    if (skipDate && o?.d === skipDate && (!skipSlot || o?.s === skipSlot)) return;
+    const u = amountNumber(o?.u);
+    if (!(u > 0)) return;
+    if (profileMax === null || u > profileMax) {
+      profileMax = u;
+      profileMaxDate = o?.d || '';
+      profileMaxSlot = o?.s || '';
+    }
+  });
+  return { profileMax, profileMaxDate, profileMaxSlot };
+}
+
 window.spamDebug = function (name) {
   const today = todayStr();
   const minDate = SPAM_CFG.recentDays > 0 ? dateStrDaysAgo(SPAM_CFG.recentDays) : '';
@@ -4552,7 +4589,9 @@ function spamCheck(row) {
   if (z >= SPAM_CFG.kWatch) {
     const tier  = z >= SPAM_CFG.kHigh ? 'high' : 'watch';     // High vs Watch
     const ratio = p.median > 0 ? signal / p.median : Infinity;
-    return { usage: u, signal, median: p.median, sigma: p.sigma, z, ratio, n: p.n, tier };
+    const maxRef = usageProfileMaxRef(row?.carrier_name, date, slot);
+    return { usage: u, signal, median: p.median, sigma: p.sigma, z, ratio, n: p.n, tier,
+             profileMax: maxRef.profileMax, profileMaxDate: maxRef.profileMaxDate, profileMaxSlot: maxRef.profileMaxSlot };
   }
   return null;
 }
@@ -7463,13 +7502,22 @@ function renderAlerts() {
       ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's baseline">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
       : '';
     const spamIgnore = (alertFilter==='spam') ? `<button class="tbtn" style="margin-left:6px;font-size:9px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
+    const profileMax = r._spamInfo?.profileMax;
+    const hasProfileMax = alertFilter==='spam' && profileMax !== null && profileMax !== undefined && Number.isFinite(amountNumber(profileMax));
+    const maxWhen = hasProfileMax && r._spamInfo?.profileMaxDate
+      ? ` (${r._spamInfo.profileMaxDate}${r._spamInfo.profileMaxSlot ? ' ' + fmt12(r._spamInfo.profileMaxSlot) : ''})`
+      : '';
+    const overProfileMax = hasProfileMax && amountNumber(r.usage_30min) > amountNumber(profileMax);
+    const spamMaxRef = hasProfileMax
+      ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="Highest 30m usage stored in this client's usage profile${escAttr(maxWhen)}">profile max ${fmt(profileMax)}</span>`
+      : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
-      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}${usageTrendArrow(r)}</td>
+      <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}${usageTrendArrow(r)}${spamMaxRef}</td>
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
