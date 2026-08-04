@@ -795,6 +795,8 @@
     body.stats-mode #stats-toolbar-label { display: inline-flex; }
     .stats-tab { display: none !important; }
     body.stats-mode .stats-tab { display: inline-flex !important; }
+    body.stats-mode.stats-daily-mode .stats-tab[id^="stnav-stats-"] { display: none !important; }
+    .stats-mode-tab.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #btn-settings,
     body.stats-mode #snd-dismiss-btn,
@@ -803,6 +805,11 @@
     body.stats-mode #view-banner { display: none !important; }
     #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 6px; overflow: hidden; padding: 10px 8px 8px; }
     body.stats-mode #stats-sidebar-snap { display: flex; }
+    #stats-sidebar-current, #stats-sidebar-daily { flex: 1; min-height: 0; flex-direction: column; gap: 6px; overflow: hidden; }
+    #stats-sidebar-current { display: flex; }
+    #stats-sidebar-daily { display: none; }
+    body.stats-mode.stats-daily-mode #stats-sidebar-current { display: none; }
+    body.stats-mode.stats-daily-mode #stats-sidebar-daily { display: flex; }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
       background: var(--surface); color: var(--text);
@@ -813,6 +820,31 @@
     }
     #stats-snap-ta:focus { border-color: var(--accent); }
     #stats-snap-ta::placeholder { color: var(--text-3); }
+    #stats-daily-ta {
+      flex: 1; min-height: 150px; resize: none; width: 100%;
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      border-radius: var(--r-md); font-family: var(--mono); font-size: 10px; padding: 5px; outline: none;
+    }
+    #stats-daily-ta:focus { border-color: var(--accent); }
+    #stats-daily-date-list { flex: 0 1 180px; overflow-y: auto; min-height: 50px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
+    .stats-daily-date-item { padding: 5px 6px; border-radius: var(--r-sm); font-size: 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+    .stats-daily-date-item:hover, .stats-daily-date-item.active { background: var(--accent-soft); color: var(--accent); }
+    .st-daily-summary { display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)); gap: 8px; padding: 8px; }
+    .st-daily-card { padding: 10px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); text-align: center; }
+    .st-daily-card .value { font-size: 20px; font-weight: 700; line-height: 1.1; }
+    .st-daily-card .label { margin-top: 4px; color: var(--text-3); font-size: 10px; }
+    .st-daily-card.increase .value { color: var(--green); }
+    .st-daily-card.decrease .value, .st-daily-card.stopped .value { color: var(--red); }
+    .st-daily-card.new .value { color: var(--accent); }
+    .st-daily-alert { display: none; margin: 0 8px 8px; padding: 9px 11px; border: 1px solid var(--red); border-radius: var(--r-md); background: var(--red-soft); color: var(--red); font-size: 11px; line-height: 1.4; }
+    .st-daily-alert.visible { display: block; }
+    .st-daily-status { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .st-daily-status.increase { background: var(--green-soft); color: var(--green); }
+    .st-daily-status.decrease, .st-daily-status.stopped { background: var(--red-soft); color: var(--red); }
+    .st-daily-status.new { background: var(--accent-soft); color: var(--accent); }
+    .st-daily-status.unchanged { background: var(--surface-3); color: var(--text-2); }
+    .st-daily-negative { color: var(--red); font-weight: 600; }
+    .st-daily-positive { color: var(--green); font-weight: 600; }
     #stats-snap-list {
       flex: 1; overflow-y: auto; min-height: 40px;
       background: var(--surface);
@@ -999,6 +1031,27 @@
     @keyframes smsFormSlideIn {
       from { opacity: 0; transform: translateX(-14px); }
       to   { opacity: 1; transform: translateX(0); }
+    }
+    #sms-selection-actions.has-selection {
+      padding: 5px 7px !important; margin-left: 8px; border: 1px solid var(--accent) !important;
+      border-radius: var(--r-md); background: var(--accent-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent);
+      animation: smsExportAttention .7s ease-out;
+    }
+    #sms-selection-actions.has-selection #sms-selection-count { color: var(--accent); font-weight: 700; }
+    .sms-selected-export {
+      min-width: 70px; justify-content: center; color: #fff !important; font-weight: 800 !important;
+      border-color: transparent !important; box-shadow: 0 2px 6px rgba(0,0,0,.2); transform: translateY(0);
+    }
+    .sms-selected-export:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .sms-selected-export.csv { background: #087f5b !important; }
+    .sms-selected-export.excel { background: #217346 !important; }
+    @keyframes smsExportAttention {
+      0% { transform: scale(.97); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+      55% { transform: scale(1.02); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+      100% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #sms-selection-actions.has-selection { animation: none; }
     }
     #sms-form-section:not(.collapsed) .caret-body {
       animation: smsFormSlideIn .38s cubic-bezier(.22, 1, .36, 1) .04s both;
@@ -1259,6 +1312,7 @@
     .toast.undo-toast .undo-msg { flex: 1; }
     .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
+      .st-daily-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-cred-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-otp-grid { grid-template-columns: 1fr 1fr; }
@@ -1767,6 +1821,9 @@
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
     <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
     <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots">No Threshold</button>
+    <button class="tbtn stats-tab stats-mode-tab active" id="stmode-current" onclick="switchStatsMode('current')">Current Stats</button>
+    <button class="tbtn stats-tab stats-mode-tab" id="stmode-daily" onclick="switchStatsMode('daily')">Daily Traffic</button>
+    <div class="tsep stats-tab"></div>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
     <button class="tbtn stats-tab" id="stnav-stats-hourly"   onclick="switchStatsView('hourly')">Hourly</button>
@@ -1826,6 +1883,7 @@
 
       <!-- Stats snapshot paste -->
       <div id="stats-sidebar-snap">
+        <div id="stats-sidebar-current">
         <!-- Posting controls — admin only (hidden for view-only users) -->
         <div id="stats-post-controls">
           <div class="snap-label">New Snapshot</div>
@@ -1845,6 +1903,20 @@
         <div class="snap-label" style="margin-top:8px">Today's Snapshots</div>
         <div id="stats-snap-list">
           <div class="top-usage-empty">No stats snapshots yet.</div>
+        </div>
+        </div>
+        <div id="stats-sidebar-daily">
+          <div id="stats-daily-post-controls" style="display:flex;flex:1;min-height:0;flex-direction:column;gap:4px">
+            <div class="snap-label">Daily Traffic Import</div>
+            <textarea id="stats-daily-ta" placeholder="Paste the daily traffic report here…"></textarea>
+            <div style="display:flex;gap:2px">
+              <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsDailyTraffic()">Process Daily Traffic</button>
+              <button class="tbtn" onclick="document.getElementById('stats-daily-ta').value=''" title="Clear text area">âœ•</button>
+            </div>
+            <div class="settings-note" style="margin-top:2px">One record is kept per report date. Identical saved dates are skipped; changed values ask before replacing.</div>
+          </div>
+          <div class="snap-label">Saved Daily Dates</div>
+          <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
         </div>
       </div>
     </div>
@@ -2232,11 +2304,11 @@
               <button class="tbtn" onclick="clearSmsFilters()">Clear</button>
               <button class="tbtn" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
-              <span id="sms-selection-actions" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
+              <span id="sms-selection-actions" aria-live="polite" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
                 <span class="sms-muted" id="sms-selection-count">0 selected</span>
-                <span class="sms-muted">Download:</span>
-                <button class="tbtn" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">CSV</button>
-                <button class="tbtn" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">Excel</button>
+                <span class="sms-muted">Download selected:</span>
+                <button class="tbtn sms-selected-export csv" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">↓ CSV</button>
+                <button class="tbtn sms-selected-export excel" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">↓ Excel</button>
                 <button class="tbtn" style="color:#880000" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
                 <button class="tbtn" onclick="clearSmsSelection()" title="Clear the current selection">Clear selection</button>
               </span>
@@ -2712,6 +2784,55 @@
         </div>
       </div>
 
+      <!-- STATS — DAILY TRAFFIC CHANGE MONITOR -->
+      <div class="view" id="view-stats-daily">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Daily Traffic — Increase, Decrease, Stopped &amp; New</div>
+          <div class="fbar">
+            <select id="st-daily-date" class="win-sel" onchange="renderStatsDailyTraffic()" title="Daily report date"></select>
+            <select id="st-daily-status-filter" class="win-sel" onchange="renderStatsDailyTraffic()" title="Filter traffic status">
+              <option value="">All Statuses</option>
+              <option value="decrease">Decrease</option>
+              <option value="stopped">Stopped</option>
+              <option value="new">New</option>
+              <option value="increase">Increase</option>
+              <option value="unchanged">Unchanged</option>
+            </select>
+            <input id="st-daily-search" class="win-inp" type="search" placeholder="Search client or account code…" oninput="renderStatsDailyTraffic()" style="min-width:220px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:10px"><input id="st-daily-alert-only" type="checkbox" onchange="renderStatsDailyTraffic()"> Decreasing/stopped only</label>
+            <span id="st-daily-count" class="sms-muted" style="margin-left:auto"></span>
+          </div>
+          <div class="st-daily-summary">
+            <div class="st-daily-card"><div class="value" id="st-daily-total">0</div><div class="label">Clients compared</div></div>
+            <div class="st-daily-card increase"><div class="value" id="st-daily-increase">0</div><div class="label">Increase</div></div>
+            <div class="st-daily-card decrease"><div class="value" id="st-daily-decrease">0</div><div class="label">Decrease</div></div>
+            <div class="st-daily-card stopped"><div class="value" id="st-daily-stopped">0</div><div class="label">Stopped</div></div>
+            <div class="st-daily-card new"><div class="value" id="st-daily-new">0</div><div class="label">New traffic</div></div>
+          </div>
+          <div id="st-daily-alert" class="st-daily-alert"></div>
+          <div style="padding:0 8px 6px;color:var(--text-3);font-size:10px" id="st-daily-comparison">Paste a daily report to begin tracking traffic changes.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table id="st-daily-table">
+              <thead><tr>
+                <th onclick="sortStatsDaily('customer_name')">Client</th>
+                <th onclick="sortStatsDaily('account_codes')">Account Code(s)</th>
+                <th onclick="sortStatsDaily('date')">Date</th>
+                <th>Previous Date</th>
+                <th onclick="sortStatsDaily('attempts')" style="text-align:right">Attempts</th>
+                <th onclick="sortStatsDaily('previous_attempts')" style="text-align:right">Previous</th>
+                <th onclick="sortStatsDaily('change')" style="text-align:right">Change</th>
+                <th onclick="sortStatsDaily('change_pct')" style="text-align:right">Change %</th>
+                <th onclick="sortStatsDaily('status')">Status</th>
+                <th onclick="sortStatsDaily('decrease_streak')" style="text-align:right">Decrease Streak</th>
+                <th onclick="sortStatsDaily('completed')" style="text-align:right">Completed</th>
+                <th onclick="sortStatsDaily('asr')" style="text-align:right">ASR %</th>
+              </tr></thead>
+              <tbody id="st-daily-tbody"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /#content -->
   </div><!-- /#app-body -->
 
@@ -2949,6 +3070,12 @@
           <div style="margin-bottom:5px">Wipe the entire <strong>stats_snapshots</strong> Firestore collection — every stored day, not just today. Balance snapshots, New Critical comparison and spam baseline are not affected. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
+          </div>
+        </div>
+        <div class="settings-danger">
+          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data.</div>
+          <div class="danger-btns">
+            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
           </div>
         </div>
       </div>
@@ -3632,7 +3759,7 @@ window.switchModule = module => {
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     updateViewMenuState();
-    window.switchStatsView(statsViewName || 'summary');
+    window.switchStatsMode(statsPrimaryMode || 'current');
     return;
   }
   document.body.classList.remove('sms-mode');
@@ -6567,6 +6694,7 @@ function applyModuleAccess(){
   // Stats posting (New Snapshot / Process / Undo Last) — admin & semi-admin;
   // viewers still see today's snapshots and can export.
   show('stats-post-controls', canPostStats());
+  show('stats-daily-post-controls', canPostStats());
   // Client editing surfaces: Client Manager tab (CSV upload wizard) and the
   // Bulk Edit button in All Clients — admin only.
   ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, canEditClients()));
@@ -7081,21 +7209,25 @@ window.confirmDeleteTodaySnapshots = async () => {
   }
 };
 
-let pendingWipeAll = null; // 'snapshots' | 'stats' | 'tritel'
+let pendingWipeAll = null; // 'snapshots' | 'stats' | 'stats-daily' | 'tritel'
 
 // Semi-admins may wipe the three snapshot collections (snapshots / stats /
 // tritel); everything else in the Danger Zone stays admin only.
-const SEMI_WIPEABLE = ['snapshots','stats','tritel'];
+const SEMI_WIPEABLE = ['snapshots','stats','stats-daily','tritel'];
 function canWipe(kind){ return isAdmin() || (isSemiAdmin() && SEMI_WIPEABLE.includes(kind)); }
 window.openWipeAllConfirm = kind => {
   if (!canWipe(kind)){ toast('You do not have permission to delete these snapshots.','err'); return; }
   pendingWipeAll = kind;
-  const titles = { stats: 'Delete All Stats Snapshots', tritel: 'Delete All Tritel Snapshots' };
+  const titles = { stats:'Delete All Stats Snapshots', 'stats-daily':'Delete All Daily Traffic History', tritel:'Delete All Tritel Snapshots' };
   const texts = {
     stats:
       `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
       `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today. ` +
       `Your balance snapshots, New Critical comparison and spam baseline are <strong>not</strong> affected.<br><br>` +
+      `<span style="color:#880000">This cannot be undone.</span>`,
+    'stats-daily':
+      `<strong>Permanently delete ALL daily traffic history?</strong><br><br>` +
+      `This wipes the entire <strong>stats_daily_traffic</strong> collection in Firestore. Increase, decrease, stopped, new-traffic and decline-streak history will be lost.<br><br>` +
       `<span style="color:#880000">This cannot be undone.</span>`,
     tritel:
       `<strong>Permanently delete ALL Tritel snapshots?</strong><br><br>` +
@@ -7143,8 +7275,9 @@ window.confirmWipeAll = async () => {
   }
   window.closeWipeAllConfirm();
   if (!kind || !canWipe(kind)) return;
-  const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
+  const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'stats-daily' ? 'stats_daily_traffic' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
   const loadingMsg = kind === 'stats' ? 'Deleting all stats snapshots…'
+    : kind === 'stats-daily' ? 'Deleting all daily traffic history…'
     : kind === 'tritel' ? 'Deleting all Tritel snapshots…' : 'Deleting all snapshots…';
   setLoading(true, loadingMsg);
   try {
@@ -7174,6 +7307,11 @@ window.confirmWipeAll = async () => {
       // Some of today's stats may have been preserved by the keep range — reload them.
       if (keepOn) await loadStatsSnaps();
       statsRender();
+    } else if (kind === 'stats-daily') {
+      statsDailyHistory = [];
+      statsDailySelectedDate = '';
+      try { localStorage.removeItem('bm_stats_daily_history'); } catch(e) {}
+      renderStatsDailyTraffic();
     } else if (kind === 'tritel') {
       tritelSnaps = [];
       try { localStorage.removeItem('bm_tritel_snaps'); } catch(e) {}
@@ -7196,8 +7334,8 @@ window.confirmWipeAll = async () => {
       refreshAll();
       window.renderClients();
     }
-    const label = kind === 'stats' ? 'stats ' : kind === 'tritel' ? 'Tritel ' : '';
-    let doneMsg = `✓ Deleted ${deletedCount} ${label}snapshot(s) from Firestore`;
+    const label = kind === 'stats' ? 'stats snapshot(s)' : kind === 'stats-daily' ? 'daily traffic date(s)' : kind === 'tritel' ? 'Tritel snapshot(s)' : 'snapshot(s)';
+    let doneMsg = `✓ Deleted ${deletedCount} ${label} from Firestore`;
     if (keepOn) doneMsg += ` · kept ${keptCount} in range`;
     toast(doneMsg, 'ok');
   } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
@@ -10628,7 +10766,10 @@ function refreshSmsBulkCount() {
   if (el) el.textContent = `${n} selected`;
   // Show/hide the "Download selected" controls in the filter bar
   const bar = document.getElementById('sms-selection-actions');
-  if (bar) bar.style.display = n > 0 ? 'inline-flex' : 'none';
+  if (bar) {
+    bar.style.display = n > 0 ? 'inline-flex' : 'none';
+    bar.classList.toggle('has-selection', n > 0);
+  }
   const cnt = document.getElementById('sms-selection-count');
   if (cnt) cnt.textContent = n === 1 ? '1 route selected' : `${n} routes selected`;
 }
@@ -11333,6 +11474,10 @@ window.confirmRollback = async () => {
 ════════════════════════════════════════════════ */
 let statsTodaySnaps = [];      // [{id,timestamp,session_date,time_slot,data:[rawRows]}]
 let statsViewName = 'summary';
+let statsPrimaryMode = 'current';
+let statsDailyHistory = [];    // [{id,session_date,posted_at,clients:[daily aggregates]}] — no automatic retention
+let statsDailySelectedDate = '';
+let statsDailySortCol = 'status', statsDailySortDir = 1;
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
@@ -11601,6 +11746,319 @@ function parseStatsText(text) {
   return rows;
 }
 
+function statsDailyDateKey(value) {
+  const text = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/);
+  if (!match) return '';
+  const month = Number(match[1]), day = Number(match[2]);
+  let year = Number(match[3]);
+  if (year < 100) year += year >= 70 ? 1900 : 2000;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
+  return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+function parseStatsDailyTraffic(text) {
+  const lines = String(text || '').replace(/\r/g, '').split('\n').filter(line => line.trim());
+  const days = new Map();
+  const num = value => {
+    const parsed = parseFloat(String(value ?? '').replace(/[^0-9.\-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  for (const line of lines) {
+    const columns = (line.includes('\t') ? line.split('\t') : line.split(',')).map(value => value.trim());
+    if (columns.length < 11) continue;
+    const sessionDate = statsDailyDateKey(columns[2]);
+    const accountCode = columns[0] || '';
+    const customerName = columns[1] || accountCode;
+    if (!sessionDate || !accountCode || !customerName || /^total$/i.test(accountCode)) continue;
+    if (!days.has(sessionDate)) days.set(sessionDate, new Map());
+    const key = customerName.trim().toLowerCase();
+    const clients = days.get(sessionDate);
+    let client = clients.get(key);
+    if (!client) {
+      client = { key, customer_name:customerName, account_codes:new Set(), attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 };
+      clients.set(key, client);
+    }
+    client.account_codes.add(accountCode);
+    client.attempts += num(columns[4]);
+    client.completed += num(columns[5]);
+    client.raw_dur += num(columns[8]);
+    client.rnd_dur += num(columns[9]);
+    client.revenue += num(columns[10]);
+  }
+  return [...days.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([session_date, clients]) => ({
+    session_date,
+    clients:[...clients.values()].map(client => ({
+      key:client.key,
+      customer_name:client.customer_name,
+      account_codes:[...client.account_codes].sort().join('; '),
+      attempts:client.attempts,
+      completed:client.completed,
+      asr:client.attempts > 0 ? client.completed / client.attempts * 100 : 0,
+      acd:client.completed > 0 ? client.raw_dur / client.completed : 0,
+      raw_dur:client.raw_dur,
+      rnd_dur:client.rnd_dur,
+      revenue:client.revenue,
+    }))
+  }));
+}
+window.parseStatsDailyTraffic = parseStatsDailyTraffic;
+
+function normalizeStatsDailyDay(day) {
+  return {
+    id:String(day?.id || day?.session_date || ''),
+    session_date:String(day?.session_date || ''),
+    posted_at:day?.posted_at?.toDate?.() || (day?.posted_at ? new Date(day.posted_at) : null),
+    posted_by:String(day?.posted_by || ''),
+    clients:Array.isArray(day?.clients) ? day.clients.map(client => ({
+      key:String(client?.key || client?.customer_name || '').trim().toLowerCase(),
+      customer_name:String(client?.customer_name || ''),
+      account_codes:String(client?.account_codes || ''),
+      attempts:Number(client?.attempts) || 0,
+      completed:Number(client?.completed) || 0,
+      asr:Number(client?.asr) || 0,
+      acd:Number(client?.acd) || 0,
+      raw_dur:Number(client?.raw_dur) || 0,
+      rnd_dur:Number(client?.rnd_dur) || 0,
+      revenue:Number(client?.revenue) || 0,
+    })).filter(client => client.key) : [],
+  };
+}
+
+function statsDailySortedHistory() {
+  return statsDailyHistory.filter(day => day.session_date).slice().sort((a,b) => a.session_date.localeCompare(b.session_date));
+}
+
+function saveStatsDailyLocal() {
+  try {
+    const serializable = statsDailyHistory.map(day => ({ ...day, posted_at:day.posted_at instanceof Date ? day.posted_at.toISOString() : day.posted_at }));
+    localStorage.setItem('bm_stats_daily_history', JSON.stringify(serializable));
+  } catch(e) { console.warn('Daily traffic local cache is full:', e); }
+}
+
+function loadStatsDailyLocal() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('bm_stats_daily_history') || '[]');
+    if (Array.isArray(stored)) statsDailyHistory = stored.map(normalizeStatsDailyDay);
+  } catch(e) { statsDailyHistory = []; }
+}
+
+function statsDailyClientMap(day) {
+  return new Map((day?.clients || []).map(client => [client.key, client]));
+}
+
+function statsDailyDecreaseStreak(days, dayIndex, key) {
+  let streak = 0;
+  for (let index = dayIndex; index > 0; index--) {
+    const current = statsDailyClientMap(days[index]).get(key);
+    const previous = statsDailyClientMap(days[index - 1]).get(key);
+    if (!current || !previous || current.attempts <= 0 || current.attempts >= previous.attempts) break;
+    streak++;
+  }
+  return streak;
+}
+
+function statsDailyComparison(sessionDate) {
+  const days = statsDailySortedHistory();
+  const dayIndex = Math.max(0, days.findIndex(day => day.session_date === sessionDate));
+  const currentDay = days[dayIndex] || null;
+  const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
+  if (!currentDay) return { currentDay:null, previousDay:null, rows:[] };
+  const current = statsDailyClientMap(currentDay), previous = statsDailyClientMap(previousDay);
+  const keys = new Set([...current.keys(), ...previous.keys()]);
+  const rows = [...keys].map(key => {
+    const now = current.get(key), before = previous.get(key);
+    const attempts = now?.attempts || 0, previousAttempts = before?.attempts || 0;
+    let status = 'unchanged';
+    if (now && !before) status = 'new';
+    else if (!now && before) status = 'stopped';
+    else if (attempts === 0 && previousAttempts > 0) status = 'stopped';
+    else if (attempts > previousAttempts) status = 'increase';
+    else if (attempts < previousAttempts) status = 'decrease';
+    const change = attempts - previousAttempts;
+    return {
+      key,
+      customer_name:now?.customer_name || before?.customer_name || key,
+      account_codes:now?.account_codes || before?.account_codes || '',
+      date:currentDay.session_date,
+      previous_date:previousDay?.session_date || '',
+      attempts,
+      previous_attempts:previousAttempts,
+      change,
+      change_pct:previousAttempts > 0 ? change / previousAttempts * 100 : null,
+      status,
+      decrease_streak:status === 'decrease' ? statsDailyDecreaseStreak(days, dayIndex, key) : 0,
+      completed:now?.completed || 0,
+      asr:now?.asr || 0,
+    };
+  });
+  return { currentDay, previousDay, rows };
+}
+
+function renderStatsDailySidebar() {
+  const list = document.getElementById('stats-daily-date-list');
+  if (!list) return;
+  const days = statsDailySortedHistory().reverse();
+  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(day.clients.length)} clients</span></div>`).join('')
+    : '<div class="top-usage-empty">No daily traffic data yet.</div>';
+}
+
+function refreshStatsDailyDateSelect() {
+  const select = document.getElementById('st-daily-date');
+  if (!select) return;
+  const days = statsDailySortedHistory().reverse();
+  if (!statsDailySelectedDate || !days.some(day => day.session_date === statsDailySelectedDate)) statsDailySelectedDate = days[0]?.session_date || '';
+  select.innerHTML = days.length ? days.map(day => `<option value="${stEsc(day.session_date)}"${day.session_date === statsDailySelectedDate ? ' selected' : ''}>${stEsc(day.session_date)}</option>`).join('')
+    : '<option value="">No saved dates</option>';
+}
+
+window.selectStatsDailyDate = date => {
+  statsDailySelectedDate = date;
+  window.switchStatsMode('daily');
+  renderStatsDailyTraffic();
+};
+
+const ST_DAILY_STATUS_LABELS = { increase:'Increase', decrease:'Decrease', stopped:'Stopped', new:'New', unchanged:'Unchanged' };
+const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
+
+window.sortStatsDaily = column => {
+  if (statsDailySortCol === column) statsDailySortDir *= -1;
+  else { statsDailySortCol = column; statsDailySortDir = 1; }
+  renderStatsDailyTraffic();
+};
+
+function renderStatsDailyTraffic() {
+  refreshStatsDailyDateSelect();
+  const select = document.getElementById('st-daily-date');
+  if (select?.value) statsDailySelectedDate = select.value;
+  const comparison = statsDailyComparison(statsDailySelectedDate);
+  const allRows = comparison.rows;
+  const counts = { increase:0, decrease:0, stopped:0, new:0, unchanged:0 };
+  allRows.forEach(row => counts[row.status]++);
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setText('st-daily-total', stN0(allRows.length));
+  setText('st-daily-increase', stN0(counts.increase));
+  setText('st-daily-decrease', stN0(counts.decrease));
+  setText('st-daily-stopped', stN0(counts.stopped));
+  setText('st-daily-new', stN0(counts.new));
+  const comparisonLabel = document.getElementById('st-daily-comparison');
+  if (comparisonLabel) comparisonLabel.textContent = comparison.currentDay
+    ? `Comparing ${comparison.currentDay.session_date}${comparison.previousDay ? ` with ${comparison.previousDay.session_date}` : ' (first saved date — all clients are new)'}. Daily history is kept until cleared in Stats Settings.`
+    : 'Paste a daily report to begin tracking traffic changes.';
+
+  const alerts = allRows.filter(row => row.status === 'decrease' || row.status === 'stopped');
+  const alertBox = document.getElementById('st-daily-alert');
+  if (alertBox) {
+    alertBox.classList.toggle('visible', alerts.length > 0);
+    alertBox.innerHTML = alerts.length ? `<strong>Traffic alert:</strong> ${counts.decrease} decreasing and ${counts.stopped} stopped. `
+      + alerts.slice(0, 6).map(row => `${stEsc(row.customer_name)}${row.decrease_streak >= 2 ? ` (${row.decrease_streak}-day decrease)` : ''}`).join(', ')
+      + (alerts.length > 6 ? ` and ${alerts.length - 6} more` : '') : '';
+  }
+
+  const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
+  const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
+  let rows = allRows.filter(row => !statusFilter || row.status === statusFilter)
+    .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
+    .filter(row => !queryText || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(queryText));
+  rows.sort((a,b) => {
+    const column = statsDailySortCol;
+    let av = column === 'status' ? ST_DAILY_STATUS_RANK[a.status] : a[column];
+    let bv = column === 'status' ? ST_DAILY_STATUS_RANK[b.status] : b[column];
+    if (typeof av === 'string' || typeof bv === 'string') return String(av ?? '').localeCompare(String(bv ?? '')) * statsDailySortDir;
+    return ((Number(av) || 0) - (Number(bv) || 0)) * statsDailySortDir;
+  });
+  setText('st-daily-count', `${rows.length} of ${allRows.length} client(s)`);
+  const tbody = document.getElementById('st-daily-tbody');
+  if (tbody) tbody.innerHTML = rows.length ? rows.map(row => {
+    const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
+    const changeText = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+    const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
+    return `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
+      + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
+      + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
+      + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
+      + `<td style="text-align:right">${row.decrease_streak ? `${row.decrease_streak} day${row.decrease_streak === 1 ? '' : 's'}` : '—'}</td>`
+      + `<td style="text-align:right">${stN0(row.completed)}</td><td style="text-align:right">${stN2(row.asr)}</td></tr>`;
+  }).join('') : '<tr><td colspan="12" style="text-align:center;padding:16px;color:#666">No daily traffic rows match the current filters.</td></tr>';
+  renderStatsDailySidebar();
+}
+window.renderStatsDailyTraffic = renderStatsDailyTraffic;
+
+function sendStatsDailyTrafficNotification(sessionDate) {
+  const alerts = statsDailyComparison(sessionDate).rows.filter(row => row.status === 'decrease' || row.status === 'stopped');
+  if (!alerts.length || !S.browserNotif || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const stopped = alerts.filter(row => row.status === 'stopped').length;
+  const decreasing = alerts.length - stopped;
+  new Notification('BalanceMonitor — Daily Traffic Alert', {
+    body:`${decreasing} decreasing, ${stopped} stopped on ${sessionDate}. ${alerts.slice(0, 4).map(row => row.customer_name).join(', ')}${alerts.length > 4 ? '…' : ''}`,
+    icon:'icon.svg',
+  });
+}
+
+function statsDailyDaySignature(day) {
+  return JSON.stringify((day?.clients || []).map(client => ({
+    key:client.key,
+    account_codes:client.account_codes,
+    attempts:client.attempts,
+    completed:client.completed,
+    raw_dur:client.raw_dur,
+    rnd_dur:client.rnd_dur,
+    revenue:client.revenue,
+  })).sort((a,b) => String(a.key).localeCompare(String(b.key))));
+}
+
+window.processStatsDailyTraffic = async () => {
+  if (!canPostStats()) { toast('Posting daily traffic is restricted for this account.', 'err'); return; }
+  const textarea = document.getElementById('stats-daily-ta');
+  const parsedDays = parseStatsDailyTraffic(textarea?.value || '');
+  if (!parsedDays.length) { toast('No valid daily traffic rows found. Expected Account Code, CustomerName, Date, Day, Attempts, Completed, ASR, ACD, Raw Dur, Rnd Dur, Revenue.', 'err', 8000); return; }
+  const changedDates = parsedDays.filter(day => {
+    const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
+    return saved && statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
+  }).map(day => day.session_date);
+  if (changedDates.length && !confirm(`Daily traffic already exists with different values for ${changedDates.join(', ')}. Replace ${changedDates.length === 1 ? 'that date' : 'those dates'}?`)) return;
+  const daysToSave = parsedDays.filter(day => {
+    const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
+    return !saved || statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
+  });
+  statsDailySelectedDate = parsedDays[parsedDays.length - 1].session_date;
+  if (!daysToSave.length) {
+    if (textarea) textarea.value = '';
+    renderStatsDailyTraffic();
+    toast('All report dates are already saved with the same values. Nothing was replaced.', 'ok', 6000);
+    return;
+  }
+  setLoading(true, 'Saving daily traffic history…');
+  try {
+    const postedAt = new Date();
+    for (const day of daysToSave) {
+      const record = normalizeStatsDailyDay({ ...day, id:day.session_date, posted_at:postedAt, posted_by:operatorName || '' });
+      statsDailyHistory = [...statsDailyHistory.filter(saved => saved.session_date !== day.session_date), record];
+      if (fbOk) {
+        await setDoc(doc(db, 'stats_daily_traffic', day.session_date), {
+          session_date:day.session_date,
+          posted_at:Timestamp.fromDate(postedAt),
+          posted_by:operatorName || '',
+          clients:day.clients,
+        });
+      }
+    }
+    saveStatsDailyLocal();
+    if (textarea) textarea.value = '';
+    renderStatsDailyTraffic();
+    sendStatsDailyTrafficNotification(statsDailySelectedDate);
+    const comparison = statsDailyComparison(statsDailySelectedDate);
+    const decreasing = comparison.rows.filter(row => row.status === 'decrease').length;
+    const stopped = comparison.rows.filter(row => row.status === 'stopped').length;
+    const skipped = parsedDays.length - daysToSave.length;
+    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} client total(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
+  } catch(e) { toast('Daily traffic save failed: ' + e.message, 'err', 8000); }
+  finally { setLoading(false); }
+};
+
 function classifyStats(g) {
   if (g.asr === 0 && g.acd === 0 && g.attempts > ST_CRIT_ATTEMPTS) return 'critical';
   if (g.asr >= 21) return 'good';
@@ -11713,8 +12171,29 @@ function statsFlags(r) {
   return h.join(' ') || '<span style="color:#888">—</span>';
 }
 
+function updateStatsModeButtons() {
+  document.getElementById('stmode-current')?.classList.toggle('active', statsPrimaryMode === 'current');
+  document.getElementById('stmode-daily')?.classList.toggle('active', statsPrimaryMode === 'daily');
+}
+
+window.switchStatsMode = mode => {
+  statsPrimaryMode = mode === 'daily' ? 'daily' : 'current';
+  document.body.classList.toggle('stats-daily-mode', statsPrimaryMode === 'daily');
+  updateStatsModeButtons();
+  if (statsPrimaryMode === 'current') { window.switchStatsView(statsViewName || 'summary'); return; }
+  stRemarkTipHide();
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-stats-daily')?.classList.add('active');
+  setSbStatus('Stats: Daily Traffic');
+  renderStatsDailyTraffic();
+};
+
 window.switchStatsView = name => {
   stRemarkTipHide();   // dismiss any lingering remark hover tooltip (mouseleave won't fire once the row is swapped out)
+  statsPrimaryMode = 'current';
+  document.body.classList.remove('stats-daily-mode');
+  updateStatsModeButtons();
   statsViewName = name;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
@@ -12145,6 +12624,7 @@ function statsRender() {
   renderStatsSummary();
   renderStatsTables();
   renderStatsHourly();
+  renderStatsDailyTraffic();
   updateStatsStatusBar();
 }
 
@@ -12313,6 +12793,27 @@ async function loadStatsSnaps() {
   } catch(e) { console.warn('loadStatsSnaps:', e); }
 }
 
+async function loadStatsDailyHistory() {
+  loadStatsDailyLocal();
+  if (!fbOk) return;
+  try {
+    const snapshot = await getDocs(collection(db, 'stats_daily_traffic'));
+    statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
+    saveStatsDailyLocal();
+  } catch(e) { console.warn('loadStatsDailyHistory:', e); }
+}
+
+function subscribeStatsDailyHistory() {
+  if (!fbOk) return;
+  try {
+    onSnapshot(collection(db, 'stats_daily_traffic'), snapshot => {
+      statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
+      saveStatsDailyLocal();
+      renderStatsDailyTraffic();
+    }, error => console.warn('stats daily traffic subscription:', error));
+  } catch(e) { console.warn('stats daily traffic subscribe:', e); }
+}
+
 async function cleanupOldStatsSnapshots() {
   // Deleting old snapshots is a write — admin only (non-admins have read-only stats).
   if (!fbOk || !S.retentionDays || !canEditStats()) return;
@@ -12338,9 +12839,11 @@ async function initStats() {
   document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
   setInterval(populateStatsSlots, 60000);
   await loadStatsSnaps();
+  await loadStatsDailyHistory();
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
   subscribeStatsRemarks();
+  subscribeStatsDailyHistory();
   statsRender();
   if (fbOk) {
     try {
