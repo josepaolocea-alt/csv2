@@ -1236,6 +1236,13 @@
       outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
       border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
     }
+    .sms-otp-existing {
+      display: grid; grid-template-columns: minmax(190px, 1fr) auto; gap: 6px;
+      align-items: end; margin-top: 10px; padding: 10px 12px;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+    }
+    .sms-otp-existing .sms-field { min-width: 0; }
+    .sms-otp-existing-help { grid-column: 1 / -1; color: var(--text-3); font-size: 9.5px; line-height: 1.35; }
     .sms-cred-otp-warning { margin-top: 4px; color: var(--orange); font-size: 9.5px; line-height: 1.35; }
     .sms-cred-secret-mask { font-family: var(--mono); letter-spacing: .08em; white-space: nowrap; }
     .sms-otp-output {
@@ -1255,6 +1262,8 @@
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-cred-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-otp-grid { grid-template-columns: 1fr 1fr; }
+      .sms-otp-existing { grid-template-columns: 1fr; }
+      .sms-otp-existing-help { grid-column: 1; }
     }
     label { font-size: 11px; }
     input[type="checkbox"] { accent-color: var(--accent); }
@@ -2397,6 +2406,16 @@
                     onclick="this.focus()" onpaste="onSmsOtpQrPaste(event)"
                     ondragover="onSmsOtpQrDragOver(event)" ondragleave="onSmsOtpQrDragLeave(event)" ondrop="onSmsOtpQrDrop(event)">
                     Click here and press <strong>Ctrl+V</strong> to paste a QR screenshot, or drag and drop an image here.
+                  </div>
+                  <div class="sms-otp-existing">
+                    <div class="sms-field">
+                      <label>Add OTP to Existing Credential</label>
+                      <select class="win-inp" id="sms-otp-existing-credential">
+                        <option value="">Choose an existing client credential...</option>
+                      </select>
+                    </div>
+                    <button type="button" class="tbtn primary" onclick="saveManualOtpToExistingCredential()">Save OTP to Existing</button>
+                    <div class="sms-otp-existing-help">Only the OTP secret, algorithm, digits, and period are updated. All other details in the selected credential stay unchanged.</div>
                   </div>
                   <div class="sms-otp-output" aria-live="polite">
                     <div id="sms-otp-code">------</div>
@@ -9291,6 +9310,28 @@ function startSmsOtpTimer() {
   smsOtpTimer = setInterval(refreshSmsOtpCountdown, 500);
 }
 
+function refreshSmsOtpCredentialOptions() {
+  const select = document.getElementById('sms-otp-existing-credential');
+  if (!select) return;
+  const current = select.value;
+  select.textContent = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = smsCredentials.length ? 'Choose an existing client credential...' : 'No credential records available';
+  select.appendChild(placeholder);
+  smsCredentials.slice().sort((a,b) => {
+    const aText = [a.client, a.account_type, a.user_name].join(' ');
+    const bText = [b.client, b.account_type, b.user_name].join(' ');
+    return aText.localeCompare(bText, undefined, { sensitivity:'base' });
+  }).forEach(row => {
+    const option = document.createElement('option');
+    option.value = row.id;
+    option.textContent = [row.client || 'Unnamed client', row.account_type, row.user_name].filter(Boolean).join(' — ');
+    select.appendChild(option);
+  });
+  if (current && smsCredentials.some(row => row.id === current)) select.value = current;
+}
+
 window.switchSmsCredentialSubtab = tab => {
   if (!['register','otp'].includes(tab)) return;
   smsCredentialSubtab = tab;
@@ -9300,7 +9341,8 @@ window.switchSmsCredentialSubtab = tab => {
   const otpPanel = document.getElementById('sms-credentials-otp-panel');
   if (registerPanel) registerPanel.style.display = tab === 'register' ? 'flex' : 'none';
   if (otpPanel) otpPanel.style.display = tab === 'otp' ? 'block' : 'none';
-  if (tab === 'otp') startSmsOtpTimer(); else stopSmsOtpTimer();
+  if (tab === 'otp') { refreshSmsOtpCredentialOptions(); startSmsOtpTimer(); }
+  else stopSmsOtpTimer();
 };
 
 function smsOtpBase32Bytes(secret) {
@@ -9571,13 +9613,17 @@ window.clearManualOtp = () => {
   smsOtpStatus('Secret cleared from this tab.');
 };
 
-window.useManualOtpInCredentialForm = () => {
-  try {
-    const secret = document.getElementById('sms-otp-secret')?.value || '';
-    const payload = smsParseOtpPayload(secret);
+function readSmsManualOtpPayload() {
+    const payload = smsParseOtpPayload(document.getElementById('sms-otp-secret')?.value || '');
     payload.algorithm = smsNormalizeOtpAlgorithm(document.getElementById('sms-otp-algorithm')?.value || payload.algorithm);
     payload.digits = Number(document.getElementById('sms-otp-digits')?.value) === 8 ? 8 : 6;
     payload.period = Number(document.getElementById('sms-otp-period')?.value) === 60 ? 60 : 30;
+    return payload;
+}
+
+window.useManualOtpInCredentialForm = () => {
+  try {
+    const payload = readSmsManualOtpPayload();
     if (!smsCredentialEditingId) newSmsCredential(false);
     setSmsCredentialInput('otp_secret', payload.secret);
     setSmsCredentialInput('otp_algorithm', payload.algorithm);
@@ -9588,6 +9634,34 @@ window.useManualOtpInCredentialForm = () => {
     document.getElementById('sms-cred-otp-secret')?.scrollIntoView({ behavior:'smooth', block:'center' });
     toast(smsCredentialEditingId ? 'OTP settings placed in the credential being edited. Click Save Credential to store them.' : 'OTP settings placed in a new credential form. Add the client details and save.', 'ok', 7000);
   } catch(e) { toast('Could not use this OTP key: ' + e.message, 'err', 7000); }
+};
+
+window.saveManualOtpToExistingCredential = () => {
+  const select = document.getElementById('sms-otp-existing-credential');
+  const id = select?.value || '';
+  const index = smsCredentials.findIndex(row => row.id === id);
+  if (index < 0) { toast('Choose an existing client credential first.', 'err'); return; }
+  let payload;
+  try { payload = readSmsManualOtpPayload(); }
+  catch(e) { toast('OTP was not saved: ' + e.message, 'err', 7000); return; }
+  const existing = smsCredentials[index];
+  const apply = () => {
+    smsCredentials[index] = {
+      ...existing,
+      otp_secret:payload.secret,
+      otp_algorithm:payload.algorithm,
+      otp_digits:String(payload.digits),
+      otp_period:String(payload.period),
+    };
+    saveSmsCredentials();
+    renderSmsCredentials();
+    refreshSmsOtpCredentialOptions();
+    if (select) select.value = id;
+    toast(`OTP settings saved to ${existing.client || 'the selected credential'}; other details were unchanged.`, 'ok', 7000);
+  };
+  if (existing.otp_secret) {
+    openSmsConfirm(`Replace the saved OTP settings for <strong>${esc(existing.client || 'this credential')}</strong>?<br><br>Other credential details will not be changed.`, 'Replace OTP', apply);
+  } else apply();
 };
 
 window.toggleSmsCredentialForm = () => {
@@ -9690,6 +9764,8 @@ window.generateSmsCredentialOtp = async id => {
     payload.period = Number(row.otp_period) === 60 ? 60 : 30;
     applySmsOtpPayload(payload, `Saved credential: ${row.client || 'credential'}`);
     switchSmsCredentialSubtab('otp');
+    const existingSelect = document.getElementById('sms-otp-existing-credential');
+    if (existingSelect) existingSelect.value = id;
     await generateManualOtp();
   } catch(e) { toast('Could not use the saved OTP key: ' + e.message, 'err', 7000); }
 };
@@ -9786,6 +9862,7 @@ window.renderSmsCredentials = () => {
     <td>${otpCell(row)}</td>
     <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}')">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
   </tr>`).join('') : '<tr><td colspan="15" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
+  refreshSmsOtpCredentialOptions();
 };
 
 window.clearSmsCredentialFilters = () => {
