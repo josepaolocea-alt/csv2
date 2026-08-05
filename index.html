@@ -1245,6 +1245,20 @@
       display: flex; gap: 3px; flex: none; padding: 3px; width: max-content;
       background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
     }
+    .sms-cred-topbar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex:none; }
+    .sms-cred-sync {
+      display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 8px;
+      border:1px solid var(--border); border-radius:999px; background:var(--surface-2);
+      color:var(--text-2); font-size:10px; font-weight:700; white-space:nowrap;
+    }
+    .sms-cred-sync::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--text-3); }
+    .sms-cred-sync.syncing::before { background:var(--orange); box-shadow:0 0 0 3px color-mix(in srgb, var(--orange) 18%, transparent); }
+    .sms-cred-sync.synced { color:var(--green); border-color:color-mix(in srgb, var(--green) 42%, var(--border)); }
+    .sms-cred-sync.synced::before { background:var(--green); }
+    .sms-cred-sync.local { color:var(--orange); border-color:color-mix(in srgb, var(--orange) 42%, var(--border)); }
+    .sms-cred-sync.local::before { background:var(--orange); }
+    .sms-cred-sync.error { color:var(--red); border-color:color-mix(in srgb, var(--red) 42%, var(--border)); }
+    .sms-cred-sync.error::before { background:var(--red); }
     .sms-cred-subtab {
       border: 0; border-radius: 4px; padding: 5px 11px; background: transparent;
       color: var(--text-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
@@ -1908,12 +1922,14 @@
         <div id="stats-sidebar-daily">
           <div id="stats-daily-post-controls" style="display:flex;flex:1;min-height:0;flex-direction:column;gap:4px">
             <div class="snap-label">Daily Traffic Import</div>
-            <textarea id="stats-daily-ta" placeholder="Paste the daily traffic report here…"></textarea>
+            <label for="stats-daily-import-date" style="font-size:11px;color:var(--muted);margin-top:2px">Traffic Date</label>
+            <input id="stats-daily-import-date" class="win-inp" type="date" aria-label="Traffic Date" style="width:100%">
+            <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…"></textarea>
             <div style="display:flex;gap:2px">
               <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsDailyTraffic()">Process Daily Traffic</button>
               <button class="tbtn" onclick="document.getElementById('stats-daily-ta').value=''" title="Clear text area">âœ•</button>
             </div>
-            <div class="settings-note" style="margin-top:2px">One record is kept per report date. Identical saved dates are skipped; changed values ask before replacing.</div>
+            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Identical saved dates are skipped; changed values ask before replacing.</div>
           </div>
           <div class="snap-label">Saved Daily Dates</div>
           <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
@@ -2359,9 +2375,12 @@
             </div>
             </div>
             <div id="sms-credentials-panel" style="display:none">
-              <div class="sms-cred-subtabs" role="tablist" aria-label="Credential tools">
-                <button type="button" class="sms-cred-subtab active" id="sms-cred-subtab-register" onclick="switchSmsCredentialSubtab('register')">Credential Register</button>
-                <button type="button" class="sms-cred-subtab" id="sms-cred-subtab-otp" onclick="switchSmsCredentialSubtab('otp')">Manual OTP</button>
+              <div class="sms-cred-topbar">
+                <div class="sms-cred-subtabs" role="tablist" aria-label="Credential tools">
+                  <button type="button" class="sms-cred-subtab active" id="sms-cred-subtab-register" onclick="switchSmsCredentialSubtab('register')">Credential Register</button>
+                  <button type="button" class="sms-cred-subtab" id="sms-cred-subtab-otp" onclick="switchSmsCredentialSubtab('otp')">Manual OTP</button>
+                </div>
+                <span class="sms-cred-sync local" id="sms-cred-sync-status" role="status" aria-live="polite" title="Credential records are currently available from this browser's local cache.">Local only</span>
               </div>
               <div id="sms-credentials-register-panel">
               <div id="sms-credentials-form" class="collapsed">
@@ -3558,6 +3577,8 @@ let smsSortCol = 'date', smsSortDir = -1;
 let smsCredentials = [], smsCredentialEditingId = null;
 let smsCredentialSortCol = 'client', smsCredentialSortDir = 1;
 let smsCredentialRemoteApplying = false, smsCredentialSubscribed = false;
+let smsCredentialPendingSync = false, smsCredentialSyncRevision = 0;
+let smsCredentialSyncInFlight = null, smsCredentialSyncActiveRevision = -1;
 let smsCredentialSubtab = 'register';
 let smsOtpTimer = null, smsOtpLastCounter = null, smsOtpActive = false;
 let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'client';
@@ -9399,28 +9420,111 @@ function normalizeSmsCredential(row) {
   return out;
 }
 
+function setSmsCredentialSyncStatus(state, detail = '') {
+  const el = document.getElementById('sms-cred-sync-status');
+  if (!el) return;
+  const labels = { local:'Local only', syncing:'Syncing…', synced:'Synced to Firebase', error:'Sync failed' };
+  const defaults = {
+    local:'Saved in this browser only. Connect to Firebase to make these credentials available in another browser.',
+    syncing:'Saving credential changes to Firebase…',
+    synced:'Credential records are saved in Firebase and will be available in another signed-in admin browser.',
+    error:'Credential records remain saved in this browser, but the latest Firebase synchronization failed.',
+  };
+  el.className = `sms-cred-sync ${state}`;
+  el.textContent = labels[state] || labels.local;
+  el.title = detail || defaults[state] || defaults.local;
+}
+
+function setSmsCredentialPendingSync(pending) {
+  smsCredentialPendingSync = !!pending;
+  try {
+    if (smsCredentialPendingSync) localStorage.setItem('bm_sms_credentials_pending_sync', '1');
+    else localStorage.removeItem('bm_sms_credentials_pending_sync');
+  } catch(e) {}
+}
+
 function loadSmsCredentials() {
   try {
     const raw = localStorage.getItem('bm_sms_credentials');
     const source = raw === null ? [] : JSON.parse(raw);
     smsCredentials = Array.isArray(source) ? source.map(normalizeSmsCredential) : [];
+    smsCredentialPendingSync = localStorage.getItem('bm_sms_credentials_pending_sync') === '1';
   } catch(e) {
     smsCredentials = [];
+    smsCredentialPendingSync = false;
   }
+  setSmsCredentialSyncStatus('local', smsCredentialPendingSync
+    ? 'Unsynced credential changes were restored from this browser and will retry when Firebase is available.'
+    : 'Loaded this browser’s credential cache; checking Firebase availability.');
+}
+
+function syncSmsCredentialsToRemote() {
+  if (smsCredentialSyncInFlight) {
+    const requestedRevision = smsCredentialSyncRevision;
+    return smsCredentialSyncInFlight.then(() => requestedRevision > smsCredentialSyncActiveRevision ? syncSmsCredentialsToRemote() : true);
+  }
+  if (!fbOk) {
+    setSmsCredentialPendingSync(true);
+    setSmsCredentialSyncStatus('local', 'Firebase is not connected. Changes are saved in this browser and will retry later.');
+    return Promise.resolve(false);
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    setSmsCredentialPendingSync(true);
+    setSmsCredentialSyncStatus('local', 'This browser is offline. Changes are saved locally and will sync after reconnecting.');
+    return Promise.resolve(false);
+  }
+  const revision = smsCredentialSyncRevision;
+  smsCredentialSyncActiveRevision = revision;
+  setSmsCredentialSyncStatus('syncing');
+  const syncTask = setDoc(doc(db, 'sms', 'credentials'), { credentials: smsCredentials, updated_at: Timestamp.now() })
+    .then(() => {
+      if (revision === smsCredentialSyncRevision) {
+        setSmsCredentialPendingSync(false);
+        setSmsCredentialSyncStatus('synced', `Last Firebase sync: ${new Date().toLocaleTimeString()}`);
+      }
+      return true;
+    })
+    .catch(e => {
+      console.warn('SMS credentials sync failed:', e);
+      if (revision === smsCredentialSyncRevision) {
+        setSmsCredentialPendingSync(true);
+        setSmsCredentialSyncStatus('error', `Firebase sync failed: ${e.message || 'Unknown error'}. The latest records remain in this browser.`);
+        toast('Credential changes are saved locally, but Firebase sync failed. They may not appear in another browser yet.', 'err', 8000);
+      }
+      return false;
+    })
+    .finally(() => {
+      if (smsCredentialSyncInFlight === syncTask) smsCredentialSyncInFlight = null;
+    });
+  smsCredentialSyncInFlight = syncTask;
+  return syncTask;
 }
 
 function saveSmsCredentials() {
   try { localStorage.setItem('bm_sms_credentials', JSON.stringify(smsCredentials)); } catch(e) {}
-  if (smsCredentialRemoteApplying || !fbOk) return;
-  setDoc(doc(db, 'sms', 'credentials'), { credentials: smsCredentials, updated_at: Timestamp.now() })
-    .catch(e => console.warn('SMS credentials sync failed:', e));
+  if (smsCredentialRemoteApplying) return Promise.resolve(true);
+  smsCredentialSyncRevision++;
+  setSmsCredentialPendingSync(true);
+  return syncSmsCredentialsToRemote();
 }
 
 async function subscribeSmsCredentials() {
-  if (!fbOk || smsCredentialSubscribed) return;
+  if (!fbOk) {
+    setSmsCredentialSyncStatus('local', 'Firebase is not connected. Credential records are currently available only in this browser.');
+    return;
+  }
+  if (smsCredentialSubscribed) {
+    if (smsCredentialPendingSync) syncSmsCredentialsToRemote();
+    return;
+  }
   smsCredentialSubscribed = true;
+  setSmsCredentialSyncStatus('syncing', 'Connecting to the Firebase credential database…');
   try {
     onSnapshot(doc(db, 'sms', 'credentials'), async snap => {
+      if (smsCredentialPendingSync) {
+        await syncSmsCredentialsToRemote();
+        return;
+      }
       if (snap.exists()) {
         const data = snap.data() || {};
         const remote = Array.isArray(data.credentials) ? data.credentials.map(normalizeSmsCredential) : [];
@@ -9430,12 +9534,30 @@ async function subscribeSmsCredentials() {
           try { localStorage.setItem('bm_sms_credentials', JSON.stringify(remote)); } catch(e) {}
           if (smsActiveTab === 'credentials') renderSmsCredentials();
         } finally { smsCredentialRemoteApplying = false; }
+        setSmsCredentialSyncStatus('synced', 'Loaded from Firebase. These credentials are available in other signed-in admin browsers.');
       } else if (smsCredentials.length) {
-        await setDoc(doc(db, 'sms', 'credentials'), { credentials: smsCredentials, updated_at: Timestamp.now() });
+        setSmsCredentialPendingSync(true);
+        await syncSmsCredentialsToRemote();
+      } else {
+        setSmsCredentialSyncStatus('synced', 'Connected to Firebase. No credential records have been saved yet.');
       }
-    }, err => console.warn('SMS credentials onSnapshot error:', err));
-  } catch(e) { console.warn('SMS credentials subscribe failed:', e); }
+    }, err => {
+      smsCredentialSubscribed = false;
+      console.warn('SMS credentials onSnapshot error:', err);
+      setSmsCredentialSyncStatus('error', `Firebase connection failed: ${err.message || 'Unknown error'}. Local credential records are still available.`);
+    });
+  } catch(e) {
+    smsCredentialSubscribed = false;
+    console.warn('SMS credentials subscribe failed:', e);
+    setSmsCredentialSyncStatus('error', `Firebase connection failed: ${e.message || 'Unknown error'}. Local credential records are still available.`);
+  }
 }
+
+window.addEventListener('online', () => {
+  if (!fbOk) return;
+  if (!smsCredentialSubscribed) subscribeSmsCredentials();
+  else if (smsCredentialPendingSync) syncSmsCredentialsToRemote();
+});
 
 function stopSmsOtpTimer() {
   if (smsOtpTimer) clearInterval(smsOtpTimer);
@@ -11759,37 +11881,37 @@ function statsDailyDateKey(value) {
   return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 
-function parseStatsDailyTraffic(text) {
+function parseStatsDailyTraffic(text, selectedDate) {
   const lines = String(text || '').replace(/\r/g, '').split('\n').filter(line => line.trim());
-  const days = new Map();
+  const sessionDate = statsDailyDateKey(selectedDate);
+  if (!sessionDate) return [];
+  const clients = new Map();
   const num = value => {
     const parsed = parseFloat(String(value ?? '').replace(/[^0-9.\-]/g, ''));
     return Number.isFinite(parsed) ? parsed : 0;
   };
   for (const line of lines) {
     const columns = (line.includes('\t') ? line.split('\t') : line.split(',')).map(value => value.trim());
-    if (columns.length < 11) continue;
-    const sessionDate = statsDailyDateKey(columns[2]);
+    if (columns.length < 9) continue;
     const accountCode = columns[0] || '';
     const customerName = columns[1] || accountCode;
-    if (!sessionDate || !accountCode || !customerName || /^total$/i.test(accountCode)) continue;
-    if (!days.has(sessionDate)) days.set(sessionDate, new Map());
+    if (!accountCode || !customerName || /^total$/i.test(accountCode)) continue;
     const key = customerName.trim().toLowerCase();
-    const clients = days.get(sessionDate);
     let client = clients.get(key);
     if (!client) {
       client = { key, customer_name:customerName, account_codes:new Set(), attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 };
       clients.set(key, client);
     }
     client.account_codes.add(accountCode);
-    client.attempts += num(columns[4]);
-    client.completed += num(columns[5]);
-    client.raw_dur += num(columns[8]);
-    client.rnd_dur += num(columns[9]);
-    client.revenue += num(columns[10]);
+    client.attempts += num(columns[2]);
+    client.completed += num(columns[3]);
+    client.raw_dur += num(columns[6]);
+    client.rnd_dur += num(columns[7]);
+    client.revenue += num(columns[8]);
   }
-  return [...days.entries()].sort(([a],[b]) => a.localeCompare(b)).map(([session_date, clients]) => ({
-    session_date,
+  if (!clients.size) return [];
+  return [{
+    session_date:sessionDate,
     clients:[...clients.values()].map(client => ({
       key:client.key,
       customer_name:client.customer_name,
@@ -11802,7 +11924,7 @@ function parseStatsDailyTraffic(text) {
       rnd_dur:client.rnd_dur,
       revenue:client.revenue,
     }))
-  }));
+  }];
 }
 window.parseStatsDailyTraffic = parseStatsDailyTraffic;
 
@@ -12013,8 +12135,10 @@ function statsDailyDaySignature(day) {
 window.processStatsDailyTraffic = async () => {
   if (!canPostStats()) { toast('Posting daily traffic is restricted for this account.', 'err'); return; }
   const textarea = document.getElementById('stats-daily-ta');
-  const parsedDays = parseStatsDailyTraffic(textarea?.value || '');
-  if (!parsedDays.length) { toast('No valid daily traffic rows found. Expected Account Code, CustomerName, Date, Day, Attempts, Completed, ASR, ACD, Raw Dur, Rnd Dur, Revenue.', 'err', 8000); return; }
+  const importDate = document.getElementById('stats-daily-import-date')?.value || '';
+  if (!statsDailyDateKey(importDate)) { toast('Select the Traffic Date for this report.', 'err'); return; }
+  const parsedDays = parseStatsDailyTraffic(textarea?.value || '', importDate);
+  if (!parsedDays.length) { toast('No valid Client Wise Traffic rows found. Expected Account Code, CustomerName, Attempts, Completed, ASR, ACD, Raw Dur, Rnd Dur, Revenue.', 'err', 8000); return; }
   const changedDates = parsedDays.filter(day => {
     const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
     return saved && statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
@@ -12834,6 +12958,8 @@ async function cleanupOldStatsSnapshots() {
 }
 
 async function initStats() {
+  const dailyImportDate = document.getElementById('stats-daily-import-date');
+  if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
   populateStatsSlots();
   // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
   document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
