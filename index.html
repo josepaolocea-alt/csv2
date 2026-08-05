@@ -1218,6 +1218,17 @@
       white-space: nowrap; cursor: pointer;
     }
     .sms-vendor-chk input { margin: 0; accent-color: var(--accent); }
+    .sms-vendor-priority-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 5px;
+      color: var(--text-2); font-size: 10px;
+    }
+    .sms-vendor-priority-row label { flex: 0 0 auto; font-weight: 600; }
+    .sms-vendor-priority-row select { min-width: 180px; max-width: 260px; }
+    .sms-prio-badge {
+      display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px;
+      border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+      font-size: 9px; font-weight: 800; letter-spacing: .03em; white-space: nowrap;
+    }
     /* ── SMS textarea (Notes / Emails) ── */
     .sms-textarea {
       font-family: var(--font); font-size: 11px;
@@ -2387,7 +2398,7 @@
               <div class="sms-field"><label>Status</label><div class="sms-combo" data-combo="status"><input class="win-inp" id="sms-status" autocomplete="off" readonly onfocus="openSmsCombo('status')" onclick="openSmsCombo('status')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('status',event)">▼</button><div class="sms-combo-options" id="sms-status-options"></div></div></div>
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
-              <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div></div>
+              <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div><div class="sms-vendor-priority-row"><label for="sms-priority-vendor">Priority Vendor</label><select class="win-sel" id="sms-priority-vendor" title="Choose one of the ticked vendors as the priority" disabled><option value="">Tick a vendor first</option></select><span>Optional · one priority per route</span></div></div>
               <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
               <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
             </div>
@@ -2448,6 +2459,7 @@
                   <th onclick="sortSms('opt_out')" id="sms-th-opt_out" style="cursor:pointer">Opt-Out</th>
                   <th onclick="sortSms('overdraft')" id="sms-th-overdraft" style="cursor:pointer">Overdraft</th>
                   <th onclick="sortSms('vendor')" id="sms-th-vendor" style="cursor:pointer">Vendor(s)</th>
+                  <th onclick="sortSms('priority_vendor')" id="sms-th-priority_vendor" style="cursor:pointer">Priority Vendor</th>
                   <th onclick="sortSms('emails')" id="sms-th-emails" style="cursor:pointer">Email(s)</th>
                   <th onclick="sortSms('notes')" id="sms-th-notes" style="cursor:pointer">Notes / Remarks</th>
                   <th>Action</th>
@@ -2757,7 +2769,6 @@
                   <th onclick="sortStats('account_codes')">Account Code</th>
                   <th onclick="sortStats('destination')">Destination</th>
                   <th onclick="sortStats('attempts')" style="text-align:right">Attempts</th>
-                  <th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                   <th onclick="sortStats('completed')" style="text-align:right">Completed</th>
                   <th onclick="sortStats('asr')" style="text-align:right">ASR %</th>
                   <th onclick="sortStats('acd')" style="text-align:right">ACD (min)</th>
@@ -2765,6 +2776,7 @@
                   <th onclick="sortStats('cls')">Classification</th>
                   <th>ACD Band</th>
                   <th>Status / Flags</th>
+                  <th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th>
                   <th>Remarks</th>
                 </tr></thead>
                 <tbody id="st-tbody-all"></tbody>
@@ -2781,9 +2793,9 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-critical"></tbody>
             </table></div>
           </div>
@@ -2797,9 +2809,9 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
             </table></div>
           </div>
@@ -2813,9 +2825,9 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-watch"></tbody>
             </table></div>
           </div>
@@ -2829,9 +2841,9 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-ok"></tbody>
             </table></div>
           </div>
@@ -2845,9 +2857,9 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
             </table></div>
           </div>
@@ -9276,7 +9288,7 @@ window.exportCurrentAlertView=()=>{
    HELPERS
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
-const SMS_FIELDS = ['date','client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_FIELDS = ['date','client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','priority_vendor','emails','notes'];
 const SMS_HEADER_MAP = {
   date:'date', dateadded:'date', datecreated:'date', createddate:'date', addeddate:'date', dateadd:'date',
   client:'client', clientname:'client', customer:'client', customername:'client',
@@ -9294,6 +9306,7 @@ const SMS_HEADER_MAP = {
   optout:'opt_out', opt:'opt_out',
   overdraft:'overdraft',
   vendor:'vendor', vendors:'vendor', vendorlist:'vendor',
+  priorityvendor:'priority_vendor', priovendor:'priority_vendor', preferredvendor:'priority_vendor', primaryvendor:'priority_vendor',
   email:'emails', emails:'emails', emailnotes:'emails',
   notes:'notes', note:'notes', remarks:'notes', remark:'notes'
 };
@@ -9319,6 +9332,10 @@ function normalizeSmsVendors(v) {
   const seen = new Set(), out = [];
   smsSplitMulti(v).forEach(s => { const u = s.toUpperCase(); if (!seen.has(u)) { seen.add(u); out.push(u); } });
   return out.join(', ');
+}
+
+function normalizeSmsPriorityVendor(v) {
+  return (smsSplitMulti(v)[0] || '').toUpperCase();
 }
 
 function smsMergeMulti(existing, incoming, normalizer=normalizeSmsSenderIds) {
@@ -9409,6 +9426,8 @@ function normalizeSmsClient(row) {
   out.opt_out = normalizeSmsOptOut(out.opt_out);
   out.sender_id = normalizeSmsSenderIds(out.sender_id);
   out.vendor = normalizeSmsVendors(out.vendor);
+  out.priority_vendor = normalizeSmsPriorityVendor(out.priority_vendor);
+  if (out.priority_vendor) out.vendor = normalizeSmsVendors(`${out.vendor}, ${out.priority_vendor}`);
   out.id = row?.id || smsId();
   return out;
 }
@@ -10586,7 +10605,7 @@ window.onSmsSenderIdPaste = (e) => {
 // Union of the fixed vendor list and any vendors already present in saved data
 function smsAllVendors(extra=[]) {
   const seen = new Set(), out = [];
-  [...SMS_VENDORS, ...smsClients.flatMap(r => smsSplitMulti(r.vendor)), ...extra]
+  [...SMS_VENDORS, ...smsClients.flatMap(r => smsSplitMulti(r.vendor)), ...smsClients.map(r => r.priority_vendor), ...extra]
     .forEach(v => { const u = String(v||'').trim().toUpperCase(); if (u && !seen.has(u)) { seen.add(u); out.push(u); } });
   return out;
 }
@@ -10595,7 +10614,7 @@ function buildSmsVendorBox(extra=[]) {
   const box = document.getElementById('sms-vendor-box');
   if (!box) return;
   box.innerHTML = smsAllVendors(extra).map(v =>
-    `<label class="sms-vendor-chk"><input type="checkbox" value="${esc(v)}">${esc(v)}</label>`
+    `<label class="sms-vendor-chk"><input type="checkbox" value="${esc(v)}" onchange="onSmsVendorSelectionChange()">${esc(v)}</label>`
   ).join('');
 }
 // Read the ticked vendors as a normalized "A, B" string
@@ -10604,11 +10623,29 @@ function smsReadVendors() {
     [...document.querySelectorAll('#sms-vendor-box input:checked')].map(c => c.value).join(',')
   );
 }
+function smsRefreshPriorityVendorOptions(preferred) {
+  const select = document.getElementById('sms-priority-vendor');
+  if (!select) return;
+  const checked = [...document.querySelectorAll('#sms-vendor-box input:checked')].map(input => input.value);
+  const wanted = normalizeSmsPriorityVendor(preferred === undefined ? select.value : preferred);
+  select.innerHTML = '<option value="">No priority</option>' + checked.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const match = checked.find(v => v.toUpperCase() === wanted);
+  select.value = match || '';
+  select.disabled = checked.length === 0;
+  if (!checked.length) select.innerHTML = '<option value="">Tick a vendor first</option>';
+}
+window.onSmsVendorSelectionChange = () => smsRefreshPriorityVendorOptions();
+function smsReadPriorityVendor() {
+  return normalizeSmsPriorityVendor(document.getElementById('sms-priority-vendor')?.value || '');
+}
 // Tick the checkboxes matching the given vendor string
-function smsSetVendors(str) {
+function smsSetVendors(str, priorityVendor='') {
   const wanted = new Set(smsSplitMulti(str).map(v => v.toUpperCase()));
+  const priority = normalizeSmsPriorityVendor(priorityVendor);
+  if (priority) wanted.add(priority);
   buildSmsVendorBox([...wanted]);
   document.querySelectorAll('#sms-vendor-box input').forEach(c => { c.checked = wanted.has(c.value.toUpperCase()); });
+  smsRefreshPriorityVendorOptions(priority);
 }
 
 function updateSmsTabUi() {
@@ -10701,6 +10738,7 @@ function smsReadForm() {
     opt_out: smsFormValue('sms-opt-out'),
     overdraft: smsFormValue('sms-overdraft'),
     vendor: smsReadVendors(),
+    priority_vendor: smsReadPriorityVendor(),
     emails: smsFormValue('sms-emails'),
     notes: smsFormValue('sms-notes')
   });
@@ -10720,7 +10758,7 @@ function smsFillForm(row) {
   smsSetValue('sms-status', r.status);
   smsSetValue('sms-opt-out', r.opt_out);
   smsSetValue('sms-overdraft', r.overdraft);
-  smsSetVendors(r.vendor);
+  smsSetVendors(r.vendor, r.priority_vendor);
   smsSetValue('sms-emails', r.emails);
   smsSetValue('sms-notes', r.notes);
   toggleSmsEmailField();
@@ -10975,6 +11013,7 @@ window.showSmsDetail = id => {
     ['Opt-Out', r.opt_out],
     ['Overdraft', r.overdraft],
     ['Vendor(s)', r.vendor],
+    ['Priority Vendor', r.priority_vendor],
     ['Email(s)', r.emails, true],
     ['Notes / Remarks', r.notes, true]
   ];
@@ -11095,6 +11134,9 @@ window.applySmsBulkEdit = () => {
   };
   const updates = {};
   Object.entries(fieldMap).forEach(([k, v]) => { if (v !== '') updates[k] = v; });
+  // Replacing the vendor list also clears an old priority that may no longer
+  // belong to the route; set a new priority from the regular edit form.
+  if (Object.prototype.hasOwnProperty.call(updates, 'vendor')) updates.priority_vendor = '';
   if (Object.keys(updates).length === 0) { toast('Fill in at least one field to apply', 'err'); return; }
   const summary = Object.entries(updates)
     .map(([k, v]) => `<strong>${esc(k.replace(/_/g, ' '))}</strong> → ${esc(v)}`).join('<br>');
@@ -11118,7 +11160,7 @@ window.applySmsBulkEdit = () => {
 };
 /* ─────────────────────────────────────────────────────────── */
 
-const SMS_SORTABLE_COLS = ['date','client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','emails','notes'];
+const SMS_SORTABLE_COLS = ['date','client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','priority_vendor','emails','notes'];
 
 window.renderSmsClients = () => {
   const tbody = document.getElementById('sms-clients-tbody');
@@ -11177,11 +11219,12 @@ window.renderSmsClients = () => {
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
+    <td>${r.priority_vendor ? `<span class="sms-prio-badge" title="Priority vendor for this route">★ PRIO</span> <strong>${esc(r.priority_vendor)}</strong>` : '<span class="sms-muted">—</span>'}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
   </tr>`;
-  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?15:14}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?16:15}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
   const allCb = document.getElementById('sms-bulk-all');
   if (allCb) {
@@ -11191,13 +11234,16 @@ window.renderSmsClients = () => {
   refreshSmsBulkCount();
 };
 
+const SMS_ROUTE_EXPORT_HEADERS = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Priority Vendor','Emails','Notes'];
+const smsRouteExportRow = r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.priority_vendor,r.emails,r.notes];
+
 window.downloadSmsClientTemplate = () => {
   const rows = [
-    ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'],
-    [todayStr(),'Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','','Multiple sender IDs and vendors — separate with , or ;'],
-    [todayStr(),'Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','','Single sender ID / vendor'],
-    [todayStr(),'Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','','Inactive — appears greyed out'],
-    [todayStr(),'Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','ops@example.com','Email fallback']
+    SMS_ROUTE_EXPORT_HEADERS,
+    [todayStr(),'Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','SMART SUITE','','Multiple sender IDs and vendors — separate with , or ;'],
+    [todayStr(),'Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','M360','','Single sender ID / vendor'],
+    [todayStr(),'Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','SMART SUITE','','Inactive — appears greyed out'],
+    [todayStr(),'Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','IBAZAAR','ops@example.com','Email fallback']
   ];
   const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
@@ -11211,11 +11257,11 @@ window.downloadSmsClientTemplate = () => {
 
 window.exportSmsClientsCsv = () => {
   if (!smsClients.length) { toast('No SMS client data to export', 'err'); return; }
-  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
+  const headers = SMS_ROUTE_EXPORT_HEADERS;
   const rows = smsClients
     .slice()
     .sort((a,b) => String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination)))
-    .map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+    .map(smsRouteExportRow);
   const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
@@ -11236,8 +11282,8 @@ window.exportSmsClientByRow = id => {
     .slice()
     .sort((a,b) => String(a.destination).localeCompare(String(b.destination)));
   if (!rows.length) { toast(`No routes found for "${clientName}"`, 'err'); return; }
-  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
-  const data = rows.map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const headers = SMS_ROUTE_EXPORT_HEADERS;
+  const data = rows.map(smsRouteExportRow);
   const csv = [headers, ...data].map(arr => arr.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
   const a = document.createElement('a');
@@ -11259,8 +11305,8 @@ window.exportSmsSelected = format => {
       || String(a.client).localeCompare(String(b.client))
       || String(a.destination).localeCompare(String(b.destination)));
   if (!rows.length) { toast('No selected routes found', 'err'); return; }
-  const headers = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Emails','Notes'];
-  const data = rows.map(r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.emails,r.notes]);
+  const headers = SMS_ROUTE_EXPORT_HEADERS;
+  const data = rows.map(smsRouteExportRow);
   const base = `${smsTabCfg().filePrefix}_selected_${todayStr()}`;
   if (format === 'xlsx') {
     if (!window.XLSX) { toast('Excel export is still loading — try again in a moment', 'err'); return; }
@@ -11730,6 +11776,8 @@ window.confirmRollback = async () => {
    STATS MODULE
 ════════════════════════════════════════════════ */
 let statsTodaySnaps = [];      // [{id,timestamp,session_date,time_slot,data:[rawRows]}]
+let statsPreviousDaySnaps = []; // latest saved day before today; route-level same-slot comparison
+let statsPreviousDayDate = '';
 let statsViewName = 'summary';
 let statsPrimaryMode = 'current';
 let statsDailyHistory = [];    // [{id,session_date,posted_at,clients:[daily aggregates]}] — no automatic retention
@@ -12312,37 +12360,42 @@ function statsDailyComparison(sessionDate) {
   return { currentDay, previousDay, rows };
 }
 
-function statsAccountCodeTokens(value) {
-  return String(value || '').split(/[;,]/).map(code => code.trim()).filter(Boolean);
+// Compare the exact route shown in Current Stats with the same time slot from
+// the most recent prior saved day. The route key is Account Code + Destination,
+// matching groupStatsSnapshot(), so traffic from other destinations never leaks
+// into this badge.
+function statsPreviousRouteTrendMap(timeSlot) {
+  const previousSnap = statsPreviousDaySnaps.find(snap => String(snap.time_slot) === String(timeSlot || '')) || null;
+  return { previousSnap, routes:previousSnap ? groupStatsSnapshot(previousSnap) : new Map() };
 }
 
-// Index the latest daily comparison by account code so every hourly Stats row
-// can show its most recent day-over-day traffic direction at a glance.
-function statsLatestDailyTrendMap() {
-  const days = statsDailySortedHistory();
-  const latest = days[days.length - 1];
-  if (!latest) return new Map();
-  const map = new Map();
-  statsDailyComparison(latest.session_date).rows.forEach(row => {
-    statsAccountCodeTokens(row.account_codes).forEach(code => map.set(code.toLowerCase(), row));
-  });
-  return map;
-}
-
-function statsTrafficTrendCell(row, trendMap) {
-  const codes = statsAccountCodeTokens(row.account_code || row.acct_list);
-  const trend = codes.map(code => trendMap.get(code.toLowerCase())).find(Boolean);
-  if (!trend) return '<span class="st-traffic-trend none" title="Import at least one Daily Traffic report for this account">— No daily data</span>';
-  const pct = trend.change_pct === null ? '' : ` ${trend.change_pct > 0 ? '+' : ''}${trend.change_pct.toFixed(1)}%`;
+function statsTrafficTrendCell(row, comparison, currentSnap) {
+  if (!comparison?.previousSnap) {
+    const detail = statsPreviousDayDate
+      ? `No ${String(currentSnap?.time_slot || '')} snapshot was saved on ${statsPreviousDayDate}`
+      : 'No earlier Stats day is available';
+    return `<span class="st-traffic-trend none" title="${stEsc(detail)}">— No prior slot</span>`;
+  }
+  const previous = comparison.routes.get(row.gkey);
+  if (!previous) return '<span class="st-traffic-trend new" title="This Account Code + Destination was not present in the matching prior-day time slot">★ New route</span>';
+  const attempts = Number(row.attempts) || 0;
+  const previousAttempts = Number(previous.attempts) || 0;
+  const change = attempts - previousAttempts;
+  let status = 'unchanged';
+  if (previousAttempts > 0 && attempts === 0) status = 'stopped';
+  else if (attempts > previousAttempts) status = 'increase';
+  else if (attempts < previousAttempts) status = 'decrease';
+  const changePct = previousAttempts > 0 ? change / previousAttempts * 100 : null;
+  const pct = changePct === null ? '' : ` ${changePct > 0 ? '+' : ''}${changePct.toFixed(1)}%`;
   const labels = {
     increase:`&#9650;${pct || ' Increase'}`,
     decrease:`&#9660;${pct || ' Decrease'}`,
     stopped:'&#9632; Stopped',
-    new:'&#9733; New',
     unchanged:'&#8594; 0.0%'
   };
-  const detail = `${trend.previous_date || 'No previous day'}: ${stN0(trend.previous_attempts)} attempts; ${trend.date}: ${stN0(trend.attempts)} attempts`;
-  return `<span class="st-traffic-trend ${trend.status}" title="${stEsc(detail)}">${labels[trend.status] || labels.unchanged}</span>`;
+  const route = `${row.account_code || row.acct_list || ''} · ${row.destination || ''}`;
+  const detail = `${route} — ${comparison.previousSnap.session_date} ${comparison.previousSnap.time_slot}: ${stN0(previousAttempts)} attempts; ${currentSnap?.session_date || todayStr()} ${currentSnap?.time_slot || ''}: ${stN0(attempts)} attempts`;
+  return `<span class="st-traffic-trend ${status}" title="${stEsc(detail)}">${labels[status] || labels.unchanged}</span>`;
 }
 
 function renderStatsDailySidebar() {
@@ -12820,7 +12873,8 @@ function processStatsRows(rows, tbodyId, full) {
     tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
     return;
   }
-  const dailyTrendMap = statsLatestDailyTrendMap();
+  const currentSnap = statsCurrentSnap();
+  const routeTrend = statsPreviousRouteTrendMap(currentSnap?.time_slot);
   tb.innerHTML = rows.map(r => {
     const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
     const cells = full
@@ -12828,7 +12882,6 @@ function processStatsRows(rows, tbodyId, full) {
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
-         <td>${statsTrafficTrendCell(r, dailyTrendMap)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stVal(r.asr)}</td>
          <td style="text-align:right">${stVal(r.acd)}</td>
@@ -12836,17 +12889,18 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${stClsBadge(r.cls)}</td>
          <td>${stAcdBadge(r.acdcls)}</td>
          <td>${statsFlags(r)}</td>
+         <td>${statsTrafficTrendCell(r, routeTrend, currentSnap)}</td>
          ${stRemarkCell(r)}`
       : `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}${stDrillBtn()}</td>
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
-         <td>${statsTrafficTrendCell(r, dailyTrendMap)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stVal(r.asr)}</td>
          <td style="text-align:right">${stVal(r.acd)}</td>
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${statsFlags(r)}</td>
+         <td>${statsTrafficTrendCell(r, routeTrend, currentSnap)}</td>
          ${stRemarkCell(r)}`;
     // The whole row is the remark target: double-click anywhere to edit, hover
     // anywhere to read. data-rk/data-label are read by editStatsRemark / the tooltip.
@@ -13282,6 +13336,26 @@ async function loadStatsSnaps() {
   } catch(e) { console.warn('loadStatsSnaps:', e); }
 }
 
+async function loadStatsPreviousDaySnaps() {
+  statsPreviousDaySnaps = [];
+  statsPreviousDayDate = '';
+  if (!fbOk) return;
+  try {
+    // At most one snapshot per hour, so 24 documents are enough to recover the
+    // complete most recent saved day before today without reading old history.
+    const previousQuery = query(
+      collection(db, 'stats_snapshots'),
+      where('session_date', '<', todayStr()),
+      orderBy('session_date', 'desc'),
+      limit(24)
+    );
+    const snapshot = await getDocs(previousQuery);
+    const candidates = snapshot.docs.map(entry => ({ id:entry.id, ...entry.data(), timestamp:entry.data().timestamp?.toDate?.() }));
+    statsPreviousDayDate = candidates[0]?.session_date || '';
+    statsPreviousDaySnaps = candidates.filter(entry => entry.session_date === statsPreviousDayDate);
+  } catch(e) { console.warn('loadStatsPreviousDaySnaps:', e); }
+}
+
 async function loadStatsDailyHistory() {
   loadStatsDailyLocal();
   if (!fbOk) return;
@@ -13331,6 +13405,7 @@ async function initStats() {
   document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
   setInterval(populateStatsSlots, 60000);
   await loadStatsSnaps();
+  await loadStatsPreviousDaySnaps();
   await loadStatsDailyHistory();
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
