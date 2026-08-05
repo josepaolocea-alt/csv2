@@ -1370,6 +1370,16 @@
     }
     .sms-cred-mono { font-family: Consolas, "SFMono-Regular", monospace; }
     .sms-cred-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sms-cred-link {
+      color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+      cursor: pointer;
+    }
+    .sms-cred-link:hover { color: var(--accent-strong); }
+    .sms-cred-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+    .sms-cred-link-icon { margin-left: 3px; font-size: 10px; text-decoration: none; }
+    .sms-cred-link-input { display: flex; gap: 4px; align-items: stretch; }
+    .sms-cred-link-input .win-inp { flex: 1; min-width: 0; }
+    .sms-cred-link-input .tbtn { flex: none; }
     #sms-credentials-tbl th { white-space: nowrap; cursor: pointer; }
     #sms-credentials-tbl td { vertical-align: top; }
     #sms-credentials-tbl .sms-cred-actions { white-space: nowrap; }
@@ -1411,6 +1421,41 @@
     .sms-otp-progress { height: 5px; max-width: 360px; margin: 10px auto 0; background: var(--surface-3); border-radius: 999px; overflow: hidden; }
     #sms-otp-progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
     #sms-otp-status { min-height: 16px; margin-top: 9px; color: var(--text-2); font-size: 10px; }
+    /* Saved-credential OTP popup — keeps users in the Credential Register. */
+    #sms-credential-otp-overlay {
+      display: none; position: fixed; inset: 0; z-index: 940;
+      align-items: center; justify-content: center; padding: 16px;
+      background: rgba(10, 14, 22, .48); backdrop-filter: blur(2px);
+    }
+    #sms-credential-otp-overlay.open { display: flex; }
+    #sms-credential-otp-box {
+      width: min(420px, calc(100vw - 32px)); overflow: hidden;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+    }
+    #sms-credential-otp-box .dlg-tb { justify-content: space-between; }
+    .sms-credential-otp-close {
+      width: 28px; height: 28px; margin-right: -7px; display: inline-flex;
+      align-items: center; justify-content: center; border: 0; border-radius: var(--r-sm);
+      background: transparent; color: var(--text-2); font: 700 18px/1 var(--font); cursor: pointer;
+    }
+    .sms-credential-otp-close:hover { color: var(--text); background: var(--surface-2); }
+    .sms-credential-otp-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .sms-credential-otp-body { padding: 18px; text-align: center; }
+    #sms-credential-otp-client { font-size: 13px; font-weight: 700; color: var(--text); }
+    #sms-credential-otp-account { min-height: 16px; margin-top: 3px; color: var(--text-2); font-size: 10px; }
+    #sms-credential-otp-code {
+      width: 100%; margin-top: 15px; padding: 18px 12px; border: 1px solid var(--border);
+      border-radius: var(--r-md); background: var(--surface-2); color: var(--accent);
+      font: 700 38px/1.1 Consolas, "SFMono-Regular", monospace; letter-spacing: .16em;
+      cursor: pointer; user-select: none; -webkit-user-select: none;
+    }
+    #sms-credential-otp-code:hover { border-color: var(--accent); background: var(--accent-soft); }
+    #sms-credential-otp-code:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #sms-credential-otp-countdown { margin-top: 9px; color: var(--text-2); font-size: 11px; }
+    #sms-credential-otp-progress-fill { height: 100%; width: 0; background: var(--accent); transition: width .25s linear; }
+    .sms-credential-otp-hint { margin-top: 7px; color: var(--text-3); font-size: 10px; }
+    .sms-credential-otp-actions { display: flex; justify-content: center; gap: 6px; margin-top: 15px; }
     /* ── Undo toast ── */
     .toast.undo-toast { display: flex; align-items: center; gap: 8px; border-left: 3px solid var(--orange); }
     .toast.undo-toast .undo-msg { flex: 1; }
@@ -1746,7 +1791,8 @@
     #gap-confirm-overlay.open #gap-confirm-box,
     #source-mismatch-overlay.open #source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
-    #sms-detail-overlay.open #sms-detail-box {
+    #sms-detail-overlay.open #sms-detail-box,
+    #sms-credential-otp-overlay.open #sms-credential-otp-box {
       animation: winPop .16s ease-out;
     }
     #view-banner.visible,
@@ -2498,10 +2544,10 @@
                     <div class="sms-field"><label>New Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-password" autocomplete="new-password"></div>
                     <div class="sms-field"><label>API ID</label><input class="win-inp sms-cred-mono" id="sms-cred-api-id"></div>
                     <div class="sms-field"><label>API Token</label><input class="win-inp sms-cred-mono" id="sms-cred-api-token"></div>
-                    <div class="sms-field"><label>API URL</label><input class="win-inp" id="sms-cred-api-url"></div>
+                    <div class="sms-field"><label>API URL</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-api-url"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-api-url')" title="Open API URL in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>New API Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-api-password" autocomplete="new-password"></div>
-                    <div class="sms-field"><label>Login Link</label><input class="win-inp" id="sms-cred-login-link"></div>
-                    <div class="sms-field"><label>New Login Link</label><input class="win-inp" id="sms-cred-new-login-link"></div>
+                    <div class="sms-field"><label>Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-login-link')" title="Open login link in your default browser">Open ↗</button></div></div>
+                    <div class="sms-field"><label>New Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-new-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-new-login-link')" title="Open new login link in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm"></div>
                     <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
                     <div class="sms-field">
@@ -3010,6 +3056,28 @@
       <div style="display:flex;justify-content:flex-end;gap:6px">
         <button class="tbtn" onclick="closeSmsConfirm()">Cancel</button>
         <button class="tbtn primary" id="sms-confirm-ok" onclick="runSmsConfirm()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Saved Credential OTP Popup -->
+<div id="sms-credential-otp-overlay" aria-hidden="true" onclick="if(event.target === this) closeSmsCredentialOtpPopup()">
+  <div id="sms-credential-otp-box" role="dialog" aria-modal="true" aria-labelledby="sms-credential-otp-title">
+    <div class="dlg-tb">
+      <span id="sms-credential-otp-title">One-Time Password</span>
+      <button type="button" class="sms-credential-otp-close" onclick="closeSmsCredentialOtpPopup()" aria-label="Close OTP popup" title="Close">×</button>
+    </div>
+    <div class="sms-credential-otp-body">
+      <div id="sms-credential-otp-client">Credential</div>
+      <div id="sms-credential-otp-account"></div>
+      <button type="button" id="sms-credential-otp-code" onclick="copySmsCredentialPopupOtp()" aria-label="Copy one-time password" title="Click to copy the complete OTP code">------</button>
+      <div id="sms-credential-otp-countdown" aria-live="polite">Generating OTP…</div>
+      <div class="sms-otp-progress"><div id="sms-credential-otp-progress-fill"></div></div>
+      <div class="sms-credential-otp-hint">Click the OTP code to copy all digits.</div>
+      <div class="sms-credential-otp-actions">
+        <button type="button" class="tbtn primary" onclick="copySmsCredentialPopupOtp()">Copy OTP</button>
+        <button type="button" class="tbtn" onclick="closeSmsCredentialOtpPopup()">Close</button>
       </div>
     </div>
   </div>
@@ -3716,6 +3784,7 @@ let smsCredentialPendingSync = false, smsCredentialSyncRevision = 0;
 let smsCredentialSyncInFlight = null, smsCredentialSyncActiveRevision = -1;
 let smsCredentialSubtab = 'register';
 let smsOtpTimer = null, smsOtpLastCounter = null, smsOtpActive = false;
+let smsCredentialOtpPopup = null, smsCredentialOtpPopupTimer = null;
 let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'client';
 const SMS_TAB_CONFIG = {
   client:  { label:'Client',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
@@ -9920,6 +9989,101 @@ async function smsTotpFromBase32(secret, options={}) {
 }
 window.smsTotpFromBase32 = smsTotpFromBase32;
 
+async function copySmsText(text) {
+  if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+  else {
+    const input = document.createElement('textarea');
+    input.value = text;
+    input.style.position = 'fixed';
+    input.style.top = '-9999px';
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+  }
+}
+
+async function renderSmsCredentialOtpPopupCode() {
+  const state = smsCredentialOtpPopup;
+  if (!state) return;
+  const result = await smsTotpFromBase32(state.payload.secret, state.payload);
+  if (smsCredentialOtpPopup !== state) return;
+  state.lastCounter = result.counter;
+  const code = document.getElementById('sms-credential-otp-code');
+  if (code) code.textContent = result.code;
+  refreshSmsCredentialOtpPopupCountdown();
+}
+
+function refreshSmsCredentialOtpPopupCountdown() {
+  const state = smsCredentialOtpPopup;
+  if (!state) return;
+  const period = Number(state.payload.period) || 30;
+  const unixSeconds = Math.floor(Date.now() / 1000);
+  const counter = Math.floor(unixSeconds / period);
+  const remaining = period - (unixSeconds % period);
+  const countdown = document.getElementById('sms-credential-otp-countdown');
+  const progress = document.getElementById('sms-credential-otp-progress-fill');
+  if (countdown) countdown.textContent = `Valid for ${remaining} second${remaining === 1 ? '' : 's'}`;
+  if (progress) progress.style.width = `${(remaining / period) * 100}%`;
+  if (state.lastCounter !== null && counter !== state.lastCounter) {
+    renderSmsCredentialOtpPopupCode().catch(e => {
+      closeSmsCredentialOtpPopup(false);
+      toast('Could not refresh the OTP: ' + e.message, 'err', 7000);
+    });
+  }
+}
+
+async function openSmsCredentialOtpPopup(row, payload, trigger) {
+  closeSmsCredentialOtpPopup(false);
+  const state = { row, payload, trigger:trigger || null, lastCounter:null };
+  smsCredentialOtpPopup = state;
+  const overlay = document.getElementById('sms-credential-otp-overlay');
+  const client = document.getElementById('sms-credential-otp-client');
+  const account = document.getElementById('sms-credential-otp-account');
+  const code = document.getElementById('sms-credential-otp-code');
+  if (client) client.textContent = row.client || 'Credential';
+  if (account) account.textContent = [row.account_type, row.user_name].filter(Boolean).join(' • ');
+  if (code) code.textContent = '------';
+  overlay?.classList.add('open');
+  overlay?.setAttribute('aria-hidden', 'false');
+  try {
+    await renderSmsCredentialOtpPopupCode();
+  } catch(e) {
+    closeSmsCredentialOtpPopup(false);
+    throw e;
+  }
+  if (smsCredentialOtpPopup !== state) return;
+  smsCredentialOtpPopupTimer = setInterval(refreshSmsCredentialOtpPopupCountdown, 500);
+  requestAnimationFrame(() => document.getElementById('sms-credential-otp-code')?.focus());
+}
+
+window.closeSmsCredentialOtpPopup = (restoreFocus=true) => {
+  if (smsCredentialOtpPopupTimer) clearInterval(smsCredentialOtpPopupTimer);
+  smsCredentialOtpPopupTimer = null;
+  const trigger = smsCredentialOtpPopup?.trigger;
+  smsCredentialOtpPopup = null;
+  const overlay = document.getElementById('sms-credential-otp-overlay');
+  overlay?.classList.remove('open');
+  overlay?.setAttribute('aria-hidden', 'true');
+  if (restoreFocus && trigger?.isConnected) trigger.focus();
+};
+
+window.copySmsCredentialPopupOtp = async () => {
+  const code = document.getElementById('sms-credential-otp-code')?.textContent?.trim() || '';
+  if (!/^\d{6,8}$/.test(code)) { toast('The OTP is not ready yet.', 'err'); return; }
+  try {
+    await copySmsText(code);
+    toast('OTP copied', 'ok');
+  } catch(e) { toast('Could not copy the OTP.', 'err'); }
+};
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && document.getElementById('sms-credential-otp-overlay')?.classList.contains('open')) {
+    event.preventDefault();
+    closeSmsCredentialOtpPopup();
+  }
+});
+
 function smsOtpStatus(message='', isError=false) {
   const status = document.getElementById('sms-otp-status');
   if (!status) return;
@@ -10001,12 +10165,7 @@ window.copyManualOtp = async () => {
   const code = document.getElementById('sms-otp-code')?.textContent || '';
   if (!/^\d{6,8}$/.test(code)) { toast('Generate an OTP first.', 'err'); return; }
   try {
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code);
-    else {
-      const input = document.createElement('textarea');
-      input.value = code; input.style.position = 'fixed'; input.style.top = '-9999px';
-      document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
-    }
+    await copySmsText(code);
     toast('OTP copied', 'ok');
   } catch(e) { toast('Could not copy the OTP.', 'err'); }
 };
@@ -10168,7 +10327,7 @@ window.saveSmsCredential = () => {
   document.getElementById('sms-credentials-form')?.classList.add('collapsed');
 };
 
-window.generateSmsCredentialOtp = async id => {
+window.generateSmsCredentialOtp = async (id, trigger=null) => {
   const row = smsCredentials.find(item => item.id === id);
   if (!row?.otp_secret) { toast('This credential has no saved OTP secret.', 'err'); return; }
   try {
@@ -10176,11 +10335,7 @@ window.generateSmsCredentialOtp = async id => {
     payload.algorithm = smsNormalizeOtpAlgorithm(row.otp_algorithm || payload.algorithm);
     payload.digits = Number(row.otp_digits) === 8 ? 8 : 6;
     payload.period = Number(row.otp_period) === 60 ? 60 : 30;
-    applySmsOtpPayload(payload, `Saved credential: ${row.client || 'credential'}`);
-    switchSmsCredentialSubtab('otp');
-    const existingSelect = document.getElementById('sms-otp-existing-credential');
-    if (existingSelect) existingSelect.value = id;
-    await generateManualOtp();
+    await openSmsCredentialOtpPopup(row, payload, trigger);
   } catch(e) { toast('Could not use the saved OTP key: ' + e.message, 'err', 7000); }
 };
 
@@ -10233,6 +10388,33 @@ function filteredSmsCredentials() {
     });
 }
 
+function smsCredentialWebUrl(value) {
+  const label = String(value || '').trim();
+  if (!label) return '';
+  let url = label;
+  if (!/^[a-z][a-z\d+.-]*:/i.test(url)) url = `https://${url}`;
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch(e) {
+    return '';
+  }
+}
+
+window.openSmsCredentialLink = inputId => {
+  const value = document.getElementById(inputId)?.value || '';
+  const url = smsCredentialWebUrl(value);
+  if (!url) {
+    toast(value.trim() ? 'Enter a valid HTTP or HTTPS link.' : 'Enter a link first.', 'err');
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.click();
+};
+
 window.sortSmsCredentials = field => {
   if (!SMS_CREDENTIAL_FIELDS.includes(field)) return;
   if (smsCredentialSortCol === field) smsCredentialSortDir *= -1;
@@ -10253,6 +10435,13 @@ window.renderSmsCredentials = () => {
   const count = document.getElementById('sms-cred-count');
   if (count) count.textContent = `${rows.length} of ${smsCredentials.length} credential(s)`;
   const clipped = (value, mono=false) => `<div class="sms-cred-clip${mono ? ' sms-cred-mono' : ''}" title="${esc(value)}">${esc(value)}</div>`;
+  const linked = value => {
+    const label = String(value || '').trim();
+    if (!label) return clipped('');
+    const url = smsCredentialWebUrl(label);
+    if (!url) return clipped(label);
+    return `<div class="sms-cred-clip" title="Open ${esc(label)} in your default browser"><a class="sms-cred-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}<span class="sms-cred-link-icon" aria-hidden="true">↗</span></a></div>`;
+  };
   const otpCell = row => {
     if (!row.otp_secret) return '<span class="sms-muted">Not configured</span>';
     const compact = String(row.otp_secret).replace(/[\s-]+/g, '');
@@ -10267,14 +10456,14 @@ window.renderSmsCredentials = () => {
     <td>${clipped(row.new_password, true)}</td>
     <td>${clipped(row.api_id, true)}</td>
     <td>${clipped(row.api_token, true)}</td>
-    <td>${clipped(row.api_url)}</td>
+    <td>${linked(row.api_url)}</td>
     <td>${clipped(row.new_api_password, true)}</td>
-    <td>${clipped(row.login_link)}</td>
-    <td>${clipped(row.new_login_link)}</td>
+    <td>${linked(row.login_link)}</td>
+    <td>${linked(row.new_login_link)}</td>
     <td style="white-space:nowrap">${esc(row.date_updated)}</td>
     <td>${esc(row.platform)}</td>
     <td>${otpCell(row)}</td>
-    <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}')">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
+    <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
   </tr>`).join('') : '<tr><td colspan="15" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
   refreshSmsOtpCredentialOptions();
 };
