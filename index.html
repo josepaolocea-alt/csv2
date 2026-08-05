@@ -70,22 +70,25 @@
       --border-strong: #cdd2da;
       --text: #1c2230;
       --text-2: #5b6474;
-      --text-3: #9aa2b1;
+      /* Small helper text, placeholders and inactive rows still need WCAG-level
+         contrast because most app copy is only 9–11px. */
+      --text-3: #616c7e;
+      --muted: var(--text-2);
 
       --accent: #3564e0;
       --accent-soft: #eaf0fe;
       --accent-strong: #2b53c0;
       --on-accent: #ffffff;
 
-      --red: #cf3d3d;
+      --red: #b42323;
       --red-soft: #fdeeee;
       --red-deep: #a82c2c;
-      --orange: #c96a10;
+      --orange: #934607;
       --orange-soft: #fdf1e3;
       --yellow: #d8bb1e;
-      --yellow-deep: #94770a;
+      --yellow-deep: #705800;
       --yellow-soft: #fbf6db;
-      --green: #1f9250;
+      --green: #13713c;
       --green-soft: #e7f6ec;
 
       --row-hover: #edf2fd;
@@ -108,7 +111,7 @@
       --border-strong: #3a4150;
       --text: #e8ebf1;
       --text-2: #a0a9b8;
-      --text-3: #6d7688;
+      --text-3: #909bad;
 
       --accent: #6d93f5;
       --accent-soft: #1d2a47;
@@ -5699,7 +5702,7 @@ function renderNoThreshHistory() {
     <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
       <td>${esc(r.name)}</td>
       <td>${r.resolved
-        ? '<span style="color:#2a7d2a;font-weight:600">Threshold set</span>'
+        ? '<span style="color:var(--green);font-weight:600">Threshold set</span>'
         : '<span style="color:#884400;font-weight:600">No threshold</span>'}</td>
       <td class="num">${r.count}</td>
       <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
