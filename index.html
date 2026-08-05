@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-title" content="BalanceMonitor" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script>
     /* Boot watchdog — surfaces a clear message if a CDN dependency fails to load
        (blocked network, offline, CDN outage) instead of failing silently or
@@ -59,7 +59,7 @@
 
     /* ── Design tokens ── */
     :root {
-      --font: 'DM Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      --font: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
       --mono: 'DM Mono', 'Cascadia Mono', Consolas, ui-monospace, 'Courier New', monospace;
 
       --bg: #eef0f3;
@@ -962,8 +962,28 @@
       border: 1px solid var(--border-strong); box-shadow: 0 6px 20px rgba(0,0,0,.28);
       font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
     }
-    /* Hourly per-client pivot (today only) */
-    #st-tbl-hourly td.st-hr-cell { text-align: right; font-family: var(--mono); white-space: nowrap; }
+    /* Hourly per-client pivot (today only). Keep figures aligned with tabular
+       numerals without the dense, code-like look of a monospace typeface. */
+    #st-tbl-hourly {
+      font-family: var(--font);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.01em;
+    }
+    #st-tbl-hourly th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+    #st-tbl-hourly td { padding-top: 6px; padding-bottom: 6px; }
+    #st-tbl-hourly td.st-hr-cell {
+      text-align: right;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
     #st-tbl-hourly th.st-hr-client, #st-tbl-hourly td.st-hr-client {
       position: sticky; left: 0; z-index: 3;
       background: var(--surface); white-space: nowrap;
@@ -971,8 +991,8 @@
     }
     #st-tbl-hourly thead th.st-hr-client { z-index: 4; background: var(--surface-2); }
     #st-tbl-hourly tr:nth-child(even) td.st-hr-client { background: var(--surface-2); }
-    #st-tbl-hourly .st-hr-name { font-weight: 600; }
-    #st-tbl-hourly .st-hr-dest { font-size: 10px; color: var(--text-3); }
+    #st-tbl-hourly .st-hr-name { font-weight: 600; letter-spacing: 0; }
+    #st-tbl-hourly .st-hr-dest { font-size: 11px; color: var(--text-2); letter-spacing: 0; }
     #st-tbl-hourly td.st-hr-cell.critical { background: var(--red-soft);    color: var(--red);         font-weight: 600; }
     #st-tbl-hourly td.st-hr-cell.low      { background: var(--orange-soft); color: var(--orange);      font-weight: 600; }
     #st-tbl-hourly td.st-hr-cell.ok       { background: var(--yellow-soft); color: var(--yellow-deep); }
@@ -980,11 +1000,11 @@
     #st-tbl-hourly td.st-hr-cell.watch    { color: var(--text-3); }
     #st-tbl-hourly td.st-hr-cell.empty    { color: var(--text-3); }
     /* Combined multi-metric cells (ASR & ACD / Attempt, ASR & ACD) */
-    #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.3; }
-    #st-tbl-hourly td.st-hr-cell .st-hr-sub  { font-size: 10px; opacity: 0.75; }
-    #st-tbl-hourly td.st-hr-cell .st-hr-k    { color: var(--text-3); font-weight: normal; margin-right: 4px; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.4; }
+    #st-tbl-hourly td.st-hr-cell .st-hr-sub  { font-size: 11px; color: var(--text-2); }
+    #st-tbl-hourly td.st-hr-cell .st-hr-k    { color: var(--text-2); font-weight: 500; margin-right: 5px; }
     /* Attempt (row 1) muted by colour, not opacity, so it stays crisp */
-    #st-tbl-hourly td.st-hr-cell .st-hr-att  { font-size: 10px; color: var(--text-3); }
+    #st-tbl-hourly td.st-hr-cell .st-hr-att  { font-size: 11px; color: var(--text-2); }
     /* ASR + ACD share row 2, aligned right with a clear gap */
     #st-tbl-hourly td.st-hr-cell .st-hr-pair { display: flex; justify-content: flex-end; gap: 12px; }
     #st-tbl-hourly td.st-hr-cell .st-hr-pair .st-hr-seg { white-space: nowrap; }
