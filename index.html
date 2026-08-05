@@ -713,9 +713,11 @@
       display: block; margin-top: 2px; font-size: 9px; line-height: 1.15;
       color: var(--text-2); font-family: 'Courier New', monospace; white-space: nowrap;
     }
+    .spam-max-when { display:block; margin-top:1px; color:var(--text-3); font-size:8px; font-weight:400; }
     .spam-max-ref.over {
       color: var(--orange); font-weight: 700;
     }
+    .spam-max-ref.over .spam-max-when { color:inherit; opacity:.85; }
     .win-search {
       height: 24px; font-size: 11px; font-family: inherit; padding: 0 8px;
       background: var(--surface); color: var(--text);
@@ -845,6 +847,14 @@
     .st-daily-status.unchanged { background: var(--surface-3); color: var(--text-2); }
     .st-daily-negative { color: var(--red); font-weight: 600; }
     .st-daily-positive { color: var(--green); font-weight: 600; }
+    .st-daily-row-decrease td:first-child, .st-daily-row-stopped td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+    .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
+    .st-traffic-trend { display: inline-flex; align-items: center; white-space: nowrap; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .st-traffic-trend.increase { background: var(--green-soft); color: var(--green); }
+    .st-traffic-trend.decrease, .st-traffic-trend.stopped { background: var(--red-soft); color: var(--red); }
+    .st-traffic-trend.new { background: var(--accent-soft); color: var(--accent); }
+    .st-traffic-trend.unchanged { background: var(--surface-3); color: var(--text-2); }
+    .st-traffic-trend.none { padding-left: 0; background: transparent; color: var(--text-3); font-weight: 500; }
     #stats-snap-list {
       flex: 1; overflow-y: auto; min-height: 40px;
       background: var(--surface);
@@ -2674,9 +2684,10 @@
               <table id="st-tbl-all">
                 <thead><tr>
                   <th onclick="sortStats('customer_name')">Client</th>
-                  <th onclick="sortStats('account_codes')">Account Code(s)</th>
+                  <th onclick="sortStats('account_codes')">Account Code</th>
                   <th onclick="sortStats('destination')">Destination</th>
                   <th onclick="sortStats('attempts')" style="text-align:right">Attempts</th>
+                  <th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                   <th onclick="sortStats('completed')" style="text-align:right">Completed</th>
                   <th onclick="sortStats('asr')" style="text-align:right">ASR %</th>
                   <th onclick="sortStats('acd')" style="text-align:right">ACD (min)</th>
@@ -2700,7 +2711,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-critical"></tbody>
@@ -2716,7 +2727,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
@@ -2732,7 +2743,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-watch"></tbody>
@@ -2748,7 +2759,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-ok"></tbody>
@@ -2764,7 +2775,7 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
-                <th>Client</th><th>Account Code(s)</th><th>Destination</th><th style="text-align:right">Attempts</th>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th><th title="Latest saved daily traffic compared with its previous saved day">Traffic vs Previous Day</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
                 <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
@@ -2837,7 +2848,7 @@
             <div class="lv-wrap"><table id="st-daily-table">
               <thead><tr>
                 <th onclick="sortStatsDaily('customer_name')">Client</th>
-                <th onclick="sortStatsDaily('account_codes')">Account Code(s)</th>
+                <th onclick="sortStatsDaily('account_codes')">Account Code</th>
                 <th onclick="sortStatsDaily('date')">Date</th>
                 <th>Previous Date</th>
                 <th onclick="sortStatsDaily('attempts')" style="text-align:right">Attempts</th>
@@ -3868,6 +3879,15 @@ function nextSlot() {
 function fmt12(hhmm) {
   const [h,m]=hhmm.split(':').map(Number);
   return `${h===0?12:h>12?h-12:h}:${m.toString().padStart(2,'0')} ${h<12?'AM':'PM'}`;
+}
+function fmtProfileMaxHit(date, slot = '') {
+  const match = String(date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateLabel = match && Number(match[2]) >= 1 && Number(match[2]) <= 12
+    ? `${months[Number(match[2]) - 1]} ${Number(match[3])}, ${match[1]}`
+    : String(date || '').trim();
+  const timeLabel = /^\d{1,2}:\d{2}$/.test(String(slot || '')) ? fmt12(String(slot)) : '';
+  return [dateLabel, timeLabel].filter(Boolean).join(' · ');
 }
 function todayStr() {
   const d = new Date();
@@ -7889,9 +7909,12 @@ function renderAlerts() {
     const maxWhen = hasProfileMax && r._spamInfo?.profileMaxDate
       ? ` (${r._spamInfo.profileMaxDate}${r._spamInfo.profileMaxSlot ? ' ' + fmt12(r._spamInfo.profileMaxSlot) : ''})`
       : '';
+    const maxWhenLabel = hasProfileMax
+      ? fmtProfileMaxHit(r._spamInfo?.profileMaxDate, r._spamInfo?.profileMaxSlot)
+      : '';
     const overProfileMax = hasProfileMax && amountNumber(r.usage_30min) > amountNumber(profileMax);
     const spamMaxRef = hasProfileMax
-      ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="Highest 30m usage stored in this client's usage profile${escAttr(maxWhen)}">profile max ${fmt(profileMax)}</span>`
+      ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="Highest 30m usage stored in this client's usage profile${escAttr(maxWhen)}">profile max ${fmt(profileMax)}${maxWhenLabel ? `<span class="spam-max-when">hit ${esc(maxWhenLabel)}</span>` : ''}</span>`
       : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
@@ -11848,7 +11871,7 @@ function parseStatsText(text) {
   if (!text) return [];
   const lines = text.replace(/\r/g,'').split('\n').filter(l => l.trim() !== '');
   if (!lines.length) return [];
-  const splitLine = l => l.includes('\t') ? l.split('\t') : l.split(',');
+  const splitLine = splitStatsReportLine;
   let headerIdx = -1;
   for (let i = 0; i < lines.length; i++) {
     const low = lines[i].toLowerCase();
@@ -11869,6 +11892,17 @@ function parseStatsText(text) {
     });
   }
   return rows;
+}
+
+// Spreadsheet pastes normally contain tabs. Some report/export tools copy the
+// same columns as comma-separated or aligned text, so accept those formats too.
+// Two or more spaces are treated as a column boundary; single spaces inside a
+// customer name (for example "CYN TOKU") remain part of that name.
+function splitStatsReportLine(line) {
+  const value = String(line || '');
+  if (value.includes('\t')) return value.split('\t');
+  if (value.includes(',')) return value.split(',');
+  return value.trim().split(/\s{2,}/);
 }
 
 function statsDailyDateKey(value) {
@@ -11894,7 +11928,7 @@ function parseStatsDailyTraffic(text, selectedDate) {
     return Number.isFinite(parsed) ? parsed : 0;
   };
   for (const line of lines) {
-    const columns = (line.includes('\t') ? line.split('\t') : line.split(',')).map(value => value.trim());
+    const columns = splitStatsReportLine(line).map(value => value.trim());
     if (columns.length < 9) continue;
     const accountCode = columns[0] || '';
     const customerName = columns[1] || accountCode;
@@ -12024,6 +12058,39 @@ function statsDailyComparison(sessionDate) {
   return { currentDay, previousDay, rows };
 }
 
+function statsAccountCodeTokens(value) {
+  return String(value || '').split(/[;,]/).map(code => code.trim()).filter(Boolean);
+}
+
+// Index the latest daily comparison by account code so every hourly Stats row
+// can show its most recent day-over-day traffic direction at a glance.
+function statsLatestDailyTrendMap() {
+  const days = statsDailySortedHistory();
+  const latest = days[days.length - 1];
+  if (!latest) return new Map();
+  const map = new Map();
+  statsDailyComparison(latest.session_date).rows.forEach(row => {
+    statsAccountCodeTokens(row.account_codes).forEach(code => map.set(code.toLowerCase(), row));
+  });
+  return map;
+}
+
+function statsTrafficTrendCell(row, trendMap) {
+  const codes = statsAccountCodeTokens(row.account_code || row.acct_list);
+  const trend = codes.map(code => trendMap.get(code.toLowerCase())).find(Boolean);
+  if (!trend) return '<span class="st-traffic-trend none" title="Import at least one Daily Traffic report for this account">— No daily data</span>';
+  const pct = trend.change_pct === null ? '' : ` ${trend.change_pct > 0 ? '+' : ''}${trend.change_pct.toFixed(1)}%`;
+  const labels = {
+    increase:`&#9650;${pct || ' Increase'}`,
+    decrease:`&#9660;${pct || ' Decrease'}`,
+    stopped:'&#9632; Stopped',
+    new:'&#9733; New',
+    unchanged:'&#8594; 0.0%'
+  };
+  const detail = `${trend.previous_date || 'No previous day'}: ${stN0(trend.previous_attempts)} attempts; ${trend.date}: ${stN0(trend.attempts)} attempts`;
+  return `<span class="st-traffic-trend ${trend.status}" title="${stEsc(detail)}">${labels[trend.status] || labels.unchanged}</span>`;
+}
+
 function renderStatsDailySidebar() {
   const list = document.getElementById('stats-daily-date-list');
   if (!list) return;
@@ -12047,7 +12114,10 @@ window.selectStatsDailyDate = date => {
   renderStatsDailyTraffic();
 };
 
-const ST_DAILY_STATUS_LABELS = { increase:'Increase', decrease:'Decrease', stopped:'Stopped', new:'New', unchanged:'Unchanged' };
+const ST_DAILY_STATUS_LABELS = {
+  increase:'&#9650; Increase', decrease:'&#9660; Decrease', stopped:'&#9632; Stopped',
+  new:'&#9733; New', unchanged:'&#8594; Unchanged'
+};
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
 
 window.sortStatsDaily = column => {
@@ -12103,7 +12173,7 @@ function renderStatsDailyTraffic() {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
     const changeText = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
-    return `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
+    return `<tr class="st-daily-row-${row.status}"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
       + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
@@ -12178,6 +12248,7 @@ window.processStatsDailyTraffic = async () => {
     saveStatsDailyLocal();
     if (textarea) textarea.value = '';
     renderStatsDailyTraffic();
+    renderStatsTables();
     sendStatsDailyTrafficNotification(statsDailySelectedDate);
     const comparison = statsDailyComparison(statsDailySelectedDate);
     const decreasing = comparison.rows.filter(row => row.status === 'decrease').length;
@@ -12207,6 +12278,7 @@ window.undoLastStatsDailyTraffic = async () => {
     saveStatsDailyLocal();
     statsDailySelectedDate = statsDailySortedHistory().reverse()[0]?.session_date || '';
     renderStatsDailyTraffic();
+    renderStatsTables();
     toast(`Daily Traffic for ${last.session_date} removed${fbOk ? '' : ' from this browser'}.`, 'ok', 6000);
   } catch(e) { toast('Daily Traffic undo failed: ' + e.message, 'err', 8000); }
   finally { setLoading(false); }
@@ -12243,6 +12315,7 @@ function groupStatsSnapshot(snap) {
     if (!g) {
       g = { gkey: key,
             customer_name: r.customer_name || r.account_code || '(unknown)',
+            account_code: r.account_code || '',
             destination: dest,
             account_codes:new Set(), destinations:new Set(),
             attempts:0, completed:0, raw_dur:0, revenue:0 };
@@ -12483,10 +12556,11 @@ function processStatsRows(rows, tbodyId, full) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
   if (!rows.length) {
-    const span = full ? 12 : 10;
+    const span = full ? 13 : 11;
     tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
     return;
   }
+  const dailyTrendMap = statsLatestDailyTrendMap();
   tb.innerHTML = rows.map(r => {
     const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
     const cells = full
@@ -12494,6 +12568,7 @@ function processStatsRows(rows, tbodyId, full) {
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
+         <td>${statsTrafficTrendCell(r, dailyTrendMap)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stVal(r.asr)}</td>
          <td style="text-align:right">${stVal(r.acd)}</td>
@@ -12506,6 +12581,7 @@ function processStatsRows(rows, tbodyId, full) {
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
+         <td>${statsTrafficTrendCell(r, dailyTrendMap)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
          <td style="text-align:right">${stVal(r.asr)}</td>
          <td style="text-align:right">${stVal(r.acd)}</td>
@@ -12963,6 +13039,7 @@ function subscribeStatsDailyHistory() {
       statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
       saveStatsDailyLocal();
       renderStatsDailyTraffic();
+      renderStatsTables();
     }, error => console.warn('stats daily traffic subscription:', error));
   } catch(e) { console.warn('stats daily traffic subscribe:', e); }
 }
