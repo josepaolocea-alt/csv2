@@ -815,6 +815,7 @@
     #stats-sidebar-daily { display: none; }
     body.stats-mode.stats-daily-mode #stats-sidebar-current { display: none; }
     body.stats-mode.stats-daily-mode #stats-sidebar-daily { display: flex; }
+    body.stats-mode.stats-daily-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
       background: var(--surface); color: var(--text);
@@ -852,6 +853,51 @@
     .st-daily-positive { color: var(--green); font-weight: 600; }
     .st-daily-row-decrease td:first-child, .st-daily-row-stopped td:first-child { box-shadow: inset 3px 0 0 var(--red); }
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
+    .st-daily-tabs {
+      display: flex; gap: 4px; padding: 6px 8px 7px;
+      border-bottom: 1px solid var(--border); background: var(--surface-2);
+    }
+    .st-daily-tab {
+      min-height: 28px; padding: 4px 13px; border: 1px solid transparent;
+      border-radius: var(--r-sm); background: transparent; color: var(--text-2);
+      font-family: var(--font); font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .st-daily-tab:hover { color: var(--text); background: var(--surface-3); }
+    .st-daily-tab.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 18%, transparent); }
+    .st-daily-panel { flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+    .st-daily-dashboard-meta, .st-daily-history-meta {
+      padding: 8px 10px; color: var(--text-2); font-size: 11px; line-height: 1.4;
+    }
+    .st-daily-dashboard-grid {
+      display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr));
+      gap: 8px; padding: 0 8px 8px; overflow: auto;
+    }
+    .st-daily-rank-card {
+      min-width: 0; border: 1px solid var(--border); border-radius: var(--r-md);
+      background: var(--surface); overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .st-daily-rank-title {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 9px 10px; border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 700;
+    }
+    .st-daily-rank-card.decrease .st-daily-rank-title,
+    .st-daily-rank-card.stopped .st-daily-rank-title { color: var(--red); }
+    .st-daily-rank-card.increase .st-daily-rank-title { color: var(--green); }
+    .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
+    .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
+    .st-daily-rank-card th { position: static; font-size: 9.5px; padding: 5px 7px; }
+    .st-daily-rank-card td { padding: 5px 7px; }
+    .st-daily-rank-client { min-width: 130px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+    .st-daily-rank-account { display: block; margin-top: 1px; color: var(--text-3); font-size: 9px; font-weight: 400; }
+    .st-daily-history-toolbar { flex-wrap: wrap; }
+    #st-daily-history-table { min-width: 1280px; font-size: 11px; font-variant-numeric: tabular-nums; }
+    #st-daily-history-table th { text-align: right; }
+    #st-daily-history-table th:first-child,
+    #st-daily-history-table th:nth-child(2) { text-align: left; }
+    #st-daily-history-table td.st-daily-history-attempt { text-align: right; }
+    #st-daily-history-table td.st-daily-history-missing { text-align: center; color: var(--text-3); }
+    #st-daily-history-table td.st-daily-history-zero { color: var(--red); font-weight: 600; }
     .st-traffic-trend { display: inline-flex; align-items: center; white-space: nowrap; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
     .st-traffic-trend.increase { background: var(--green-soft); color: var(--green); }
     .st-traffic-trend.decrease, .st-traffic-trend.stopped { background: var(--red-soft); color: var(--red); }
@@ -1360,6 +1406,7 @@
     .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
       .st-daily-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+      .st-daily-dashboard-grid { grid-template-columns: 1fr; }
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-cred-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-otp-grid { grid-template-columns: 1fr 1fr; }
@@ -2844,6 +2891,12 @@
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Daily Traffic — Increase, Decrease, Stopped &amp; New</div>
+          <div class="st-daily-tabs" role="tablist" aria-label="Daily Traffic views">
+            <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
+            <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
+            <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
+          </div>
+          <div class="st-daily-panel" id="st-daily-panel-today" role="tabpanel" aria-labelledby="st-daily-tab-today" style="display:flex">
           <div class="fbar">
             <select id="st-daily-date" class="win-sel" onchange="renderStatsDailyTraffic()" title="Daily report date"></select>
             <select id="st-daily-status-filter" class="win-sel" onchange="renderStatsDailyTraffic()" title="Filter traffic status">
@@ -2885,6 +2938,39 @@
               </tr></thead>
               <tbody id="st-daily-tbody"></tbody>
             </table></div>
+          </div>
+          </div>
+
+          <div class="st-daily-panel" id="st-daily-panel-dashboard" role="tabpanel" aria-labelledby="st-daily-tab-dashboard" style="display:none">
+            <div class="st-daily-dashboard-meta" id="st-daily-dashboard-meta">Add daily reports to build the two-week dashboard.</div>
+            <div class="st-daily-dashboard-grid">
+              <section class="st-daily-rank-card decrease" aria-labelledby="st-daily-decrease-title">
+                <div class="st-daily-rank-title" id="st-daily-decrease-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="st-daily-dashboard-decrease-count">0 clients</span></div>
+                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table>
+              </section>
+              <section class="st-daily-rank-card stopped" aria-labelledby="st-daily-stopped-title">
+                <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 clients</span></div>
+                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table>
+              </section>
+              <section class="st-daily-rank-card increase" aria-labelledby="st-daily-increase-title">
+                <div class="st-daily-rank-title" id="st-daily-increase-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="st-daily-dashboard-increase-count">0 clients</span></div>
+                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table>
+              </section>
+            </div>
+          </div>
+
+          <div class="st-daily-panel" id="st-daily-panel-history" role="tabpanel" aria-labelledby="st-daily-tab-history" style="display:none">
+            <div class="fbar st-daily-history-toolbar">
+              <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client or account code…" oninput="renderStatsDailyHistory()" style="min-width:260px">
+              <span id="st-daily-history-count" class="sms-muted" style="margin-left:auto"></span>
+            </div>
+            <div class="st-daily-history-meta" id="st-daily-history-meta">The latest 14 calendar days of attempts appear here.</div>
+            <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+              <div class="lv-wrap"><table id="st-daily-history-table">
+                <thead id="st-daily-history-head"></thead>
+                <tbody id="st-daily-history-body"></tbody>
+              </table></div>
+            </div>
           </div>
         </div>
       </div>
@@ -11649,6 +11735,7 @@ let statsPrimaryMode = 'current';
 let statsDailyHistory = [];    // [{id,session_date,posted_at,clients:[daily aggregates]}] — no automatic retention
 let statsDailySelectedDate = '';
 let statsDailySortCol = 'status', statsDailySortDir = 1;
+let statsDailyTab = 'today';
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
@@ -12033,6 +12120,150 @@ function statsDailyClientMap(day) {
   return new Map((day?.clients || []).map(client => [client.key, client]));
 }
 
+function statsDailyDateRange(endDate, count = 14) {
+  const end = new Date(`${endDate}T00:00:00Z`);
+  if (!Number.isFinite(end.getTime())) return [];
+  const dates = [];
+  for (let offset = count - 1; offset >= 0; offset--) {
+    const date = new Date(end);
+    date.setUTCDate(date.getUTCDate() - offset);
+    dates.push(date.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function statsDailyShortDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString(undefined, { month:'short', day:'2-digit', timeZone:'UTC' })
+    : value;
+}
+
+// Build one consistent 14-calendar-day window for both the dashboard and the
+// searchable history table. A missing report stays unavailable; a missing
+// client inside an existing report is zero traffic.
+function statsDailyTwoWeekSnapshot() {
+  const history = statsDailySortedHistory();
+  const latestDay = history[history.length - 1] || null;
+  if (!latestDay) return { dates:[], dayByDate:new Map(), latestDay:null, reportCount:0, rows:[] };
+  const dates = statsDailyDateRange(latestDay.session_date, 14);
+  const dateSet = new Set(dates);
+  const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
+  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
+  const keys = new Set();
+  dayByDate.forEach(day => (day.clients || []).forEach(client => keys.add(client.key)));
+  const rows = [...keys].map(key => {
+    const timeline = dates.map(date => {
+      const day = dayByDate.get(date);
+      if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
+      const client = clientMaps.get(date)?.get(key) || null;
+      return { date, has_report:true, present:!!client, attempts:client?.attempts || 0, client };
+    });
+    const latestPoint = timeline[timeline.length - 1];
+    const priorObserved = timeline.slice(0, -1).filter(point => point.has_report && point.present);
+    const baseline = priorObserved.length
+      ? priorObserved.reduce((sum, point) => sum + point.attempts, 0) / priorObserved.length
+      : null;
+    const latestAttempts = latestPoint?.present ? latestPoint.attempts : 0;
+    let status = 'new';
+    if (baseline !== null) {
+      if (baseline > 0 && latestAttempts === 0) status = 'stopped';
+      else if (latestAttempts < baseline) status = 'decrease';
+      else if (latestAttempts > baseline) status = 'increase';
+      else status = 'unchanged';
+    }
+    const change = baseline === null ? null : latestAttempts - baseline;
+    const identity = latestPoint?.client || [...timeline].reverse().find(point => point.client)?.client || {};
+    return {
+      key,
+      customer_name:identity.customer_name || key,
+      account_codes:identity.account_codes || '',
+      timeline,
+      latest_attempts:latestAttempts,
+      baseline_attempts:baseline,
+      change,
+      change_pct:baseline > 0 ? change / baseline * 100 : null,
+      status,
+      baseline_days:priorObserved.length,
+    };
+  });
+  return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
+}
+
+function renderStatsDailyDashboard() {
+  const snapshot = statsDailyTwoWeekSnapshot();
+  const meta = document.getElementById('st-daily-dashboard-meta');
+  if (meta) meta.textContent = snapshot.latestDay
+    ? `Latest report: ${snapshot.latestDay.session_date}. Compared with each client’s average attempts from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
+    : 'Add daily reports to build the two-week dashboard.';
+
+  const groups = {
+    decrease:snapshot.rows.filter(row => row.status === 'decrease').sort((a,b) => a.change - b.change),
+    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.baseline_attempts - a.baseline_attempts),
+    increase:snapshot.rows.filter(row => row.status === 'increase').sort((a,b) => b.change - a.change),
+  };
+  const empty = label => `<tr><td colspan="4" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
+  Object.entries(groups).forEach(([status, allRows]) => {
+    const count = document.getElementById(`st-daily-dashboard-${status}-count`);
+    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}`;
+    const body = document.getElementById(`st-daily-dashboard-${status}`);
+    if (!body) return;
+    const rows = allRows.slice(0, 10);
+    body.innerHTML = rows.length ? rows.map(row => {
+      const changeClass = row.change < 0 ? 'st-daily-negative' : 'st-daily-positive';
+      const signedChange = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+      const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
+      return `<tr><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
+        + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
+        + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN0(Math.abs(row.change)) : signedChange}</td></tr>`;
+    }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
+  });
+}
+
+function renderStatsDailyHistory() {
+  const snapshot = statsDailyTwoWeekSnapshot();
+  const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
+  const rows = snapshot.rows
+    .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
+    .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
+  const head = document.getElementById('st-daily-history-head');
+  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th>${snapshot.dates.map(date => `<th title="${stEsc(date)}">${stEsc(statsDailyShortDate(date))}</th>`).join('')}</tr>`;
+  const body = document.getElementById('st-daily-history-body');
+  if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td>`
+    + row.timeline.map(point => point.has_report
+      ? `<td class="st-daily-history-attempt${point.attempts === 0 ? ' st-daily-history-zero' : ''}">${stN0(point.attempts)}</td>`
+      : '<td class="st-daily-history-missing" title="No report saved for this date">—</td>').join('') + '</tr>').join('')
+    : `<tr><td colspan="16" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No clients match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
+  const count = document.getElementById('st-daily-history-count');
+  if (count) count.textContent = `${rows.length} client${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
+  const meta = document.getElementById('st-daily-history-meta');
+  if (meta) meta.textContent = snapshot.dates.length
+    ? `${snapshot.dates[0]} to ${snapshot.dates[snapshot.dates.length - 1]}. A dash means no report was saved for that date; 0 means the report exists and the client had no attempts.`
+    : 'The latest 14 calendar days of attempts appear here.';
+}
+window.renderStatsDailyHistory = renderStatsDailyHistory;
+
+function updateStatsDailyTabUI() {
+  document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
+  ['dashboard','today','history'].forEach(tab => {
+    const active = statsDailyTab === tab;
+    const button = document.getElementById(`st-daily-tab-${tab}`);
+    const panel = document.getElementById(`st-daily-panel-${tab}`);
+    button?.classList.toggle('active', active);
+    button?.setAttribute('aria-selected', active ? 'true' : 'false');
+    if (button) button.tabIndex = active ? 0 : -1;
+    if (panel) { panel.style.display = active ? 'flex' : 'none'; panel.hidden = !active; }
+  });
+}
+
+window.switchStatsDailyTab = tab => {
+  statsDailyTab = ['dashboard','today','history'].includes(tab) ? tab : 'today';
+  updateStatsDailyTabUI();
+  if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
+  else if (statsDailyTab === 'history') renderStatsDailyHistory();
+  else renderStatsDailyTraffic();
+};
+
 function statsDailyDecreaseStreak(days, dayIndex, key) {
   let streak = 0;
   for (let index = dayIndex; index > 0; index--) {
@@ -12204,6 +12435,8 @@ function renderStatsDailyTraffic() {
       + `<td style="text-align:right">${stN0(row.completed)}</td><td style="text-align:right">${stN2(row.asr)}</td></tr>`;
   }).join('') : '<tr><td colspan="12" style="text-align:center;padding:16px;color:#666">No daily traffic rows match the current filters.</td></tr>';
   renderStatsDailySidebar();
+  if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
+  else if (statsDailyTab === 'history') renderStatsDailyHistory();
 }
 window.renderStatsDailyTraffic = renderStatsDailyTraffic;
 
@@ -12434,6 +12667,10 @@ window.switchStatsMode = mode => {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
   document.getElementById('view-stats-daily')?.classList.add('active');
+  // Daily Traffic always opens on Today / Paste. Dashboard and history are
+  // deliberate drill-ins rather than sticky navigation state.
+  statsDailyTab = 'today';
+  updateStatsDailyTabUI();
   setSbStatus('Stats: Daily Traffic');
   renderStatsDailyTraffic();
 };
