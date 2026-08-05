@@ -1927,7 +1927,10 @@
             <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…"></textarea>
             <div style="display:flex;gap:2px">
               <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsDailyTraffic()">Process Daily Traffic</button>
-              <button class="tbtn" onclick="document.getElementById('stats-daily-ta').value=''" title="Clear text area">âœ•</button>
+              <button class="tbtn" onclick="document.getElementById('stats-daily-ta').value=''" title="Clear pasted daily traffic" aria-label="Clear pasted daily traffic">&#10005;</button>
+            </div>
+            <div class="snap-action-row" style="margin-top:2px">
+              <button class="tbtn" style="width:100%;justify-content:center" onclick="undoLastStatsDailyTraffic()" title="Remove the most recently saved Daily Traffic date">Undo Last Daily Traffic</button>
             </div>
             <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Identical saved dates are skipped; changed values ask before replacing.</div>
           </div>
@@ -2822,7 +2825,7 @@
             <span id="st-daily-count" class="sms-muted" style="margin-left:auto"></span>
           </div>
           <div class="st-daily-summary">
-            <div class="st-daily-card"><div class="value" id="st-daily-total">0</div><div class="label">Clients compared</div></div>
+            <div class="st-daily-card"><div class="value" id="st-daily-total">0</div><div class="label">Accounts compared</div></div>
             <div class="st-daily-card increase"><div class="value" id="st-daily-increase">0</div><div class="label">Increase</div></div>
             <div class="st-daily-card decrease"><div class="value" id="st-daily-decrease">0</div><div class="label">Decrease</div></div>
             <div class="st-daily-card stopped"><div class="value" id="st-daily-stopped">0</div><div class="label">Stopped</div></div>
@@ -11896,7 +11899,9 @@ function parseStatsDailyTraffic(text, selectedDate) {
     const accountCode = columns[0] || '';
     const customerName = columns[1] || accountCode;
     if (!accountCode || !customerName || /^total$/i.test(accountCode)) continue;
-    const key = customerName.trim().toLowerCase();
+    // Daily comparisons follow the pasted report row identity: Account Code + CustomerName.
+    // The same customer may have several account codes and must remain several visible rows.
+    const key = `${accountCode.trim().toLowerCase()}\u001f${customerName.trim().toLowerCase()}`;
     let client = clients.get(key);
     if (!client) {
       client = { key, customer_name:customerName, account_codes:new Set(), attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 };
@@ -11935,7 +11940,7 @@ function normalizeStatsDailyDay(day) {
     posted_at:day?.posted_at?.toDate?.() || (day?.posted_at ? new Date(day.posted_at) : null),
     posted_by:String(day?.posted_by || ''),
     clients:Array.isArray(day?.clients) ? day.clients.map(client => ({
-      key:String(client?.key || client?.customer_name || '').trim().toLowerCase(),
+      key:String(client?.key || `${client?.account_codes || ''}\u001f${client?.customer_name || ''}`).trim().toLowerCase(),
       customer_name:String(client?.customer_name || ''),
       account_codes:String(client?.account_codes || ''),
       attempts:Number(client?.attempts) || 0,
@@ -12023,7 +12028,7 @@ function renderStatsDailySidebar() {
   const list = document.getElementById('stats-daily-date-list');
   if (!list) return;
   const days = statsDailySortedHistory().reverse();
-  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(day.clients.length)} clients</span></div>`).join('')
+  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(day.clients.length)} accounts</span></div>`).join('')
     : '<div class="top-usage-empty">No daily traffic data yet.</div>';
 }
 
@@ -12075,7 +12080,7 @@ function renderStatsDailyTraffic() {
   if (alertBox) {
     alertBox.classList.toggle('visible', alerts.length > 0);
     alertBox.innerHTML = alerts.length ? `<strong>Traffic alert:</strong> ${counts.decrease} decreasing and ${counts.stopped} stopped. `
-      + alerts.slice(0, 6).map(row => `${stEsc(row.customer_name)}${row.decrease_streak >= 2 ? ` (${row.decrease_streak}-day decrease)` : ''}`).join(', ')
+      + alerts.slice(0, 6).map(row => `${stEsc(row.customer_name)} [${stEsc(row.account_codes)}]${row.decrease_streak >= 2 ? ` (${row.decrease_streak}-day decrease)` : ''}`).join(', ')
       + (alerts.length > 6 ? ` and ${alerts.length - 6} more` : '') : '';
   }
 
@@ -12092,7 +12097,7 @@ function renderStatsDailyTraffic() {
     if (typeof av === 'string' || typeof bv === 'string') return String(av ?? '').localeCompare(String(bv ?? '')) * statsDailySortDir;
     return ((Number(av) || 0) - (Number(bv) || 0)) * statsDailySortDir;
   });
-  setText('st-daily-count', `${rows.length} of ${allRows.length} client(s)`);
+  setText('st-daily-count', `${rows.length} of ${allRows.length} account row(s)`);
   const tbody = document.getElementById('st-daily-tbody');
   if (tbody) tbody.innerHTML = rows.length ? rows.map(row => {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
@@ -12115,7 +12120,7 @@ function sendStatsDailyTrafficNotification(sessionDate) {
   const stopped = alerts.filter(row => row.status === 'stopped').length;
   const decreasing = alerts.length - stopped;
   new Notification('BalanceMonitor — Daily Traffic Alert', {
-    body:`${decreasing} decreasing, ${stopped} stopped on ${sessionDate}. ${alerts.slice(0, 4).map(row => row.customer_name).join(', ')}${alerts.length > 4 ? '…' : ''}`,
+    body:`${decreasing} decreasing, ${stopped} stopped on ${sessionDate}. ${alerts.slice(0, 4).map(row => `${row.customer_name} [${row.account_codes}]`).join(', ')}${alerts.length > 4 ? '…' : ''}`,
     icon:'icon.svg',
   });
 }
@@ -12178,8 +12183,32 @@ window.processStatsDailyTraffic = async () => {
     const decreasing = comparison.rows.filter(row => row.status === 'decrease').length;
     const stopped = comparison.rows.filter(row => row.status === 'stopped').length;
     const skipped = parsedDays.length - daysToSave.length;
-    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} client total(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
+    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} account row(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
   } catch(e) { toast('Daily traffic save failed: ' + e.message, 'err', 8000); }
+  finally { setLoading(false); }
+};
+
+window.undoLastStatsDailyTraffic = async () => {
+  if (!canPostStats()) { toast('Removing daily traffic is restricted for this account.', 'err'); return; }
+  if (!statsDailyHistory.length) { toast('No saved Daily Traffic date to undo.', 'err'); return; }
+  const postedTime = day => {
+    const value = day?.posted_at instanceof Date ? day.posted_at.getTime() : new Date(day?.posted_at || '').getTime();
+    if (Number.isFinite(value)) return value;
+    const fallback = new Date(`${day?.session_date || ''}T00:00:00`).getTime();
+    return Number.isFinite(fallback) ? fallback : 0;
+  };
+  const ordered = statsDailyHistory.slice().sort((a,b) => postedTime(a) - postedTime(b) || a.session_date.localeCompare(b.session_date));
+  const last = ordered[ordered.length - 1];
+  if (!last || !confirm(`Remove the most recently saved Daily Traffic report (${last.session_date}, ${last.clients.length} account row(s))?`)) return;
+  setLoading(true, 'Removing daily traffic report…');
+  try {
+    if (fbOk) await deleteDoc(doc(db, 'stats_daily_traffic', last.id || last.session_date));
+    statsDailyHistory = statsDailyHistory.filter(day => day.session_date !== last.session_date);
+    saveStatsDailyLocal();
+    statsDailySelectedDate = statsDailySortedHistory().reverse()[0]?.session_date || '';
+    renderStatsDailyTraffic();
+    toast(`Daily Traffic for ${last.session_date} removed${fbOk ? '' : ' from this browser'}.`, 'ok', 6000);
+  } catch(e) { toast('Daily Traffic undo failed: ' + e.message, 'err', 8000); }
   finally { setLoading(false); }
 };
 
