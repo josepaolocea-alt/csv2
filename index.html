@@ -2156,8 +2156,10 @@
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
             <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
-            <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" style="margin-left:8px;font-size:10px;padding:1px 7px">Show inactive</button>
-            <button class="tbtn" onclick="exportCurrentAlertView()" title="Export the current Alerts tab view" style="margin-left:4px;font-size:10px;padding:1px 7px">Export View</button>
+          </div>
+          <div class="fbar" id="alert-actions" style="justify-content:flex-end;padding:4px 0">
+            <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()">Show inactive</button>
+            <button class="tbtn primary" id="btn-alert-export-view" onclick="exportCurrentAlertView()" title="Export all rows in the selected Alerts view to CSV">Export View</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap" id="alert-tbl-wrap">
@@ -3792,8 +3794,8 @@ const SMS_TAB_CONFIG = {
 };
 const SMS_ALL_TABS = new Set([...Object.keys(SMS_TAB_CONFIG), 'credentials']);
 const smsDataByTab = { client: [], phoenix: [] };
-// Most recently added/edited route per tab — pinned to the top of the table
-const smsRecentIdByTab = { client: null, phoenix: null };
+// Two most recently added/edited routes per tab — pinned to rows 1 and 2.
+const smsRecentIdsByTab = { client: [], phoenix: [] };
 const smsRemoteApplyingByTab = { client: false, phoenix: false };
 const smsSubscribedTabs = new Set();
 
@@ -9312,9 +9314,11 @@ function alertFilterLabel(filter) {
     none:'safe',
     nothresh:'no_threshold',
     usage:'usage',
+    spam:'possible_spam',
     new:'new_critical',
     removed:'removed_from_critical',
-    inactiveusage:'inactive_with_usage'
+    inactiveusage:'inactive_with_usage',
+    usagehistory:'usage_history'
   })[filter] || 'current_view';
 }
 window.exportCurrentAlertView=()=>{
@@ -9331,7 +9335,13 @@ window.exportCurrentAlertView=()=>{
       const range=critBal-credLim, pos=bal-credLim;
       bw=range!==0?Math.min(Math.max(pos/range*100,0),100):(bal>=critBal?100:0);
     }
-    const[,lbl]=r._removedFromCritical?['removed','Removed from Critical']:alertFilter==='usage'?usageChipInfo(r):chipInfo(r,r._level);
+    const[,lbl]=r._removedFromCritical
+      ? ['removed','Removed from Critical']
+      : alertFilter==='spam'
+        ? spamChipInfo(r)
+        : alertFilter==='usage'
+          ? usageChipInfo(r)
+          : chipInfo(r,r._level);
     const etaTxt=r._removedFromCritical ? '' : r._eta===null ? (r._level==='high'?'AT LIMIT':'—') : fmtEta(r._eta);
     return [
       r.carrier_name,
@@ -11023,8 +11033,9 @@ window.saveSmsClient = () => {
     if (dupeIdx >= 0) { smsClients[dupeIdx] = smsMergeRoute(smsClients[dupeIdx], row); savedId = smsClients[dupeIdx].id; }
     else smsClients.push(row);
   }
-  // Pin this route to the top of the table until the user sorts a column
-  smsRecentIdByTab[smsActiveTab] = savedId;
+  // Keep the two latest saved routes in rows 1 and 2 until the user sorts a column.
+  const recentIds = smsRecentIdsByTab[smsActiveTab];
+  smsRecentIdsByTab[smsActiveTab] = [savedId, ...recentIds.filter(id => id !== savedId)].slice(0, 2);
   saveSmsClients();
   updateSmsDatalists();
   renderSmsClients();
@@ -11226,7 +11237,7 @@ window.editSmsFromDetail = () => {
 
 window.sortSms = col => {
   // Explicit sort takes over — drop the "recently edited" pin
-  smsRecentIdByTab[smsActiveTab] = null;
+  smsRecentIdsByTab[smsActiveTab] = [];
   smsSortDir = smsSortCol === col ? smsSortDir * -1 : 1;
   smsSortCol = col;
   renderSmsClients();
@@ -11375,11 +11386,13 @@ window.renderSmsClients = () => {
       // Stable tiebreaker so equal primary keys stay grouped sensibly
       return String(a.client).localeCompare(String(b.client)) || String(a.destination).localeCompare(String(b.destination));
     });
-  // Keep the most recently added/edited route at the top of the list
-  const recentId = smsRecentIdByTab[smsActiveTab];
-  if (recentId) {
-    const ri = rows.findIndex(r => r.id === recentId);
-    if (ri > 0) rows.unshift(rows.splice(ri, 1)[0]);
+  // Keep the two latest saved routes at the top, newest first.
+  const recentIds = smsRecentIdsByTab[smsActiveTab];
+  if (recentIds.length) {
+    const byId = new Map(rows.map(row => [row.id, row]));
+    const pinned = recentIds.map(id => byId.get(id)).filter(Boolean);
+    const pinnedIds = new Set(pinned.map(row => row.id));
+    rows.splice(0, rows.length, ...pinned, ...rows.filter(row => !pinnedIds.has(row.id)));
   }
   // Sort indicator on the active header
   SMS_SORTABLE_COLS.forEach(c => {
