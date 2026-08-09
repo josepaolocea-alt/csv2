@@ -12422,6 +12422,40 @@ function statsDailyClientBaseKey(client) {
     .map(value => String(value || '').trim().toLowerCase()).join('\u001f');
 }
 
+// Daily Client Wise Traffic reports often contain only Account Code + Client,
+// while hourly Stats snapshots contain the missing Destination. Resolve that
+// route label dynamically so existing daily history is enriched immediately.
+function statsDailyDestinationLookup() {
+  const lookup = new Map();
+  const add = (accountCode, destination) => {
+    const account = String(accountCode || '').trim().toLowerCase();
+    const dest = String(destination || '').trim();
+    if (!account || !dest || dest === '-' || dest === '(no dest)') return;
+    if (!lookup.has(account)) lookup.set(account, new Set());
+    lookup.get(account).add(dest);
+  };
+  [...statsPreviousDaySnaps, ...statsTodaySnaps].forEach(snapshot => {
+    (snapshot?.data || []).forEach(row => add(row.account_code, row.destination));
+  });
+  // Remarks are also keyed as "Account Code | Destination" and survive
+  // snapshot cleanup, so they can fill a route label when present.
+  statsRemarks.forEach((entry, key) => {
+    const separator = String(key || '').indexOf(' | ');
+    if (separator > 0) add(String(key).slice(0, separator), String(key).slice(separator + 3));
+  });
+  return lookup;
+}
+
+function statsDailyResolvedDestination(client, lookup = statsDailyDestinationLookup()) {
+  if (client?.destination) return String(client.destination);
+  const destinations = new Set();
+  String(client?.account_codes || '').split(/[;,]/).forEach(accountCode => {
+    const matches = lookup.get(accountCode.trim().toLowerCase());
+    matches?.forEach(destination => destinations.add(destination));
+  });
+  return [...destinations].sort((a,b) => a.localeCompare(b)).join('; ');
+}
+
 function statsDailyDateRange(endDate, count = 14) {
   const end = new Date(`${endDate}T00:00:00Z`);
   if (!Number.isFinite(end.getTime())) return [];
@@ -12452,6 +12486,7 @@ function statsDailyTwoWeekSnapshot() {
   const dateSet = new Set(dates);
   const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
   const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
+  const destinationLookup = statsDailyDestinationLookup();
   const routedBases = new Set();
   dayByDate.forEach(day => (day.clients || []).forEach(client => {
     if (client.destination) routedBases.add(statsDailyClientBaseKey(client));
@@ -12488,7 +12523,7 @@ function statsDailyTwoWeekSnapshot() {
       key,
       customer_name:identity.customer_name || key,
       account_codes:identity.account_codes || '',
-      destination:identity.destination || '',
+      destination:statsDailyResolvedDestination(identity, destinationLookup),
       timeline,
       latest_attempts:latestAttempts,
       baseline_attempts:baseline,
@@ -12694,6 +12729,7 @@ function statsDailyComparison(sessionDate) {
   const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
   if (!currentDay) return { currentDay:null, previousDay:null, rows:[] };
   const current = statsDailyClientMap(currentDay), previous = statsDailyClientMap(previousDay);
+  const destinationLookup = statsDailyDestinationLookup();
   const routedBases = new Set([...current.values(), ...previous.values()]
     .filter(client => client.destination).map(statsDailyClientBaseKey));
   const keys = new Set([...current.keys(), ...previous.keys()].filter(key => {
@@ -12714,7 +12750,7 @@ function statsDailyComparison(sessionDate) {
       key,
       customer_name:now?.customer_name || before?.customer_name || key,
       account_codes:now?.account_codes || before?.account_codes || '',
-      destination:now?.destination || before?.destination || '',
+      destination:statsDailyResolvedDestination(now || before, destinationLookup),
       date:currentDay.session_date,
       previous_date:previousDay?.session_date || '',
       attempts,
