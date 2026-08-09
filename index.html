@@ -3046,7 +3046,7 @@
 
           <div class="st-daily-panel" id="st-daily-panel-history" role="tabpanel" aria-labelledby="st-daily-tab-history" style="display:none">
             <div class="fbar st-daily-history-toolbar">
-              <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client or account code…" oninput="renderStatsDailyHistory()" style="min-width:260px">
+              <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client, account code, or destination…" oninput="renderStatsDailyHistory()" style="min-width:260px">
               <span id="st-daily-history-count" class="sms-muted" style="margin-left:auto"></span>
             </div>
             <div class="st-daily-history-meta" id="st-daily-history-meta">The latest 14 calendar days of attempts appear here.</div>
@@ -12577,6 +12577,63 @@ function statsDailyTwoWeekSnapshot() {
   return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
 }
 
+// The dashboard is intentionally client/account-level, while Last 2 Weeks is
+// the route drill-down. Keep destination identities here so an exact account
+// selection can show which of its destinations increased, decreased, or stopped.
+function statsDailyTwoWeekRouteSnapshot() {
+  const history = statsDailySortedHistory();
+  const latestDay = history[history.length - 1] || null;
+  if (!latestDay) return { dates:[], dayByDate:new Map(), latestDay:null, reportCount:0, rows:[] };
+  const dates = statsDailyDateRange(latestDay.session_date, 14);
+  const dateSet = new Set(dates);
+  const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
+  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
+  const destinationLookup = statsDailyDestinationLookup();
+  const routedBases = new Set();
+  dayByDate.forEach(day => (day.clients || []).forEach(client => {
+    if (client.destination) routedBases.add(statsDailyClientBaseKey(client));
+  }));
+  const keys = new Set();
+  dayByDate.forEach(day => (day.clients || []).forEach(client => {
+    if (client.destination || !routedBases.has(statsDailyClientBaseKey(client))) keys.add(client.key);
+  }));
+  const rows = [...keys].flatMap(key => {
+    const timeline = dates.map(date => {
+      const day = dayByDate.get(date);
+      if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
+      const client = clientMaps.get(date)?.get(key) || null;
+      return { date, has_report:true, present:!!client, attempts:client?.attempts || 0, client };
+    });
+    const latestPoint = timeline[timeline.length - 1];
+    const priorObserved = timeline.slice(0, -1).filter(point => point.has_report && point.present);
+    const baseline = priorObserved.length
+      ? priorObserved.reduce((sum, point) => sum + point.attempts, 0) / priorObserved.length
+      : null;
+    const latestAttempts = latestPoint?.present ? latestPoint.attempts : 0;
+    let status = 'new';
+    if (baseline !== null) {
+      if (baseline > 0 && latestAttempts === 0) status = 'stopped';
+      else if (latestAttempts < baseline) status = 'decrease';
+      else if (latestAttempts > baseline) status = 'increase';
+      else status = 'unchanged';
+    }
+    const identity = latestPoint?.client
+      || [...timeline].reverse().find(point => point.client)?.client || {};
+    const row = {
+      key,
+      customer_name:identity.customer_name || key,
+      account_codes:identity.account_codes || '',
+      timeline,
+      latest_attempts:latestAttempts,
+      baseline_attempts:baseline,
+      change:baseline === null ? null : latestAttempts - baseline,
+      status,
+    };
+    return statsDailyExpandDestinationRows(row, identity, destinationLookup);
+  });
+  return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
+}
+
 function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
   return {
     decrease:snapshot.rows.filter(row => row.status === 'decrease').sort((a,b) => a.change - b.change),
@@ -12613,24 +12670,24 @@ function renderStatsDailyDashboard() {
 }
 
 function renderStatsDailyHistory() {
-  const snapshot = statsDailyTwoWeekSnapshot();
+  const snapshot = statsDailyTwoWeekRouteSnapshot();
   const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
   const rows = snapshot.rows
-    .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
-    .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
+    .filter(row => !query || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(query))
+    .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes) || a.destination.localeCompare(b.destination));
   const head = document.getElementById('st-daily-history-head');
-  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th>${snapshot.dates.map(date => `<th title="${stEsc(date)}">${stEsc(statsDailyShortDate(date))}</th>`).join('')}</tr>`;
+  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th><th>Destination</th><th>Status</th>${snapshot.dates.map(date => `<th title="${stEsc(date)}">${stEsc(statsDailyShortDate(date))}</th>`).join('')}</tr>`;
   const body = document.getElementById('st-daily-history-body');
-  if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td>`
+  if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
     + row.timeline.map(point => point.has_report
       ? `<td class="st-daily-history-attempt${point.attempts === 0 ? ' st-daily-history-zero' : ''}">${stN0(point.attempts)}</td>`
       : '<td class="st-daily-history-missing" title="No report saved for this date">—</td>').join('') + '</tr>').join('')
-    : `<tr><td colspan="16" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No clients match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
+    : `<tr><td colspan="18" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No routes match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
   const count = document.getElementById('st-daily-history-count');
-  if (count) count.textContent = `${rows.length} client${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
+  if (count) count.textContent = `${rows.length} route${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
   const meta = document.getElementById('st-daily-history-meta');
   if (meta) meta.textContent = snapshot.dates.length
-    ? `${snapshot.dates[0]} to ${snapshot.dates[snapshot.dates.length - 1]}. A dash means no report was saved for that date; 0 means the report exists and the client had no attempts.`
+    ? `${snapshot.dates[0]} to ${snapshot.dates[snapshot.dates.length - 1]}. Status compares the latest destination traffic with its average from available earlier reports. A dash means no report was saved; 0 means the destination had no attempts.`
     : 'The latest 14 calendar days of attempts appear here.';
 }
 window.renderStatsDailyHistory = renderStatsDailyHistory;
@@ -12638,8 +12695,9 @@ window.renderStatsDailyHistory = renderStatsDailyHistory;
 window.openStatsDailyHistoryForClient = key => {
   const row = statsDailyTwoWeekSnapshot().rows.find(entry => entry.key === key);
   const search = document.getElementById('st-daily-history-search');
-  // The two-week view is client-level, so this resolves to exactly one row.
-  if (search) search.value = row?.customer_name || row?.account_codes || '';
+  // Use the exact dashboard account rather than the shared client name. This
+  // keeps (for example) C_TOKU-TRUNK6 separate from every other TOKU account.
+  if (search) search.value = row?.account_codes || row?.customer_name || '';
   window.switchStatsDailyTab('history');
   search?.focus();
 };
@@ -12685,15 +12743,15 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     };
   }
   if (tab === 'history') {
-    const snapshot = statsDailyTwoWeekSnapshot();
+    const snapshot = statsDailyTwoWeekRouteSnapshot();
     const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
     const rows = snapshot.rows
-      .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
-      .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
+      .filter(row => !query || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(query))
+      .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes) || a.destination.localeCompare(b.destination));
     return {
       sheet:'Last 2 Weeks', suffix:`last_2_weeks_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Client','Account Code',...snapshot.dates],
-      rows:rows.map(row => [row.customer_name,row.account_codes,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
+      headers:['Client','Account Code','Destination','Status',...snapshot.dates],
+      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.status,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
     };
   }
   const rows = statsDailyTodayRowsForExport();
