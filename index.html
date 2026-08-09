@@ -12429,10 +12429,12 @@ function statsDailyDestinationLookup() {
   const lookup = new Map();
   const add = (accountCode, destination) => {
     const account = String(accountCode || '').trim().toLowerCase();
-    const dest = String(destination || '').trim();
-    if (!account || !dest || dest === '-' || dest === '(no dest)') return;
-    if (!lookup.has(account)) lookup.set(account, new Set());
-    lookup.get(account).add(dest);
+    if (!account) return;
+    String(destination || '').split(';').map(value => value.trim()).filter(Boolean).forEach(dest => {
+      if (dest === '-' || dest === '(no dest)') return;
+      if (!lookup.has(account)) lookup.set(account, new Set());
+      lookup.get(account).add(dest);
+    });
   };
   [...statsPreviousDaySnaps, ...statsTodaySnaps].forEach(snapshot => {
     (snapshot?.data || []).forEach(row => add(row.account_code, row.destination));
@@ -12446,14 +12448,21 @@ function statsDailyDestinationLookup() {
   return lookup;
 }
 
-function statsDailyResolvedDestination(client, lookup = statsDailyDestinationLookup()) {
-  if (client?.destination) return String(client.destination);
+function statsDailyResolvedDestinations(client, lookup = statsDailyDestinationLookup()) {
+  const direct = String(client?.destination || '').split(';').map(value => value.trim()).filter(Boolean);
+  if (direct.length) return [...new Set(direct)].sort((a,b) => a.localeCompare(b));
   const destinations = new Set();
   String(client?.account_codes || '').split(/[;,]/).forEach(accountCode => {
     const matches = lookup.get(accountCode.trim().toLowerCase());
     matches?.forEach(destination => destinations.add(destination));
   });
-  return [...destinations].sort((a,b) => a.localeCompare(b)).join('; ');
+  return [...destinations].sort((a,b) => a.localeCompare(b));
+}
+
+function statsDailyExpandDestinationRows(row, client, lookup = statsDailyDestinationLookup()) {
+  const destinations = statsDailyResolvedDestinations(client, lookup);
+  if (!destinations.length) return [{ ...row, destination:'' }];
+  return destinations.map(destination => ({ ...row, destination }));
 }
 
 function statsDailyDateRange(endDate, count = 14) {
@@ -12497,7 +12506,7 @@ function statsDailyTwoWeekSnapshot() {
     // the same client/account. Its destination cannot be recovered reliably.
     if (client.destination || !routedBases.has(statsDailyClientBaseKey(client))) keys.add(client.key);
   }));
-  const rows = [...keys].map(key => {
+  const rows = [...keys].flatMap(key => {
     const timeline = dates.map(date => {
       const day = dayByDate.get(date);
       if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
@@ -12519,11 +12528,10 @@ function statsDailyTwoWeekSnapshot() {
     }
     const change = baseline === null ? null : latestAttempts - baseline;
     const identity = latestPoint?.client || [...timeline].reverse().find(point => point.client)?.client || {};
-    return {
+    const row = {
       key,
       customer_name:identity.customer_name || key,
       account_codes:identity.account_codes || '',
-      destination:statsDailyResolvedDestination(identity, destinationLookup),
       timeline,
       latest_attempts:latestAttempts,
       baseline_attempts:baseline,
@@ -12532,6 +12540,7 @@ function statsDailyTwoWeekSnapshot() {
       status,
       baseline_days:priorObserved.length,
     };
+    return statsDailyExpandDestinationRows(row, identity, destinationLookup);
   });
   return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
 }
@@ -12736,7 +12745,7 @@ function statsDailyComparison(sessionDate) {
     const client = current.get(key) || previous.get(key);
     return client?.destination || !routedBases.has(statsDailyClientBaseKey(client));
   }));
-  const rows = [...keys].map(key => {
+  const rows = [...keys].flatMap(key => {
     const now = current.get(key), before = previous.get(key);
     const attempts = now?.attempts || 0, previousAttempts = before?.attempts || 0;
     let status = 'unchanged';
@@ -12746,11 +12755,10 @@ function statsDailyComparison(sessionDate) {
     else if (attempts > previousAttempts) status = 'increase';
     else if (attempts < previousAttempts) status = 'decrease';
     const change = attempts - previousAttempts;
-    return {
+    const row = {
       key,
       customer_name:now?.customer_name || before?.customer_name || key,
       account_codes:now?.account_codes || before?.account_codes || '',
-      destination:statsDailyResolvedDestination(now || before, destinationLookup),
       date:currentDay.session_date,
       previous_date:previousDay?.session_date || '',
       attempts,
@@ -12762,6 +12770,7 @@ function statsDailyComparison(sessionDate) {
       completed:now?.completed || 0,
       asr:now?.asr || 0,
     };
+    return statsDailyExpandDestinationRows(row, now || before, destinationLookup);
   });
   return { currentDay, previousDay, rows };
 }
