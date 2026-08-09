@@ -2085,7 +2085,7 @@
             <div class="snap-action-row" style="margin-top:2px">
               <button class="tbtn" style="width:100%;justify-content:center" onclick="undoLastStatsDailyTraffic()" title="Remove the most recently saved Daily Traffic date">Undo Last Daily Traffic</button>
             </div>
-            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Identical saved dates are skipped; changed values ask before replacing.</div>
+            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. After processing, the date advances to the day after the latest saved report.</div>
           </div>
           <div class="snap-label">Saved Daily Dates</div>
           <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
@@ -7577,8 +7577,10 @@ window.confirmWipeAll = async () => {
     } else if (kind === 'stats-daily') {
       statsDailyHistory = [];
       statsDailySelectedDate = '';
+      statsDailyImportDateAutoTrack = true;
       try { localStorage.removeItem('bm_stats_daily_history'); } catch(e) {}
       renderStatsDailyTraffic();
+      syncStatsDailyImportDate(true);
     } else if (kind === 'tritel') {
       tritelSnaps = [];
       try { localStorage.removeItem('bm_tritel_snaps'); } catch(e) {}
@@ -12017,6 +12019,7 @@ let statsViewName = 'summary';
 let statsPrimaryMode = 'current';
 let statsDailyHistory = [];    // [{id,session_date,posted_at,clients:[daily aggregates]}] — no automatic retention
 let statsDailySelectedDate = '';
+let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
 let statsDailyTab = 'today';
 let statsViewingSlot = null;   // null = view latest
@@ -12392,6 +12395,21 @@ function normalizeStatsDailyDay(day) {
 
 function statsDailySortedHistory() {
   return statsDailyHistory.filter(day => day.session_date).slice().sort((a,b) => a.session_date.localeCompare(b.session_date));
+}
+
+function statsDailySuggestedImportDate() {
+  const latest = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
+  if (!latest) return todayStr();
+  const date = new Date(`${latest}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return todayStr();
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function syncStatsDailyImportDate(force = false) {
+  const input = document.getElementById('stats-daily-import-date');
+  if (!input || (!force && !statsDailyImportDateAutoTrack && input.value)) return;
+  input.value = statsDailySuggestedImportDate();
 }
 
 function saveStatsDailyLocal() {
@@ -12998,6 +13016,8 @@ window.processStatsDailyTraffic = async () => {
   if (!daysToSave.length) {
     if (textarea) textarea.value = '';
     renderStatsDailyTraffic();
+    statsDailyImportDateAutoTrack = true;
+    syncStatsDailyImportDate(true);
     toast('All report dates are already saved with the same values. Nothing was replaced.', 'ok', 6000);
     return;
   }
@@ -13018,6 +13038,8 @@ window.processStatsDailyTraffic = async () => {
     }
     saveStatsDailyLocal();
     if (textarea) textarea.value = '';
+    statsDailyImportDateAutoTrack = true;
+    syncStatsDailyImportDate(true);
     renderStatsDailyTraffic();
     renderStatsTables();
     sendStatsDailyTrafficNotification(statsDailySelectedDate);
@@ -13048,6 +13070,8 @@ window.undoLastStatsDailyTraffic = async () => {
     statsDailyHistory = statsDailyHistory.filter(day => day.session_date !== last.session_date);
     saveStatsDailyLocal();
     statsDailySelectedDate = statsDailySortedHistory().reverse()[0]?.session_date || '';
+    statsDailyImportDateAutoTrack = true;
+    syncStatsDailyImportDate(true);
     renderStatsDailyTraffic();
     renderStatsTables();
     toast(`Daily Traffic for ${last.session_date} removed${fbOk ? '' : ' from this browser'}.`, 'ok', 6000);
@@ -13834,6 +13858,7 @@ function subscribeStatsDailyHistory() {
     onSnapshot(collection(db, 'stats_daily_traffic'), snapshot => {
       statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
       saveStatsDailyLocal();
+      syncStatsDailyImportDate();
       renderStatsDailyTraffic();
       renderStatsTables();
     }, error => console.warn('stats daily traffic subscription:', error));
@@ -13862,6 +13887,7 @@ async function cleanupOldStatsSnapshots() {
 async function initStats() {
   const dailyImportDate = document.getElementById('stats-daily-import-date');
   if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
+  dailyImportDate?.addEventListener('change', () => { statsDailyImportDateAutoTrack = false; });
   populateStatsSlots();
   // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
   document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
@@ -13869,6 +13895,7 @@ async function initStats() {
   await loadStatsSnaps();
   await loadStatsPreviousDaySnaps();
   await loadStatsDailyHistory();
+  syncStatsDailyImportDate(true);
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
   subscribeStatsRemarks();
