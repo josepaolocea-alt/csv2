@@ -548,6 +548,16 @@
       border-bottom-color: var(--accent); z-index: 1;
     }
     .tab-content { border-top: 1px solid var(--border); padding: 8px 0 0; }
+    #alert-tabs { flex-wrap: wrap; }
+    .alert-tab-actions {
+      display: flex; align-items: center; gap: 4px; margin-left: auto;
+      padding-left: 4px; flex: 0 0 auto;
+    }
+    .tbtn.icon-only {
+      width: 28px; min-width: 28px; height: 28px; padding: 0;
+      align-items: center; justify-content: center;
+    }
+    .tbtn.icon-only svg { width: 14px; height: 14px; pointer-events: none; }
 
     /* ── SMS Module tabs (#view-sms) — bolder segmented control so the
        Client / SMS Phoenix Platform switch is easy to spot. Scoped to the
@@ -855,6 +865,7 @@
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
     .st-daily-tabs {
       display: flex; gap: 4px; padding: 6px 8px 7px;
+      align-items: center; flex-wrap: wrap;
       border-bottom: 1px solid var(--border); background: var(--surface-2);
     }
     .st-daily-tab {
@@ -864,6 +875,8 @@
     }
     .st-daily-tab:hover { color: var(--text); background: var(--surface-3); }
     .st-daily-tab.active { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 18%, transparent); }
+    .st-daily-export-actions { display: flex; gap: 4px; margin-left: auto; }
+    .st-daily-export-btn { min-height: 28px; padding: 4px 9px; }
     .st-daily-panel { flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
     .st-daily-dashboard-meta, .st-daily-history-meta {
       padding: 8px 10px; color: var(--text-2); font-size: 11px; line-height: 1.4;
@@ -888,6 +901,7 @@
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
     .st-daily-rank-card th { position: static; font-size: 9.5px; padding: 5px 7px; }
     .st-daily-rank-card td { padding: 5px 7px; }
+    .st-daily-rank-card tbody tr { cursor: pointer; }
     .st-daily-rank-client { min-width: 130px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
     .st-daily-rank-account { display: block; margin-top: 1px; color: var(--text-3); font-size: 9px; font-weight: 400; }
     .st-daily-history-toolbar { flex-wrap: wrap; }
@@ -2156,10 +2170,14 @@
             <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
             <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
             <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
-          </div>
-          <div class="fbar" id="alert-actions" style="justify-content:flex-end;padding:4px 0">
-            <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()">Show inactive</button>
-            <button class="tbtn primary" id="btn-alert-export-view" onclick="exportCurrentAlertView()" title="Export all rows in the selected Alerts view to CSV">Export View</button>
+            <div class="alert-tab-actions" id="alert-actions">
+              <button class="tbtn icon-only" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+              </button>
+              <button class="tbtn primary icon-only" id="btn-alert-export-view" onclick="exportCurrentAlertView()" title="Export all rows in the selected Alerts view to CSV" aria-label="Export current alert view to CSV">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+              </button>
+            </div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap" id="alert-tbl-wrap">
@@ -2955,6 +2973,10 @@
             <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
+            <div class="st-daily-export-actions" aria-label="Export current Daily Traffic tab">
+              <button type="button" class="tbtn st-daily-export-btn" onclick="exportStatsDailyTab('csv')" title="Export the current Daily Traffic tab to CSV">&#8595; CSV</button>
+              <button type="button" class="tbtn primary st-daily-export-btn" onclick="exportStatsDailyTab('xlsx')" title="Export the current Daily Traffic tab to Excel">&#8595; Excel</button>
+            </div>
           </div>
           <div class="st-daily-panel" id="st-daily-panel-today" role="tabpanel" aria-labelledby="st-daily-tab-today" style="display:flex">
           <div class="fbar">
@@ -8474,7 +8496,9 @@ window.toggleAlertShowInactive=()=>{
   const btn=document.getElementById('btn-alert-show-inactive');
   if(btn) {
     btn.classList.toggle('active',alertShowInactive);
-    btn.textContent=alertShowInactive?'Hide inactive':'Show inactive';
+    const label=alertShowInactive?'Hide inactive clients':'Show inactive clients';
+    btn.title=label;
+    btn.setAttribute('aria-label',label);
   }
   renderStats();
   renderAlerts();
@@ -12463,7 +12487,7 @@ function renderStatsDailyDashboard() {
       const changeClass = row.change < 0 ? 'st-daily-negative' : 'st-daily-positive';
       const signedChange = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
       const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
-      return `<tr><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
+      return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${stEsc(encodeURIComponent(row.key))}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
         + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
         + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN0(Math.abs(row.change)) : signedChange}</td></tr>`;
     }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
@@ -12492,6 +12516,87 @@ function renderStatsDailyHistory() {
     : 'The latest 14 calendar days of attempts appear here.';
 }
 window.renderStatsDailyHistory = renderStatsDailyHistory;
+
+window.openStatsDailyHistoryForClient = key => {
+  const row = statsDailyTwoWeekSnapshot().rows.find(entry => entry.key === key);
+  const search = document.getElementById('st-daily-history-search');
+  if (search) search.value = row?.account_codes || row?.customer_name || '';
+  window.switchStatsDailyTab('history');
+  search?.focus();
+};
+
+function statsDailyTodayRowsForExport() {
+  const comparison = statsDailyComparison(statsDailySelectedDate);
+  const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
+  const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
+  const rows = comparison.rows
+    .filter(row => !statusFilter || row.status === statusFilter)
+    .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
+    .filter(row => !queryText || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(queryText));
+  rows.sort((a,b) => {
+    const column = statsDailySortCol;
+    const av = column === 'status' ? ST_DAILY_STATUS_RANK[a.status] : a[column];
+    const bv = column === 'status' ? ST_DAILY_STATUS_RANK[b.status] : b[column];
+    if (typeof av === 'string' || typeof bv === 'string') return String(av ?? '').localeCompare(String(bv ?? '')) * statsDailySortDir;
+    return ((Number(av) || 0) - (Number(bv) || 0)) * statsDailySortDir;
+  });
+  return rows;
+}
+
+function statsDailyExportDataset() {
+  if (statsDailyTab === 'dashboard') {
+    const snapshot = statsDailyTwoWeekSnapshot();
+    const rows = snapshot.rows.slice().sort((a,b) => ST_DAILY_STATUS_RANK[a.status] - ST_DAILY_STATUS_RANK[b.status]
+      || Math.abs(Number(b.change) || 0) - Math.abs(Number(a.change) || 0)
+      || a.customer_name.localeCompare(b.customer_name));
+    return {
+      sheet:'Dashboard', suffix:`dashboard_${snapshot.latestDay?.session_date || todayStr()}`,
+      headers:['Client','Account Code','Latest Attempts','2-week Average','Change','Change %','Status','Baseline Days'],
+      rows:rows.map(row => [row.customer_name,row.account_codes,row.latest_attempts,row.baseline_attempts ?? '',row.change ?? '',row.change_pct ?? '',row.status,row.baseline_days]),
+    };
+  }
+  if (statsDailyTab === 'history') {
+    const snapshot = statsDailyTwoWeekSnapshot();
+    const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
+    const rows = snapshot.rows
+      .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
+      .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
+    return {
+      sheet:'Last 2 Weeks', suffix:`last_2_weeks_${snapshot.latestDay?.session_date || todayStr()}`,
+      headers:['Client','Account Code',...snapshot.dates],
+      rows:rows.map(row => [row.customer_name,row.account_codes,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
+    };
+  }
+  const rows = statsDailyTodayRowsForExport();
+  return {
+    sheet:'Today', suffix:`today_${statsDailySelectedDate || todayStr()}`,
+    headers:['Client','Account Code','Date','Previous Date','Attempts','Previous','Change','Change %','Status','Decrease Streak','Completed','ASR %'],
+    rows:rows.map(row => [row.customer_name,row.account_codes,row.date,row.previous_date,row.attempts,row.previous_attempts,row.change,row.change_pct ?? '',row.status,row.decrease_streak,row.completed,row.asr]),
+  };
+}
+
+window.exportStatsDailyTab = format => {
+  const data = statsDailyExportDataset();
+  if (!data.rows.length) { toast('No Daily Traffic rows to export', 'err'); return; }
+  const base = `daily_traffic_${data.suffix}`;
+  if (format === 'xlsx') {
+    if (!window.XLSX) { toast('Excel export is still loading — try again in a moment', 'err'); return; }
+    const sheet = XLSX.utils.aoa_to_sheet([data.headers, ...data.rows]);
+    sheet['!autofilter'] = { ref:XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:data.rows.length, c:data.headers.length - 1 } }) };
+    sheet['!cols'] = data.headers.map((header, index) => ({ wch:Math.min(32, Math.max(String(header).length + 2, ...data.rows.map(row => String(row[index] ?? '').length + 2))) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, data.sheet);
+    XLSX.writeFile(workbook, `${base}.xlsx`);
+  } else {
+    const csv = [data.headers, ...data.rows].map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type:'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = `${base}.csv`; link.click();
+    URL.revokeObjectURL(url);
+  }
+  toast(`Exported ${data.rows.length} Daily Traffic row(s) to ${format === 'xlsx' ? 'Excel' : 'CSV'}`, 'ok');
+};
 
 function updateStatsDailyTabUI() {
   document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
