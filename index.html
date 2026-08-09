@@ -3046,7 +3046,7 @@
 
           <div class="st-daily-panel" id="st-daily-panel-history" role="tabpanel" aria-labelledby="st-daily-tab-history" style="display:none">
             <div class="fbar st-daily-history-toolbar">
-              <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client, account code, or destination…" oninput="renderStatsDailyHistory()" style="min-width:260px">
+              <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client or account code…" oninput="renderStatsDailyHistory()" style="min-width:260px">
               <span id="st-daily-history-count" class="sms-muted" style="margin-left:auto"></span>
             </div>
             <div class="st-daily-history-meta" id="st-daily-history-meta">The latest 14 calendar days of attempts appear here.</div>
@@ -12422,6 +12422,46 @@ function statsDailyClientBaseKey(client) {
     .map(value => String(value || '').trim().toLowerCase()).join('\u001f');
 }
 
+// Daily Traffic is client-wise. Some saved dates contain one copy of the same
+// client total for every destination (and older aggregate dates can also be
+// decorated with destinations from Hourly Stats). Collapse those route copies
+// before building dashboard/history timelines. Identical metric sets count
+// once; genuinely different route values are summed into one client total.
+function statsDailyClientLevelMap(day) {
+  const groups = new Map();
+  (day?.clients || []).forEach(client => {
+    const key = statsDailyClientBaseKey(client);
+    if (!key) return;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        customer_name:client.customer_name || client.account_codes || key,
+        account_codes:client.account_codes || '',
+        destination:'',
+        attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0,
+        metric_signatures:new Set(),
+      };
+      groups.set(key, group);
+    }
+    const signature = [client.attempts, client.completed, client.raw_dur, client.rnd_dur, client.revenue]
+      .map(value => Number(value) || 0).join('\u001f');
+    if (group.metric_signatures.has(signature)) return;
+    group.metric_signatures.add(signature);
+    group.attempts += Number(client.attempts) || 0;
+    group.completed += Number(client.completed) || 0;
+    group.raw_dur += Number(client.raw_dur) || 0;
+    group.rnd_dur += Number(client.rnd_dur) || 0;
+    group.revenue += Number(client.revenue) || 0;
+  });
+  return new Map([...groups].map(([key, group]) => {
+    const { metric_signatures, ...client } = group;
+    client.asr = client.attempts > 0 ? client.completed / client.attempts * 100 : 0;
+    client.acd = client.completed > 0 ? client.raw_dur / client.completed : 0;
+    return [key, client];
+  }));
+}
+
 // Daily Client Wise Traffic reports often contain only Account Code + Client,
 // while hourly Stats snapshots contain the missing Destination. Resolve that
 // route label dynamically so existing daily history is enriched immediately.
@@ -12494,19 +12534,10 @@ function statsDailyTwoWeekSnapshot() {
   const dates = statsDailyDateRange(latestDay.session_date, 14);
   const dateSet = new Set(dates);
   const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
-  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
-  const destinationLookup = statsDailyDestinationLookup();
-  const routedBases = new Set();
-  dayByDate.forEach(day => (day.clients || []).forEach(client => {
-    if (client.destination) routedBases.add(statsDailyClientBaseKey(client));
-  }));
+  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientLevelMap(day)]));
   const keys = new Set();
-  dayByDate.forEach(day => (day.clients || []).forEach(client => {
-    // Once route-level history exists, hide the older aggregate-only row for
-    // the same client/account. Its destination cannot be recovered reliably.
-    if (client.destination || !routedBases.has(statsDailyClientBaseKey(client))) keys.add(client.key);
-  }));
-  const rows = [...keys].flatMap(key => {
+  clientMaps.forEach(clientMap => clientMap.forEach((client, key) => keys.add(key)));
+  const rows = [...keys].map(key => {
     const timeline = dates.map(date => {
       const day = dayByDate.get(date);
       if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
@@ -12532,6 +12563,7 @@ function statsDailyTwoWeekSnapshot() {
       key,
       customer_name:identity.customer_name || key,
       account_codes:identity.account_codes || '',
+      destination:'',
       timeline,
       latest_attempts:latestAttempts,
       baseline_attempts:baseline,
@@ -12540,7 +12572,7 @@ function statsDailyTwoWeekSnapshot() {
       status,
       baseline_days:priorObserved.length,
     };
-    return statsDailyExpandDestinationRows(row, identity, destinationLookup);
+    return row;
   });
   return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
 }
@@ -12557,14 +12589,14 @@ function renderStatsDailyDashboard() {
   const snapshot = statsDailyTwoWeekSnapshot();
   const meta = document.getElementById('st-daily-dashboard-meta');
   if (meta) meta.textContent = snapshot.latestDay
-    ? `Latest report: ${snapshot.latestDay.session_date}. Compared with each route’s average attempts from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
+    ? `Latest report: ${snapshot.latestDay.session_date}. Compared with each client’s average attempts from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
     : 'Add daily reports to build the two-week dashboard.';
 
   const groups = statsDailyDashboardGroups(snapshot);
   const empty = label => `<tr><td colspan="4" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
   Object.entries(groups).forEach(([status, allRows]) => {
     const count = document.getElementById(`st-daily-dashboard-${status}-count`);
-    if (count) count.textContent = `${allRows.length} route${allRows.length === 1 ? '' : 's'}`;
+    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}`;
     const body = document.getElementById(`st-daily-dashboard-${status}`);
     if (!body) return;
     const rows = allRows.slice(0, 10);
@@ -12573,7 +12605,7 @@ function renderStatsDailyDashboard() {
       const signedChange = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
       const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
       const encodedKey = encodeURIComponent(row.key).replace(/'/g, '%27');
-      return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span><span class="st-daily-rank-destination" title="${stEsc(row.destination || 'No destination in saved data')}">${stEsc(row.destination || '—')}</span></td>`
+      return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
         + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
         + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN0(Math.abs(row.change)) : signedChange}</td></tr>`;
     }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
@@ -12584,16 +12616,16 @@ function renderStatsDailyHistory() {
   const snapshot = statsDailyTwoWeekSnapshot();
   const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
   const rows = snapshot.rows
-    .filter(row => !query || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(query))
-    .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes) || a.destination.localeCompare(b.destination));
+    .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
+    .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
   const head = document.getElementById('st-daily-history-head');
-  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th><th>Destination</th>${snapshot.dates.map(date => `<th title="${stEsc(date)}">${stEsc(statsDailyShortDate(date))}</th>`).join('')}</tr>`;
+  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th>${snapshot.dates.map(date => `<th title="${stEsc(date)}">${stEsc(statsDailyShortDate(date))}</th>`).join('')}</tr>`;
   const body = document.getElementById('st-daily-history-body');
-  if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td>`
+  if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td>`
     + row.timeline.map(point => point.has_report
       ? `<td class="st-daily-history-attempt${point.attempts === 0 ? ' st-daily-history-zero' : ''}">${stN0(point.attempts)}</td>`
       : '<td class="st-daily-history-missing" title="No report saved for this date">—</td>').join('') + '</tr>').join('')
-    : `<tr><td colspan="17" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No routes match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
+    : `<tr><td colspan="16" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No clients match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
   const count = document.getElementById('st-daily-history-count');
   if (count) count.textContent = `${rows.length} client${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
   const meta = document.getElementById('st-daily-history-meta');
@@ -12606,7 +12638,7 @@ window.renderStatsDailyHistory = renderStatsDailyHistory;
 window.openStatsDailyHistoryForClient = key => {
   const row = statsDailyTwoWeekSnapshot().rows.find(entry => entry.key === key);
   const search = document.getElementById('st-daily-history-search');
-  // Filter by client name so every destination for that client remains visible.
+  // The two-week view is client-level, so this resolves to exactly one row.
   if (search) search.value = row?.customer_name || row?.account_codes || '';
   window.switchStatsDailyTab('history');
   search?.focus();
@@ -12641,14 +12673,14 @@ function statsDailyExportDataset(tab = statsDailyTab) {
       ['Top 10 Increases', groups.increase],
     ];
     const rows = sections.flatMap(([label, group]) => group.slice(0, 10).map((row, index) => [
-      label, index + 1, row.customer_name, row.account_codes, row.destination,
+      label, index + 1, row.customer_name, row.account_codes,
       row.latest_attempts, row.baseline_attempts ?? '',
       row.status === 'stopped' ? Math.abs(row.change ?? 0) : (row.change ?? ''),
       row.change_pct ?? '', row.baseline_days,
     ]));
     return {
       sheet:'Dashboard', suffix:`dashboard_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Dashboard Section','Rank','Client','Account Code','Destination','Latest Attempts','2-week Average','Change / Lost','Change %','Baseline Days'],
+      headers:['Dashboard Section','Rank','Client','Account Code','Latest Attempts','2-week Average','Change / Lost','Change %','Baseline Days'],
       rows,
     };
   }
@@ -12656,12 +12688,12 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     const snapshot = statsDailyTwoWeekSnapshot();
     const query = (document.getElementById('st-daily-history-search')?.value || '').trim().toLowerCase();
     const rows = snapshot.rows
-      .filter(row => !query || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(query))
-      .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes) || a.destination.localeCompare(b.destination));
+      .filter(row => !query || `${row.customer_name} ${row.account_codes}`.toLowerCase().includes(query))
+      .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes));
     return {
       sheet:'Last 2 Weeks', suffix:`last_2_weeks_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Client','Account Code','Destination',...snapshot.dates],
-      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
+      headers:['Client','Account Code',...snapshot.dates],
+      rows:rows.map(row => [row.customer_name,row.account_codes,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
     };
   }
   const rows = statsDailyTodayRowsForExport();
