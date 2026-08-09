@@ -1234,8 +1234,9 @@
       white-space: nowrap; cursor: pointer;
     }
     .sms-vendor-chk input { margin: 0; accent-color: var(--accent); }
+    .sms-vendor-priority-list { display: grid; gap: 4px; margin-top: 5px; }
     .sms-vendor-priority-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 5px;
+      display: flex; align-items: center; gap: 8px;
       color: var(--text-2); font-size: 10px;
     }
     .sms-vendor-priority-row label { flex: 0 0 auto; font-weight: 600; }
@@ -2466,7 +2467,7 @@
               <div class="sms-field"><label>Status</label><div class="sms-combo" data-combo="status"><input class="win-inp" id="sms-status" autocomplete="off" readonly onfocus="openSmsCombo('status')" onclick="openSmsCombo('status')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('status',event)">▼</button><div class="sms-combo-options" id="sms-status-options"></div></div></div>
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
-              <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div><div class="sms-vendor-priority-row"><label for="sms-priority-vendor">Priority Vendor</label><select class="win-sel" id="sms-priority-vendor" title="Choose one of the ticked vendors as the priority" disabled><option value="">Tick a vendor first</option></select><span>Optional · one priority per route</span></div></div>
+              <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div><div class="sms-vendor-priority-list" id="sms-vendor-priority-list"><div class="sms-vendor-priority-row"><span>Tick a vendor to set priorities (up to 5)</span></div></div></div>
               <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
               <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
             </div>
@@ -2527,7 +2528,7 @@
                   <th onclick="sortSms('opt_out')" id="sms-th-opt_out" style="cursor:pointer">Opt-Out</th>
                   <th onclick="sortSms('overdraft')" id="sms-th-overdraft" style="cursor:pointer">Overdraft</th>
                   <th onclick="sortSms('vendor')" id="sms-th-vendor" style="cursor:pointer">Vendor(s)</th>
-                  <th onclick="sortSms('priority_vendor')" id="sms-th-priority_vendor" style="cursor:pointer">Priority Vendor</th>
+                  <th onclick="sortSms('priority_vendor')" id="sms-th-priority_vendor" style="cursor:pointer">Vendor Priority (1-5)</th>
                   <th onclick="sortSms('emails')" id="sms-th-emails" style="cursor:pointer">Email(s)</th>
                   <th onclick="sortSms('notes')" id="sms-th-notes" style="cursor:pointer">Notes / Remarks</th>
                   <th>Action</th>
@@ -9403,6 +9404,7 @@ window.exportCurrentAlertView=()=>{
 ════════════════════════════════════════════════ */
 /* SMS MODULE */
 const SMS_FIELDS = ['date','client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','priority_vendor','emails','notes'];
+const SMS_MAX_VENDOR_PRIORITIES = 5;
 const SMS_HEADER_MAP = {
   date:'date', dateadded:'date', datecreated:'date', createddate:'date', addeddate:'date', dateadd:'date',
   client:'client', clientname:'client', customer:'client', customername:'client',
@@ -9420,7 +9422,8 @@ const SMS_HEADER_MAP = {
   optout:'opt_out', opt:'opt_out',
   overdraft:'overdraft',
   vendor:'vendor', vendors:'vendor', vendorlist:'vendor',
-  priorityvendor:'priority_vendor', priovendor:'priority_vendor', preferredvendor:'priority_vendor', primaryvendor:'priority_vendor',
+  priorityvendor:'priority_vendor', priorityvendors:'priority_vendor', vendorpriority:'priority_vendor', vendorpriorities:'priority_vendor',
+  vendorpriority15:'priority_vendor', priovendor:'priority_vendor', preferredvendor:'priority_vendor', primaryvendor:'priority_vendor',
   email:'emails', emails:'emails', emailnotes:'emails',
   notes:'notes', note:'notes', remarks:'notes', remark:'notes'
 };
@@ -9449,7 +9452,15 @@ function normalizeSmsVendors(v) {
 }
 
 function normalizeSmsPriorityVendor(v) {
-  return (smsSplitMulti(v)[0] || '').toUpperCase();
+  const seen = new Set(), out = [];
+  smsSplitMulti(v).forEach(item => {
+    const vendor = item.toUpperCase();
+    if (vendor && !seen.has(vendor) && out.length < SMS_MAX_VENDOR_PRIORITIES) {
+      seen.add(vendor);
+      out.push(vendor);
+    }
+  });
+  return out.join(', ');
 }
 
 function smsMergeMulti(existing, incoming, normalizer=normalizeSmsSenderIds) {
@@ -10839,7 +10850,7 @@ window.onSmsSenderIdPaste = (e) => {
 // Union of the fixed vendor list and any vendors already present in saved data
 function smsAllVendors(extra=[]) {
   const seen = new Set(), out = [];
-  [...SMS_VENDORS, ...smsClients.flatMap(r => smsSplitMulti(r.vendor)), ...smsClients.map(r => r.priority_vendor), ...extra]
+  [...SMS_VENDORS, ...smsClients.flatMap(r => smsSplitMulti(r.vendor)), ...smsClients.flatMap(r => smsSplitMulti(r.priority_vendor)), ...extra]
     .forEach(v => { const u = String(v||'').trim().toUpperCase(); if (u && !seen.has(u)) { seen.add(u); out.push(u); } });
   return out;
 }
@@ -10858,28 +10869,42 @@ function smsReadVendors() {
   );
 }
 function smsRefreshPriorityVendorOptions(preferred) {
-  const select = document.getElementById('sms-priority-vendor');
-  if (!select) return;
+  const list = document.getElementById('sms-vendor-priority-list');
+  if (!list) return;
   const checked = [...document.querySelectorAll('#sms-vendor-box input:checked')].map(input => input.value);
-  const wanted = normalizeSmsPriorityVendor(preferred === undefined ? select.value : preferred);
-  select.innerHTML = '<option value="">No priority</option>' + checked.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  const match = checked.find(v => v.toUpperCase() === wanted);
-  select.value = match || '';
-  select.disabled = checked.length === 0;
-  if (!checked.length) select.innerHTML = '<option value="">Tick a vendor first</option>';
+  const current = preferred === undefined
+    ? [...list.querySelectorAll('select')].map(select => select.value)
+    : smsSplitMulti(preferred);
+  const checkedByName = new Map(checked.map(v => [v.toUpperCase(), v]));
+  const wanted = smsSplitMulti(normalizeSmsPriorityVendor(current.join(', ')))
+    .map(v => checkedByName.get(v))
+    .filter(Boolean);
+  if (!checked.length) {
+    list.innerHTML = '<div class="sms-vendor-priority-row"><span>Tick a vendor to set priorities (up to 5)</span></div>';
+    return;
+  }
+  const count = Math.min(SMS_MAX_VENDOR_PRIORITIES, checked.length);
+  list.innerHTML = Array.from({ length: count }, (_, index) => {
+    const options = '<option value="">No priority</option>' + checked.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    return `<div class="sms-vendor-priority-row"><label for="sms-priority-vendor-${index + 1}">Priority ${index + 1}</label><select class="win-sel" id="sms-priority-vendor-${index + 1}" title="Priority ${index + 1}; priority 1 is tried first" onchange="onSmsPriorityVendorChange()">${options}</select>${index === 0 ? '<span>1 = highest</span>' : ''}</div>`;
+  }).join('');
+  [...list.querySelectorAll('select')].forEach((select, index) => { select.value = wanted[index] || ''; });
 }
 window.onSmsVendorSelectionChange = () => smsRefreshPriorityVendorOptions();
+window.onSmsPriorityVendorChange = () => smsRefreshPriorityVendorOptions();
 function smsReadPriorityVendor() {
-  return normalizeSmsPriorityVendor(document.getElementById('sms-priority-vendor')?.value || '');
+  return normalizeSmsPriorityVendor(
+    [...document.querySelectorAll('#sms-vendor-priority-list select')].map(select => select.value).join(', ')
+  );
 }
 // Tick the checkboxes matching the given vendor string
 function smsSetVendors(str, priorityVendor='') {
   const wanted = new Set(smsSplitMulti(str).map(v => v.toUpperCase()));
-  const priority = normalizeSmsPriorityVendor(priorityVendor);
-  if (priority) wanted.add(priority);
+  const priorities = normalizeSmsPriorityVendor(priorityVendor);
+  smsSplitMulti(priorities).forEach(priority => wanted.add(priority));
   buildSmsVendorBox([...wanted]);
   document.querySelectorAll('#sms-vendor-box input').forEach(c => { c.checked = wanted.has(c.value.toUpperCase()); });
-  smsRefreshPriorityVendorOptions(priority);
+  smsRefreshPriorityVendorOptions(priorities);
 }
 
 function updateSmsTabUi() {
@@ -11248,7 +11273,7 @@ window.showSmsDetail = id => {
     ['Opt-Out', r.opt_out],
     ['Overdraft', r.overdraft],
     ['Vendor(s)', r.vendor],
-    ['Priority Vendor', r.priority_vendor],
+    ['Vendor Priority (1-5)', smsSplitMulti(r.priority_vendor).map((vendor, index) => `${index + 1}. ${vendor}`).join('  ')],
     ['Email(s)', r.emails, true],
     ['Notes / Remarks', r.notes, true]
   ];
@@ -11456,7 +11481,7 @@ window.renderSmsClients = () => {
     <td>${esc(r.opt_out)}</td>
     <td>${esc(r.overdraft)}</td>
     <td style="white-space:normal;max-width:160px">${esc(r.vendor)}</td>
-    <td>${r.priority_vendor ? `<span class="sms-prio-badge" title="Priority vendor for this route">★ PRIO</span> <strong>${esc(r.priority_vendor)}</strong>` : '<span class="sms-muted">—</span>'}</td>
+    <td>${r.priority_vendor ? smsSplitMulti(r.priority_vendor).map((vendor, index) => `<span class="sms-prio-badge" title="Vendor priority ${index + 1}">P${index + 1}</span> <strong>${esc(vendor)}</strong>`).join(' ') : '<span class="sms-muted">—</span>'}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
@@ -11471,13 +11496,13 @@ window.renderSmsClients = () => {
   refreshSmsBulkCount();
 };
 
-const SMS_ROUTE_EXPORT_HEADERS = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Priority Vendor','Emails','Notes'];
+const SMS_ROUTE_EXPORT_HEADERS = ['Date','Client','Sender ID','Sender ID Comment','Destination','Account Manager','Platform','Type','Message Type','Status','Opt-Out','Overdraft','Vendor','Vendor Priority (1-5)','Emails','Notes'];
 const smsRouteExportRow = r => [r.date,r.client,r.sender_id,r.sender_id_comment,r.destination,r.account_manager,r.platform,r.type,r.msg_type,r.status,r.opt_out,r.overdraft,r.vendor,r.priority_vendor,r.emails,r.notes];
 
 window.downloadSmsClientTemplate = () => {
   const rows = [
     SMS_ROUTE_EXPORT_HEADERS,
-    [todayStr(),'Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','SMART SUITE','','Multiple sender IDs and vendors — separate with , or ;'],
+    [todayStr(),'Sample Client','PLAY999; PLAY111','PLAY111 awaiting Smart Suite re-approval','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Active','Without','Allowed','SMART SUITE; M360','SMART SUITE; M360','','Priorities are listed highest to lowest, separated with , or ;'],
     [todayStr(),'Sample Client','GLOBE01','','Globe','Jason Cruz','Viber','Wholesale','OTP','Active','Without','Allowed','M360','M360','','Single sender ID / vendor'],
     [todayStr(),'Old Client','RETIRED','','Ph Smart Mobile','Jason Cruz','MS Teams','Wholesale','Marketing','Inactive','Without','Blocked','SMART SUITE','SMART SUITE','','Inactive — appears greyed out'],
     [todayStr(),'Email Client','EMAIL','','Email','Jason Cruz','Email','Retail','OTP','Active','With','Blocked','IBAZAAR','IBAZAAR','ops@example.com','Email fallback']
