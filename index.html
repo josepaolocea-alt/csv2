@@ -12315,29 +12315,24 @@ function parseStatsDailyTraffic(text, selectedDate) {
   const lines = String(text || '').replace(/\r/g, '').split('\n').filter(line => line.trim());
   const sessionDate = statsDailyDateKey(selectedDate);
   if (!sessionDate) return [];
-  const headerIndex = lines.findIndex(line => {
-    const normalized = splitStatsReportLine(line).map(value => value.trim().toLowerCase().replace(/[^a-z0-9]/g, ''));
-    return normalized.includes('accountcode') && normalized.some(value => value === 'attempts' || value === 'attempt');
-  });
-  const dataLines = headerIndex >= 0 ? lines.slice(headerIndex + 1) : lines;
-  const headerHasDestination = headerIndex >= 0 && splitStatsReportLine(lines[headerIndex])
-    .some(value => /^destination$/i.test(value.trim()));
   const clients = new Map();
   const num = value => {
     const parsed = parseFloat(String(value ?? '').replace(/[^0-9.\-]/g, ''));
     return Number.isFinite(parsed) ? parsed : 0;
   };
-  for (const line of dataLines) {
+  for (const line of lines) {
     const columns = splitStatsReportLine(line).map(value => value.trim());
-    if (columns.length < 9) continue;
+    // Destination is required in the new Daily Traffic structure:
+    // Account Code, CustomerName, Destination, Attempts, Completed, ASR,
+    // ACD, Raw Dur, Rnd Dur, Revenue. The copied report may place each header
+    // label on its own line, so recognize data rows by their 10 columns.
+    if (columns.length < 10) continue;
     const accountCode = columns[0] || '';
     const customerName = columns[1] || accountCode;
-    const hasDestination = headerHasDestination || columns.length >= 10;
-    const destination = hasDestination ? (columns[2] || '') : '';
-    const metricOffset = hasDestination ? 1 : 0;
+    const destination = columns[2] || '-';
     if (!accountCode || !customerName || /^total$/i.test(accountCode)) continue;
-    // Daily comparisons follow the route identity: Account Code + Customer + Destination.
-    // A client declining on two destinations must remain two independently ranked rows.
+    // Route history follows the pasted Account Code + Customer + Destination.
+    // Dashboard totals are calculated separately by summing route Attempts.
     const key = [accountCode, customerName, destination].map(value => value.trim().toLowerCase()).join('\u001f');
     let client = clients.get(key);
     if (!client) {
@@ -12345,11 +12340,11 @@ function parseStatsDailyTraffic(text, selectedDate) {
       clients.set(key, client);
     }
     client.account_codes.add(accountCode);
-    client.attempts += num(columns[2 + metricOffset]);
-    client.completed += num(columns[3 + metricOffset]);
-    client.raw_dur += num(columns[6 + metricOffset]);
-    client.rnd_dur += num(columns[7 + metricOffset]);
-    client.revenue += num(columns[8 + metricOffset]);
+    client.attempts += num(columns[3]);
+    client.completed += num(columns[4]);
+    client.raw_dur += num(columns[7]);
+    client.rnd_dur += num(columns[8]);
+    client.revenue += num(columns[9]);
   }
   if (!clients.size) return [];
   return [{
@@ -12422,11 +12417,8 @@ function statsDailyClientBaseKey(client) {
     .map(value => String(value || '').trim().toLowerCase()).join('\u001f');
 }
 
-// Daily Traffic is client-wise. Some saved dates contain one copy of the same
-// client total for every destination (and older aggregate dates can also be
-// decorated with destinations from Hourly Stats). Collapse those route copies
-// before building dashboard/history timelines. Identical metric sets count
-// once; genuinely different route values are summed into one client total.
+// The dashboard is one row per client/account. Its traffic is the sum of the
+// Attempts from every destination pasted for that account on the report date.
 function statsDailyClientLevelMap(day) {
   const groups = new Map();
   (day?.clients || []).forEach(client => {
@@ -12440,14 +12432,9 @@ function statsDailyClientLevelMap(day) {
         account_codes:client.account_codes || '',
         destination:'',
         attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0,
-        metric_signatures:new Set(),
       };
       groups.set(key, group);
     }
-    const signature = [client.attempts, client.completed, client.raw_dur, client.rnd_dur, client.revenue]
-      .map(value => Number(value) || 0).join('\u001f');
-    if (group.metric_signatures.has(signature)) return;
-    group.metric_signatures.add(signature);
     group.attempts += Number(client.attempts) || 0;
     group.completed += Number(client.completed) || 0;
     group.raw_dur += Number(client.raw_dur) || 0;
@@ -12455,52 +12442,23 @@ function statsDailyClientLevelMap(day) {
     group.revenue += Number(client.revenue) || 0;
   });
   return new Map([...groups].map(([key, group]) => {
-    const { metric_signatures, ...client } = group;
+    const client = group;
     client.asr = client.attempts > 0 ? client.completed / client.attempts * 100 : 0;
     client.acd = client.completed > 0 ? client.raw_dur / client.completed : 0;
     return [key, client];
   }));
 }
 
-// Daily Client Wise Traffic reports often contain only Account Code + Client,
-// while hourly Stats snapshots contain the missing Destination. Resolve that
-// route label dynamically so existing daily history is enriched immediately.
-function statsDailyDestinationLookup() {
-  const lookup = new Map();
-  const add = (accountCode, destination) => {
-    const account = String(accountCode || '').trim().toLowerCase();
-    if (!account) return;
-    String(destination || '').split(';').map(value => value.trim()).filter(Boolean).forEach(dest => {
-      if (dest === '-' || dest === '(no dest)') return;
-      if (!lookup.has(account)) lookup.set(account, new Set());
-      lookup.get(account).add(dest);
-    });
-  };
-  [...statsPreviousDaySnaps, ...statsTodaySnaps].forEach(snapshot => {
-    (snapshot?.data || []).forEach(row => add(row.account_code, row.destination));
-  });
-  // Remarks are also keyed as "Account Code | Destination" and survive
-  // snapshot cleanup, so they can fill a route label when present.
-  statsRemarks.forEach((entry, key) => {
-    const separator = String(key || '').indexOf(' | ');
-    if (separator > 0) add(String(key).slice(0, separator), String(key).slice(separator + 3));
-  });
-  return lookup;
+// Destinations in Daily Traffic must come from the pasted daily report. Never
+// infer them from Hourly Stats, because that makes one account total appear on
+// several routes even when the pasted report did not contain route data.
+function statsDailyResolvedDestinations(client) {
+  return [...new Set(String(client?.destination || '').split(';').map(value => value.trim()).filter(Boolean))]
+    .sort((a,b) => a.localeCompare(b));
 }
 
-function statsDailyResolvedDestinations(client, lookup = statsDailyDestinationLookup()) {
-  const direct = String(client?.destination || '').split(';').map(value => value.trim()).filter(Boolean);
-  if (direct.length) return [...new Set(direct)].sort((a,b) => a.localeCompare(b));
-  const destinations = new Set();
-  String(client?.account_codes || '').split(/[;,]/).forEach(accountCode => {
-    const matches = lookup.get(accountCode.trim().toLowerCase());
-    matches?.forEach(destination => destinations.add(destination));
-  });
-  return [...destinations].sort((a,b) => a.localeCompare(b));
-}
-
-function statsDailyExpandDestinationRows(row, client, lookup = statsDailyDestinationLookup()) {
-  const destinations = statsDailyResolvedDestinations(client, lookup);
+function statsDailyExpandDestinationRows(row, client) {
+  const destinations = statsDailyResolvedDestinations(client);
   if (!destinations.length) return [{ ...row, destination:'' }];
   return destinations.map(destination => ({ ...row, destination }));
 }
@@ -12588,7 +12546,6 @@ function statsDailyTwoWeekRouteSnapshot() {
   const dateSet = new Set(dates);
   const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
   const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
-  const destinationLookup = statsDailyDestinationLookup();
   const routedBases = new Set();
   dayByDate.forEach(day => (day.clients || []).forEach(client => {
     if (client.destination) routedBases.add(statsDailyClientBaseKey(client));
@@ -12629,7 +12586,7 @@ function statsDailyTwoWeekRouteSnapshot() {
       change:baseline === null ? null : latestAttempts - baseline,
       status,
     };
-    return statsDailyExpandDestinationRows(row, identity, destinationLookup);
+    return statsDailyExpandDestinationRows(row, identity);
   });
   return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
 }
@@ -12828,7 +12785,6 @@ function statsDailyComparison(sessionDate) {
   const previousDay = dayIndex > 0 ? days[dayIndex - 1] : null;
   if (!currentDay) return { currentDay:null, previousDay:null, rows:[] };
   const current = statsDailyClientMap(currentDay), previous = statsDailyClientMap(previousDay);
-  const destinationLookup = statsDailyDestinationLookup();
   const routedBases = new Set([...current.values(), ...previous.values()]
     .filter(client => client.destination).map(statsDailyClientBaseKey));
   const keys = new Set([...current.keys(), ...previous.keys()].filter(key => {
@@ -12860,7 +12816,7 @@ function statsDailyComparison(sessionDate) {
       completed:now?.completed || 0,
       asr:now?.asr || 0,
     };
-    return statsDailyExpandDestinationRows(row, now || before, destinationLookup);
+    return statsDailyExpandDestinationRows(row, now || before);
   });
   return { currentDay, previousDay, rows };
 }
