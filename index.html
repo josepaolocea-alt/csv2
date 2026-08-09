@@ -12397,6 +12397,10 @@ function statsDailySortedHistory() {
   return statsDailyHistory.filter(day => day.session_date).slice().sort((a,b) => a.session_date.localeCompare(b.session_date));
 }
 
+function statsDailyTotalAttempts(day) {
+  return (day?.clients || []).reduce((sum, client) => sum + (Number(client?.attempts) || 0), 0);
+}
+
 function statsDailySuggestedImportDate() {
   const latest = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
   if (!latest) return todayStr();
@@ -12881,7 +12885,7 @@ function renderStatsDailySidebar() {
   const list = document.getElementById('stats-daily-date-list');
   if (!list) return;
   const days = statsDailySortedHistory().reverse();
-  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(day.clients.length)} routes</span></div>`).join('')
+  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(statsDailyTotalAttempts(day))} attempts</span></div>`).join('')
     : '<div class="top-usage-empty">No daily traffic data yet.</div>';
 }
 
