@@ -12495,6 +12495,33 @@ function statsDailyClientMap(day) {
   return new Map((day?.clients || []).map(client => [client.key, client]));
 }
 
+// Older saved reports were imported before the report's Total row was kept.
+// Rebuild that row from their route values so "Total" is searchable in Last
+// 2 Weeks without requiring users to re-import historical dates.
+function statsDailyClientMapWithTotal(day) {
+  const clientMap = statsDailyClientMap(day);
+  if ([...clientMap.values()].some(statsDailyIsTotal)) return clientMap;
+  const routes = [...clientMap.values()].filter(client => !statsDailyIsTotal(client));
+  if (!routes.length) return clientMap;
+  const total = routes.reduce((sum, client) => {
+    sum.attempts += Number(client.attempts) || 0;
+    sum.completed += Number(client.completed) || 0;
+    sum.raw_dur += Number(client.raw_dur) || 0;
+    sum.rnd_dur += Number(client.rnd_dur) || 0;
+    sum.revenue += Number(client.revenue) || 0;
+    return sum;
+  }, { attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 });
+  total.key = ['Total', 'Total', ''].map(value => value.toLowerCase()).join('\u001f');
+  total.customer_name = 'Total';
+  total.account_codes = 'Total';
+  total.destination = '';
+  total.is_total = true;
+  total.asr = total.attempts > 0 ? total.completed / total.attempts * 100 : 0;
+  total.acd = total.completed > 0 ? total.raw_dur / total.completed : 0;
+  clientMap.set(total.key, total);
+  return clientMap;
+}
+
 function statsDailyClientBaseKey(client) {
   return [client?.account_codes, client?.customer_name]
     .map(value => String(value || '').trim().toLowerCase()).join('\u001f');
@@ -12629,13 +12656,13 @@ function statsDailyTwoWeekRouteSnapshot() {
   const dates = statsDailyDateRange(latestDay.session_date, 14);
   const dateSet = new Set(dates);
   const dayByDate = new Map(history.filter(day => dateSet.has(day.session_date)).map(day => [day.session_date, day]));
-  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMap(day)]));
+  const clientMaps = new Map([...dayByDate].map(([date, day]) => [date, statsDailyClientMapWithTotal(day)]));
   const routedBases = new Set();
-  dayByDate.forEach(day => (day.clients || []).forEach(client => {
+  clientMaps.forEach(clientMap => clientMap.forEach(client => {
     if (client.destination) routedBases.add(statsDailyClientBaseKey(client));
   }));
   const keys = new Set();
-  dayByDate.forEach(day => (day.clients || []).forEach(client => {
+  clientMaps.forEach(clientMap => clientMap.forEach(client => {
     if (client.destination || !routedBases.has(statsDailyClientBaseKey(client))) keys.add(client.key);
   }));
   const rows = [...keys].flatMap(key => {
