@@ -2086,7 +2086,7 @@
             <div class="snap-action-row" style="margin-top:2px">
               <button class="tbtn" style="width:100%;justify-content:center" onclick="undoLastStatsDailyTraffic()" title="Remove the most recently saved Daily Traffic date">Undo Last Daily Traffic</button>
             </div>
-            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. After processing, the date advances to the day after the latest saved report.</div>
+            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Only the newest 7 dates are retained; older dates are removed automatically.</div>
           </div>
           <div class="snap-label">Saved Daily Dates</div>
           <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
@@ -2560,7 +2560,7 @@
                     <span class="sms-muted" id="sms-cred-edit-status">Adding new credential</span>
                   </div>
                   <div class="sms-cred-form-grid">
-                    <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-cred-client"></div>
+                    <div class="sms-field"><label>Client / Vendor</label><input class="win-inp" id="sms-cred-client"></div>
                     <div class="sms-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
                     <div class="sms-field"><label>User Name</label><input class="win-inp" id="sms-cred-user-name" autocomplete="off"></div>
                     <div class="sms-field"><label>Password</label><input class="win-inp sms-cred-mono" id="sms-cred-password" autocomplete="new-password"></div>
@@ -2571,8 +2571,9 @@
                     <div class="sms-field"><label>New API Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-api-password" autocomplete="new-password"></div>
                     <div class="sms-field"><label>Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-login-link')" title="Open login link in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>New Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-new-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-new-login-link')" title="Open new login link in your default browser">Open ↗</button></div></div>
-                    <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm"></div>
+                    <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm" readonly title="Automatically set when this credential is added or edited"></div>
                     <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
+                    <div class="sms-field full-row"><label>Notes</label><textarea class="sms-textarea" id="sms-cred-notes" rows="3" placeholder="Credential notes, reminders, or other details"></textarea></div>
                     <div class="sms-field">
                       <label>OTP Secret Key (Base32)</label>
                       <div class="sms-otp-secret-row">
@@ -2602,7 +2603,7 @@
               <div class="lv-wrap" style="flex:1;min-height:0">
                 <table id="sms-credentials-tbl">
                   <thead><tr>
-                    <th id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client</th>
+                    <th id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client / Vendor</th>
                     <th id="sms-cred-th-account_type" onclick="sortSmsCredentials('account_type')">Account Type</th>
                     <th id="sms-cred-th-user_name" onclick="sortSmsCredentials('user_name')">User Name</th>
                     <th id="sms-cred-th-password" onclick="sortSmsCredentials('password')">Password</th>
@@ -2615,6 +2616,7 @@
                     <th id="sms-cred-th-new_login_link" onclick="sortSmsCredentials('new_login_link')">New Login Link</th>
                     <th id="sms-cred-th-date_updated" onclick="sortSmsCredentials('date_updated')">Date Updated</th>
                     <th id="sms-cred-th-platform" onclick="sortSmsCredentials('platform')">Platform</th>
+                    <th id="sms-cred-th-notes" onclick="sortSmsCredentials('notes')">Notes</th>
                     <th id="sms-cred-th-otp_secret" onclick="sortSmsCredentials('otp_secret')">OTP</th>
                     <th style="cursor:default">Action</th>
                   </tr></thead>
@@ -2666,7 +2668,7 @@
                     <div class="sms-field">
                       <label>Add OTP to Existing Credential</label>
                       <select class="win-inp" id="sms-otp-existing-credential">
-                        <option value="">Choose an existing client credential...</option>
+                        <option value="">Choose an existing client / vendor credential...</option>
                       </select>
                     </div>
                     <button type="button" class="tbtn primary" onclick="saveManualOtpToExistingCredential()">Save OTP to Existing</button>
@@ -9673,13 +9675,13 @@ async function subscribeSmsClients(tab=smsActiveTab) {
 const SMS_CREDENTIAL_FIELDS = [
   'client','account_type','user_name','password','new_password','api_id','api_token',
   'api_url','new_api_password','login_link','new_login_link','date_updated','platform',
-  'otp_secret','otp_algorithm','otp_digits','otp_period'
+  'notes','otp_secret','otp_algorithm','otp_digits','otp_period'
 ];
 const SMS_CREDENTIAL_LABELS = {
-  client:'Client', account_type:'Account Type', user_name:'User Name', password:'Password',
+  client:'Client / Vendor', account_type:'Account Type', user_name:'User Name', password:'Password',
   new_password:'New Password', api_id:'API ID', api_token:'API Token', api_url:'API URL',
   new_api_password:'New API Password', login_link:'Login Link', new_login_link:'New Login Link',
-  date_updated:'Date Updated', platform:'Platform', otp_secret:'OTP Secret Key',
+  date_updated:'Date Updated', platform:'Platform', notes:'Notes', otp_secret:'OTP Secret Key',
   otp_algorithm:'OTP Algorithm', otp_digits:'OTP Digits', otp_period:'OTP Period'
 };
 const SMS_CREDENTIAL_INPUTS = {
@@ -9687,7 +9689,7 @@ const SMS_CREDENTIAL_INPUTS = {
   password:'sms-cred-password', new_password:'sms-cred-new-password', api_id:'sms-cred-api-id',
   api_token:'sms-cred-api-token', api_url:'sms-cred-api-url', new_api_password:'sms-cred-new-api-password',
   login_link:'sms-cred-login-link', new_login_link:'sms-cred-new-login-link',
-  date_updated:'sms-cred-date-updated', platform:'sms-cred-platform',
+  date_updated:'sms-cred-date-updated', platform:'sms-cred-platform', notes:'sms-cred-notes',
   otp_secret:'sms-cred-otp-secret', otp_algorithm:'sms-cred-otp-algorithm',
   otp_digits:'sms-cred-otp-digits', otp_period:'sms-cred-otp-period'
 };
@@ -9697,6 +9699,11 @@ function normalizeSmsCredential(row) {
   SMS_CREDENTIAL_FIELDS.forEach(field => out[field] = String(row?.[field] ?? '').trim());
   out.id = String(row?.id || ('cred_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)));
   return out;
+}
+
+function smsCredentialNowText(date = new Date()) {
+  const pad = value => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function setSmsCredentialSyncStatus(state, detail = '') {
@@ -9856,7 +9863,7 @@ function refreshSmsOtpCredentialOptions() {
   select.textContent = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = smsCredentials.length ? 'Choose an existing client credential...' : 'No credential records available';
+  placeholder.textContent = smsCredentials.length ? 'Choose an existing client / vendor credential...' : 'No credential records available';
   select.appendChild(placeholder);
   smsCredentials.slice().sort((a,b) => {
     const aText = [a.client, a.account_type, a.user_name].join(' ');
@@ -9865,7 +9872,7 @@ function refreshSmsOtpCredentialOptions() {
   }).forEach(row => {
     const option = document.createElement('option');
     option.value = row.id;
-    option.textContent = [row.client || 'Unnamed client', row.account_type, row.user_name].filter(Boolean).join(' — ');
+    option.textContent = [row.client || 'Unnamed client / vendor', row.account_type, row.user_name].filter(Boolean).join(' — ');
     select.appendChild(option);
   });
   if (current && smsCredentials.some(row => row.id === current)) select.value = current;
@@ -10269,7 +10276,7 @@ window.saveManualOtpToExistingCredential = () => {
   const select = document.getElementById('sms-otp-existing-credential');
   const id = select?.value || '';
   const index = smsCredentials.findIndex(row => row.id === id);
-  if (index < 0) { toast('Choose an existing client credential first.', 'err'); return; }
+  if (index < 0) { toast('Choose an existing client / vendor credential first.', 'err'); return; }
   let payload;
   try { payload = readSmsManualOtpPayload(); }
   catch(e) { toast('OTP was not saved: ' + e.message, 'err', 7000); return; }
@@ -10324,6 +10331,7 @@ function readSmsCredentialForm() {
 window.newSmsCredential = (open=true) => {
   smsCredentialEditingId = null;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, ''));
+  setSmsCredentialInput('date_updated', smsCredentialNowText());
   const otpSecret = document.getElementById('sms-cred-otp-secret');
   if (otpSecret) otpSecret.type = 'password';
   const otpShow = document.getElementById('sms-cred-otp-show-btn');
@@ -10344,6 +10352,7 @@ window.editSmsCredential = id => {
   if (!row) return;
   smsCredentialEditingId = id;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, row[field]));
+  setSmsCredentialInput('date_updated', smsCredentialNowText());
   const otpSecret = document.getElementById('sms-cred-otp-secret');
   if (otpSecret) otpSecret.type = 'password';
   const otpShow = document.getElementById('sms-cred-otp-show-btn');
@@ -10360,8 +10369,9 @@ window.editSmsCredential = id => {
 };
 
 window.saveSmsCredential = () => {
+  setSmsCredentialInput('date_updated', smsCredentialNowText());
   const row = readSmsCredentialForm();
-  if (!row.client) { toast('Client is required.', 'err'); return; }
+  if (!row.client) { toast('Client / Vendor is required.', 'err'); return; }
   if (row.otp_secret) {
     try {
       const payload = smsParseOtpPayload(row.otp_secret);
@@ -10518,9 +10528,10 @@ window.renderSmsCredentials = () => {
     <td>${linked(row.new_login_link)}</td>
     <td style="white-space:nowrap">${esc(row.date_updated)}</td>
     <td>${esc(row.platform)}</td>
+    <td>${clipped(row.notes)}</td>
     <td>${otpCell(row)}</td>
     <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
-  </tr>`).join('') : '<tr><td colspan="15" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
+  </tr>`).join('') : '<tr><td colspan="16" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
   refreshSmsOtpCredentialOptions();
 };
 
@@ -10541,14 +10552,14 @@ window.downloadSmsCredentialSample = () => {
     const headers = SMS_CREDENTIAL_FIELDS.map(field => SMS_CREDENTIAL_LABELS[field]);
     const rows = [
       headers,
-      ['Sample Retail Client','Retail Client','sample.user@example.com','ExamplePassword123!','','API123456789','','https://api.example.com','','https://login.example.com','','2026-08-04 10:30','Viber','JBSWY3DPEHPK3PXP','SHA-1','6','30'],
-      ['Sample Wholesale Client','Wholesale Client','wholesale@example.com','AnotherExample123!','','','','','','https://carrier.example.com','','','','','','',''],
+      ['Sample Retail Client','Retail Client','sample.user@example.com','ExamplePassword123!','','API123456789','','https://api.example.com','','https://login.example.com','','2026-08-04 10:30','Viber','Primary operations login','JBSWY3DPEHPK3PXP','SHA-1','6','30'],
+      ['Sample Wholesale Vendor','Wholesale Client','wholesale@example.com','AnotherExample123!','','','','','','https://carrier.example.com','','','SMS','Contact NOC before resetting','','','',''],
     ];
     const sheet = xlsx.utils.aoa_to_sheet(rows);
-    sheet['!autofilter'] = { ref:'A1:Q3' };
+    sheet['!autofilter'] = { ref:'A1:R3' };
     sheet['!cols'] = [
       {wch:28},{wch:20},{wch:28},{wch:22},{wch:22},{wch:18},{wch:22},
-      {wch:30},{wch:24},{wch:34},{wch:34},{wch:21},{wch:16},{wch:28},{wch:14},{wch:12},{wch:12},
+      {wch:30},{wch:24},{wch:34},{wch:34},{wch:21},{wch:16},{wch:34},{wch:28},{wch:14},{wch:12},{wch:12},
     ];
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, sheet, 'Credentials');
@@ -10586,14 +10597,15 @@ window.importSmsCredentialWorkbook = async file => {
       client:'client', account_type:'accounttype', user_name:'username', password:'password',
       new_password:'newpassword', api_id:'apiid', api_token:'apitoken', api_url:'apiurl',
       new_api_password:'newapipassword', login_link:'loginlink', new_login_link:'newloginlink',
-      date_updated:'dateupdated', platform:'platform', otp_secret:'otpsecretkey',
+      date_updated:'dateupdated', platform:'platform', notes:'notes', otp_secret:'otpsecretkey',
       otp_algorithm:'otpalgorithm', otp_digits:'otpdigits', otp_period:'otpperiod'
     };
-    if (headerMap.client === undefined) throw new Error('A Client column was not found.');
+    const clientColumn = headerMap.clientvendor ?? headerMap.client;
+    if (clientColumn === undefined) throw new Error('A Client / Vendor column was not found.');
     const imported = matrix.slice(1).map(values => {
       const row = {};
       SMS_CREDENTIAL_FIELDS.forEach(field => {
-        const column = headerMap[expected[field]];
+        const column = field === 'client' ? clientColumn : headerMap[expected[field]];
         const value = column === undefined ? '' : values[column];
         row[field] = field === 'date_updated' ? smsCredentialDateText(value) : String(value ?? '').trim();
       });
@@ -10624,7 +10636,7 @@ window.importSmsCredentialWorkbook = async file => {
 
     if (smsCredentials.length) {
       openSmsConfirm(
-        `Import <strong>${imported.length}</strong> credential row(s)?<br><br>Matching Client + Account Type + User Name records will be updated; new records will be added.`,
+        `Import <strong>${imported.length}</strong> credential row(s)?<br><br>Matching Client / Vendor + Account Type + User Name records will be updated; new records will be added.`,
         'Import', applyImport
       );
     } else applyImport();
@@ -12042,7 +12054,8 @@ let statsPreviousDaySnaps = []; // latest saved day before today; route-level sa
 let statsPreviousDayDate = '';
 let statsViewName = 'summary';
 let statsPrimaryMode = 'current';
-let statsDailyHistory = [];    // [{id,session_date,posted_at,clients:[daily aggregates]}] — no automatic retention
+const STATS_DAILY_MAX_SAVED_DATES = 7;
+let statsDailyHistory = [];    // newest 7 [{id,session_date,posted_at,clients:[daily aggregates]}]
 let statsDailySelectedDate = '';
 let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
@@ -12356,15 +12369,16 @@ function parseStatsDailyTraffic(text, selectedDate) {
     // label on its own line, so recognize data rows by their 10 columns.
     if (columns.length < 10) continue;
     const accountCode = columns[0] || '';
-    const customerName = columns[1] || accountCode;
-    const destination = columns[2] || '-';
-    if (!accountCode || !customerName || /^total$/i.test(accountCode)) continue;
+    const isTotal = /^total$/i.test(accountCode) || /^total$/i.test(columns[1] || '');
+    const customerName = isTotal ? 'Total' : (columns[1] || accountCode);
+    const destination = isTotal ? '' : (columns[2] || '-');
+    if (!accountCode || !customerName) continue;
     // Route history follows the pasted Account Code + Customer + Destination.
     // Dashboard totals are calculated separately by summing route Attempts.
     const key = [accountCode, customerName, destination].map(value => value.trim().toLowerCase()).join('\u001f');
     let client = clients.get(key);
     if (!client) {
-      client = { key, customer_name:customerName, destination, account_codes:new Set(), attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 };
+      client = { key, customer_name:customerName, destination, account_codes:new Set(), is_total:isTotal, attempts:0, completed:0, raw_dur:0, rnd_dur:0, revenue:0 };
       clients.set(key, client);
     }
     client.account_codes.add(accountCode);
@@ -12382,6 +12396,7 @@ function parseStatsDailyTraffic(text, selectedDate) {
       customer_name:client.customer_name,
       account_codes:[...client.account_codes].sort().join('; '),
       destination:client.destination,
+      is_total:client.is_total,
       attempts:client.attempts,
       completed:client.completed,
       asr:client.attempts > 0 ? client.completed / client.attempts * 100 : 0,
@@ -12407,6 +12422,7 @@ function normalizeStatsDailyDay(day) {
       customer_name:String(client?.customer_name || ''),
       account_codes:String(client?.account_codes || ''),
       destination:String(client?.destination || ''),
+      is_total:!!client?.is_total || /^total$/i.test(String(client?.account_codes || '').trim()) || /^total$/i.test(String(client?.customer_name || '').trim()),
       attempts:Number(client?.attempts) || 0,
       completed:Number(client?.completed) || 0,
       asr:Number(client?.asr) || 0,
@@ -12422,8 +12438,24 @@ function statsDailySortedHistory() {
   return statsDailyHistory.filter(day => day.session_date).slice().sort((a,b) => a.session_date.localeCompare(b.session_date));
 }
 
+function trimStatsDailyHistory() {
+  const ordered = statsDailySortedHistory();
+  const removed = ordered.slice(0, Math.max(0, ordered.length - STATS_DAILY_MAX_SAVED_DATES));
+  statsDailyHistory = ordered.slice(-STATS_DAILY_MAX_SAVED_DATES);
+  return removed;
+}
+
+function statsDailyIsTotal(client) {
+  return !!client?.is_total
+    || /^total$/i.test(String(client?.account_codes || '').trim())
+    || /^total$/i.test(String(client?.customer_name || '').trim());
+}
+
 function statsDailyTotalAttempts(day) {
-  return (day?.clients || []).reduce((sum, client) => sum + (Number(client?.attempts) || 0), 0);
+  const rows = day?.clients || [];
+  const total = rows.find(statsDailyIsTotal);
+  return total ? Number(total.attempts) || 0
+    : rows.reduce((sum, client) => sum + (Number(client?.attempts) || 0), 0);
 }
 
 function statsDailySuggestedImportDate() {
@@ -12443,6 +12475,7 @@ function syncStatsDailyImportDate(force = false) {
 
 function saveStatsDailyLocal() {
   try {
+    trimStatsDailyHistory();
     const serializable = statsDailyHistory.map(day => ({ ...day, posted_at:day.posted_at instanceof Date ? day.posted_at.toISOString() : day.posted_at }));
     localStorage.setItem('bm_stats_daily_history', JSON.stringify(serializable));
   } catch(e) { console.warn('Daily traffic local cache is full:', e); }
@@ -12451,7 +12484,10 @@ function saveStatsDailyLocal() {
 function loadStatsDailyLocal() {
   try {
     const stored = JSON.parse(localStorage.getItem('bm_stats_daily_history') || '[]');
-    if (Array.isArray(stored)) statsDailyHistory = stored.map(normalizeStatsDailyDay);
+    if (Array.isArray(stored)) {
+      statsDailyHistory = stored.map(normalizeStatsDailyDay);
+      trimStatsDailyHistory();
+    }
   } catch(e) { statsDailyHistory = []; }
 }
 
@@ -12469,6 +12505,7 @@ function statsDailyClientBaseKey(client) {
 function statsDailyClientLevelMap(day) {
   const groups = new Map();
   (day?.clients || []).forEach(client => {
+    if (statsDailyIsTotal(client)) return;
     const key = statsDailyClientBaseKey(client);
     if (!key) return;
     let group = groups.get(key);
@@ -13017,6 +13054,7 @@ function statsDailyDaySignature(day) {
     key:client.key,
     account_codes:client.account_codes,
     destination:client.destination,
+    is_total:statsDailyIsTotal(client),
     attempts:client.attempts,
     completed:client.completed,
     raw_dur:client.raw_dur,
@@ -13065,6 +13103,9 @@ window.processStatsDailyTraffic = async () => {
         });
       }
     }
+    const removedDates = trimStatsDailyHistory();
+    const removedRemoteDates = await cleanupOldStatsDailyDates();
+    const removedDateCount = new Set([...removedDates, ...removedRemoteDates].map(day => day.session_date)).size;
     saveStatsDailyLocal();
     if (textarea) textarea.value = '';
     statsDailyImportDateAutoTrack = true;
@@ -13076,7 +13117,7 @@ window.processStatsDailyTraffic = async () => {
     const decreasing = comparison.rows.filter(row => row.status === 'decrease').length;
     const stopped = comparison.rows.filter(row => row.status === 'stopped').length;
     const skipped = parsedDays.length - daysToSave.length;
-    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} route row(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
+    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} row(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}${removedDateCount ? `; removed ${removedDateCount} older date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
   } catch(e) { toast('Daily traffic save failed: ' + e.message, 'err', 8000); }
   finally { setLoading(false); }
 };
@@ -13877,6 +13918,7 @@ async function loadStatsDailyHistory() {
   try {
     const snapshot = await getDocs(collection(db, 'stats_daily_traffic'));
     statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
+    trimStatsDailyHistory();
     saveStatsDailyLocal();
   } catch(e) { console.warn('loadStatsDailyHistory:', e); }
 }
@@ -13886,12 +13928,33 @@ function subscribeStatsDailyHistory() {
   try {
     onSnapshot(collection(db, 'stats_daily_traffic'), snapshot => {
       statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
+      trimStatsDailyHistory();
       saveStatsDailyLocal();
       syncStatsDailyImportDate();
       renderStatsDailyTraffic();
       renderStatsTables();
     }, error => console.warn('stats daily traffic subscription:', error));
   } catch(e) { console.warn('stats daily traffic subscribe:', e); }
+}
+
+async function cleanupOldStatsDailyDates() {
+  if (!fbOk || !canPostStats()) return [];
+  try {
+    const snapshot = await getDocs(collection(db, 'stats_daily_traffic'));
+    const ordered = snapshot.docs.map(entry => ({
+      id:entry.id,
+      session_date:String(entry.data()?.session_date || entry.id),
+    })).filter(day => day.session_date).sort((a,b) => a.session_date.localeCompare(b.session_date));
+    const expired = ordered.slice(0, Math.max(0, ordered.length - STATS_DAILY_MAX_SAVED_DATES));
+    if (!expired.length) return [];
+    const batch = writeBatch(db);
+    expired.forEach(day => batch.delete(doc(db, 'stats_daily_traffic', day.id)));
+    await batch.commit();
+    return expired;
+  } catch(e) {
+    console.warn('stats daily retention cleanup:', e);
+    return [];
+  }
 }
 
 async function cleanupOldStatsSnapshots() {
@@ -13924,6 +13987,7 @@ async function initStats() {
   await loadStatsSnaps();
   await loadStatsPreviousDaySnaps();
   await loadStatsDailyHistory();
+  await cleanupOldStatsDailyDates();
   syncStatsDailyImportDate(true);
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
