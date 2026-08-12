@@ -816,6 +816,16 @@
     body.stats-mode .stats-tab { display: inline-flex !important; }
     body.stats-mode.stats-daily-mode .stats-tab[id^="stnav-stats-"] { display: none !important; }
     .stats-mode-tab.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-critical { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 42%, var(--border)); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-low { background: var(--orange-soft); color: var(--orange); border-color: color-mix(in srgb, var(--orange) 42%, var(--border)); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-watch { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok { background: var(--yellow-soft); color: var(--yellow-deep); border-color: color-mix(in srgb, var(--yellow-deep) 38%, var(--border)); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-good { background: var(--green-soft); color: var(--green); border-color: color-mix(in srgb, var(--green) 42%, var(--border)); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-critical.active { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-low.active { background: var(--orange) !important; color: #fff !important; border-color: var(--orange) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-watch.active { background: var(--text-2) !important; color: var(--surface) !important; border-color: var(--text-2) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok.active { background: var(--yellow-deep) !important; color: #fff !important; border-color: var(--yellow-deep) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-good.active { background: var(--green) !important; color: #fff !important; border-color: var(--green) !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #btn-settings,
     body.stats-mode #snd-dismiss-btn,
@@ -908,7 +918,7 @@
     .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
     .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
-    .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 330px; }
+    .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 230px; }
     .st-daily-rank-card th {
       position: sticky; top: 0; z-index: 1; font-size: 9.5px; padding: 5px 7px;
       background: var(--surface-2);
@@ -3106,8 +3116,8 @@
                 <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card total" aria-labelledby="st-daily-total-dates-title">
-                <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Top 10 Dates by Total Attempts</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
-                <div class="st-daily-rank-scroll"><table><thead><tr><th style="width:42px">Rank</th><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table></div>
+                <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Total Attempts</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
+                <div class="st-daily-rank-scroll" tabindex="0" aria-label="Total attempts by date, newest first"><table><thead><tr><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table></div>
               </section>
             </div>
           </div>
@@ -12813,13 +12823,7 @@ function statsDailyDashboardTotalDates(snapshot = statsDailyTwoWeekSnapshot()) {
         status,
       };
     });
-  const ranked = chronological.sort((a,b) => b.attempts - a.attempts || b.date.localeCompare(a.date));
-  // Keep the newest upload immediately visible, then rank the remaining dates
-  // by total attempts. This preserves the Top 10 view without hiding recency.
-  const latestDate = snapshot.latestDay?.session_date || '';
-  const latestIndex = ranked.findIndex(row => row.date === latestDate);
-  if (latestIndex > 0) ranked.unshift(ranked.splice(latestIndex, 1)[0]);
-  return ranked;
+  return chronological.sort((a,b) => b.date.localeCompare(a.date));
 }
 
 function renderStatsDailyDashboard() {
@@ -12860,7 +12864,7 @@ function renderStatsDailyDashboard() {
   const totalCount = document.getElementById('st-daily-dashboard-total-count');
   if (totalCount) totalCount.textContent = `${totalDates.length} saved date${totalDates.length === 1 ? '' : 's'}`;
   const totalBody = document.getElementById('st-daily-dashboard-total');
-  if (totalBody) totalBody.innerHTML = totalDates.length ? totalDates.slice(0, 10).map((row, index) => {
+  if (totalBody) totalBody.innerHTML = totalDates.length ? totalDates.map(row => {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
     const signedChange = row.change === null ? '—' : `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
     const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
@@ -12869,11 +12873,11 @@ function renderStatsDailyDashboard() {
       : row.status === 'decrease' ? 'Decrease'
       : 'Unchanged';
     const isLatest = row.date === snapshot.latestDay?.session_date;
-    return `<tr><td>${index + 1}</td><td><strong>${stEsc(row.date)}</strong>${isLatest ? ' <span class="st-daily-status new">Latest</span>' : ''}${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
+    return `<tr><td><strong>${stEsc(row.date)}</strong>${isLatest ? ' <span class="st-daily-status new">Latest</span>' : ''}${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${row.previous_attempts === null ? '—' : stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${signedChange}</td>`
       + `<td style="text-align:center"><span class="st-daily-status ${row.status}">${trendLabel}</span></td></tr>`;
-  }).join('') : '<tr><td colspan="6" style="padding:16px 8px;text-align:center;color:var(--text-3)">No daily data</td></tr>';
+  }).join('') : '<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:var(--text-3)">No daily data</td></tr>';
 }
 
 function renderStatsDailyHistory() {
@@ -12943,8 +12947,8 @@ function statsDailyExportDataset(tab = statsDailyTab) {
       row.status === 'stopped' ? Math.abs(row.change ?? 0) : (row.change ?? ''),
       row.change_pct ?? '', row.baseline_days, row.status,
     ]));
-    statsDailyDashboardTotalDates(snapshot).slice(0, 10).forEach((row, index) => rows.push([
-      'Top 10 Dates by Total Attempts', index + 1, row.date, '',
+    statsDailyDashboardTotalDates(snapshot).forEach((row, index) => rows.push([
+      'Total Attempts', index + 1, row.date, '',
       row.attempts, row.previous_attempts ?? '', '', row.change ?? '',
       row.change_pct ?? '', '', row.status,
     ]));
