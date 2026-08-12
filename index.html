@@ -766,7 +766,6 @@
       resize: vertical; outline: none;
     }
     .win-ta:focus { border-color: var(--accent); }
-    #sms-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.sms-mode #sidebar,
     body.sms-mode #toolbar .tbtn[id^="tnav-"],
     body.sms-mode #btn-settings,
@@ -774,7 +773,6 @@
     body.sms-mode #sync-label {
       display: none !important;
     }
-    body.sms-mode #sms-toolbar-label { display: inline-flex; }
     body.sms-mode #view-banner { display: none !important; }
 
     /* ── Users & Roles module (admin only) ── */
@@ -810,8 +808,6 @@
     body.users-mode .tsep-bal { display: none !important; }
 
     /* ── Stats module ── */
-    #stats-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
-    body.stats-mode #stats-toolbar-label { display: inline-flex; }
     .stats-tab { display: none !important; }
     body.stats-mode .stats-tab { display: inline-flex !important; }
     body.stats-mode.stats-daily-mode .stats-tab[id^="stnav-stats-"] { display: none !important; }
@@ -877,6 +873,9 @@
     .st-daily-positive { color: var(--green); font-weight: 600; }
     .st-daily-row-decrease td:first-child, .st-daily-row-stopped td:first-child { box-shadow: inset 3px 0 0 var(--red); }
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
+    /* High-volume growth on Today / Paste: make the entire qualifying row easy to scan. */
+    #st-daily-table tr.st-daily-row-high-growth td { background: var(--green-soft) !important; }
+    #st-daily-table tr.st-daily-row-high-growth td:first-child { box-shadow: inset 4px 0 0 var(--green); }
     .st-daily-tabs {
       display: flex; gap: 4px; padding: 6px 8px 7px;
       align-items: center; flex-wrap: wrap;
@@ -1448,6 +1447,25 @@
     }
     .sms-cred-mono { font-family: Consolas, "SFMono-Regular", monospace; }
     .sms-cred-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Per-row copy controls stay out of the way until their cell is hovered. */
+    .sms-copy-cell { position: relative; padding-right: 30px !important; }
+    .sms-hover-copy {
+      position: absolute; top: 3px; right: 3px; z-index: 2;
+      width: 23px; height: 23px; padding: 0; display: inline-grid; place-items: center;
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      background: var(--surface); color: var(--text-2); box-shadow: var(--shadow-sm);
+      cursor: pointer; opacity: 0; pointer-events: none; transform: translateY(-2px);
+      transition: opacity .12s ease-out, transform .12s ease-out,
+                  background-color .12s ease-out, border-color .12s ease-out, color .12s ease-out;
+    }
+    .sms-hover-copy svg { width: 12px; height: 12px; }
+    .sms-copy-cell:hover .sms-hover-copy,
+    .sms-hover-copy:focus-visible {
+      opacity: 1; pointer-events: auto; transform: translateY(0);
+    }
+    .sms-hover-copy:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+    .sms-hover-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .sms-hover-copy.copied { opacity: 1; color: var(--green); border-color: var(--green); background: var(--green-soft); }
     .sms-cred-link {
       color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
       cursor: pointer;
@@ -2069,9 +2087,7 @@
     <div class="tsep tsep-bal"></div>
     <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
-    <span id="sms-toolbar-label">SMS Module - Client</span>
     <span id="users-toolbar-label">Users &amp; Roles</span>
-    <span id="stats-toolbar-label">Stats Monitor</span>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -2493,7 +2509,6 @@
       <!-- SMS MODULE -->
       <div class="view" id="view-sms">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">SMS Module</div>
           <div class="tab-bar">
             <div class="tab active" id="sms-tab-client" onclick="switchSmsTab('client')">Client</div>
             <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
@@ -10154,6 +10169,45 @@ async function copySmsText(text) {
   }
 }
 
+function smsHoverCopyButton(handler, id, field, label) {
+  return `<button type="button" class="sms-hover-copy" aria-label="Copy ${esc(label)}" title="Copy ${esc(label)}" ` +
+    `onclick="${handler}(event, '${escAttr(id)}', '${escAttr(field)}', this)" ondblclick="event.stopPropagation()">` +
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button>`;
+}
+
+async function finishSmsCellCopy(event, value, label, button) {
+  event.stopPropagation();
+  event.preventDefault();
+  const text = String(value ?? '');
+  if (!text) { toast(`No ${label} to copy`, 'err'); return; }
+  try {
+    await copySmsText(text);
+    button?.classList.add('copied');
+    toast(`${label} copied`, 'ok');
+    clearTimeout(button?._smsCopyTimer);
+    if (button) button._smsCopyTimer = setTimeout(() => button.classList.remove('copied'), 1000);
+  } catch(e) {
+    toast(`Could not copy ${label}`, 'err');
+  }
+}
+
+window.copySmsRouteField = (event, id, field, button) => {
+  const labels = { client:'Client', sender_id:'Sender ID' };
+  if (!labels[field]) return;
+  const row = smsClients.find(item => item.id === id);
+  finishSmsCellCopy(event, row?.[field], labels[field], button);
+};
+
+window.copySmsCredentialField = (event, id, field, button) => {
+  const labels = {
+    client:'Client / Vendor', user_name:'User Name', password:'Password', new_password:'New Password',
+    api_id:'API ID', api_token:'API Token', new_api_password:'New API Password'
+  };
+  if (!labels[field]) return;
+  const row = smsCredentials.find(item => item.id === id);
+  finishSmsCellCopy(event, row?.[field], labels[field], button);
+};
+
 async function renderSmsCredentialOtpPopupCode() {
   const state = smsCredentialOtpPopup;
   if (!state) return;
@@ -10589,6 +10643,12 @@ window.renderSmsCredentials = () => {
   const count = document.getElementById('sms-cred-count');
   if (count) count.textContent = `${rows.length} of ${smsCredentials.length} credential(s)`;
   const clipped = (value, mono=false) => `<div class="sms-cred-clip${mono ? ' sms-cred-mono' : ''}" title="${esc(value)}">${esc(value)}</div>`;
+  const copyable = (row, field, mono=false, strong=false) => {
+    const value = String(row[field] ?? '');
+    const content = strong ? `<strong>${esc(value)}</strong>` : clipped(value, mono);
+    const button = value.trim() ? smsHoverCopyButton('copySmsCredentialField', row.id, field, SMS_CREDENTIAL_LABELS[field]) : '';
+    return `<td class="sms-copy-cell">${content}${button}</td>`;
+  };
   const linked = value => {
     const label = String(value || '').trim();
     if (!label) return clipped('');
@@ -10603,15 +10663,15 @@ window.renderSmsCredentials = () => {
     return `<div class="sms-cred-secret-mask" title="OTP secret saved (masked)">•••• ${esc(suffix)}</div><div class="sms-muted">${esc(row.otp_algorithm || 'SHA-1')} · ${esc(row.otp_digits || '6')} digits · ${esc(row.otp_period || '30')}s</div>`;
   };
   tbody.innerHTML = rows.length ? rows.map(row => `<tr>
-    <td><strong>${esc(row.client)}</strong></td>
+    ${copyable(row, 'client', false, true)}
     <td>${esc(row.account_type)}</td>
-    <td>${clipped(row.user_name)}</td>
-    <td>${clipped(row.password, true)}</td>
-    <td>${clipped(row.new_password, true)}</td>
-    <td>${clipped(row.api_id, true)}</td>
-    <td>${clipped(row.api_token, true)}</td>
+    ${copyable(row, 'user_name')}
+    ${copyable(row, 'password', true)}
+    ${copyable(row, 'new_password', true)}
+    ${copyable(row, 'api_id', true)}
+    ${copyable(row, 'api_token', true)}
     <td>${linked(row.api_url)}</td>
-    <td>${clipped(row.new_api_password, true)}</td>
+    ${copyable(row, 'new_api_password', true)}
     <td>${linked(row.login_link)}</td>
     <td>${linked(row.new_login_link)}</td>
     <td style="white-space:nowrap">${esc(row.date_updated)}</td>
@@ -11017,8 +11077,6 @@ function updateSmsTabUi() {
   const credentialsPanel = document.getElementById('sms-credentials-panel');
   if (routesPanel) routesPanel.style.display = isCredentials ? 'none' : 'flex';
   if (credentialsPanel) credentialsPanel.style.display = isCredentials ? 'flex' : 'none';
-  const toolbar = document.getElementById('sms-toolbar-label');
-  if (toolbar) toolbar.textContent = `SMS Module - ${cfg.label}`;
   const status = document.getElementById('sms-edit-status');
   if (!isCredentials && status && !smsEditingId) status.textContent = `Adding new ${cfg.label} route`;
 }
@@ -11467,13 +11525,16 @@ window.toggleSmsBulkAll = checked => {
   refreshSmsBulkCount();
 };
 
-// In bulk mode, row clicks toggle selection instead of opening the detail dialog
+// A single click is reserved for bulk selection. Normal rows open their centred
+// detail dialog only on double-click, so selecting text never opens the popup.
 window.onSmsRowClick = (e, id) => {
-  if (smsBulkMode) {
-    const cb = document.querySelector(`#sms-clients-tbody .sms-bulk-chk[data-id="${CSS.escape(id)}"]`);
-    if (cb) { cb.checked = !cb.checked; toggleSmsBulkRow(id, cb.checked); }
-    return;
-  }
+  if (!smsBulkMode) return;
+  const cb = document.querySelector(`#sms-clients-tbody .sms-bulk-chk[data-id="${CSS.escape(id)}"]`);
+  if (cb) { cb.checked = !cb.checked; toggleSmsBulkRow(id, cb.checked); }
+};
+
+window.onSmsRowDoubleClick = (e, id) => {
+  if (smsBulkMode) return;
   showSmsDetail(id);
 };
 
@@ -11567,11 +11628,11 @@ window.renderSmsClients = () => {
     const hasComment = !!String(r.sender_id_comment || '').trim();
     const commentTitle = hasComment ? `Comment: ${r.sender_id_comment}` : '';
     const selected = smsBulkSelected.has(r.id);
-    return `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="onSmsRowClick(event, '${escAttr(r.id)}')" title="${smsBulkMode?'Click to toggle selection':'Click for full details'}">
+    return `<tr class="${r.status==='Inactive'?'sms-inactive':''}" onclick="onSmsRowClick(event, '${escAttr(r.id)}')" ondblclick="onSmsRowDoubleClick(event, '${escAttr(r.id)}')" title="${smsBulkMode?'Click to toggle selection':'Double-click for full details'}">
     <td class="sms-bulk-col" onclick="event.stopPropagation()"><input type="checkbox" class="sms-bulk-chk" data-id="${escAttr(r.id)}" onchange="toggleSmsBulkRow('${escAttr(r.id)}', this.checked)" ${selected?'checked':''}></td>
     <td style="white-space:nowrap">${esc(r.date)}</td>
-    <td><strong>${esc(r.client)}</strong></td>
-    <td class="${hasComment?'sms-has-comment':''}" style="white-space:normal;max-width:160px" ${hasComment?`title="${esc(commentTitle)}"`:''}>${esc(r.sender_id)}</td>
+    <td class="sms-copy-cell"><strong>${esc(r.client)}</strong>${smsHoverCopyButton('copySmsRouteField', r.id, 'client', 'Client')}</td>
+    <td class="sms-copy-cell ${hasComment?'sms-has-comment':''}" style="white-space:normal;max-width:160px" ${hasComment?`title="${esc(commentTitle)}"`:''}>${esc(r.sender_id)}${smsHoverCopyButton('copySmsRouteField', r.id, 'sender_id', 'Sender ID')}</td>
     <td>${esc(r.destination)}</td>
     <td>${esc(r.account_manager)}</td>
     <td>${esc(r.platform)}</td>
@@ -13146,6 +13207,13 @@ const ST_DAILY_STATUS_LABELS = {
   new:'&#9733; New', unchanged:'&#8594; Unchanged'
 };
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
+const ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS = 10000;
+const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 80;
+
+function statsDailyIsHighGrowth(row) {
+  return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
+    && Number(row?.change_pct) >= ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT;
+}
 
 window.sortStatsDaily = column => {
   if (statsDailySortCol === column) statsDailySortDir *= -1;
@@ -13200,7 +13268,10 @@ function renderStatsDailyTraffic() {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
     const changeText = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
-    return `<tr class="st-daily-row-${row.status}"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
+    const highGrowth = statsDailyIsHighGrowth(row);
+    const rowClass = `st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}`;
+    const rowTitle = highGrowth ? 'High-volume growth: over 10,000 attempts and at least 80% increase' : '';
+    return `<tr class="${rowClass}"${rowTitle ? ` title="${rowTitle}"` : ''}><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
       + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
