@@ -1385,6 +1385,21 @@
       display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr));
       gap: 7px 9px; margin-top: 6px;
     }
+    .sms-cred-key-field {
+      padding: 6px; border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+      border-radius: var(--r-sm);
+      background: color-mix(in srgb, var(--accent-soft) 70%, var(--surface));
+      box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 78%, transparent);
+    }
+    .sms-cred-key-field > label { color: var(--accent-strong); font-weight: 700; }
+    .sms-cred-key-field .win-inp {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+      background: color-mix(in srgb, var(--surface) 92%, var(--accent-soft));
+    }
+    .sms-cred-key-field .win-inp:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
     .sms-cred-mono { font-family: Consolas, "SFMono-Regular", monospace; }
     .sms-cred-clip { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sms-cred-link {
@@ -1399,6 +1414,17 @@
     .sms-cred-link-input .tbtn { flex: none; }
     #sms-credentials-tbl th { white-space: nowrap; cursor: pointer; }
     #sms-credentials-tbl td { vertical-align: top; }
+    #sms-credentials-tbl .sms-cred-key-col {
+      background: color-mix(in srgb, var(--accent-soft) 64%, var(--surface)) !important;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+    #sms-credentials-tbl th.sms-cred-key-col {
+      color: var(--accent-strong); font-weight: 700;
+      border-bottom-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    }
+    #sms-credentials-tbl tbody tr:hover td.sms-cred-key-col {
+      background: color-mix(in srgb, var(--accent-soft) 82%, var(--surface)) !important;
+    }
     #sms-credentials-tbl .sms-cred-actions { white-space: nowrap; }
     #sms-credentials-otp-panel { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
     .sms-otp-card {
@@ -2560,21 +2586,21 @@
                     <span class="sms-muted" id="sms-cred-edit-status">Adding new credential</span>
                   </div>
                   <div class="sms-cred-form-grid">
-                    <div class="sms-field"><label>Client / Vendor</label><input class="win-inp" id="sms-cred-client"></div>
-                    <div class="sms-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
-                    <div class="sms-field"><label>User Name</label><input class="win-inp" id="sms-cred-user-name" autocomplete="off"></div>
-                    <div class="sms-field"><label>Password</label><input class="win-inp sms-cred-mono" id="sms-cred-password" autocomplete="new-password"></div>
+                    <div class="sms-field sms-cred-key-field"><label>Client / Vendor</label><input class="win-inp" id="sms-cred-client"></div>
+                    <div class="sms-field sms-cred-key-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
+                    <div class="sms-field sms-cred-key-field"><label>User Name</label><input class="win-inp" id="sms-cred-user-name" autocomplete="off"></div>
+                    <div class="sms-field sms-cred-key-field"><label>Password</label><input class="win-inp sms-cred-mono" id="sms-cred-password" autocomplete="new-password"></div>
                     <div class="sms-field"><label>New Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-password" autocomplete="new-password"></div>
                     <div class="sms-field"><label>API ID</label><input class="win-inp sms-cred-mono" id="sms-cred-api-id"></div>
                     <div class="sms-field"><label>API Token</label><input class="win-inp sms-cred-mono" id="sms-cred-api-token"></div>
                     <div class="sms-field"><label>API URL</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-api-url"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-api-url')" title="Open API URL in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>New API Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-api-password" autocomplete="new-password"></div>
-                    <div class="sms-field"><label>Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-login-link')" title="Open login link in your default browser">Open ↗</button></div></div>
+                    <div class="sms-field sms-cred-key-field"><label>Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-login-link')" title="Open login link in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>New Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-new-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-new-login-link')" title="Open new login link in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm" readonly title="Automatically set when this credential is added or edited"></div>
                     <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
                     <div class="sms-field full-row"><label>Notes</label><textarea class="sms-textarea" id="sms-cred-notes" rows="3" placeholder="Credential notes, reminders, or other details"></textarea></div>
-                    <div class="sms-field">
+                    <div class="sms-field sms-cred-key-field">
                       <label>OTP Secret Key (Base32)</label>
                       <div class="sms-otp-secret-row">
                         <input class="win-inp sms-cred-mono" id="sms-cred-otp-secret" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false">
@@ -2603,21 +2629,21 @@
               <div class="lv-wrap" style="flex:1;min-height:0">
                 <table id="sms-credentials-tbl">
                   <thead><tr>
-                    <th id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client / Vendor</th>
-                    <th id="sms-cred-th-account_type" onclick="sortSmsCredentials('account_type')">Account Type</th>
-                    <th id="sms-cred-th-user_name" onclick="sortSmsCredentials('user_name')">User Name</th>
-                    <th id="sms-cred-th-password" onclick="sortSmsCredentials('password')">Password</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client / Vendor</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-account_type" onclick="sortSmsCredentials('account_type')">Account Type</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-user_name" onclick="sortSmsCredentials('user_name')">User Name</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-password" onclick="sortSmsCredentials('password')">Password</th>
                     <th id="sms-cred-th-new_password" onclick="sortSmsCredentials('new_password')">New Password</th>
                     <th id="sms-cred-th-api_id" onclick="sortSmsCredentials('api_id')">API ID</th>
                     <th id="sms-cred-th-api_token" onclick="sortSmsCredentials('api_token')">API Token</th>
                     <th id="sms-cred-th-api_url" onclick="sortSmsCredentials('api_url')">API URL</th>
                     <th id="sms-cred-th-new_api_password" onclick="sortSmsCredentials('new_api_password')">New API Password</th>
-                    <th id="sms-cred-th-login_link" onclick="sortSmsCredentials('login_link')">Login Link</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-login_link" onclick="sortSmsCredentials('login_link')">Login Link</th>
                     <th id="sms-cred-th-new_login_link" onclick="sortSmsCredentials('new_login_link')">New Login Link</th>
                     <th id="sms-cred-th-date_updated" onclick="sortSmsCredentials('date_updated')">Date Updated</th>
                     <th id="sms-cred-th-platform" onclick="sortSmsCredentials('platform')">Platform</th>
                     <th id="sms-cred-th-notes" onclick="sortSmsCredentials('notes')">Notes</th>
-                    <th id="sms-cred-th-otp_secret" onclick="sortSmsCredentials('otp_secret')">OTP</th>
+                    <th class="sms-cred-key-col" id="sms-cred-th-otp_secret" onclick="sortSmsCredentials('otp_secret')">OTP</th>
                     <th style="cursor:default">Action</th>
                   </tr></thead>
                   <tbody id="sms-credentials-tbody"></tbody>
@@ -10515,21 +10541,21 @@ window.renderSmsCredentials = () => {
     return `<div class="sms-cred-secret-mask" title="OTP secret saved (masked)">•••• ${esc(suffix)}</div><div class="sms-muted">${esc(row.otp_algorithm || 'SHA-1')} · ${esc(row.otp_digits || '6')} digits · ${esc(row.otp_period || '30')}s</div>`;
   };
   tbody.innerHTML = rows.length ? rows.map(row => `<tr>
-    <td><strong>${esc(row.client)}</strong></td>
-    <td>${esc(row.account_type)}</td>
-    <td>${clipped(row.user_name)}</td>
-    <td>${clipped(row.password, true)}</td>
+    <td class="sms-cred-key-col"><strong>${esc(row.client)}</strong></td>
+    <td class="sms-cred-key-col">${esc(row.account_type)}</td>
+    <td class="sms-cred-key-col">${clipped(row.user_name)}</td>
+    <td class="sms-cred-key-col">${clipped(row.password, true)}</td>
     <td>${clipped(row.new_password, true)}</td>
     <td>${clipped(row.api_id, true)}</td>
     <td>${clipped(row.api_token, true)}</td>
     <td>${linked(row.api_url)}</td>
     <td>${clipped(row.new_api_password, true)}</td>
-    <td>${linked(row.login_link)}</td>
+    <td class="sms-cred-key-col">${linked(row.login_link)}</td>
     <td>${linked(row.new_login_link)}</td>
     <td style="white-space:nowrap">${esc(row.date_updated)}</td>
     <td>${esc(row.platform)}</td>
     <td>${clipped(row.notes)}</td>
-    <td>${otpCell(row)}</td>
+    <td class="sms-cred-key-col">${otpCell(row)}</td>
     <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
   </tr>`).join('') : '<tr><td colspan="16" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
   refreshSmsOtpCredentialOptions();
