@@ -404,6 +404,10 @@
        tile growing to a third of the window on a wide screen. Equal-width
        tracks keep a wrapped tile the same size as the ones above it. */
     .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 170px)); gap: 8px; margin-bottom: 8px; }
+    .live-stat-row { grid-template-columns: repeat(7, minmax(100px, 1fr)); }
+    @media (max-width: 900px) {
+      .live-stat-row { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+    }
     .stat-box {
       text-align: center; padding: 8px 6px;
       background: var(--surface-2);
@@ -897,6 +901,10 @@
     .st-daily-rank-card.decrease .st-daily-rank-title,
     .st-daily-rank-card.stopped .st-daily-rank-title { color: var(--red); }
     .st-daily-rank-card.increase .st-daily-rank-title { color: var(--green); }
+    .st-daily-rank-card.total { grid-column: 1 / -1; }
+    .st-daily-rank-card.total .st-daily-rank-title { color: var(--accent-strong); }
+    .st-daily-rank-card.total tbody tr { cursor: default; }
+    .st-daily-rank-card.total .st-daily-status { justify-content: center; min-width: 72px; }
     .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
     .st-daily-rank-card th { position: static; font-size: 9.5px; padding: 5px 7px; }
@@ -1120,7 +1128,35 @@
       padding: 4px 4px 0 0;
     }
     /* Narrower panel → 2-column field grid so inputs keep a usable width. */
-    #sms-form-section .sms-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #sms-form-section .sms-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 11px 12px; margin-bottom: 0;
+    }
+    .sms-form-actions {
+      display: grid; gap: 6px; margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sms-form-primary-actions,
+    .sms-form-file-actions { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .sms-form-file-actions {
+      padding: 5px; border: 1px solid var(--border); border-radius: var(--r-md);
+      background: color-mix(in srgb, var(--surface) 70%, transparent);
+    }
+    .sms-form-file-actions .tbtn { flex: 1 1 auto; justify-content: center; padding-inline: 8px; font-size: 10.5px; }
+    .sms-form-delete-btn { color: var(--red) !important; }
+    #sms-edit-status { margin-left: auto; white-space: nowrap; }
+    .sms-form-section-title {
+      grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+      margin-top: 2px; color: var(--accent-strong); font-size: 9px;
+      font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .sms-form-section-title::after { content: ''; height: 1px; flex: 1; background: var(--border); }
+    #sms-form-section .sms-field label { font-size: 10.5px; }
+    #sms-form-section .win-inp,
+    #sms-form-section .win-sel,
+    #sms-form-section .sms-combo-btn { height: 28px; }
+    #sms-form-section .sms-comment-btn { height: 28px; }
+    #sms-form-section .sms-textarea { padding: 7px 8px; }
     /* The form content eases in from the left, in step with the panel opening
        (same duration + easing so the two motions feel like one). */
     @keyframes smsFormSlideIn {
@@ -1222,17 +1258,19 @@
     .sms-combo input[readonly] { cursor: pointer; background: var(--surface); }
     /* ── SMS multi-vendor checkbox group ── */
     .sms-vendor-box {
-      display: flex; flex-wrap: wrap; gap: 2px 12px;
-      background: var(--surface); padding: 5px 7px;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;
+      background: var(--surface); padding: 7px;
       font-family: var(--font);
       border: 1px solid var(--border); border-radius: var(--r-sm);
-      max-height: 58px; overflow-y: auto;
+      max-height: none;
     }
     .sms-vendor-chk {
       display: inline-flex; align-items: center; gap: 4px;
-      font-family: inherit; font-size: 11px;
-      white-space: nowrap; cursor: pointer;
+      min-width: 0; padding: 4px 5px; font-family: inherit; font-size: 10px;
+      white-space: nowrap; cursor: pointer; border-radius: 4px;
+      background: var(--surface-2); overflow: hidden; text-overflow: ellipsis;
     }
+    .sms-vendor-chk:hover { background: var(--accent-soft); color: var(--accent-strong); }
     .sms-vendor-chk input { margin: 0; accent-color: var(--accent); }
     .sms-vendor-priority-list { display: grid; gap: 4px; margin-top: 5px; }
     .sms-vendor-priority-row {
@@ -2122,12 +2160,10 @@
             <span class="caret">▼</span>
           </div>
           <div class="caret-body">
-            <div class="stat-row">
+            <div class="stat-row live-stat-row">
               <div class="stat-box">       <div class="sv" id="st-total">—</div><div class="sl">Total clients</div></div>
               <div class="stat-box s-green"><div class="sv" id="st-active">—</div><div class="sl">Active</div></div>
               <div class="stat-box s-green"><div class="sv" id="st-safe">—</div><div class="sl">Safe</div></div>
-            </div>
-            <div class="stat-row">
               <div class="stat-box s-high">  <div class="sv" id="st-high">—</div><div class="sl">Critical</div></div>
               <div class="stat-box s-medium"><div class="sv" id="st-medium">—</div><div class="sl">Medium</div></div>
               <div class="stat-box s-light"> <div class="sv" id="st-light">—</div><div class="sl">Warning</div></div>
@@ -2452,30 +2488,38 @@
               <span class="caret">▼</span>
             </div>
             <div class="caret-body">
-            <div class="fbar">
-              <button class="tbtn primary" id="sms-save-btn" onclick="saveSmsClient()">Save Client</button>
-              <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">Cancel Edit</button>
-              <button class="tbtn" onclick="newSmsClient()">New / Clear</button>
-              <button class="tbtn" onclick="downloadSmsClientTemplate()">Download Sample CSV</button>
+            <div class="sms-form-actions">
+              <div class="sms-form-primary-actions">
+                <button class="tbtn primary" id="sms-save-btn" onclick="saveSmsClient()">Save Client</button>
+                <button class="tbtn" id="sms-cancel-edit-btn" onclick="cancelSmsEdit()" style="display:none">Cancel Edit</button>
+                <button class="tbtn" onclick="newSmsClient()">New / Clear</button>
+                <span class="sms-muted" id="sms-edit-status">Adding new client route</span>
+              </div>
+              <div class="sms-form-file-actions">
+              <button class="tbtn" onclick="downloadSmsClientTemplate()">Sample CSV</button>
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
-              <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Upload CSV</button>
+              <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Import CSV</button>
               <button class="tbtn" onclick="exportSmsClientsCsv()">Export CSV</button>
-              <button class="tbtn" style="color:#880000" onclick="deleteAllSmsClients()">Delete All</button>
-              <span class="sms-muted" id="sms-edit-status">Adding new client route</span>
+              <button class="tbtn sms-form-delete-btn" onclick="deleteAllSmsClients()">Delete All</button>
+              </div>
             </div>
             <div class="sms-form-grid">
+              <div class="sms-form-section-title">Route details</div>
               <div class="sms-field"><label>Date</label><input class="win-inp" id="sms-date" type="date" title="Creation date for this route — defaults to today; change it to backdate an entry."></div>
               <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-client"></div>
               <div class="sms-field"><label>Sender ID(s)</label><div class="sms-sender-row"><div class="sms-combo" data-combo="sender_id"><input class="win-inp" id="sms-sender-id" autocomplete="off" placeholder="PLAY999, PLAY111" title="Enter one or more Sender IDs separated by comma (,) or semicolon (;). Paste a line-per-line list and it auto-joins with commas." onfocus="openSmsCombo('sender_id')" oninput="filterSmsCombo('sender_id')" onpaste="onSmsSenderIdPaste(event)"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('sender_id',event)">▼</button><div class="sms-combo-options" id="sms-sender-id-options"></div></div><button type="button" class="sms-comment-btn" id="sms-sender-id-comment-btn" onclick="openSmsCommentPopover(event)" title="Add or edit a comment about this Sender ID"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.5-.7L3 21l1.7-5.1A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg></button></div></div>
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
               <div class="sms-field"><label>Platform</label><div class="sms-combo" data-combo="platform"><input class="win-inp" id="sms-platform" autocomplete="off" placeholder="MS Teams, Viber, …" onfocus="openSmsCombo('platform')" oninput="filterSmsCombo('platform');toggleSmsEmailField()" onchange="toggleSmsEmailField()"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('platform',event)">▼</button><div class="sms-combo-options" id="sms-platform-options"></div></div></div>
+              <div class="sms-form-section-title">Delivery controls</div>
               <div class="sms-field"><label>Type</label><div class="sms-combo" data-combo="type"><input class="win-inp" id="sms-type" autocomplete="off" readonly placeholder="(none)" onfocus="openSmsCombo('type')" onclick="openSmsCombo('type')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('type',event)">▼</button><div class="sms-combo-options" id="sms-type-options"></div></div></div>
               <div class="sms-field"><label>Message Type</label><div class="sms-combo" data-combo="msg_type"><input class="win-inp" id="sms-msg-type" autocomplete="off" readonly placeholder="(none)" onfocus="openSmsCombo('msg_type')" onclick="openSmsCombo('msg_type')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('msg_type',event)">▼</button><div class="sms-combo-options" id="sms-msg-type-options"></div></div></div>
               <div class="sms-field"><label>Status</label><div class="sms-combo" data-combo="status"><input class="win-inp" id="sms-status" autocomplete="off" readonly onfocus="openSmsCombo('status')" onclick="openSmsCombo('status')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('status',event)">▼</button><div class="sms-combo-options" id="sms-status-options"></div></div></div>
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
-              <div class="sms-field"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
+              <div class="sms-field full"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
+              <div class="sms-form-section-title">Vendors &amp; priorities</div>
               <div class="sms-field full"><label>Vendor(s) — tick all that apply</label><div class="sms-vendor-box" id="sms-vendor-box"></div><div class="sms-vendor-priority-list" id="sms-vendor-priority-list"><div class="sms-vendor-priority-row"><span>Tick a vendor to set priorities (up to 5)</span></div></div></div>
+              <div class="sms-form-section-title">Contacts &amp; notes</div>
               <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
               <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
             </div>
@@ -2983,8 +3027,8 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Daily Traffic — Increase, Decrease, Stopped &amp; New</div>
           <div class="st-daily-tabs" role="tablist" aria-label="Daily Traffic views">
-            <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
+            <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
             <div class="st-daily-export-actions" aria-label="Export current Daily Traffic tab">
               <button type="button" class="tbtn st-daily-export-btn" onclick="exportStatsDailyTab('csv')" title="Export the current Daily Traffic tab to CSV">&#8595; CSV</button>
@@ -3042,15 +3086,19 @@
             <div class="st-daily-dashboard-grid">
               <section class="st-daily-rank-card decrease" aria-labelledby="st-daily-decrease-title">
                 <div class="st-daily-rank-title" id="st-daily-decrease-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="st-daily-dashboard-decrease-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table>
+                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table>
               </section>
               <section class="st-daily-rank-card stopped" aria-labelledby="st-daily-stopped-title">
                 <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table>
+                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table>
               </section>
               <section class="st-daily-rank-card increase" aria-labelledby="st-daily-increase-title">
                 <div class="st-daily-rank-title" id="st-daily-increase-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="st-daily-dashboard-increase-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th style="text-align:right">Latest</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table>
+                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table>
+              </section>
+              <section class="st-daily-rank-card total" aria-labelledby="st-daily-total-dates-title">
+                <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Top 10 Dates by Total Attempts</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
+                <table><thead><tr><th style="width:42px">Rank</th><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table>
               </section>
             </div>
           </div>
@@ -7536,9 +7584,19 @@ window.toggleWipeKeep = (cb) => {
   const ins = document.getElementById('wipe-keep-inputs');
   if (ins) ins.style.display = cb.checked ? '' : 'none';
 };
-window.closeWipeAllConfirm = () => {
+function reopenSettingsAfterWipe(kind) {
+  const settingsId = (kind === 'stats' || kind === 'stats-daily')
+    ? 'stats-settings-dlg'
+    : 'settings-dlg';
+  // Defer until the current click finishes so the document's outside-click
+  // handler does not immediately close the restored Settings panel again.
+  setTimeout(() => document.getElementById(settingsId)?.classList.add('open'), 0);
+}
+window.closeWipeAllConfirm = (reopenSettings = true) => {
+  const kind = pendingWipeAll;
   document.getElementById('wipe-all-overlay').classList.remove('open');
   pendingWipeAll = null;
+  if (reopenSettings && kind) reopenSettingsAfterWipe(kind);
 };
 window.confirmWipeAll = async () => {
   const kind = pendingWipeAll;
@@ -7551,7 +7609,7 @@ window.confirmWipeAll = async () => {
     if (!keepFrom || !keepTo) { toast('Enter both From and To for the keep range, or uncheck it.', 'err'); return; }
     if (keepFrom > keepTo) { const t = keepFrom; keepFrom = keepTo; keepTo = t; }  // swap if reversed
   }
-  window.closeWipeAllConfirm();
+  window.closeWipeAllConfirm(false);
   if (!kind || !canWipe(kind)) return;
   const colName = kind === 'stats' ? 'stats_snapshots' : kind === 'stats-daily' ? 'stats_daily_traffic' : kind === 'tritel' ? 'tritel_snapshots' : 'snapshots';
   const loadingMsg = kind === 'stats' ? 'Deleting all stats snapshots…'
@@ -7619,7 +7677,10 @@ window.confirmWipeAll = async () => {
     if (keepOn) doneMsg += ` · kept ${keptCount} in range`;
     toast(doneMsg, 'ok');
   } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
-  finally { setLoading(false); }
+  finally {
+    setLoading(false);
+    reopenSettingsAfterWipe(kind);
+  }
 };
 
 async function loadSnaps() {
@@ -12062,7 +12123,7 @@ let statsPreviousDaySnaps = []; // latest saved day before today; route-level sa
 let statsPreviousDayDate = '';
 let statsViewName = 'summary';
 let statsPrimaryMode = 'current';
-const STATS_DAILY_MAX_SAVED_DATES = 7;
+const STATS_DAILY_MAX_SAVED_DATES = 14;
 let statsDailyHistory = [];    // newest 7 [{id,session_date,posted_at,clients:[daily aggregates]}]
 let statsDailySelectedDate = '';
 let statsDailyImportDateAutoTrack = true;
@@ -12622,6 +12683,7 @@ function statsDailyTwoWeekSnapshot() {
       return { date, has_report:true, present:!!client, attempts:client?.attempts || 0, client };
     });
     const latestPoint = timeline[timeline.length - 1];
+    const yesterdayPoint = timeline[timeline.length - 2] || null;
     const priorObserved = timeline.slice(0, -1).filter(point => point.has_report && point.present);
     const baseline = priorObserved.length
       ? priorObserved.reduce((sum, point) => sum + point.attempts, 0) / priorObserved.length
@@ -12643,6 +12705,7 @@ function statsDailyTwoWeekSnapshot() {
       destination:'',
       timeline,
       latest_attempts:latestAttempts,
+      yesterday_attempts:yesterdayPoint?.has_report ? (yesterdayPoint.present ? yesterdayPoint.attempts : 0) : null,
       baseline_attempts:baseline,
       change,
       change_pct:baseline > 0 ? change / baseline * 100 : null,
@@ -12718,15 +12781,49 @@ function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
   };
 }
 
+function statsDailyDashboardTotalDates(snapshot = statsDailyTwoWeekSnapshot()) {
+  const chronological = snapshot.dates
+    .map(date => snapshot.dayByDate.get(date))
+    .filter(Boolean)
+    .map((day, index, days) => {
+      const attempts = statsDailyTotalAttempts(day);
+      const previousDay = index > 0 ? days[index - 1] : null;
+      const previousAttempts = previousDay ? statsDailyTotalAttempts(previousDay) : null;
+      const change = previousAttempts === null ? null : attempts - previousAttempts;
+      const status = previousAttempts === null ? 'new'
+        : change > 0 ? 'increase'
+        : change < 0 ? 'decrease'
+        : 'unchanged';
+      return {
+        date:day.session_date,
+        attempts,
+        previous_date:previousDay?.session_date || '',
+        previous_attempts:previousAttempts,
+        change,
+        change_pct:previousAttempts > 0 ? change / previousAttempts * 100 : null,
+        status,
+      };
+    });
+  return chronological.sort((a,b) => b.attempts - a.attempts || b.date.localeCompare(a.date));
+}
+
 function renderStatsDailyDashboard() {
   const snapshot = statsDailyTwoWeekSnapshot();
+  const yesterdayDate = snapshot.dates[snapshot.dates.length - 2] || '';
   const meta = document.getElementById('st-daily-dashboard-meta');
   if (meta) meta.textContent = snapshot.latestDay
-    ? `Latest report: ${snapshot.latestDay.session_date}. Compared with each client’s average attempts from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
+    ? `Latest is the newest saved report: ${snapshot.latestDay.session_date}. Yesterday is ${yesterdayDate}${snapshot.dayByDate.has(yesterdayDate) ? '' : ' (no report saved)'}. The 2-week average uses available reports from the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
     : 'Add daily reports to build the two-week dashboard.';
 
+  document.querySelectorAll('.st-daily-latest-heading').forEach(heading => {
+    heading.title = snapshot.latestDay ? `Newest saved report: ${snapshot.latestDay.session_date}` : 'Newest saved report';
+  });
+  document.querySelectorAll('.st-daily-yesterday-heading').forEach(heading => {
+    heading.title = yesterdayDate ? `Previous calendar day: ${yesterdayDate}` : 'Previous calendar day';
+  });
+
   const groups = statsDailyDashboardGroups(snapshot);
-  const empty = label => `<tr><td colspan="4" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
+  const empty = label => `<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
   Object.entries(groups).forEach(([status, allRows]) => {
     const count = document.getElementById(`st-daily-dashboard-${status}-count`);
     if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}`;
@@ -12739,10 +12836,28 @@ function renderStatsDailyDashboard() {
       const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
       const encodedKey = encodeURIComponent(row.key).replace(/'/g, '%27');
       return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
-        + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
+        + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${row.yesterday_attempts === null ? '—' : stN0(row.yesterday_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
         + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN0(Math.abs(row.change)) : signedChange}</td></tr>`;
     }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
   });
+
+  const totalDates = statsDailyDashboardTotalDates(snapshot);
+  const totalCount = document.getElementById('st-daily-dashboard-total-count');
+  if (totalCount) totalCount.textContent = `${totalDates.length} saved date${totalDates.length === 1 ? '' : 's'}`;
+  const totalBody = document.getElementById('st-daily-dashboard-total');
+  if (totalBody) totalBody.innerHTML = totalDates.length ? totalDates.slice(0, 10).map((row, index) => {
+    const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
+    const signedChange = row.change === null ? '—' : `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+    const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
+    const trendLabel = row.status === 'new' ? 'First report'
+      : row.status === 'increase' ? 'Increase'
+      : row.status === 'decrease' ? 'Decrease'
+      : 'Unchanged';
+    return `<tr><td>${index + 1}</td><td><strong>${stEsc(row.date)}</strong>${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
+      + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${row.previous_attempts === null ? '—' : stN0(row.previous_attempts)}</td>`
+      + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${signedChange}</td>`
+      + `<td style="text-align:center"><span class="st-daily-status ${row.status}">${trendLabel}</span></td></tr>`;
+  }).join('') : '<tr><td colspan="6" style="padding:16px 8px;text-align:center;color:var(--text-3)">No daily data</td></tr>';
 }
 
 function renderStatsDailyHistory() {
@@ -12808,13 +12923,18 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     ];
     const rows = sections.flatMap(([label, group]) => group.slice(0, 10).map((row, index) => [
       label, index + 1, row.customer_name, row.account_codes,
-      row.latest_attempts, row.baseline_attempts ?? '',
+      row.latest_attempts, row.yesterday_attempts ?? '', row.baseline_attempts ?? '',
       row.status === 'stopped' ? Math.abs(row.change ?? 0) : (row.change ?? ''),
-      row.change_pct ?? '', row.baseline_days,
+      row.change_pct ?? '', row.baseline_days, row.status,
+    ]));
+    statsDailyDashboardTotalDates(snapshot).slice(0, 10).forEach((row, index) => rows.push([
+      'Top 10 Dates by Total Attempts', index + 1, row.date, '',
+      row.attempts, row.previous_attempts ?? '', '', row.change ?? '',
+      row.change_pct ?? '', '', row.status,
     ]));
     return {
       sheet:'Dashboard', suffix:`dashboard_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Dashboard Section','Rank','Client','Account Code','Latest Attempts','2-week Average','Change / Lost','Change %','Baseline Days'],
+      headers:['Dashboard Section','Rank','Client / Date','Account Code','Latest / Total Attempts','Yesterday / Previous Total','2-week Average','Change / Lost','Change %','Baseline Days','Trend'],
       rows,
     };
   }
