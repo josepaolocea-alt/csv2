@@ -907,7 +907,12 @@
     .st-daily-rank-card.total .st-daily-status { justify-content: center; min-width: 72px; }
     .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
-    .st-daily-rank-card th { position: static; font-size: 9.5px; padding: 5px 7px; }
+    .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+    .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 330px; }
+    .st-daily-rank-card th {
+      position: sticky; top: 0; z-index: 1; font-size: 9.5px; padding: 5px 7px;
+      background: var(--surface-2);
+    }
     .st-daily-rank-card td { padding: 5px 7px; }
     .st-daily-rank-card tbody tr { cursor: pointer; }
     .st-daily-rank-client { min-width: 130px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
@@ -1809,6 +1814,10 @@
     ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-3); border: 2px solid transparent; background-clip: padding-box; }
     ::-webkit-scrollbar-corner { background: transparent; }
+    /* Keep every scrollable panel functional while removing visual scrollbar
+       clutter. Mouse wheel, trackpad, keyboard and touch scrolling still work. */
+    * { scrollbar-width: none; }
+    *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
     /* Motion polish */
     @keyframes viewIn {
@@ -3086,19 +3095,19 @@
             <div class="st-daily-dashboard-grid">
               <section class="st-daily-rank-card decrease" aria-labelledby="st-daily-decrease-title">
                 <div class="st-daily-rank-title" id="st-daily-decrease-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="st-daily-dashboard-decrease-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card stopped" aria-labelledby="st-daily-stopped-title">
                 <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card increase" aria-labelledby="st-daily-increase-title">
                 <div class="st-daily-rank-title" id="st-daily-increase-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="st-daily-dashboard-increase-count">0 routes</span></div>
-                <table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card total" aria-labelledby="st-daily-total-dates-title">
                 <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Top 10 Dates by Total Attempts</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
-                <table><thead><tr><th style="width:42px">Rank</th><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th style="width:42px">Rank</th><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table></div>
               </section>
             </div>
           </div>
@@ -12804,7 +12813,13 @@ function statsDailyDashboardTotalDates(snapshot = statsDailyTwoWeekSnapshot()) {
         status,
       };
     });
-  return chronological.sort((a,b) => b.attempts - a.attempts || b.date.localeCompare(a.date));
+  const ranked = chronological.sort((a,b) => b.attempts - a.attempts || b.date.localeCompare(a.date));
+  // Keep the newest upload immediately visible, then rank the remaining dates
+  // by total attempts. This preserves the Top 10 view without hiding recency.
+  const latestDate = snapshot.latestDay?.session_date || '';
+  const latestIndex = ranked.findIndex(row => row.date === latestDate);
+  if (latestIndex > 0) ranked.unshift(ranked.splice(latestIndex, 1)[0]);
+  return ranked;
 }
 
 function renderStatsDailyDashboard() {
@@ -12853,7 +12868,8 @@ function renderStatsDailyDashboard() {
       : row.status === 'increase' ? 'Increase'
       : row.status === 'decrease' ? 'Decrease'
       : 'Unchanged';
-    return `<tr><td>${index + 1}</td><td><strong>${stEsc(row.date)}</strong>${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
+    const isLatest = row.date === snapshot.latestDay?.session_date;
+    return `<tr><td>${index + 1}</td><td><strong>${stEsc(row.date)}</strong>${isLatest ? ' <span class="st-daily-status new">Latest</span>' : ''}${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${row.previous_attempts === null ? '—' : stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${signedChange}</td>`
       + `<td style="text-align:center"><span class="st-daily-status ${row.status}">${trendLabel}</span></td></tr>`;
