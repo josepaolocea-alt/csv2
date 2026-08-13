@@ -9546,9 +9546,16 @@ function smsId() {
 function smsSplitMulti(v) {
   return String(v ?? '').split(/[,;\r\n]+/).map(x => x.trim()).filter(Boolean);
 }
-// Sender IDs: keep every entered value exactly as a separate Sender ID.
+// Sender IDs: keep every distinct entered value as a separate Sender ID.
+// During edits, silently skip IDs already present in the entry while retaining
+// the first spelling/order and continuing with any new IDs in the same input.
 function normalizeSmsSenderIds(v) {
-  return smsSplitMulti(v).join(', ');
+  const seen = new Set(), out = [];
+  smsSplitMulti(v).forEach(senderId => {
+    const key = senderId.toUpperCase();
+    if (!seen.has(key)) { seen.add(key); out.push(senderId); }
+  });
+  return out.join(', ');
 }
 // Vendors: one or more values, uppercased, deduped, joined as "A, B"
 function normalizeSmsVendors(v) {
