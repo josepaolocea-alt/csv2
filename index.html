@@ -9678,6 +9678,24 @@ function syncActiveSmsClients() {
   smsDataByTab[smsActiveTab] = smsClients;
 }
 
+// After saving, show every route for that client. This prevents an older
+// Destination/Account Manager dropdown selection from making a successfully
+// added second destination look as if it was never saved.
+function revealSmsSavedRoute(client, savedId) {
+  const search = document.getElementById('sms-search');
+  if (search) search.value = client || '';
+  ['sms-filter-client','sms-filter-destination','sms-filter-account-manager'].forEach(id => {
+    const filter = document.getElementById(id);
+    if (filter) filter.value = '';
+  });
+  renderSmsClients();
+  requestAnimationFrame(() => {
+    const checkbox = [...document.querySelectorAll('#sms-clients-tbody .sms-bulk-chk')]
+      .find(item => item.dataset.id === savedId);
+    checkbox?.closest('tr')?.scrollIntoView({ block:'nearest' });
+  });
+}
+
 // ── One-time correction of SMS Phoenix Platform "Date" values ──
 // Before the Date column stored a real creation date, every date-less Phoenix
 // route was re-stamped with "today" on each load, so they all collapsed onto a
@@ -11257,9 +11275,11 @@ window.saveSmsClient = () => {
   smsRecentIdsByTab[smsActiveTab] = [savedId, ...recentIds.filter(id => id !== savedId)].slice(0, 2);
   saveSmsClients();
   updateSmsDatalists();
-  renderSmsClients();
+  revealSmsSavedRoute(row.client, savedId);
   newSmsClient(false);
-  toast(wasEdit ? `✓ Changes saved for ${row.client} / ${row.destination}` : `${smsTabCfg().label} route saved`, 'ok');
+  toast(wasEdit
+    ? `✓ Changes saved for ${row.client} / ${row.destination}`
+    : `✓ ${row.client} / ${row.destination} route saved`, 'ok');
 };
 
 window.editSmsClient = id => {
