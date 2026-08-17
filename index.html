@@ -1242,13 +1242,16 @@
     .sms-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .sms-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
     .sms-field.full { grid-column: span 2; }
-    #sms-additional-sender-wrap {
+    #sms-additional-sender-wrap,
+    #sms-remove-sender-wrap {
       display: none; grid-column: 1 / -1; padding: 8px;
       border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
       border-radius: var(--r-md); background: var(--accent-soft);
     }
-    #sms-additional-sender-wrap label { color: var(--accent-strong); font-weight: 700; }
-    #sms-additional-sender-wrap .sms-muted { line-height: 1.35; }
+    #sms-additional-sender-wrap label,
+    #sms-remove-sender-wrap label { color: var(--accent-strong); font-weight: 700; }
+    #sms-additional-sender-wrap .sms-muted,
+    #sms-remove-sender-wrap .sms-muted { line-height: 1.35; }
     .sms-row-actions { display: inline-flex; gap: 3px; }
     .sms-muted { color: var(--text-3); font-size: 10px; }
     .sms-combo { position: relative; display: flex; min-width: 0; gap: 2px; }
@@ -2554,6 +2557,11 @@
                 <label>Additional SID(s)</label>
                 <input class="win-inp" id="sms-additional-sender-id" autocomplete="off" placeholder="Add new SIDs separated by comma or semicolon" title="These SIDs are appended to the existing list. Existing or repeated SIDs are skipped automatically." onpaste="onSmsSenderIdPaste(event)">
                 <span class="sms-muted">Appended when you save this edit. Existing and repeated SIDs are skipped automatically.</span>
+              </div>
+              <div class="sms-field" id="sms-remove-sender-wrap">
+                <label>Remove Existing SID(s)</label>
+                <input class="win-inp" id="sms-remove-sender-id" autocomplete="off" placeholder="Remove SIDs separated by comma or semicolon" title="These SIDs are removed from this entry when saved. SIDs that are not in the existing list are skipped." onpaste="onSmsSenderIdPaste(event)">
+                <span class="sms-muted">Removed when you save this edit. SIDs not found in the existing list are skipped automatically.</span>
               </div>
               <div class="sms-field"><label>Destination</label><div class="sms-combo" data-combo="destination"><input class="win-inp" id="sms-destination" autocomplete="off" placeholder="Example: Ph Smart Mobile" onfocus="openSmsCombo('destination')" oninput="filterSmsCombo('destination')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('destination',event)">▼</button><div class="sms-combo-options" id="sms-destination-options"></div></div></div>
               <div class="sms-field"><label>Account Manager</label><div class="sms-combo" data-combo="account_manager"><input class="win-inp" id="sms-account-manager" autocomplete="off" onfocus="openSmsCombo('account_manager')" oninput="filterSmsCombo('account_manager')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('account_manager',event)">▼</button><div class="sms-combo-options" id="sms-account-manager-options"></div></div></div>
@@ -9579,6 +9587,25 @@ function smsUniqueNewSenderIds(existing, additional) {
   });
   return out;
 }
+
+// Remove requested Sender IDs case-insensitively. Unknown IDs are ignored so
+// a pasted removal list can safely contain SIDs that are not on this route.
+function smsRemoveSenderIds(existing, removals) {
+  const removeKeys = new Set(smsSplitMulti(removals).map(senderId => senderId.toUpperCase()));
+  return normalizeSmsSenderIds(
+    smsSplitMulti(existing).filter(senderId => !removeKeys.has(senderId.toUpperCase())).join(', ')
+  );
+}
+
+function smsExistingSenderIdsToRemove(existing, removals) {
+  const existingKeys = new Set(smsSplitMulti(existing).map(senderId => senderId.toUpperCase()));
+  const seen = new Set(), out = [];
+  smsSplitMulti(removals).forEach(senderId => {
+    const key = senderId.toUpperCase();
+    if (existingKeys.has(key) && !seen.has(key)) { seen.add(key); out.push(senderId); }
+  });
+  return out;
+}
 // Vendors: one or more values, uppercased, deduped, joined as "A, B"
 function normalizeSmsVendors(v) {
   const seen = new Set(), out = [];
@@ -11187,16 +11214,21 @@ function smsSetValue(id, value) {
 }
 
 function setSmsAdditionalSidEditMode(editing) {
-  const wrap = document.getElementById('sms-additional-sender-wrap');
-  const input = document.getElementById('sms-additional-sender-id');
-  if (input) input.value = '';
-  if (wrap) wrap.style.display = editing ? 'flex' : 'none';
+  ['additional', 'remove'].forEach(action => {
+    const wrap = document.getElementById(`sms-${action}-sender-wrap`);
+    const input = document.getElementById(`sms-${action}-sender-id`);
+    if (input) input.value = '';
+    if (wrap) wrap.style.display = editing ? 'flex' : 'none';
+  });
 }
 
 function smsReadForm() {
   const existing = smsEditingId ? smsClients.find(r => r.id === smsEditingId) : null;
+  const existingSenderIds = smsEditingId
+    ? smsRemoveSenderIds(smsFormValue('sms-sender-id'), smsFormValue('sms-remove-sender-id'))
+    : smsFormValue('sms-sender-id');
   const senderIds = smsMergeMulti(
-    smsFormValue('sms-sender-id'),
+    existingSenderIds,
     smsEditingId ? smsFormValue('sms-additional-sender-id') : '',
     normalizeSmsSenderIds
   );
@@ -11227,6 +11259,7 @@ function smsFillForm(row) {
   smsSetValue('sms-client', r.client);
   smsSetValue('sms-sender-id', r.sender_id);
   smsSetValue('sms-additional-sender-id', '');
+  smsSetValue('sms-remove-sender-id', '');
   smsSetValue('sms-sender-id-comment', r.sender_id_comment);
   smsSetValue('sms-destination', r.destination);
   smsSetValue('sms-account-manager', r.account_manager);
@@ -11300,8 +11333,16 @@ window.newSmsClient = (showToast=true) => {
 
 window.saveSmsClient = () => {
   const additionalSidInput = smsFormValue('sms-additional-sender-id');
+  const removeSidInput = smsFormValue('sms-remove-sender-id');
+  const existingSidInput = smsFormValue('sms-sender-id');
+  const existingSidsAfterRemoval = smsEditingId
+    ? smsRemoveSenderIds(existingSidInput, removeSidInput)
+    : existingSidInput;
   const additionalSidsAdded = smsEditingId
-    ? smsUniqueNewSenderIds(smsFormValue('sms-sender-id'), additionalSidInput)
+    ? smsUniqueNewSenderIds(existingSidsAfterRemoval, additionalSidInput)
+    : [];
+  const removedSids = smsEditingId
+    ? smsExistingSenderIdsToRemove(existingSidInput, removeSidInput)
     : [];
   const row = smsReadForm();
   if (!row.client) { toast('Client is required', 'err'); document.getElementById('sms-client')?.focus(); return; }
@@ -11324,13 +11365,18 @@ window.saveSmsClient = () => {
   updateSmsDatalists();
   revealSmsSavedRoute(row.client, savedId);
   newSmsClient(false);
-  const sidResult = additionalSidInput
+  const addedSidResult = additionalSidInput
     ? (additionalSidsAdded.length
       ? ` · ${additionalSidsAdded.length} additional SID${additionalSidsAdded.length === 1 ? '' : 's'} added`
       : ' · duplicate SID(s) skipped')
     : '';
+  const removedSidResult = removeSidInput
+    ? (removedSids.length
+      ? ` · ${removedSids.length} SID${removedSids.length === 1 ? '' : 's'} removed`
+      : ' · SID removal(s) not found and skipped')
+    : '';
   toast(wasEdit
-    ? `✓ Changes saved for ${row.client} / ${row.destination}${sidResult}`
+    ? `✓ Changes saved for ${row.client} / ${row.destination}${addedSidResult}${removedSidResult}`
     : `✓ ${row.client} / ${row.destination} route saved`, 'ok');
 };
 
