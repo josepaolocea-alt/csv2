@@ -886,6 +886,8 @@
     /* High-volume growth on Today / Paste: make the entire qualifying row easy to scan. */
     #st-daily-table tr.st-daily-row-high-growth td { background: var(--green-soft) !important; }
     #st-daily-table tr.st-daily-row-high-growth td:first-child { box-shadow: inset 4px 0 0 var(--green); }
+    #st-daily-table tr.st-daily-row-high-decrease td { background: var(--red-soft) !important; }
+    #st-daily-table tr.st-daily-row-high-decrease td:first-child { box-shadow: inset 4px 0 0 var(--red); }
     .st-daily-tabs {
       display: flex; gap: 4px; padding: 6px 8px 7px;
       align-items: center; flex-wrap: wrap;
@@ -13354,6 +13356,11 @@ function statsDailyIsHighGrowth(row) {
     && Number(row?.change_pct) >= ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT;
 }
 
+function statsDailyIsHighDecrease(row) {
+  return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
+    && Number(row?.change_pct) <= -ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT;
+}
+
 window.sortStatsDaily = column => {
   if (statsDailySortCol === column) statsDailySortDir *= -1;
   else { statsDailySortCol = column; statsDailySortDir = 1; }
@@ -13408,8 +13415,11 @@ function renderStatsDailyTraffic() {
     const changeText = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
     const highGrowth = statsDailyIsHighGrowth(row);
-    const rowClass = `st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}`;
-    const rowTitle = highGrowth ? 'High-volume growth: over 10,000 attempts and at least 80% increase' : '';
+    const highDecrease = statsDailyIsHighDecrease(row);
+    const rowClass = `st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}${highDecrease ? ' st-daily-row-high-decrease' : ''}`;
+    const rowTitle = highGrowth
+      ? 'High-volume growth: over 10,000 attempts and at least 80% increase'
+      : highDecrease ? 'High-volume decrease: over 10,000 attempts and at least 80% decrease' : '';
     return `<tr class="${rowClass}"${rowTitle ? ` title="${rowTitle}"` : ''}><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
