@@ -197,7 +197,16 @@
     }
     .micon:hover { background: var(--surface-3); color: var(--text); }
     .micon.active { background: var(--accent-soft); color: var(--accent); }
-    .micon svg { width: 18px; height: 18px; }
+    .micon svg { width: 18px; height: 18px; transform-origin: center; }
+    .micon svg.micon-icon-click {
+      animation: miconIconClick .28s cubic-bezier(.22, 1, .36, 1);
+    }
+    @keyframes miconIconClick {
+      0%   { transform: scale(1) rotate(0); }
+      32%  { transform: translateY(1px) scale(.78) rotate(-5deg); }
+      68%  { transform: translateY(-1px) scale(1.14) rotate(3deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
     #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding-right: 2px; }
     #login-user-label {
       font-size: 11px; color: var(--text-2);
@@ -2015,24 +2024,24 @@
   <!-- Menu bar -->
   <div id="menubar">
     <div id="module-nav">
-      <button class="micon active" id="view-menu-balance" onclick="switchModule('balance')" title="Balance Monitor">
+      <button class="micon active" id="view-menu-balance" onclick="animateModuleIcon(this); switchModule('balance')" title="Balance Monitor">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="1.5 9.5, 4.5 9.5, 6.5 4.5, 9.5 12.5, 11.5 8, 12.5 9.5, 14.5 9.5"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-stats" onclick="switchModule('stats')" title="Stats">
+      <button class="micon" id="view-menu-stats" onclick="animateModuleIcon(this); switchModule('stats')" title="Stats">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="13.5" x2="3" y2="9.5"/>
           <line x1="8" y1="13.5" x2="8" y2="4"/>
           <line x1="13" y1="13.5" x2="13" y2="7"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-sms" onclick="switchModule('sms')" title="SMS">
+      <button class="micon" id="view-menu-sms" onclick="animateModuleIcon(this); switchModule('sms')" title="SMS">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-users" onclick="switchModule('users')" title="Users &amp; Roles" style="display:none">
+      <button class="micon" id="view-menu-users" onclick="animateModuleIcon(this); switchModule('users')" title="Users &amp; Roles" style="display:none">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="6" cy="5.2" r="2.3"/>
           <path d="M1.8 13.2c0-2.4 1.9-4 4.2-4s4.2 1.6 4.2 4"/>
@@ -4083,6 +4092,16 @@ function updateViewMenuState() {
 window.toggleViewMenu = e => {
   e?.stopPropagation();
   document.getElementById('view-menu')?.classList.toggle('open');
+};
+
+window.animateModuleIcon = button => {
+  const icon = button?.querySelector('svg');
+  if (!icon) return;
+  // Restart the short pop even when the same navigation button is clicked rapidly.
+  icon.classList.remove('micon-icon-click');
+  void icon.getBoundingClientRect();
+  icon.classList.add('micon-icon-click');
+  icon.addEventListener('animationend', () => icon.classList.remove('micon-icon-click'), { once:true });
 };
 
 window.switchModule = module => {
