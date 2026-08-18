@@ -365,10 +365,10 @@
     #slot-sel {
       width: 100%; margin: 3px 0; height: 24px;
       font-size: 11px; font-family: inherit;
-      background: var(--surface); color: var(--text);
+      background-color: var(--surface); color: var(--text);
       border: 1px solid var(--border);
       border-radius: var(--r-sm);
-      padding: 0 4px; outline: none;
+      padding: 0 30px 0 8px; outline: none;
     }
 
     /* ── Main content ── */
@@ -767,7 +767,52 @@
     }
     .win-inp:focus, .win-sel:focus { border-color: var(--accent); }
     .win-inp::placeholder { color: var(--text-3); }
-    select, select option { background: var(--surface); color: var(--text); }
+    /* ── Premium dropdown system ──
+       One shared treatment covers every native select, including controls that
+       are generated later by JavaScript. The native element remains intact for
+       keyboard navigation, forms and assistive technology. */
+    select:not([multiple]) {
+      appearance: none; -webkit-appearance: none;
+      min-height: 24px; padding: 0 30px 0 8px;
+      font-family: inherit; font-size: 11px; font-weight: 500;
+      color: var(--text); cursor: pointer;
+      background-color: var(--surface);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
+        linear-gradient(135deg, var(--text-3) 50%, transparent 50%),
+        linear-gradient(var(--border), var(--border));
+      background-position:
+        calc(100% - 12px) calc(50% - 1px),
+        calc(100% - 8px) calc(50% - 1px),
+        calc(100% - 24px) 50%;
+      background-size: 4px 4px, 4px 4px, 1px 58%;
+      background-repeat: no-repeat;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: 0 1px 2px rgba(32, 35, 38, .05), inset 0 1px 0 color-mix(in srgb, #fff 36%, transparent);
+      outline: none;
+      transition: background-color .14s ease-out, border-color .14s ease-out,
+        box-shadow .14s ease-out, color .14s ease-out;
+    }
+    select:not([multiple]):hover:not(:disabled) {
+      background-color: var(--surface-2);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+      box-shadow: 0 2px 6px rgba(32, 35, 38, .09), inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+    }
+    select:not([multiple]):focus,
+    select:not([multiple]):focus-visible {
+      background-color: var(--surface);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 2px 6px rgba(32, 35, 38, .08);
+    }
+    select:not([multiple]):disabled {
+      cursor: not-allowed; opacity: .58; color: var(--text-3);
+      background-color: var(--surface-2); box-shadow: none;
+    }
+    select option {
+      background: var(--surface); color: var(--text);
+      font-family: inherit; font-weight: 500;
+    }
+    select option:checked { background: var(--accent-soft); color: var(--accent-strong); }
     .win-ta {
       font-size: 11px; font-family: var(--mono); padding: 5px;
       background: var(--surface); color: var(--text);
@@ -1406,10 +1451,11 @@
     #sms-bulk-panel .bulk-field input,
     #sms-bulk-panel .bulk-field select {
       height: 24px; font-size: 11px; font-family: inherit; padding: 0 6px;
-      background: var(--surface); color: var(--text);
+      background-color: var(--surface); color: var(--text);
       border: 1px solid var(--border); border-radius: var(--r-sm);
       outline: none;
     }
+    #sms-bulk-panel .bulk-field select { padding: 0 30px 0 8px; }
     #sms-bulk-panel .bulk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
     #sms-bulk-panel .bulk-hint { font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
     .sms-bulk-col { width: 30px; text-align: center; padding: 0 !important; }
