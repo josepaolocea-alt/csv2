@@ -813,6 +813,124 @@
       font-family: inherit; font-weight: 500;
     }
     select option:checked { background: var(--accent-soft); color: var(--accent-strong); }
+
+    /* App-rendered dropdown layer. The original select stays in the DOM for
+       form state and existing JavaScript, but the operating-system popup is
+       replaced by this consistent menu. */
+    .premium-select {
+      position: relative; display: inline-flex; min-width: 0;
+      vertical-align: middle;
+    }
+    .premium-select-native {
+      position: absolute !important; inset: 0 !important;
+      width: 1px !important; height: 1px !important;
+      min-width: 0 !important; min-height: 0 !important;
+      margin: 0 !important; padding: 0 !important;
+      opacity: 0 !important; pointer-events: none !important;
+      clip-path: inset(50%) !important;
+    }
+    .premium-select-trigger {
+      position: relative; display: flex; align-items: center;
+      width: 100%; min-width: 0; height: 100%; min-height: 24px;
+      padding: 0 32px 0 9px;
+      font: 500 11px/1 var(--font); text-align: left;
+      color: var(--text); cursor: pointer;
+      background: linear-gradient(180deg,
+        color-mix(in srgb, var(--surface) 94%, #fff) 0%,
+        var(--surface) 100%);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: 0 1px 2px rgba(32, 35, 38, .06), inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+      outline: none;
+      transition: background-color .14s ease-out, border-color .14s ease-out,
+        box-shadow .14s ease-out, transform .1s ease-out;
+    }
+    .premium-select-trigger::after {
+      content: ''; position: absolute; right: 11px; top: 50%;
+      width: 6px; height: 6px; margin-top: -5px;
+      border-right: 1.5px solid var(--text-3);
+      border-bottom: 1.5px solid var(--text-3);
+      transform: rotate(45deg);
+      transition: margin-top .16s ease-out, transform .16s ease-out, border-color .16s ease-out;
+    }
+    .premium-select-trigger::before {
+      content: ''; position: absolute; top: 21%; bottom: 21%; right: 25px;
+      width: 1px; background: var(--border);
+    }
+    .premium-select-label {
+      display: block; min-width: 0; overflow: hidden;
+      white-space: nowrap; text-overflow: ellipsis;
+    }
+    .premium-select-trigger:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+      background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+      box-shadow: 0 3px 9px rgba(32, 35, 38, .10), inset 0 1px 0 color-mix(in srgb, #fff 48%, transparent);
+    }
+    .premium-select-trigger:focus-visible,
+    .premium-select.open .premium-select-trigger {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 3px 10px rgba(32, 35, 38, .10);
+    }
+    .premium-select.open .premium-select-trigger::after {
+      margin-top: -1px; border-color: var(--accent);
+      transform: rotate(225deg);
+    }
+    .premium-select-trigger:active:not(:disabled) { transform: scale(.985); }
+    .premium-select-trigger:disabled {
+      cursor: not-allowed; opacity: .56; color: var(--text-3);
+      background: var(--surface-2); box-shadow: none;
+    }
+    .premium-select-menu {
+      position: fixed; z-index: 2600; display: grid; gap: 2px;
+      max-height: min(280px, calc(100vh - 20px)); overflow-y: auto;
+      padding: 5px;
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+      border-radius: 10px;
+      box-shadow: 0 16px 42px rgba(18, 24, 32, .22), 0 3px 10px rgba(18, 24, 32, .12), inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      animation: premiumSelectIn .14s cubic-bezier(.22, 1, .36, 1);
+      overscroll-behavior: contain;
+    }
+    @keyframes premiumSelectIn {
+      from { opacity: 0; transform: translateY(-4px) scale(.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .premium-select-option {
+      position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 18px;
+      align-items: center; gap: 9px;
+      width: 100%; min-height: 31px; padding: 6px 8px 6px 10px;
+      font: 500 11px/1.25 var(--font); text-align: left;
+      color: var(--text); cursor: pointer;
+      background: transparent; border: 0; border-radius: 7px; outline: none;
+      transition: background-color .11s ease-out, color .11s ease-out, transform .08s ease-out;
+    }
+    .premium-select-option-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .premium-select-option-check {
+      display: grid; place-items: center; width: 17px; height: 17px;
+      color: transparent; border-radius: 50%; font-size: 11px; font-weight: 800;
+    }
+    .premium-select-option:hover:not(:disabled),
+    .premium-select-option:focus-visible {
+      color: var(--accent-strong); background: var(--accent-soft);
+    }
+    .premium-select-option:active:not(:disabled) { transform: scale(.992); }
+    .premium-select-option.selected {
+      color: var(--on-accent); font-weight: 650;
+      background: var(--accent);
+      box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 28%, transparent);
+    }
+    .premium-select-option.selected .premium-select-option-check {
+      color: var(--on-accent); background: color-mix(in srgb, var(--on-accent) 16%, transparent);
+    }
+    .premium-select-option:disabled { cursor: not-allowed; opacity: .42; }
+    .premium-select-group-label {
+      padding: 7px 9px 3px; color: var(--text-3);
+      font-size: 9px; font-weight: 750; letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .premium-select-empty {
+      padding: 12px; color: var(--text-3); font-size: 10px; text-align: center;
+    }
     .win-ta {
       font-size: 11px; font-family: var(--mono); padding: 5px;
       background: var(--surface); color: var(--text);
@@ -4141,6 +4259,262 @@ window.toggleViewMenu = e => {
   e?.stopPropagation();
   document.getElementById('view-menu')?.classList.toggle('open');
 };
+
+/* ── Premium selects ──
+   Enhance every native single-select with an app-rendered menu. The original
+   select remains the source of truth so all existing value reads, writes and
+   onchange handlers continue to work unchanged. */
+let premiumSelectOpen = null;
+let premiumSelectUid = 0;
+
+function premiumSelectCopyLayout(select, wrapper) {
+  const inline = select.style;
+  const computed = getComputedStyle(select);
+  const rect = select.getBoundingClientRect();
+  const copyInline = ['marginTop','marginRight','marginBottom','marginLeft','alignSelf','flex'];
+  copyInline.forEach(prop => { if (inline[prop]) wrapper.style[prop] = inline[prop]; });
+
+  if (inline.width) wrapper.style.width = inline.width;
+  else if (rect.width >= 40) wrapper.style.width = `${rect.width}px`;
+  else if (parseFloat(computed.width) >= 40) wrapper.style.width = computed.width;
+  else wrapper.style.minWidth = '130px';
+
+  if (inline.minWidth) wrapper.style.minWidth = inline.minWidth;
+  else if (parseFloat(computed.minWidth) > 0) wrapper.style.minWidth = computed.minWidth;
+  if (inline.maxWidth) wrapper.style.maxWidth = inline.maxWidth;
+  else if (computed.maxWidth !== 'none' && parseFloat(computed.maxWidth) > 0) wrapper.style.maxWidth = computed.maxWidth;
+
+  const height = inline.height || (parseFloat(computed.height) >= 20 ? computed.height : '24px');
+  wrapper.style.height = height;
+  wrapper.dataset.premiumDisplay = computed.display === 'block' ? 'flex' : 'inline-flex';
+  wrapper.style.display = wrapper.dataset.premiumDisplay;
+}
+
+function premiumSelectAccessibleName(select) {
+  return select.getAttribute('aria-label')
+    || select.labels?.[0]?.textContent?.trim()
+    || select.title
+    || 'Choose an option';
+}
+
+function syncPremiumSelect(select) {
+  const wrapper = select?._premiumSelectWrapper;
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector('.premium-select-trigger');
+  const label = wrapper.querySelector('.premium-select-label');
+  const option = select.options[select.selectedIndex];
+  label.textContent = option?.textContent?.trim() || 'Select an option';
+  trigger.disabled = select.disabled;
+  trigger.setAttribute('aria-label', premiumSelectAccessibleName(select));
+  trigger.setAttribute('aria-invalid', select.getAttribute('aria-invalid') || 'false');
+  wrapper.style.display = select.hidden || getComputedStyle(select).display === 'none'
+    ? 'none' : (wrapper.dataset.premiumDisplay || 'inline-flex');
+  if (premiumSelectOpen?.select === select) {
+    premiumSelectOpen.menu.querySelectorAll('.premium-select-option').forEach(button => {
+      const selected = Number(button.dataset.optionIndex) === select.selectedIndex;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+  }
+}
+
+function closePremiumSelect(restoreFocus=false) {
+  const state = premiumSelectOpen;
+  if (!state) return;
+  premiumSelectOpen = null;
+  state.wrapper.classList.remove('open');
+  state.trigger.setAttribute('aria-expanded', 'false');
+  state.trigger.removeAttribute('aria-controls');
+  state.menu.remove();
+  if (restoreFocus && state.trigger.isConnected) state.trigger.focus();
+}
+
+function positionPremiumSelectMenu(state) {
+  if (!state?.menu?.isConnected) return;
+  const rect = state.trigger.getBoundingClientRect();
+  const viewportGap = 8;
+  const width = Math.min(Math.max(rect.width, 180), window.innerWidth - viewportGap * 2);
+  state.menu.style.width = `${width}px`;
+  state.menu.style.left = `${Math.min(Math.max(rect.left, viewportGap), window.innerWidth - width - viewportGap)}px`;
+  state.menu.style.maxHeight = '280px';
+  const naturalHeight = state.menu.offsetHeight;
+  const below = window.innerHeight - rect.bottom - viewportGap;
+  const above = rect.top - viewportGap;
+  const openUp = below < Math.min(naturalHeight, 180) && above > below;
+  const available = Math.max(90, (openUp ? above : below) - 5);
+  state.menu.style.maxHeight = `${Math.min(280, available)}px`;
+  const menuHeight = Math.min(naturalHeight, available);
+  state.menu.style.top = `${openUp
+    ? Math.max(viewportGap, rect.top - menuHeight - 5)
+    : Math.min(window.innerHeight - menuHeight - viewportGap, rect.bottom + 5)}px`;
+  state.menu.classList.toggle('opens-up', openUp);
+}
+
+function premiumSelectMoveFocus(menu, current, direction) {
+  const enabled = [...menu.querySelectorAll('.premium-select-option:not(:disabled)')];
+  if (!enabled.length) return;
+  const index = enabled.indexOf(current);
+  enabled[(index + direction + enabled.length) % enabled.length].focus();
+}
+
+function createPremiumSelectOption(state, option) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `premium-select-option${option.selected ? ' selected' : ''}`;
+  button.dataset.optionIndex = String(option.index);
+  button.setAttribute('role', 'option');
+  button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+  button.disabled = option.disabled || option.parentElement?.disabled;
+
+  const text = document.createElement('span');
+  text.className = 'premium-select-option-label';
+  text.textContent = option.textContent.trim();
+  const check = document.createElement('span');
+  check.className = 'premium-select-option-check';
+  check.setAttribute('aria-hidden', 'true');
+  check.textContent = '✓';
+  button.append(text, check);
+
+  button.addEventListener('click', () => {
+    if (button.disabled) return;
+    const changed = state.select.selectedIndex !== option.index;
+    state.select.selectedIndex = option.index;
+    syncPremiumSelect(state.select);
+    if (changed) {
+      state.select.dispatchEvent(new Event('input', { bubbles:true }));
+      state.select.dispatchEvent(new Event('change', { bubbles:true }));
+    }
+    closePremiumSelect(true);
+  });
+  button.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); premiumSelectMoveFocus(state.menu, button, 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); premiumSelectMoveFocus(state.menu, button, -1); }
+    else if (e.key === 'Home') { e.preventDefault(); state.menu.querySelector('.premium-select-option:not(:disabled)')?.focus(); }
+    else if (e.key === 'End') { e.preventDefault(); [...state.menu.querySelectorAll('.premium-select-option:not(:disabled)')].pop()?.focus(); }
+    else if (e.key === 'Escape') { e.preventDefault(); closePremiumSelect(true); }
+  });
+  return button;
+}
+
+function openPremiumSelect(select, focusMenu=false) {
+  const wrapper = select?._premiumSelectWrapper;
+  if (!wrapper || select.disabled) return;
+  if (premiumSelectOpen?.select === select) { closePremiumSelect(true); return; }
+  closePremiumSelect(false);
+  syncPremiumSelect(select);
+
+  const trigger = wrapper.querySelector('.premium-select-trigger');
+  const menu = document.createElement('div');
+  const menuId = `premium-select-menu-${++premiumSelectUid}`;
+  menu.className = 'premium-select-menu';
+  menu.id = menuId;
+  menu.setAttribute('role', 'listbox');
+  menu.setAttribute('aria-label', premiumSelectAccessibleName(select));
+
+  const state = { select, wrapper, trigger, menu };
+  let previousGroup = null;
+  [...select.options].forEach(option => {
+    if (option.hidden || option.parentElement?.hidden) return;
+    const group = option.parentElement?.tagName === 'OPTGROUP' ? option.parentElement : null;
+    if (group && group !== previousGroup) {
+      const heading = document.createElement('div');
+      heading.className = 'premium-select-group-label';
+      heading.textContent = group.label;
+      menu.appendChild(heading);
+    }
+    previousGroup = group;
+    menu.appendChild(createPremiumSelectOption(state, option));
+  });
+  if (!menu.querySelector('.premium-select-option')) {
+    const empty = document.createElement('div');
+    empty.className = 'premium-select-empty';
+    empty.textContent = 'No options available';
+    menu.appendChild(empty);
+  }
+
+  document.body.appendChild(menu);
+  premiumSelectOpen = state;
+  wrapper.classList.add('open');
+  trigger.setAttribute('aria-expanded', 'true');
+  trigger.setAttribute('aria-controls', menuId);
+  positionPremiumSelectMenu(state);
+  if (focusMenu) {
+    requestAnimationFrame(() => (menu.querySelector('.premium-select-option.selected:not(:disabled)')
+      || menu.querySelector('.premium-select-option:not(:disabled)'))?.focus());
+  }
+}
+
+function enhancePremiumSelect(select) {
+  if (!(select instanceof HTMLSelectElement) || select.multiple || select.dataset.premiumReady) return;
+  select.dataset.premiumReady = 'true';
+  const wrapper = document.createElement('span');
+  wrapper.className = 'premium-select';
+  premiumSelectCopyLayout(select, wrapper);
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+  select.classList.add('premium-select-native');
+  select.tabIndex = -1;
+  select.setAttribute('aria-hidden', 'true');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'premium-select-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  const label = document.createElement('span');
+  label.className = 'premium-select-label';
+  trigger.appendChild(label);
+  wrapper.appendChild(trigger);
+  select._premiumSelectWrapper = wrapper;
+
+  trigger.addEventListener('click', () => openPremiumSelect(select, false));
+  trigger.addEventListener('keydown', e => {
+    if (['Enter',' ','ArrowDown','ArrowUp'].includes(e.key)) {
+      e.preventDefault();
+      openPremiumSelect(select, true);
+    } else if (e.key === 'Escape') closePremiumSelect(true);
+  });
+  select.addEventListener('change', () => syncPremiumSelect(select));
+  select.addEventListener('focus', () => trigger.focus());
+  syncPremiumSelect(select);
+}
+
+function enhancePremiumSelects(root=document) {
+  if (root instanceof HTMLSelectElement) enhancePremiumSelect(root);
+  root.querySelectorAll?.('select:not([multiple])').forEach(enhancePremiumSelect);
+}
+
+function initPremiumSelects() {
+  enhancePremiumSelects(document);
+  const observer = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === Node.ELEMENT_NODE) enhancePremiumSelects(node);
+      });
+      const select = mutation.target instanceof HTMLSelectElement
+        ? mutation.target : mutation.target.parentElement?.closest?.('select');
+      if (select?._premiumSelectWrapper) syncPremiumSelect(select);
+    });
+  });
+  observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['disabled','hidden','aria-label'] });
+  document.addEventListener('pointerdown', e => {
+    if (premiumSelectOpen && !premiumSelectOpen.wrapper.contains(e.target) && !premiumSelectOpen.menu.contains(e.target)) closePremiumSelect(false);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && premiumSelectOpen) closePremiumSelect(true); });
+  window.addEventListener('resize', () => closePremiumSelect(false));
+  document.addEventListener('scroll', e => {
+    if (premiumSelectOpen && !premiumSelectOpen.menu.contains(e.target)) closePremiumSelect(false);
+  }, true);
+  // Existing app code often assigns select.value directly. Keep trigger labels
+  // synchronized without requiring changes throughout those data workflows.
+  setInterval(() => {
+    document.querySelectorAll('select[data-premium-ready="true"]').forEach(select => {
+      if (!select.isConnected) return;
+      syncPremiumSelect(select);
+    });
+    if (premiumSelectOpen && !premiumSelectOpen.select.isConnected) closePremiumSelect(false);
+  }, 400);
+}
 
 window.animateModuleIcon = button => {
   const icon = button?.querySelector('svg');
@@ -14529,6 +14903,7 @@ async function init(){
 }
 
 /* ── Auth-gated boot ── */
+initPremiumSelects();
 let _appInitialized = false;
 if (auth) {
   onAuthStateChanged(auth, (user) => {
