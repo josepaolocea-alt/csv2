@@ -1047,6 +1047,7 @@
     .st-daily-row-decrease td:first-child, .st-daily-row-stopped td:first-child { box-shadow: inset 3px 0 0 var(--red); }
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
     /* High-volume growth on Today / Paste: make the entire qualifying row easy to scan. */
+    #st-daily-table tr.st-daily-drill-row { cursor: pointer; }
     #st-daily-table tr.st-daily-row-high-growth td { background: var(--green-soft) !important; }
     #st-daily-table tr.st-daily-row-high-growth td:first-child { box-shadow: inset 4px 0 0 var(--green); }
     #st-daily-table tr.st-daily-row-high-decrease td { background: var(--red-soft) !important; }
@@ -13531,6 +13532,13 @@ window.openStatsDailyHistoryForClient = key => {
   // Use the exact dashboard account rather than the shared client name. This
   // keeps (for example) C_TOKU-TRUNK6 separate from every other TOKU account.
   if (search) search.value = row?.account_codes || row?.customer_name || '';
+  // Today / Paste also contains route and Total rows. If the client-level
+  // snapshot has no matching aggregate, fall back to the account embedded in
+  // its base key so double-clicking still opens a correctly filtered history.
+  if (search && !search.value) {
+    const [accountCode, customerName] = String(key || '').split('\u001f');
+    search.value = accountCode || customerName || '';
+  }
   window.switchStatsDailyTab('history');
   search?.focus();
 };
@@ -13769,7 +13777,7 @@ const ST_DAILY_STATUS_LABELS = {
 };
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
 const ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS = 10000;
-const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 80;
+const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 70;
 
 function statsDailyIsHighGrowth(row) {
   return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
@@ -13836,11 +13844,13 @@ function renderStatsDailyTraffic() {
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
     const highGrowth = statsDailyIsHighGrowth(row);
     const highDecrease = statsDailyIsHighDecrease(row);
-    const rowClass = `st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}${highDecrease ? ' st-daily-row-high-decrease' : ''}`;
-    const rowTitle = highGrowth
-      ? 'High-volume growth: over 10,000 attempts and at least 80% increase'
-      : highDecrease ? 'High-volume decrease: over 10,000 attempts and at least 80% decrease' : '';
-    return `<tr class="${rowClass}"${rowTitle ? ` title="${rowTitle}"` : ''}><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
+    const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}${highDecrease ? ' st-daily-row-high-decrease' : ''}`;
+    const highlightTitle = highGrowth
+      ? 'High-volume growth: over 10,000 attempts and at least 70% increase. '
+      : highDecrease ? 'High-volume decrease: over 10,000 attempts and at least 70% decrease. ' : '';
+    const rowTitle = `${highlightTitle}Double-click to view this client in Last 2 Weeks`;
+    const clientKey = encodeURIComponent(statsDailyClientBaseKey(row)).replace(/'/g, '%27');
+    return `<tr class="${rowClass}" title="${rowTitle}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${clientKey}'))"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
       + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
       + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
       + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
