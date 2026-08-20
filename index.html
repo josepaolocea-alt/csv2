@@ -977,7 +977,7 @@
 
     /* Balance-only toolbar separators — hide in other modules so no divider is
        left dangling once the tnav-* buttons around it are hidden (#2). */
-    body.stats-mode .tsep-bal, body.sms-mode .tsep-bal,
+    body.stats-mode .tsep-bal, body.traffic-mode .tsep-bal, body.sms-mode .tsep-bal,
     body.users-mode .tsep-bal { display: none !important; }
 
     /* ── Stats module ── */
@@ -1009,6 +1009,17 @@
     body.stats-mode.stats-daily-mode #stats-sidebar-current { display: none; }
     body.stats-mode.stats-daily-mode #stats-sidebar-daily { display: flex; }
     body.stats-mode.stats-daily-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
+
+    /* ── Traffic module ──
+       Daily Traffic is a top-level module with its existing Today, Dashboard
+       and Last 2 Weeks tabs. Only Today needs the import/date sidebar. */
+    body.traffic-mode #toolbar,
+    body.traffic-mode #view-banner,
+    body.traffic-mode #sidebar-snap { display: none !important; }
+    body.traffic-mode #stats-sidebar-snap { display: flex; }
+    body.traffic-mode #stats-sidebar-current { display: none; }
+    body.traffic-mode #stats-sidebar-daily { display: flex; }
+    body.traffic-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
       background: var(--surface); color: var(--text);
@@ -2510,6 +2521,11 @@
           <line x1="13" y1="13.5" x2="13" y2="7"/>
         </svg>
       </button>
+      <button class="micon" id="view-menu-traffic" onclick="animateModuleIcon(this); switchModule('traffic')" title="Daily Traffic">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/>
+        </svg>
+      </button>
       <button class="micon" id="view-menu-sms" onclick="animateModuleIcon(this); switchModule('sms')" title="SMS">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
@@ -2566,9 +2582,6 @@
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
     <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
     <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots">No Threshold</button>
-    <button class="tbtn stats-tab stats-mode-tab active" id="stmode-current" onclick="switchStatsMode('current')">Current Stats</button>
-    <button class="tbtn stats-tab stats-mode-tab" id="stmode-daily" onclick="switchStatsMode('daily')">Daily Traffic</button>
-    <div class="tsep stats-tab"></div>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
     <button class="tbtn stats-tab" id="stnav-stats-hourly"   onclick="switchStatsView('hourly')">Hourly</button>
@@ -4536,14 +4549,17 @@ function closeViewMenu() {
 function updateViewMenuState() {
   const smsMode   = document.body.classList.contains('sms-mode');
   const stMode    = document.body.classList.contains('stats-mode');
+  const trafficMode = document.body.classList.contains('traffic-mode');
   const usersMode = document.body.classList.contains('users-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !stMode && !usersMode);
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !stMode && !trafficMode && !usersMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
   document.getElementById('view-menu-stats')?.classList.toggle('active', stMode);
+  document.getElementById('view-menu-traffic')?.classList.toggle('active', trafficMode);
   document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'BalanceMonitor - SMS'
     : stMode ? 'BalanceMonitor - Stats'
+    : trafficMode ? 'BalanceMonitor - Traffic'
     : usersMode ? 'BalanceMonitor - Users' : 'BalanceMonitor';
 }
 
@@ -4820,7 +4836,7 @@ window.animateModuleIcon = button => {
 
 window.switchModule = module => {
   closeViewMenu();
-  document.body.classList.remove('users-mode');
+  document.body.classList.remove('users-mode', 'traffic-mode');
   // SMS and the Users & Roles tab are admin-only; bounce non-admins to Balance.
   if ((module === 'sms' || module === 'users') && !isAdmin()) module = 'balance';
   if (module === 'users') {
@@ -4858,11 +4874,28 @@ window.switchModule = module => {
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     updateViewMenuState();
-    window.switchStatsMode(statsPrimaryMode || 'current');
+    window.switchStatsMode('current');
+    return;
+  }
+  if (module === 'traffic') {
+    document.body.classList.remove('sms-mode', 'stats-mode', 'stats-daily-mode');
+    document.body.classList.add('traffic-mode');
+    statsPrimaryMode = 'daily';
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-stats-daily')?.classList.add('active');
+    statsDailyTab = 'today';
+    updateStatsDailyTabUI();
+    updateViewMenuState();
+    syncStatsDailyImportDate();
+    renderStatsDailyTraffic();
+    setSbStatus('Traffic: Daily Traffic');
     return;
   }
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
+  document.body.classList.remove('traffic-mode', 'stats-daily-mode', 'stats-daily-today-tab');
   updateViewMenuState();
   window.switchView('summary');
 };
@@ -4876,6 +4909,7 @@ window.switchView = name => {
   closeViewMenu();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
+  document.body.classList.remove('traffic-mode', 'stats-daily-mode', 'stats-daily-today-tab');
   document.body.classList.remove('users-mode');
   updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -7786,14 +7820,16 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
 
-// Show/hide top-level modules based on the signed-in user's role. Stats is
+// Show/hide top-level modules based on the signed-in user's role. Stats and
+// Traffic are
 // available to every signed-in user (view-only for viewers). SMS, the Users
 // tab, and client editing stay admin only.
 function applyModuleAccess(){
   const admin = isAdmin();
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-  // Stats: everyone. SMS + Users & Roles: admin only.
+  // Stats + Traffic: everyone. SMS + Users & Roles: admin only.
   show('view-menu-stats',   true);
+  show('view-menu-traffic', true);
   show('view-menu-sms',     admin);
   show('view-menu-users',   admin);
   // Balance snapshot posting (New Snapshot / Process / Undo / Tritel) — admin &
@@ -10613,8 +10649,50 @@ function normalizeSmsCredential(row) {
 }
 
 function smsCredentialNowText(date = new Date()) {
-  const pad = value => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+
+// Credential imports contain several historical date styles. Normalize them
+// to a sortable timestamp, while displaying one consistent date-only label.
+function smsCredentialDateValue(value) {
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.getTime();
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const excelDate = new Date(Math.round((value - 25569) * 86400000));
+    return Number.isFinite(excelDate.getTime()) ? excelDate.getTime() : Number.NEGATIVE_INFINITY;
+  }
+  const raw = String(value ?? '').trim();
+  if (!raw) return Number.NEGATIVE_INFINITY;
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+  if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), Number(iso[4]) || 0, Number(iso[5]) || 0);
+  const dmy = raw.match(/^(?:(\d{1,2}):(\d{2})\s*(am|pm)?\s+)?(\d{1,2})[\/-](\d{1,2}|[A-Za-z]{3,9})[\/-](\d{2}|\d{4})$/i);
+  if (dmy) {
+    const monthNames = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+    const monthToken = String(dmy[5]).toLowerCase();
+    const month = /^\d+$/.test(monthToken) ? Number(monthToken) - 1 : monthNames[monthToken.slice(0, 3)];
+    let year = Number(dmy[6]);
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+    let hour = Number(dmy[1]) || 0;
+    const meridiem = String(dmy[3] || '').toLowerCase();
+    if (meridiem === 'pm' && hour < 12) hour += 12;
+    if (meridiem === 'am' && hour === 12) hour = 0;
+    if (Number.isInteger(month) && month >= 0 && month <= 11) {
+      return Date.UTC(year, month, Number(dmy[4]), hour, Number(dmy[2]) || 0);
+    }
+  }
+  const named = raw.replace(/,/g, ' ').replace(/\s+/g, ' ').match(/^([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{4})$/);
+  if (named) {
+    const monthNames = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+    const month = monthNames[named[1].toLowerCase().slice(0, 3)];
+    if (Number.isInteger(month)) return Date.UTC(Number(named[3]), month, Number(named[2]));
+  }
+  const parsed = Date.parse(raw.replace(/\bSept\b/gi, 'Sep').replace(/,/g, ' '));
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function smsCredentialDisplayDate(value) {
+  const timestamp = smsCredentialDateValue(value);
+  if (!Number.isFinite(timestamp)) return String(value ?? '').trim();
+  return new Date(timestamp).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', timeZone:'UTC' });
 }
 
 function setSmsCredentialSyncStatus(state, detail = '') {
@@ -11399,7 +11477,9 @@ function filteredSmsCredentials() {
     .filter(row => !query || smsTextMatches(SMS_CREDENTIAL_FIELDS.map(field => row[field]).join(' '), query))
     .slice()
     .sort((a,b) => {
-      const cmp = String(a[smsCredentialSortCol] || '').localeCompare(String(b[smsCredentialSortCol] || ''), undefined, { sensitivity:'base' });
+      const cmp = smsCredentialSortCol === 'date_updated'
+        ? smsCredentialDateValue(a.date_updated) - smsCredentialDateValue(b.date_updated)
+        : String(a[smsCredentialSortCol] || '').localeCompare(String(b[smsCredentialSortCol] || ''), undefined, { sensitivity:'base' });
       return (cmp || String(a.client).localeCompare(String(b.client))) * smsCredentialSortDir;
     });
 }
@@ -11482,7 +11562,7 @@ window.renderSmsCredentials = () => {
     ${copyable(row, 'new_api_password', true)}
     <td>${linked(row.login_link)}</td>
     <td>${linked(row.new_login_link)}</td>
-    <td style="white-space:nowrap">${esc(row.date_updated)}</td>
+    <td style="white-space:nowrap" title="${esc(row.date_updated)}">${esc(smsCredentialDisplayDate(row.date_updated))}</td>
     <td>${esc(row.platform)}</td>
     <td>${clipped(row.notes)}</td>
     <td>${otpCell(row)}</td>
@@ -14072,7 +14152,7 @@ function refreshStatsDailyDateSelect() {
 
 window.selectStatsDailyDate = date => {
   statsDailySelectedDate = date;
-  window.switchStatsMode('daily');
+  window.switchModule('traffic');
   renderStatsDailyTraffic();
 };
 
@@ -14081,8 +14161,8 @@ const ST_DAILY_STATUS_LABELS = {
   new:'&#9733; New', unchanged:'&#8594; Unchanged'
 };
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
-const ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS = 10000;
-const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 70;
+const ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS = 1000;
+const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 65;
 
 function statsDailyIsHighGrowth(row) {
   return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
@@ -14151,8 +14231,8 @@ function renderStatsDailyTraffic() {
     const highDecrease = statsDailyIsHighDecrease(row);
     const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}${highDecrease ? ' st-daily-row-high-decrease' : ''}`;
     const highlightTitle = highGrowth
-      ? 'High-volume growth: over 10,000 attempts and at least 70% increase. '
-      : highDecrease ? 'High-volume decrease: over 10,000 attempts and at least 70% decrease. ' : '';
+      ? 'High-volume growth: over 1,000 attempts and at least 65% increase. '
+      : highDecrease ? 'High-volume decrease: over 1,000 attempts and at least 65% decrease. ' : '';
     const rowTitle = `${highlightTitle}Double-click to view this client in Last 2 Weeks`;
     const clientKey = encodeURIComponent(statsDailyClientBaseKey(row)).replace(/'/g, '%27');
     return `<tr class="${rowClass}" title="${rowTitle}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${clientKey}'))"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
@@ -14398,20 +14478,11 @@ function updateStatsModeButtons() {
 }
 
 window.switchStatsMode = mode => {
-  statsPrimaryMode = mode === 'daily' ? 'daily' : 'current';
-  document.body.classList.toggle('stats-daily-mode', statsPrimaryMode === 'daily');
+  if (mode === 'daily') { window.switchModule('traffic'); return; }
+  statsPrimaryMode = 'current';
+  document.body.classList.remove('stats-daily-mode');
   updateStatsModeButtons();
-  if (statsPrimaryMode === 'current') { window.switchStatsView(statsViewName || 'summary'); return; }
-  stRemarkTipHide();
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-stats-daily')?.classList.add('active');
-  // Daily Traffic always opens on Today / Paste. Dashboard and history are
-  // deliberate drill-ins rather than sticky navigation state.
-  statsDailyTab = 'today';
-  updateStatsDailyTabUI();
-  setSbStatus('Stats: Daily Traffic');
-  renderStatsDailyTraffic();
+  window.switchStatsView(statsViewName || 'summary');
 };
 
 window.switchStatsView = name => {
