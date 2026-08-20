@@ -3630,6 +3630,7 @@
             <select id="st-daily-quick-filter" class="win-sel" onchange="renderStatsDailyTraffic()" title="Quick row filter">
               <option value="">All rows</option>
               <option value="alert">Decreasing/stopped only</option>
+              <option value="highlighted-alert">Highlighted decrease/stopped only</option>
               <option value="highlighted">Highlighted only</option>
               <option value="stopped">Stopped only</option>
             </select>
@@ -14333,6 +14334,9 @@ const ST_DAILY_HIGH_RAW_DUR_MIN = 1000;
 const ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT = 65;
 
 function statsDailyIsHighRawDurChange(row) {
+  if (row?.status === 'stopped') {
+    return Number(row?.previous_raw_dur) >= ST_DAILY_HIGH_RAW_DUR_MIN;
+  }
   return Number(row?.raw_dur) >= ST_DAILY_HIGH_RAW_DUR_MIN
     && row?.change_pct !== null
     && Math.abs(Number(row?.change_pct)) >= ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT;
@@ -14340,6 +14344,10 @@ function statsDailyIsHighRawDurChange(row) {
 
 function statsDailyMatchesQuickFilter(row, filter) {
   if (filter === 'alert') return row?.status === 'decrease' || row?.status === 'stopped';
+  if (filter === 'highlighted-alert') {
+    return (row?.status === 'decrease' || row?.status === 'stopped')
+      && statsDailyIsHighRawDurChange(row);
+  }
   if (filter === 'highlighted') return statsDailyIsHighRawDurChange(row);
   if (filter === 'stopped') return row?.status === 'stopped';
   return true;
@@ -14400,7 +14408,11 @@ function renderStatsDailyTraffic() {
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
     const highRawDurChange = statsDailyIsHighRawDurChange(row);
     const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highRawDurChange ? ' st-daily-row-high-decrease' : ''}`;
-    const highlightTitle = highRawDurChange ? 'Raw Duration is at least 1,000 and changed by 65% or more. ' : '';
+    const highlightTitle = highRawDurChange
+      ? (row.status === 'stopped'
+        ? 'Traffic stopped after a previous Raw Duration of at least 1,000. '
+        : 'Raw Duration is at least 1,000 and changed by 65% or more. ')
+      : '';
     const rowTitle = `${highlightTitle}Double-click to view this client in Last 2 Weeks`;
     const clientKey = encodeURIComponent(statsDailyClientBaseKey(row)).replace(/'/g, '%27');
     return `<tr class="${rowClass}" title="${rowTitle}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${clientKey}'))"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
