@@ -1324,23 +1324,28 @@
     .sms-workspace {
       display: flex; align-items: stretch;
       gap: 10px; flex: 1; min-height: 0;
+      contain: layout paint;
     }
     .sms-table-col {
       flex: 1 1 0; min-width: 0;
       display: flex; flex-direction: column; min-height: 0;
+      contain: layout paint;
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
     #sms-form-section {
-      flex: 0 0 460px; width: 460px; margin-bottom: 0;
+      flex: 0 0 460px; margin-bottom: 0;
       display: flex; flex-direction: column; min-height: 0; overflow: hidden;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--r-md);
       padding: 8px 10px;
-      transition: flex-basis .38s cubic-bezier(.22, 1, .36, 1),
-                  width .38s cubic-bezier(.22, 1, .36, 1),
-                  padding .38s cubic-bezier(.22, 1, .36, 1),
+      transition: flex-basis .3s cubic-bezier(.22, 1, .36, 1),
                   background-color .14s ease-out, border-color .14s ease-out;
       will-change: flex-basis;
+      contain: layout paint style;
+      transform: translateZ(0);
+      backface-visibility: hidden;
     }
     #sms-form-section .collapsible-header { padding: 0 0 6px; flex: none; }
     #sms-form-section .groupbox-title { margin-bottom: 0; }
@@ -1350,6 +1355,10 @@
     #sms-form-section .caret-body {
       flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
       padding: 4px 4px 0 0;
+      opacity: 1; transform: translateX(0);
+      transition: opacity .16s ease-out, transform .2s cubic-bezier(.22, 1, .36, 1);
+      will-change: opacity, transform;
+      contain: layout paint style;
     }
     /* Narrower panel → 2-column field grid so inputs keep a usable width. */
     #sms-form-section .sms-form-grid {
@@ -1381,11 +1390,12 @@
     #sms-form-section .sms-combo-btn { height: 28px; }
     #sms-form-section .sms-comment-btn { height: 28px; }
     #sms-form-section .sms-textarea { padding: 7px 8px; }
-    /* The form content eases in from the left, in step with the panel opening
-       (same duration + easing so the two motions feel like one). */
-    @keyframes smsFormSlideIn {
-      from { opacity: 0; transform: translateX(-14px); }
-      to   { opacity: 1; transform: translateX(0); }
+    /* On expand, let the inexpensive panel resize begin before revealing the
+       input-heavy body. This avoids painting every field during the first,
+       most expensive layout frames (especially just after app startup). */
+    #sms-form-section.sms-form-opening .caret-body {
+      opacity: 0; transform: translateX(-8px); visibility: hidden;
+      pointer-events: none;
     }
     #sms-selection-actions.has-selection {
       padding: 5px 7px !important; margin-left: 8px; border: 1px solid var(--accent) !important;
@@ -1408,13 +1418,9 @@
     @media (prefers-reduced-motion: reduce) {
       #sms-selection-actions.has-selection { animation: none; }
     }
-    #sms-form-section:not(.collapsed) .caret-body {
-      animation: smsFormSlideIn .38s cubic-bezier(.22, 1, .36, 1) .04s both;
-    }
-
     /* Collapsed → slim, full-height vertical toggle strip on the left. */
     #sms-form-section.collapsed {
-      flex-basis: 40px; width: 40px; padding: 8px 0;
+      flex-basis: 40px; padding: 8px 10px;
       cursor: pointer; align-items: center;
     }
     #sms-form-section.collapsed:hover { background: var(--accent-soft); border-color: var(--accent); }
@@ -1431,7 +1437,7 @@
 
     /* Narrow screens: fall back to stacking the form above the table. */
     @media (max-width: 900px) {
-      #sms-form-section:not(.collapsed) { flex-basis: 360px; width: 360px; }
+      #sms-form-section:not(.collapsed) { flex-basis: 360px; }
     }
     @media (max-width: 720px) {
       .sms-workspace { flex-direction: column; }
@@ -1447,6 +1453,13 @@
       }
       #sms-form-section.collapsed .caret { display: block; }
       #sms-form-section.collapsed .groupbox-title { writing-mode: horizontal-tb; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #sms-form-section { transition: none; }
+      #sms-form-section .caret-body { transition: none; }
+      #sms-form-section.sms-form-opening .caret-body {
+        opacity: 1; transform: none; visibility: visible; pointer-events: auto;
+      }
     }
     .sms-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .sms-field label { font-size: 10px; color: var(--text-2); font-weight: 600; }
@@ -5020,12 +5033,38 @@ window.switchView = name => {
 
 window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
 
+let smsFormRevealTimer = null;
+
+function setSmsFormCollapsed(collapsed) {
+  const form = document.getElementById('sms-form-section');
+  if (!form) return false;
+  clearTimeout(smsFormRevealTimer);
+  smsFormRevealTimer = null;
+  form.classList.remove('sms-form-opening');
+  if (collapsed) {
+    form.classList.add('collapsed');
+    return true;
+  }
+  if (!form.classList.contains('collapsed')) return false;
+  // Hide the input-heavy body for the first portion of the flex resize. The
+  // panel and table can establish their compositor layers before fields paint.
+  form.classList.add('sms-form-opening');
+  form.classList.remove('collapsed');
+  const revealDelay = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 0 : 90;
+  smsFormRevealTimer = setTimeout(() => {
+    form.classList.remove('sms-form-opening');
+    smsFormRevealTimer = null;
+  }, revealDelay);
+  return true;
+}
+
 window.toggleSmsForm = () => {
-  document.getElementById('sms-form-section')?.classList.toggle('collapsed');
+  const form = document.getElementById('sms-form-section');
+  if (form) setSmsFormCollapsed(!form.classList.contains('collapsed'));
 };
 
 function openSmsForm() {
-  document.getElementById('sms-form-section')?.classList.remove('collapsed');
+  return setSmsFormCollapsed(false);
 }
 
 /* ════════════════════════════════════════════════
