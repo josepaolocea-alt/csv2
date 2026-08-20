@@ -3627,8 +3627,12 @@
               <option value="unchanged">Unchanged</option>
             </select>
             <input id="st-daily-search" class="win-inp" type="search" placeholder="Search client, account code, or destination…" oninput="renderStatsDailyTraffic()" style="min-width:220px">
-            <label style="display:flex;align-items:center;gap:5px;font-size:10px"><input id="st-daily-alert-only" type="checkbox" onchange="renderStatsDailyTraffic()"> Decreasing/stopped only</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:10px" title="Show only rows with Raw Duration of 1,000 or more and an absolute change of at least 65%"><input id="st-daily-highlight-only" type="checkbox" onchange="renderStatsDailyTraffic()"> Highlighted only</label>
+            <select id="st-daily-quick-filter" class="win-sel" onchange="renderStatsDailyTraffic()" title="Quick row filter">
+              <option value="">All rows</option>
+              <option value="alert">Decreasing/stopped only</option>
+              <option value="highlighted">Highlighted only</option>
+              <option value="stopped">Stopped only</option>
+            </select>
             <span id="st-daily-count" class="sms-muted" style="margin-left:auto"></span>
           </div>
           <div class="st-daily-summary">
@@ -14096,12 +14100,10 @@ function statsDailyTodayRowsForExport() {
   const comparison = statsDailyComparison(statsDailySelectedDate);
   const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
-  const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
-  const highlightedOnly = !!document.getElementById('st-daily-highlight-only')?.checked;
+  const quickFilter = document.getElementById('st-daily-quick-filter')?.value || '';
   const rows = comparison.rows
     .filter(row => !statusFilter || row.status === statusFilter)
-    .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
-    .filter(row => !highlightedOnly || statsDailyIsHighRawDurChange(row))
+    .filter(row => statsDailyMatchesQuickFilter(row, quickFilter))
     .filter(row => !queryText || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(queryText));
   rows.sort((a,b) => {
     const column = statsDailySortCol;
@@ -14336,6 +14338,13 @@ function statsDailyIsHighRawDurChange(row) {
     && Math.abs(Number(row?.change_pct)) >= ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT;
 }
 
+function statsDailyMatchesQuickFilter(row, filter) {
+  if (filter === 'alert') return row?.status === 'decrease' || row?.status === 'stopped';
+  if (filter === 'highlighted') return statsDailyIsHighRawDurChange(row);
+  if (filter === 'stopped') return row?.status === 'stopped';
+  return true;
+}
+
 window.sortStatsDaily = column => {
   if (statsDailySortCol === column) statsDailySortDir *= -1;
   else { statsDailySortCol = column; statsDailySortDir = 1; }
@@ -14372,11 +14381,9 @@ function renderStatsDailyTraffic() {
 
   const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
-  const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
-  const highlightedOnly = !!document.getElementById('st-daily-highlight-only')?.checked;
+  const quickFilter = document.getElementById('st-daily-quick-filter')?.value || '';
   let rows = allRows.filter(row => !statusFilter || row.status === statusFilter)
-    .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
-    .filter(row => !highlightedOnly || statsDailyIsHighRawDurChange(row))
+    .filter(row => statsDailyMatchesQuickFilter(row, quickFilter))
     .filter(row => !queryText || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(queryText));
   rows.sort((a,b) => {
     const column = statsDailySortCol;
