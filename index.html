@@ -1039,6 +1039,10 @@
     #stats-daily-date-list { flex: 0 1 180px; overflow-y: auto; min-height: 50px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
     .stats-daily-date-item { padding: 5px 6px; border-radius: var(--r-sm); font-size: 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
     .stats-daily-date-item:hover, .stats-daily-date-item.active { background: var(--accent-soft); color: var(--accent); }
+    .stats-daily-archive { padding: 8px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); display: flex; flex-direction: column; gap: 6px; }
+    .stats-daily-archive-row { display: flex; gap: 5px; align-items: center; }
+    .stats-daily-archive-row input { min-width: 0; flex: 1; }
+    .stats-daily-archive-note { color: var(--text-3); font-size: 10px; line-height: 1.45; }
     .st-daily-summary { display: grid; grid-template-columns: repeat(5, minmax(100px, 1fr)); gap: 8px; padding: 8px; }
     .st-daily-card { padding: 10px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); text-align: center; }
     .st-daily-card .value { font-size: 20px; font-weight: 700; line-height: 1.1; }
@@ -1059,8 +1063,6 @@
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
     /* High-volume growth on Today / Paste: make the entire qualifying row easy to scan. */
     #st-daily-table tr.st-daily-drill-row { cursor: pointer; }
-    #st-daily-table tr.st-daily-row-high-growth td { background: var(--green-soft) !important; }
-    #st-daily-table tr.st-daily-row-high-growth td:first-child { box-shadow: inset 4px 0 0 var(--green); }
     #st-daily-table tr.st-daily-row-high-decrease td { background: var(--red-soft) !important; }
     #st-daily-table tr.st-daily-row-high-decrease td:first-child { box-shadow: inset 4px 0 0 var(--red); }
     .st-daily-tabs {
@@ -2674,7 +2676,15 @@
             <div class="snap-action-row" style="margin-top:2px">
               <button class="tbtn" style="width:100%;justify-content:center" onclick="undoLastStatsDailyTraffic()" title="Remove the most recently saved Daily Traffic date">Undo Last Daily Traffic</button>
             </div>
-            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Only the newest 7 dates are retained; older dates are removed automatically.</div>
+            <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Normal sessions read only the newest 14 reports.</div>
+          </div>
+          <div id="stats-daily-archive-controls" class="stats-daily-archive">
+            <div class="snap-label">Archive a Month</div>
+            <div class="stats-daily-archive-row">
+              <input id="stats-daily-archive-month" class="win-inp" type="month" aria-label="Daily Traffic month to archive">
+              <button type="button" class="tbtn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
+            </div>
+            <div class="stats-daily-archive-note">Moves the selected month to a separate Firebase archive. Archived records are kept, but are not read by normal Daily Traffic sessions.</div>
           </div>
           <div class="snap-label">Saved Daily Dates</div>
           <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
@@ -3576,7 +3586,7 @@
       <!-- STATS — DAILY TRAFFIC CHANGE MONITOR -->
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Daily Traffic — Increase, Decrease, Stopped &amp; New</div>
+          <div class="groupbox-title">Daily Traffic — Raw Duration Change Monitor</div>
           <div class="st-daily-tabs" role="tablist" aria-label="Daily Traffic views">
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
@@ -3618,9 +3628,9 @@
                 <th onclick="sortStatsDaily('destination')">Destination</th>
                 <th onclick="sortStatsDaily('date')">Date</th>
                 <th>Previous Date</th>
-                <th onclick="sortStatsDaily('attempts')" style="text-align:right">Attempts</th>
-                <th onclick="sortStatsDaily('previous_attempts')" style="text-align:right">Previous</th>
-                <th onclick="sortStatsDaily('change')" style="text-align:right">Change</th>
+                <th onclick="sortStatsDaily('raw_dur')" style="text-align:right">Raw Dur</th>
+                <th onclick="sortStatsDaily('previous_raw_dur')" style="text-align:right">Previous Raw Dur</th>
+                <th onclick="sortStatsDaily('change')" style="text-align:right">Raw Dur Change</th>
                 <th onclick="sortStatsDaily('change_pct')" style="text-align:right">Change %</th>
                 <th onclick="sortStatsDaily('status')">Status</th>
                 <th onclick="sortStatsDaily('decrease_streak')" style="text-align:right">Decrease Streak</th>
@@ -3637,19 +3647,19 @@
             <div class="st-daily-dashboard-grid">
               <section class="st-daily-rank-card decrease" aria-labelledby="st-daily-decrease-title">
                 <div class="st-daily-rank-title" id="st-daily-decrease-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="st-daily-dashboard-decrease-count">0 routes</span></div>
-                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table></div>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest Raw Dur</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday Raw Dur</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card stopped" aria-labelledby="st-daily-stopped-title">
                 <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 routes</span></div>
-                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table></div>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest Raw Dur</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday Raw Dur</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card increase" aria-labelledby="st-daily-increase-title">
                 <div class="st-daily-rank-title" id="st-daily-increase-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="st-daily-dashboard-increase-count">0 routes</span></div>
-                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table></div>
+                <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest Raw Dur</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday Raw Dur</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-increase"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card total" aria-labelledby="st-daily-total-dates-title">
-                <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Total Attempts</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
-                <div class="st-daily-rank-scroll" tabindex="0" aria-label="Total attempts by date, newest first"><table><thead><tr><th>Date</th><th style="text-align:right">Total attempts</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table></div>
+                <div class="st-daily-rank-title" id="st-daily-total-dates-title"><span>Total Raw Duration</span><span class="st-daily-rank-count" id="st-daily-dashboard-total-count">0 dates</span></div>
+                <div class="st-daily-rank-scroll" tabindex="0" aria-label="Total Raw Duration by date, newest first"><table><thead><tr><th>Date</th><th style="text-align:right">Total Raw Dur</th><th style="text-align:right">Previous total</th><th style="text-align:right">Change</th><th style="text-align:center">Trend</th></tr></thead><tbody id="st-daily-dashboard-total"></tbody></table></div>
               </section>
             </div>
           </div>
@@ -3659,7 +3669,7 @@
               <input id="st-daily-history-search" class="win-inp" type="search" placeholder="Search client, account code, or destination…" oninput="renderStatsDailyHistory()" style="min-width:260px">
               <span id="st-daily-history-count" class="sms-muted" style="margin-left:auto"></span>
             </div>
-            <div class="st-daily-history-meta" id="st-daily-history-meta">The latest 14 calendar days of attempts appear here.</div>
+            <div class="st-daily-history-meta" id="st-daily-history-meta">The latest 14 calendar days of Raw Duration appear here.</div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
               <div class="lv-wrap"><table id="st-daily-history-table">
                 <thead id="st-daily-history-head"></thead>
@@ -7839,6 +7849,7 @@ function applyModuleAccess(){
   // viewers still see today's snapshots and can export.
   show('stats-post-controls', canPostStats());
   show('stats-daily-post-controls', canPostStats());
+  show('stats-daily-archive-controls', canDeleteSnapshots());
   // Client editing surfaces: Client Manager tab (CSV upload wizard) and the
   // Bulk Edit button in All Clients — admin only.
   ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, canEditClients()));
@@ -13151,7 +13162,7 @@ let statsPreviousDayDate = '';
 let statsViewName = 'summary';
 let statsPrimaryMode = 'current';
 const STATS_DAILY_MAX_SAVED_DATES = 14;
-let statsDailyHistory = [];    // newest 7 [{id,session_date,posted_at,clients:[daily aggregates]}]
+let statsDailyHistory = [];    // newest 14 [{id,session_date,posted_at,clients:[daily aggregates]}]
 let statsDailySelectedDate = '';
 let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
@@ -13554,6 +13565,13 @@ function statsDailyTotalAttempts(day) {
     : rows.reduce((sum, client) => sum + (Number(client?.attempts) || 0), 0);
 }
 
+function statsDailyTotalRawDur(day) {
+  const rows = day?.clients || [];
+  const total = rows.find(statsDailyIsTotal);
+  return total ? Number(total.raw_dur) || 0
+    : rows.reduce((sum, client) => sum + (Number(client?.raw_dur) || 0), 0);
+}
+
 function statsDailySuggestedImportDate() {
   const latest = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
   if (!latest) return todayStr();
@@ -13586,6 +13604,78 @@ function loadStatsDailyLocal() {
     }
   } catch(e) { statsDailyHistory = []; }
 }
+
+function statsDailyDefaultArchiveMonth() {
+  const date = new Date(`${todayStr()}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - 2);
+  return date.toISOString().slice(0, 7);
+}
+
+function statsDailyMonthBounds(month) {
+  if (!/^\d{4}-\d{2}$/.test(String(month || ''))) return null;
+  const start = `${month}-01`;
+  const date = new Date(`${start}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 7) !== month) return null;
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return { start, end:date.toISOString().slice(0, 10) };
+}
+
+window.archiveStatsDailyMonth = async () => {
+  if (!canDeleteSnapshots()) { toast('Archiving Daily Traffic is restricted for this account.', 'err'); return; }
+  const month = document.getElementById('stats-daily-archive-month')?.value || '';
+  const bounds = statsDailyMonthBounds(month);
+  if (!bounds) { toast('Select a valid month to archive.', 'err'); return; }
+  if (month >= todayStr().slice(0, 7)) { toast('Choose a completed month before the current month.', 'err', 6000); return; }
+  if (!confirm(`Archive all Daily Traffic reports from ${month}?\n\nThe reports will be moved to the Firebase archive and excluded from normal Daily Traffic reads.`)) return;
+  setLoading(true, `Archiving Daily Traffic for ${month}…`);
+  try {
+    let archivedCount = 0;
+    if (fbOk) {
+      const monthQuery = query(
+        collection(db, 'stats_daily_traffic'),
+        where('session_date', '>=', bounds.start),
+        where('session_date', '<', bounds.end)
+      );
+      const snapshot = await getDocs(monthQuery);
+      archivedCount = snapshot.docs.length;
+      if (archivedCount) {
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(entry => {
+          batch.set(doc(db, 'stats_daily_traffic_archive', entry.id), {
+            ...entry.data(),
+            archived_month:month,
+            archived_at:Timestamp.fromDate(new Date()),
+            archived_by:operatorName || '',
+          });
+          batch.delete(doc(db, 'stats_daily_traffic', entry.id));
+        });
+        await batch.commit();
+      }
+    } else {
+      const archivedDays = statsDailyHistory.filter(day => day.session_date >= bounds.start && day.session_date < bounds.end);
+      archivedCount = archivedDays.length;
+      if (archivedCount) {
+        const existing = JSON.parse(localStorage.getItem('bm_stats_daily_archive') || '[]');
+        const merged = new Map((Array.isArray(existing) ? existing : []).map(day => [day.session_date, day]));
+        archivedDays.forEach(day => merged.set(day.session_date, { ...day, archived_month:month, archived_at:new Date().toISOString(), archived_by:operatorName || '' }));
+        localStorage.setItem('bm_stats_daily_archive', JSON.stringify([...merged.values()]));
+      }
+    }
+    if (!archivedCount) { toast(`No active Daily Traffic reports were found for ${month}.`, 'ok', 6000); return; }
+    statsDailyHistory = statsDailyHistory.filter(day => day.session_date < bounds.start || day.session_date >= bounds.end);
+    saveStatsDailyLocal();
+    statsDailySelectedDate = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
+    syncStatsDailyImportDate(true);
+    renderStatsDailyTraffic();
+    renderStatsTables();
+    toast(`Archived ${archivedCount} Daily Traffic report${archivedCount === 1 ? '' : 's'} from ${month}.`, 'ok', 7000);
+  } catch(e) {
+    console.warn('archive Daily Traffic month:', e);
+    toast('Daily Traffic archive failed: ' + e.message, 'err', 8000);
+  } finally {
+    setLoading(false);
+  }
+};
 
 function statsDailyClientMap(day) {
   return new Map((day?.clients || []).map(client => [client.key, client]));
@@ -13624,7 +13714,7 @@ function statsDailyClientBaseKey(client) {
 }
 
 // The dashboard is one row per client/account. Its traffic is the sum of the
-// Attempts from every destination pasted for that account on the report date.
+// Raw Duration from every destination pasted for that account on the report date.
 function statsDailyClientLevelMap(day) {
   const groups = new Map();
   (day?.clients || []).forEach(client => {
@@ -13705,25 +13795,25 @@ function statsDailyTwoWeekSnapshot() {
   const rows = [...keys].map(key => {
     const timeline = dates.map(date => {
       const day = dayByDate.get(date);
-      if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
+      if (!day) return { date, has_report:false, present:false, raw_dur:null, client:null };
       const client = clientMaps.get(date)?.get(key) || null;
-      return { date, has_report:true, present:!!client, attempts:client?.attempts || 0, client };
+      return { date, has_report:true, present:!!client, raw_dur:client?.raw_dur || 0, client };
     });
     const latestPoint = timeline[timeline.length - 1];
     const yesterdayPoint = timeline[timeline.length - 2] || null;
     const priorObserved = timeline.slice(0, -1).filter(point => point.has_report && point.present);
     const baseline = priorObserved.length
-      ? priorObserved.reduce((sum, point) => sum + point.attempts, 0) / priorObserved.length
+      ? priorObserved.reduce((sum, point) => sum + point.raw_dur, 0) / priorObserved.length
       : null;
-    const latestAttempts = latestPoint?.present ? latestPoint.attempts : 0;
+    const latestRawDur = latestPoint?.present ? latestPoint.raw_dur : 0;
     let status = 'new';
     if (baseline !== null) {
-      if (baseline > 0 && latestAttempts === 0) status = 'stopped';
-      else if (latestAttempts < baseline) status = 'decrease';
-      else if (latestAttempts > baseline) status = 'increase';
+      if (baseline > 0 && latestRawDur === 0) status = 'stopped';
+      else if (latestRawDur < baseline) status = 'decrease';
+      else if (latestRawDur > baseline) status = 'increase';
       else status = 'unchanged';
     }
-    const change = baseline === null ? null : latestAttempts - baseline;
+    const change = baseline === null ? null : latestRawDur - baseline;
     const identity = latestPoint?.client || [...timeline].reverse().find(point => point.client)?.client || {};
     const row = {
       key,
@@ -13731,9 +13821,9 @@ function statsDailyTwoWeekSnapshot() {
       account_codes:identity.account_codes || '',
       destination:'',
       timeline,
-      latest_attempts:latestAttempts,
-      yesterday_attempts:yesterdayPoint?.has_report ? (yesterdayPoint.present ? yesterdayPoint.attempts : 0) : null,
-      baseline_attempts:baseline,
+      latest_raw_dur:latestRawDur,
+      yesterday_raw_dur:yesterdayPoint?.has_report ? (yesterdayPoint.present ? yesterdayPoint.raw_dur : 0) : null,
+      baseline_raw_dur:baseline,
       change,
       change_pct:baseline > 0 ? change / baseline * 100 : null,
       status,
@@ -13766,21 +13856,21 @@ function statsDailyTwoWeekRouteSnapshot() {
   const rows = [...keys].flatMap(key => {
     const timeline = dates.map(date => {
       const day = dayByDate.get(date);
-      if (!day) return { date, has_report:false, present:false, attempts:null, client:null };
+      if (!day) return { date, has_report:false, present:false, raw_dur:null, client:null };
       const client = clientMaps.get(date)?.get(key) || null;
-      return { date, has_report:true, present:!!client, attempts:client?.attempts || 0, client };
+      return { date, has_report:true, present:!!client, raw_dur:client?.raw_dur || 0, client };
     });
     const latestPoint = timeline[timeline.length - 1];
     const priorObserved = timeline.slice(0, -1).filter(point => point.has_report && point.present);
     const baseline = priorObserved.length
-      ? priorObserved.reduce((sum, point) => sum + point.attempts, 0) / priorObserved.length
+      ? priorObserved.reduce((sum, point) => sum + point.raw_dur, 0) / priorObserved.length
       : null;
-    const latestAttempts = latestPoint?.present ? latestPoint.attempts : 0;
+    const latestRawDur = latestPoint?.present ? latestPoint.raw_dur : 0;
     let status = 'new';
     if (baseline !== null) {
-      if (baseline > 0 && latestAttempts === 0) status = 'stopped';
-      else if (latestAttempts < baseline) status = 'decrease';
-      else if (latestAttempts > baseline) status = 'increase';
+      if (baseline > 0 && latestRawDur === 0) status = 'stopped';
+      else if (latestRawDur < baseline) status = 'decrease';
+      else if (latestRawDur > baseline) status = 'increase';
       else status = 'unchanged';
     }
     const identity = latestPoint?.client
@@ -13790,9 +13880,9 @@ function statsDailyTwoWeekRouteSnapshot() {
       customer_name:identity.customer_name || key,
       account_codes:identity.account_codes || '',
       timeline,
-      latest_attempts:latestAttempts,
-      baseline_attempts:baseline,
-      change:baseline === null ? null : latestAttempts - baseline,
+      latest_raw_dur:latestRawDur,
+      baseline_raw_dur:baseline,
+      change:baseline === null ? null : latestRawDur - baseline,
       status,
     };
     return statsDailyExpandDestinationRows(row, identity);
@@ -13803,7 +13893,7 @@ function statsDailyTwoWeekRouteSnapshot() {
 function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
   return {
     decrease:snapshot.rows.filter(row => row.status === 'decrease').sort((a,b) => a.change - b.change),
-    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.baseline_attempts - a.baseline_attempts),
+    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.baseline_raw_dur - a.baseline_raw_dur),
     increase:snapshot.rows.filter(row => row.status === 'increase').sort((a,b) => b.change - a.change),
   };
 }
@@ -13813,21 +13903,21 @@ function statsDailyDashboardTotalDates(snapshot = statsDailyTwoWeekSnapshot()) {
     .map(date => snapshot.dayByDate.get(date))
     .filter(Boolean)
     .map((day, index, days) => {
-      const attempts = statsDailyTotalAttempts(day);
+      const rawDur = statsDailyTotalRawDur(day);
       const previousDay = index > 0 ? days[index - 1] : null;
-      const previousAttempts = previousDay ? statsDailyTotalAttempts(previousDay) : null;
-      const change = previousAttempts === null ? null : attempts - previousAttempts;
-      const status = previousAttempts === null ? 'new'
+      const previousRawDur = previousDay ? statsDailyTotalRawDur(previousDay) : null;
+      const change = previousRawDur === null ? null : rawDur - previousRawDur;
+      const status = previousRawDur === null ? 'new'
         : change > 0 ? 'increase'
         : change < 0 ? 'decrease'
         : 'unchanged';
       return {
         date:day.session_date,
-        attempts,
+        raw_dur:rawDur,
         previous_date:previousDay?.session_date || '',
-        previous_attempts:previousAttempts,
+        previous_raw_dur:previousRawDur,
         change,
-        change_pct:previousAttempts > 0 ? change / previousAttempts * 100 : null,
+        change_pct:previousRawDur > 0 ? change / previousRawDur * 100 : null,
         status,
       };
     });
@@ -13839,7 +13929,7 @@ function renderStatsDailyDashboard() {
   const yesterdayDate = snapshot.dates[snapshot.dates.length - 2] || '';
   const meta = document.getElementById('st-daily-dashboard-meta');
   if (meta) meta.textContent = snapshot.latestDay
-    ? `Latest is the newest saved report: ${snapshot.latestDay.session_date}. Yesterday is ${yesterdayDate}${snapshot.dayByDate.has(yesterdayDate) ? '' : ' (no report saved)'}. The 2-week average uses available reports from the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use attempts gained or lost.`
+    ? `Latest is the newest saved report: ${snapshot.latestDay.session_date}. Yesterday is ${yesterdayDate}${snapshot.dayByDate.has(yesterdayDate) ? '' : ' (no report saved)'}. The 2-week average uses Raw Duration from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use Raw Duration gained or lost.`
     : 'Add daily reports to build the two-week dashboard.';
 
   document.querySelectorAll('.st-daily-latest-heading').forEach(heading => {
@@ -13859,12 +13949,12 @@ function renderStatsDailyDashboard() {
     const rows = allRows.slice(0, 10);
     body.innerHTML = rows.length ? rows.map(row => {
       const changeClass = row.change < 0 ? 'st-daily-negative' : 'st-daily-positive';
-      const signedChange = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+      const signedChange = `${row.change > 0 ? '+' : ''}${stN2(row.change)}`;
       const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
       const encodedKey = encodeURIComponent(row.key).replace(/'/g, '%27');
       return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
-        + `<td style="text-align:right">${stN0(row.latest_attempts)}</td><td style="text-align:right">${row.yesterday_attempts === null ? '—' : stN0(row.yesterday_attempts)}</td><td style="text-align:right">${stN0(row.baseline_attempts)}</td>`
-        + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN0(Math.abs(row.change)) : signedChange}</td></tr>`;
+        + `<td style="text-align:right">${stN2(row.latest_raw_dur)}</td><td style="text-align:right">${row.yesterday_raw_dur === null ? '—' : stN2(row.yesterday_raw_dur)}</td><td style="text-align:right">${stN2(row.baseline_raw_dur)}</td>`
+        + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN2(Math.abs(row.change)) : signedChange}</td></tr>`;
     }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
   });
 
@@ -13874,7 +13964,7 @@ function renderStatsDailyDashboard() {
   const totalBody = document.getElementById('st-daily-dashboard-total');
   if (totalBody) totalBody.innerHTML = totalDates.length ? totalDates.map(row => {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
-    const signedChange = row.change === null ? '—' : `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+    const signedChange = row.change === null ? '—' : `${row.change > 0 ? '+' : ''}${stN2(row.change)}`;
     const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
     const trendLabel = row.status === 'new' ? 'First report'
       : row.status === 'increase' ? 'Increase'
@@ -13882,7 +13972,7 @@ function renderStatsDailyDashboard() {
       : 'Unchanged';
     const isLatest = row.date === snapshot.latestDay?.session_date;
     return `<tr><td><strong>${stEsc(row.date)}</strong>${isLatest ? ' <span class="st-daily-status new">Latest</span>' : ''}${row.previous_date ? `<span class="st-daily-rank-account">vs ${stEsc(row.previous_date)}</span>` : ''}</td>`
-      + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${row.previous_attempts === null ? '—' : stN0(row.previous_attempts)}</td>`
+      + `<td style="text-align:right">${stN2(row.raw_dur)}</td><td style="text-align:right">${row.previous_raw_dur === null ? '—' : stN2(row.previous_raw_dur)}</td>`
       + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${signedChange}</td>`
       + `<td style="text-align:center"><span class="st-daily-status ${row.status}">${trendLabel}</span></td></tr>`;
   }).join('') : '<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:var(--text-3)">No daily data</td></tr>';
@@ -13899,15 +13989,15 @@ function renderStatsDailyHistory() {
   const body = document.getElementById('st-daily-history-body');
   if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
     + row.timeline.map(point => point.has_report
-      ? `<td class="st-daily-history-attempt${point.attempts === 0 ? ' st-daily-history-zero' : ''}">${stN0(point.attempts)}</td>`
+      ? `<td class="st-daily-history-attempt${point.raw_dur === 0 ? ' st-daily-history-zero' : ''}">${stN2(point.raw_dur)}</td>`
       : '<td class="st-daily-history-missing" title="No report saved for this date">—</td>').join('') + '</tr>').join('')
     : `<tr><td colspan="18" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No routes match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
   const count = document.getElementById('st-daily-history-count');
   if (count) count.textContent = `${rows.length} route${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
   const meta = document.getElementById('st-daily-history-meta');
   if (meta) meta.textContent = snapshot.dates.length
-    ? `${snapshot.dates[0]} to ${snapshot.dates[snapshot.dates.length - 1]}. Status compares the latest destination traffic with its average from available earlier reports. A dash means no report was saved; 0 means the destination had no attempts.`
-    : 'The latest 14 calendar days of attempts appear here.';
+    ? `${snapshot.dates[0]} to ${snapshot.dates[snapshot.dates.length - 1]}. Status compares the latest destination Raw Duration with its average from available earlier reports. A dash means no report was saved; 0 means the destination had no Raw Duration.`
+    : 'The latest 14 calendar days of Raw Duration appear here.';
 }
 window.renderStatsDailyHistory = renderStatsDailyHistory;
 
@@ -13958,18 +14048,18 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     ];
     const rows = sections.flatMap(([label, group]) => group.slice(0, 10).map((row, index) => [
       label, index + 1, row.customer_name, row.account_codes,
-      row.latest_attempts, row.yesterday_attempts ?? '', row.baseline_attempts ?? '',
+      row.latest_raw_dur, row.yesterday_raw_dur ?? '', row.baseline_raw_dur ?? '',
       row.status === 'stopped' ? Math.abs(row.change ?? 0) : (row.change ?? ''),
       row.change_pct ?? '', row.baseline_days, row.status,
     ]));
     statsDailyDashboardTotalDates(snapshot).forEach((row, index) => rows.push([
-      'Total Attempts', index + 1, row.date, '',
-      row.attempts, row.previous_attempts ?? '', '', row.change ?? '',
+      'Total Raw Duration', index + 1, row.date, '',
+      row.raw_dur, row.previous_raw_dur ?? '', '', row.change ?? '',
       row.change_pct ?? '', '', row.status,
     ]));
     return {
       sheet:'Dashboard', suffix:`dashboard_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Dashboard Section','Rank','Client / Date','Account Code','Latest / Total Attempts','Yesterday / Previous Total','2-week Average','Change / Lost','Change %','Baseline Days','Trend'],
+      headers:['Dashboard Section','Rank','Client / Date','Account Code','Latest / Total Raw Dur','Yesterday / Previous Total','2-week Average Raw Dur','Raw Dur Change / Lost','Change %','Baseline Days','Trend'],
       rows,
     };
   }
@@ -13982,14 +14072,14 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     return {
       sheet:'Last 2 Weeks', suffix:`last_2_weeks_${snapshot.latestDay?.session_date || todayStr()}`,
       headers:['Client','Account Code','Destination','Status',...snapshot.dates],
-      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.status,...row.timeline.map(point => point.has_report ? point.attempts : '')]),
+      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.status,...row.timeline.map(point => point.has_report ? point.raw_dur : '')]),
     };
   }
   const rows = statsDailyTodayRowsForExport();
   return {
     sheet:'Today', suffix:`today_${statsDailySelectedDate || todayStr()}`,
-    headers:['Client','Account Code','Destination','Date','Previous Date','Attempts','Previous','Change','Change %','Status','Decrease Streak','Completed','ASR %'],
-    rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.date,row.previous_date,row.attempts,row.previous_attempts,row.change,row.change_pct ?? '',row.status,row.decrease_streak,row.completed,row.asr]),
+    headers:['Client','Account Code','Destination','Date','Previous Date','Raw Dur','Previous Raw Dur','Raw Dur Change','Change %','Status','Decrease Streak','Completed','ASR %'],
+    rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.date,row.previous_date,row.raw_dur,row.previous_raw_dur,row.change,row.change_pct ?? '',row.status,row.decrease_streak,row.completed,row.asr]),
   };
 }
 
@@ -14046,7 +14136,7 @@ function statsDailyDecreaseStreak(days, dayIndex, key) {
   for (let index = dayIndex; index > 0; index--) {
     const current = statsDailyClientMap(days[index]).get(key);
     const previous = statsDailyClientMap(days[index - 1]).get(key);
-    if (!current || !previous || current.attempts <= 0 || current.attempts >= previous.attempts) break;
+    if (!current || !previous || current.raw_dur <= 0 || current.raw_dur >= previous.raw_dur) break;
     streak++;
   }
   return streak;
@@ -14067,24 +14157,24 @@ function statsDailyComparison(sessionDate) {
   }));
   const rows = [...keys].flatMap(key => {
     const now = current.get(key), before = previous.get(key);
-    const attempts = now?.attempts || 0, previousAttempts = before?.attempts || 0;
+    const rawDur = now?.raw_dur || 0, previousRawDur = before?.raw_dur || 0;
     let status = 'unchanged';
     if (now && !before) status = 'new';
     else if (!now && before) status = 'stopped';
-    else if (attempts === 0 && previousAttempts > 0) status = 'stopped';
-    else if (attempts > previousAttempts) status = 'increase';
-    else if (attempts < previousAttempts) status = 'decrease';
-    const change = attempts - previousAttempts;
+    else if (rawDur === 0 && previousRawDur > 0) status = 'stopped';
+    else if (rawDur > previousRawDur) status = 'increase';
+    else if (rawDur < previousRawDur) status = 'decrease';
+    const change = rawDur - previousRawDur;
     const row = {
       key,
       customer_name:now?.customer_name || before?.customer_name || key,
       account_codes:now?.account_codes || before?.account_codes || '',
       date:currentDay.session_date,
       previous_date:previousDay?.session_date || '',
-      attempts,
-      previous_attempts:previousAttempts,
+      raw_dur:rawDur,
+      previous_raw_dur:previousRawDur,
       change,
-      change_pct:previousAttempts > 0 ? change / previousAttempts * 100 : null,
+      change_pct:previousRawDur > 0 ? change / previousRawDur * 100 : null,
       status,
       decrease_streak:status === 'decrease' ? statsDailyDecreaseStreak(days, dayIndex, key) : 0,
       completed:now?.completed || 0,
@@ -14137,7 +14227,7 @@ function renderStatsDailySidebar() {
   const list = document.getElementById('stats-daily-date-list');
   if (!list) return;
   const days = statsDailySortedHistory().reverse();
-  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN0(statsDailyTotalAttempts(day))} attempts</span></div>`).join('')
+  list.innerHTML = days.length ? days.map(day => `<div class="stats-daily-date-item${day.session_date === statsDailySelectedDate ? ' active' : ''}" onclick="selectStatsDailyDate('${stEsc(day.session_date)}')"><span>${stEsc(day.session_date)}</span><span>${stN2(statsDailyTotalRawDur(day))} Raw Dur</span></div>`).join('')
     : '<div class="top-usage-empty">No daily traffic data yet.</div>';
 }
 
@@ -14161,17 +14251,11 @@ const ST_DAILY_STATUS_LABELS = {
   new:'&#9733; New', unchanged:'&#8594; Unchanged'
 };
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
-const ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS = 1000;
-const ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT = 65;
+const ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT = 65;
 
-function statsDailyIsHighGrowth(row) {
-  return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
-    && Number(row?.change_pct) >= ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT;
-}
-
-function statsDailyIsHighDecrease(row) {
-  return Number(row?.attempts) > ST_DAILY_HIGH_GROWTH_MIN_ATTEMPTS
-    && Number(row?.change_pct) <= -ST_DAILY_HIGH_GROWTH_MIN_CHANGE_PCT;
+function statsDailyIsHighRawDurChange(row) {
+  return row?.change_pct !== null
+    && Math.abs(Number(row?.change_pct)) >= ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT;
 }
 
 window.sortStatsDaily = column => {
@@ -14196,14 +14280,14 @@ function renderStatsDailyTraffic() {
   setText('st-daily-new', stN0(counts.new));
   const comparisonLabel = document.getElementById('st-daily-comparison');
   if (comparisonLabel) comparisonLabel.textContent = comparison.currentDay
-    ? `Comparing ${comparison.currentDay.session_date}${comparison.previousDay ? ` with ${comparison.previousDay.session_date}` : ' (first saved date — all clients are new)'}. Daily history is kept until cleared in Stats Settings.`
+    ? `Comparing Raw Duration for ${comparison.currentDay.session_date}${comparison.previousDay ? ` with ${comparison.previousDay.session_date}` : ' (first saved date — all clients are new)'}. Archive completed months from the sidebar when needed.`
     : 'Paste a daily report to begin tracking traffic changes.';
 
   const alerts = allRows.filter(row => row.status === 'decrease' || row.status === 'stopped');
   const alertBox = document.getElementById('st-daily-alert');
   if (alertBox) {
     alertBox.classList.toggle('visible', alerts.length > 0);
-    alertBox.innerHTML = alerts.length ? `<strong>Traffic alert:</strong> ${counts.decrease} decreasing and ${counts.stopped} stopped. `
+    alertBox.innerHTML = alerts.length ? `<strong>Raw Duration alert:</strong> ${counts.decrease} decreasing and ${counts.stopped} stopped. `
       + alerts.slice(0, 6).map(row => `${stEsc(row.customer_name)} [${stEsc(row.account_codes)}${row.destination ? ` · ${stEsc(row.destination)}` : ''}]${row.decrease_streak >= 2 ? ` (${row.decrease_streak}-day decrease)` : ''}`).join(', ')
       + (alerts.length > 6 ? ` and ${alerts.length - 6} more` : '') : '';
   }
@@ -14225,18 +14309,15 @@ function renderStatsDailyTraffic() {
   const tbody = document.getElementById('st-daily-tbody');
   if (tbody) tbody.innerHTML = rows.length ? rows.map(row => {
     const changeClass = row.change < 0 ? 'st-daily-negative' : row.change > 0 ? 'st-daily-positive' : '';
-    const changeText = `${row.change > 0 ? '+' : ''}${stN0(row.change)}`;
+    const changeText = `${row.change > 0 ? '+' : ''}${stN2(row.change)}`;
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
-    const highGrowth = statsDailyIsHighGrowth(row);
-    const highDecrease = statsDailyIsHighDecrease(row);
-    const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highGrowth ? ' st-daily-row-high-growth' : ''}${highDecrease ? ' st-daily-row-high-decrease' : ''}`;
-    const highlightTitle = highGrowth
-      ? 'High-volume growth: over 1,000 attempts and at least 65% increase. '
-      : highDecrease ? 'High-volume decrease: over 1,000 attempts and at least 65% decrease. ' : '';
+    const highRawDurChange = statsDailyIsHighRawDurChange(row);
+    const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highRawDurChange ? ' st-daily-row-high-decrease' : ''}`;
+    const highlightTitle = highRawDurChange ? 'Raw Duration changed by 65% or more. ' : '';
     const rowTitle = `${highlightTitle}Double-click to view this client in Last 2 Weeks`;
     const clientKey = encodeURIComponent(statsDailyClientBaseKey(row)).replace(/'/g, '%27');
     return `<tr class="${rowClass}" title="${rowTitle}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${clientKey}'))"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
-      + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.previous_attempts)}</td>`
+      + `<td style="text-align:right">${stN2(row.raw_dur)}</td><td style="text-align:right">${stN2(row.previous_raw_dur)}</td>`
       + `<td class="${changeClass}" style="text-align:right">${changeText}</td><td class="${changeClass}" style="text-align:right">${pctText}</td>`
       + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
       + `<td style="text-align:right">${row.decrease_streak ? `${row.decrease_streak} day${row.decrease_streak === 1 ? '' : 's'}` : '—'}</td>`
@@ -14313,9 +14394,7 @@ window.processStatsDailyTraffic = async () => {
         });
       }
     }
-    const removedDates = trimStatsDailyHistory();
-    const removedRemoteDates = await cleanupOldStatsDailyDates();
-    const removedDateCount = new Set([...removedDates, ...removedRemoteDates].map(day => day.session_date)).size;
+    trimStatsDailyHistory();
     saveStatsDailyLocal();
     if (textarea) textarea.value = '';
     statsDailyImportDateAutoTrack = true;
@@ -14327,7 +14406,7 @@ window.processStatsDailyTraffic = async () => {
     const decreasing = comparison.rows.filter(row => row.status === 'decrease').length;
     const stopped = comparison.rows.filter(row => row.status === 'stopped').length;
     const skipped = parsedDays.length - daysToSave.length;
-    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} row(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}${removedDateCount ? `; removed ${removedDateCount} older date(s)` : ''}. Latest: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
+    toast(`Saved ${daysToSave.length} daily date(s), ${daysToSave.reduce((sum, day) => sum + day.clients.length, 0)} row(s)${skipped ? `; skipped ${skipped} unchanged date(s)` : ''}. Latest Raw Duration: ${decreasing} decreasing, ${stopped} stopped.`, 'ok', 8000);
   } catch(e) { toast('Daily traffic save failed: ' + e.message, 'err', 8000); }
   finally { setLoading(false); }
 };
@@ -15115,19 +15194,17 @@ async function loadStatsPreviousDaySnaps() {
 
 async function loadStatsDailyHistory() {
   loadStatsDailyLocal();
-  if (!fbOk) return;
-  try {
-    const snapshot = await getDocs(collection(db, 'stats_daily_traffic'));
-    statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
-    trimStatsDailyHistory();
-    saveStatsDailyLocal();
-  } catch(e) { console.warn('loadStatsDailyHistory:', e); }
 }
 
 function subscribeStatsDailyHistory() {
   if (!fbOk) return;
   try {
-    onSnapshot(collection(db, 'stats_daily_traffic'), snapshot => {
+    const activeDailyQuery = query(
+      collection(db, 'stats_daily_traffic'),
+      orderBy('session_date', 'desc'),
+      limit(STATS_DAILY_MAX_SAVED_DATES)
+    );
+    onSnapshot(activeDailyQuery, snapshot => {
       statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
       trimStatsDailyHistory();
       saveStatsDailyLocal();
@@ -15136,26 +15213,6 @@ function subscribeStatsDailyHistory() {
       renderStatsTables();
     }, error => console.warn('stats daily traffic subscription:', error));
   } catch(e) { console.warn('stats daily traffic subscribe:', e); }
-}
-
-async function cleanupOldStatsDailyDates() {
-  if (!fbOk || !canPostStats()) return [];
-  try {
-    const snapshot = await getDocs(collection(db, 'stats_daily_traffic'));
-    const ordered = snapshot.docs.map(entry => ({
-      id:entry.id,
-      session_date:String(entry.data()?.session_date || entry.id),
-    })).filter(day => day.session_date).sort((a,b) => a.session_date.localeCompare(b.session_date));
-    const expired = ordered.slice(0, Math.max(0, ordered.length - STATS_DAILY_MAX_SAVED_DATES));
-    if (!expired.length) return [];
-    const batch = writeBatch(db);
-    expired.forEach(day => batch.delete(doc(db, 'stats_daily_traffic', day.id)));
-    await batch.commit();
-    return expired;
-  } catch(e) {
-    console.warn('stats daily retention cleanup:', e);
-    return [];
-  }
 }
 
 async function cleanupOldStatsSnapshots() {
@@ -15180,6 +15237,8 @@ async function cleanupOldStatsSnapshots() {
 async function initStats() {
   const dailyImportDate = document.getElementById('stats-daily-import-date');
   if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
+  const dailyArchiveMonth = document.getElementById('stats-daily-archive-month');
+  if (dailyArchiveMonth && !dailyArchiveMonth.value) dailyArchiveMonth.value = statsDailyDefaultArchiveMonth();
   dailyImportDate?.addEventListener('change', () => { statsDailyImportDateAutoTrack = false; });
   populateStatsSlots();
   // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
@@ -15188,7 +15247,6 @@ async function initStats() {
   await loadStatsSnaps();
   await loadStatsPreviousDaySnaps();
   await loadStatsDailyHistory();
-  await cleanupOldStatsDailyDates();
   syncStatsDailyImportDate(true);
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
