@@ -891,6 +891,25 @@
       animation: premiumSelectIn .14s cubic-bezier(.22, 1, .36, 1);
       overscroll-behavior: contain;
     }
+    .premium-select-search-wrap {
+      position: sticky; top: -5px; z-index: 2; padding: 3px 2px 7px;
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .premium-select-search {
+      width: 100%; min-height: 34px; padding: 7px 10px 7px 30px;
+      font: 500 11px/1.2 var(--font); color: var(--text);
+      background-color: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; outline: none;
+      box-shadow: inset 0 1px 2px rgba(18, 24, 32, .04);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23727b88' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 9px center;
+    }
+    .premium-select-search::placeholder { color: var(--text-3); }
+    .premium-select-search:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+    }
     @keyframes premiumSelectIn {
       from { opacity: 0; transform: translateY(-4px) scale(.985); }
       to { opacity: 1; transform: translateY(0) scale(1); }
@@ -1061,7 +1080,7 @@
     .st-daily-positive { color: var(--green); font-weight: 600; }
     .st-daily-row-decrease td:first-child, .st-daily-row-stopped td:first-child { box-shadow: inset 3px 0 0 var(--red); }
     .st-daily-row-increase td:first-child { box-shadow: inset 3px 0 0 var(--green); }
-    /* High-volume growth on Today / Paste: make the entire qualifying row easy to scan. */
+    /* High-volume Raw Duration changes on Today / Paste: make each qualifying row easy to scan. */
     #st-daily-table tr.st-daily-drill-row { cursor: pointer; }
     #st-daily-table tr.st-daily-row-high-decrease td { background: var(--red-soft) !important; }
     #st-daily-table tr.st-daily-row-high-decrease td:first-child { box-shadow: inset 4px 0 0 var(--red); }
@@ -3280,7 +3299,7 @@
                   <div class="sms-otp-existing">
                     <div class="sms-field">
                       <label>Add OTP to Existing Credential</label>
-                      <select class="win-inp" id="sms-otp-existing-credential">
+                      <select class="win-inp" id="sms-otp-existing-credential" data-searchable="true" data-search-placeholder="Search client, account type, or username...">
                         <option value="">Choose an existing client / vendor credential...</option>
                       </select>
                     </div>
@@ -3609,6 +3628,7 @@
             </select>
             <input id="st-daily-search" class="win-inp" type="search" placeholder="Search client, account code, or destination…" oninput="renderStatsDailyTraffic()" style="min-width:220px">
             <label style="display:flex;align-items:center;gap:5px;font-size:10px"><input id="st-daily-alert-only" type="checkbox" onchange="renderStatsDailyTraffic()"> Decreasing/stopped only</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:10px" title="Show only rows with Raw Duration of 1,000 or more and an absolute change of at least 65%"><input id="st-daily-highlight-only" type="checkbox" onchange="renderStatsDailyTraffic()"> Highlighted only</label>
             <span id="st-daily-count" class="sms-muted" style="margin-left:auto"></span>
           </div>
           <div class="st-daily-summary">
@@ -4669,10 +4689,20 @@ function positionPremiumSelectMenu(state) {
 }
 
 function premiumSelectMoveFocus(menu, current, direction) {
-  const enabled = [...menu.querySelectorAll('.premium-select-option:not(:disabled)')];
+  const enabled = [...menu.querySelectorAll('.premium-select-option:not(:disabled)')]
+    .filter(button => !button.hidden);
   if (!enabled.length) return;
   const index = enabled.indexOf(current);
   enabled[(index + direction + enabled.length) % enabled.length].focus();
+}
+
+function premiumSelectOptionMatchesSearch(option, query) {
+  const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+  if (!option?.value) return false;
+  const searchableText = [option.textContent, option.dataset?.searchText]
+    .filter(Boolean).join(' ').toLocaleLowerCase();
+  return searchableText.includes(normalizedQuery);
 }
 
 function createPremiumSelectOption(state, option) {
@@ -4730,6 +4760,20 @@ function openPremiumSelect(select, focusMenu=false) {
   menu.setAttribute('aria-label', premiumSelectAccessibleName(select));
 
   const state = { select, wrapper, trigger, menu };
+  let searchInput = null;
+  let searchEmpty = null;
+  if (select.dataset.searchable === 'true') {
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'premium-select-search-wrap';
+    searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.className = 'premium-select-search';
+    searchInput.placeholder = select.dataset.searchPlaceholder || 'Search options...';
+    searchInput.setAttribute('aria-label', `Search ${premiumSelectAccessibleName(select)}`);
+    searchInput.setAttribute('autocomplete', 'off');
+    searchWrap.appendChild(searchInput);
+    menu.appendChild(searchWrap);
+  }
   let previousGroup = null;
   [...select.options].forEach(option => {
     if (option.hidden || option.parentElement?.hidden) return;
@@ -4749,6 +4793,34 @@ function openPremiumSelect(select, focusMenu=false) {
     empty.textContent = 'No options available';
     menu.appendChild(empty);
   }
+  if (searchInput) {
+    searchEmpty = document.createElement('div');
+    searchEmpty.className = 'premium-select-empty premium-select-search-empty';
+    searchEmpty.textContent = 'No matching credentials';
+    searchEmpty.hidden = true;
+    menu.appendChild(searchEmpty);
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLocaleLowerCase();
+      let matches = 0;
+      menu.querySelectorAll('.premium-select-option').forEach(button => {
+        const option = select.options[Number(button.dataset.optionIndex)];
+        const visible = premiumSelectOptionMatchesSearch(option, query);
+        button.hidden = !visible;
+        if (visible && !button.disabled) matches++;
+      });
+      searchEmpty.hidden = matches > 0;
+      requestAnimationFrame(() => positionPremiumSelectMenu(state));
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        menu.querySelector('.premium-select-option:not([hidden]):not(:disabled)')?.focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closePremiumSelect(true);
+      }
+    });
+  }
 
   document.body.appendChild(menu);
   premiumSelectOpen = state;
@@ -4756,7 +4828,9 @@ function openPremiumSelect(select, focusMenu=false) {
   trigger.setAttribute('aria-expanded', 'true');
   trigger.setAttribute('aria-controls', menuId);
   positionPremiumSelectMenu(state);
-  if (focusMenu) {
+  if (searchInput) {
+    requestAnimationFrame(() => searchInput.focus());
+  } else if (focusMenu) {
     requestAnimationFrame(() => (menu.querySelector('.premium-select-option.selected:not(:disabled)')
       || menu.querySelector('.premium-select-option:not(:disabled)'))?.focus());
   }
@@ -14023,9 +14097,11 @@ function statsDailyTodayRowsForExport() {
   const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
   const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
+  const highlightedOnly = !!document.getElementById('st-daily-highlight-only')?.checked;
   const rows = comparison.rows
     .filter(row => !statusFilter || row.status === statusFilter)
     .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
+    .filter(row => !highlightedOnly || statsDailyIsHighRawDurChange(row))
     .filter(row => !queryText || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(queryText));
   rows.sort((a,b) => {
     const column = statsDailySortCol;
@@ -14251,10 +14327,12 @@ const ST_DAILY_STATUS_LABELS = {
   new:'&#9733; New', unchanged:'&#8594; Unchanged'
 };
 const ST_DAILY_STATUS_RANK = { stopped:0, decrease:1, new:2, increase:3, unchanged:4 };
+const ST_DAILY_HIGH_RAW_DUR_MIN = 1000;
 const ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT = 65;
 
 function statsDailyIsHighRawDurChange(row) {
-  return row?.change_pct !== null
+  return Number(row?.raw_dur) >= ST_DAILY_HIGH_RAW_DUR_MIN
+    && row?.change_pct !== null
     && Math.abs(Number(row?.change_pct)) >= ST_DAILY_HIGH_RAW_DUR_CHANGE_PCT;
 }
 
@@ -14295,8 +14373,10 @@ function renderStatsDailyTraffic() {
   const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
   const alertOnly = !!document.getElementById('st-daily-alert-only')?.checked;
+  const highlightedOnly = !!document.getElementById('st-daily-highlight-only')?.checked;
   let rows = allRows.filter(row => !statusFilter || row.status === statusFilter)
     .filter(row => !alertOnly || row.status === 'decrease' || row.status === 'stopped')
+    .filter(row => !highlightedOnly || statsDailyIsHighRawDurChange(row))
     .filter(row => !queryText || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(queryText));
   rows.sort((a,b) => {
     const column = statsDailySortCol;
@@ -14313,7 +14393,7 @@ function renderStatsDailyTraffic() {
     const pctText = row.change_pct === null ? '—' : `${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%`;
     const highRawDurChange = statsDailyIsHighRawDurChange(row);
     const rowClass = `st-daily-drill-row st-daily-row-${row.status}${highRawDurChange ? ' st-daily-row-high-decrease' : ''}`;
-    const highlightTitle = highRawDurChange ? 'Raw Duration changed by 65% or more. ' : '';
+    const highlightTitle = highRawDurChange ? 'Raw Duration is at least 1,000 and changed by 65% or more. ' : '';
     const rowTitle = `${highlightTitle}Double-click to view this client in Last 2 Weeks`;
     const clientKey = encodeURIComponent(statsDailyClientBaseKey(row)).replace(/'/g, '%27');
     return `<tr class="${rowClass}" title="${rowTitle}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${clientKey}'))"><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td><td>${stEsc(row.date)}</td><td>${stEsc(row.previous_date || '—')}</td>`
