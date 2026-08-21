@@ -952,6 +952,68 @@
     .premium-select-empty {
       padding: 12px; color: var(--text-3); font-size: 10px; text-align: center;
     }
+    /* App-rendered calendar layer for Daily Traffic and keep-range controls.
+       The native input remains the source of truth without opening an OS UI. */
+    .premium-date { position: relative; display: inline-flex; min-width: 0; vertical-align: middle; }
+    .premium-date-native {
+      position: absolute !important; inset: 0 !important;
+      width: 1px !important; height: 1px !important; min-width: 0 !important; min-height: 0 !important;
+      margin: 0 !important; padding: 0 !important; opacity: 0 !important;
+      pointer-events: none !important; clip-path: inset(50%) !important;
+    }
+    .premium-date-trigger {
+      display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 8px;
+      width: 100%; min-width: 0; min-height: 32px; padding: 0 10px;
+      font: 600 11px/1 var(--font); text-align: left; color: var(--text); cursor: pointer;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, #fff), var(--surface));
+      border: 1px solid var(--border); border-radius: 9px;
+      box-shadow: 0 1px 2px rgba(32,35,38,.06), inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+      outline: none; transition: border-color .14s ease, box-shadow .14s ease, transform .1s ease;
+    }
+    .premium-date-trigger svg { width: 15px; height: 15px; color: var(--accent); }
+    .premium-date-label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .premium-date-trigger:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 52%, var(--border)); box-shadow: 0 3px 9px rgba(32,35,38,.10); }
+    .premium-date-trigger:focus-visible,
+    .premium-date.open .premium-date-trigger { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 3px 10px rgba(32,35,38,.10); }
+    .premium-date-trigger:active:not(:disabled) { transform: scale(.985); }
+    .premium-date-trigger:disabled { cursor: not-allowed; opacity: .56; background: var(--surface-2); }
+    .premium-date-menu {
+      position: fixed; z-index: 2700; width: 292px; padding: 10px;
+      color: var(--text); background: color-mix(in srgb, var(--surface) 97%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: 14px;
+      box-shadow: 0 22px 60px rgba(15,27,48,.25), 0 4px 14px rgba(15,27,48,.13), inset 0 1px 0 color-mix(in srgb, #fff 48%, transparent);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      animation: premiumSelectIn .14s cubic-bezier(.22,1,.36,1);
+    }
+    .premium-date-head { display: grid; grid-template-columns: 32px minmax(0,1fr) 32px; align-items: center; gap: 5px; margin-bottom: 8px; }
+    .premium-date-title { text-align: center; font-size: 12px; font-weight: 760; letter-spacing: -.01em; }
+    .premium-date-nav { display: grid; place-items: center; width: 32px; height: 30px; cursor: pointer; color: var(--text-2); background: transparent; border: 0; border-radius: 8px; }
+    .premium-date-nav:hover, .premium-date-nav:focus-visible { color: var(--accent-strong); background: var(--accent-soft); outline: none; }
+    .premium-date-weekdays, .premium-date-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .premium-date-weekdays { margin-bottom: 3px; }
+    .premium-date-weekdays span { padding: 3px 0; color: var(--text-3); font-size: 8.5px; font-weight: 800; text-align: center; text-transform: uppercase; }
+    .premium-date-day, .premium-date-month {
+      display: grid; place-items: center; min-width: 0; height: 32px; padding: 0; cursor: pointer;
+      font: 600 10.5px/1 var(--font); color: var(--text); background: transparent;
+      border: 0; border-radius: 9px; outline: none;
+      transition: color .11s ease, background-color .11s ease, transform .08s ease;
+    }
+    .premium-date-day:hover, .premium-date-day:focus-visible,
+    .premium-date-month:hover, .premium-date-month:focus-visible { color: var(--accent-strong); background: var(--accent-soft); }
+    .premium-date-day:active, .premium-date-month:active { transform: scale(.94); }
+    .premium-date-day.today, .premium-date-month.today { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 48%, transparent); color: var(--accent-strong); }
+    .premium-date-day.selected, .premium-date-month.selected { color: var(--on-accent); background: var(--accent); box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 28%, transparent); }
+    .premium-date-blank { height: 32px; }
+    .premium-date-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .premium-date-month { height: 38px; }
+    .premium-date-time { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 9px; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border); }
+    .premium-date-time label { color: var(--text-2); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .premium-date-time-input { width: 100%; height: 32px; padding: 0 10px; font: 650 11px/1 var(--mono); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; outline: none; }
+    .premium-date-time-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+    .premium-date-footer { display: flex; align-items: center; gap: 5px; margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border); }
+    .premium-date-footer .tbtn { min-height: 29px; }
+    .premium-date-spacer { flex: 1; }
+    @media (max-width: 420px) { .premium-date-menu { width: calc(100vw - 16px); } }
     .win-ta {
       font-size: 11px; font-family: var(--mono); padding: 5px;
       background: var(--surface); color: var(--text);
@@ -2041,6 +2103,36 @@
     .detail-row.full .detail-val { padding: 0 8px 4px; width: 100%; box-sizing: border-box; }
     .detail-row.full .detail-val .win-ta { width: 100%; box-sizing: border-box; }
     .detail-remarks-view { font-size: 11px; white-space: pre-wrap; word-break: break-word; line-height: 1.4; }
+    /* ── Shared premium tooltip ──
+       Runtime enhancement migrates every title attribute into this layer, so
+       static and dynamically generated controls never open a browser tooltip. */
+    #premium-tooltip {
+      position: fixed; z-index: 4200; width: max-content; max-width: min(360px, calc(100vw - 20px));
+      padding: 8px 10px; pointer-events: none;
+      color: var(--text); background: color-mix(in srgb, var(--surface) 96%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border)); border-radius: 9px;
+      box-shadow: 0 12px 34px rgba(15,27,48,.22), 0 3px 9px rgba(15,27,48,.11), inset 0 1px 0 color-mix(in srgb, #fff 44%, transparent);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      font: 600 10.5px/1.45 var(--font); letter-spacing: .005em;
+      white-space: normal; overflow-wrap: anywhere;
+      opacity: 0; visibility: hidden; transform: translateY(-3px) scale(.985);
+      transform-origin: center bottom;
+      transition: opacity .12s ease, transform .12s cubic-bezier(.22,1,.36,1), visibility 0s linear .12s;
+    }
+    #premium-tooltip.open {
+      opacity: 1; visibility: visible; transform: translateY(0) scale(1);
+      transition-delay: 0s;
+    }
+    #premium-tooltip::after {
+      content: ''; position: absolute; left: var(--tooltip-arrow-x, 50%); width: 8px; height: 8px;
+      background: var(--surface); border: solid color-mix(in srgb, var(--accent) 24%, var(--border));
+      transform: translateX(-50%) rotate(45deg);
+    }
+    #premium-tooltip[data-side="below"]::after { top: -5px; border-width: 1px 0 0 1px; }
+    #premium-tooltip[data-side="above"]::after { bottom: -5px; border-width: 0 1px 1px 0; }
+    @media (prefers-reduced-motion: reduce) {
+      #premium-tooltip { transition: none; transform: none; }
+    }
     /* ── Remarks hover tooltip (client rows) ── */
     #remarks-tip {
       position: fixed; z-index: 1200; max-width: 340px; pointer-events: none;
@@ -2720,7 +2812,7 @@
           <div id="stats-daily-post-controls" style="display:flex;flex:1;min-height:0;flex-direction:column;gap:4px">
             <div class="snap-label">Daily Traffic Import</div>
             <label for="stats-daily-import-date" style="font-size:11px;color:var(--muted);margin-top:2px">Traffic Date</label>
-            <input id="stats-daily-import-date" class="win-inp" type="date" aria-label="Traffic Date" style="width:100%">
+            <input id="stats-daily-import-date" class="win-inp" type="date" data-premium-date aria-label="Traffic Date" style="width:100%">
             <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…"></textarea>
             <div style="display:flex;gap:2px">
               <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsDailyTraffic()">Process Daily Traffic</button>
@@ -2734,7 +2826,7 @@
           <div id="stats-daily-archive-controls" class="stats-daily-archive">
             <div class="snap-label">Archive a Month</div>
             <div class="stats-daily-archive-row">
-              <input id="stats-daily-archive-month" class="win-inp" type="month" aria-label="Daily Traffic month to archive">
+              <input id="stats-daily-archive-month" class="win-inp" type="month" data-premium-date aria-label="Daily Traffic month to archive">
               <button type="button" class="tbtn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
             </div>
             <div class="stats-daily-archive-note">Moves the selected month to a separate Firebase archive. Archived records are kept, but are not read by normal Daily Traffic sessions.</div>
@@ -4134,11 +4226,11 @@
       <div id="wipe-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
           <span style="width:34px">From</span>
-          <input type="datetime-local" id="wipe-keep-from" step="1800" style="flex:1">
+          <input type="datetime-local" id="wipe-keep-from" step="1800" data-premium-date aria-label="Keep range from" style="flex:1">
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="width:34px">To</span>
-          <input type="datetime-local" id="wipe-keep-to" step="1800" style="flex:1">
+          <input type="datetime-local" id="wipe-keep-to" step="1800" data-premium-date aria-label="Keep range to" style="flex:1">
         </div>
         <div style="color:var(--text-2);margin-top:5px;font-size:10px">Snapshots inside this window (inclusive) are preserved; everything else in the collection is deleted.</div>
       </div>
@@ -4242,11 +4334,11 @@
       <div id="spamreset-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
           <span style="width:34px">From</span>
-          <input type="datetime-local" id="spamreset-keep-from" step="1800" style="flex:1">
+          <input type="datetime-local" id="spamreset-keep-from" step="1800" data-premium-date aria-label="Baseline keep range from" style="flex:1">
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="width:34px">To</span>
-          <input type="datetime-local" id="spamreset-keep-to" step="1800" style="flex:1">
+          <input type="datetime-local" id="spamreset-keep-to" step="1800" data-premium-date aria-label="Baseline keep range to" style="flex:1">
         </div>
         <div style="color:var(--text-2);margin-top:5px;font-size:10px">Baseline samples inside this window (inclusive) are preserved as-is; everything else is rebuilt from snapshots.</div>
       </div>
@@ -4469,6 +4561,138 @@ window.addEventListener('unhandledrejection', function(e) {
     String(reason).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) +
     '</td></tr>';
 });
+</script>
+
+<script>
+/* ── Premium tooltip layer ──
+   Runs before the Firebase module so native title popups are removed even when
+   a CDN is slow. A MutationObserver also catches every title generated later. */
+(function initPremiumTooltips() {
+  const TOOLTIP_ID = 'premium-tooltip';
+  const describedByBeforeTooltip = new WeakMap();
+  let tooltip = null, activeTarget = null, showTimer = null, hideTimer = null;
+
+  function ensureTooltip() {
+    if (tooltip?.isConnected) return tooltip;
+    tooltip = document.createElement('div');
+    tooltip.id = TOOLTIP_ID;
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(tooltip);
+    return tooltip;
+  }
+  function needsTooltipLabel(element) {
+    if (!element.matches?.('button, input, select, textarea, a, [role="button"], [tabindex]')) return false;
+    if (element.hasAttribute('aria-label') || element.hasAttribute('aria-labelledby')) return false;
+    if (element.labels?.length || element.getAttribute('placeholder')) return false;
+    const text = element.textContent?.trim() || '';
+    return !text || text.length <= 2;
+  }
+  function migrateTitle(element) {
+    if (!(element instanceof Element) || !element.hasAttribute('title')) return;
+    const text = String(element.getAttribute('title') || '').trim();
+    if (text) {
+      element.dataset.premiumTooltip = text;
+      if (needsTooltipLabel(element)) element.setAttribute('aria-label', text);
+    }
+    element.removeAttribute('title');
+  }
+  function migrateTitles(root) {
+    if (root instanceof Element) migrateTitle(root);
+    root.querySelectorAll?.('[title]').forEach(migrateTitle);
+  }
+  function restoreDescription(element) {
+    if (!element || !describedByBeforeTooltip.has(element)) return;
+    const previous = describedByBeforeTooltip.get(element);
+    if (previous) element.setAttribute('aria-describedby', previous);
+    else element.removeAttribute('aria-describedby');
+    describedByBeforeTooltip.delete(element);
+  }
+  function positionTooltip(element) {
+    if (!tooltip?.classList.contains('open') || !element?.isConnected) return;
+    const rect = element.getBoundingClientRect();
+    const gap = 9, edge = 8;
+    tooltip.style.left = '0px'; tooltip.style.top = '0px';
+    const tipRect = tooltip.getBoundingClientRect();
+    const center = rect.left + rect.width / 2;
+    const left = Math.min(Math.max(center - tipRect.width / 2, edge), window.innerWidth - tipRect.width - edge);
+    const belowSpace = window.innerHeight - rect.bottom;
+    const side = belowSpace >= tipRect.height + gap || rect.top < tipRect.height + gap ? 'below' : 'above';
+    const top = side === 'below' ? rect.bottom + gap : rect.top - tipRect.height - gap;
+    tooltip.dataset.side = side;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${Math.max(edge, Math.min(top, window.innerHeight - tipRect.height - edge))}px`;
+    tooltip.style.setProperty('--tooltip-arrow-x', `${Math.min(Math.max(center - left, 13), tipRect.width - 13)}px`);
+  }
+  function showTooltip(element) {
+    clearTimeout(showTimer); clearTimeout(hideTimer);
+    const text = String(element?.dataset?.premiumTooltip || '').trim();
+    if (!text || !element.isConnected) return;
+    if (activeTarget && activeTarget !== element) restoreDescription(activeTarget);
+    activeTarget = element;
+    const tip = ensureTooltip();
+    tip.textContent = text;
+    if (!describedByBeforeTooltip.has(element)) describedByBeforeTooltip.set(element, element.getAttribute('aria-describedby') || '');
+    const describedBy = [describedByBeforeTooltip.get(element), TOOLTIP_ID].filter(Boolean).join(' ');
+    element.setAttribute('aria-describedby', describedBy);
+    tip.setAttribute('aria-hidden', 'false');
+    tip.classList.add('open');
+    positionTooltip(element);
+  }
+  function hideTooltip(immediate=false) {
+    clearTimeout(showTimer); clearTimeout(hideTimer);
+    const run = () => {
+      if (activeTarget) restoreDescription(activeTarget);
+      activeTarget = null;
+      if (!tooltip) return;
+      tooltip.classList.remove('open');
+      tooltip.setAttribute('aria-hidden', 'true');
+    };
+    if (immediate) run(); else hideTimer = setTimeout(run, 55);
+  }
+  function tooltipTarget(node) { return node instanceof Element ? node.closest('[data-premium-tooltip]') : null; }
+  function scheduleTooltip(element, keyboard=false) {
+    clearTimeout(showTimer); clearTimeout(hideTimer);
+    if (!element || element === activeTarget) return;
+    if (activeTarget) hideTooltip(true);
+    showTimer = setTimeout(() => showTooltip(element), keyboard ? 80 : 280);
+  }
+
+  migrateTitles(document);
+  ensureTooltip();
+  const observer = new MutationObserver(mutations => mutations.forEach(mutation => {
+    if (mutation.type === 'attributes') {
+      if (mutation.attributeName === 'title') migrateTitle(mutation.target);
+      else if (mutation.target === activeTarget && mutation.attributeName === 'data-premium-tooltip') {
+        const text = String(activeTarget.dataset.premiumTooltip || '').trim();
+        if (text) { tooltip.textContent = text; positionTooltip(activeTarget); }
+        else hideTooltip(true);
+      }
+      return;
+    }
+    mutation.addedNodes.forEach(node => { if (node.nodeType === Node.ELEMENT_NODE) migrateTitles(node); });
+  }));
+  observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['title','data-premium-tooltip'] });
+
+  document.addEventListener('pointerover', event => {
+    const target = tooltipTarget(event.target);
+    if (target && !target.contains(event.relatedTarget)) scheduleTooltip(target, false);
+  }, true);
+  document.addEventListener('pointerout', event => {
+    const target = tooltipTarget(event.target);
+    if (target && !target.contains(event.relatedTarget)) hideTooltip(false);
+  }, true);
+  document.addEventListener('focusin', event => scheduleTooltip(tooltipTarget(event.target), true));
+  document.addEventListener('focusout', event => {
+    const target = tooltipTarget(event.target);
+    if (target && !target.contains(event.relatedTarget)) hideTooltip(false);
+  });
+  document.addEventListener('pointerdown', () => hideTooltip(true), true);
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(true); });
+  window.addEventListener('resize', () => activeTarget ? positionTooltip(activeTarget) : null);
+  document.addEventListener('scroll', () => hideTooltip(true), true);
+  window.__premiumTooltipsReady = true;
+})();
 </script>
 
 <script type="module">
@@ -4727,6 +4951,7 @@ function premiumSelectAccessibleName(select) {
   return select.getAttribute('aria-label')
     || select.labels?.[0]?.textContent?.trim()
     || select.title
+    || select.dataset.premiumTooltip
     || 'Choose an option';
 }
 
@@ -4842,6 +5067,7 @@ function createPremiumSelectOption(state, option) {
 function openPremiumSelect(select, focusMenu=false) {
   const wrapper = select?._premiumSelectWrapper;
   if (!wrapper || select.disabled) return;
+  closePremiumDate(false);
   if (premiumSelectOpen?.select === select) { closePremiumSelect(true); return; }
   closePremiumSelect(false);
   syncPremiumSelect(select);
@@ -5000,6 +5226,246 @@ function initPremiumSelects() {
       syncPremiumSelect(select);
     });
     if (premiumSelectOpen && !premiumSelectOpen.select.isConnected) closePremiumSelect(false);
+  }, 400);
+}
+
+/* ── Premium date pickers ──
+   Opt-in enhancement for date, month and datetime-local inputs. Native values
+   and input/change events are retained so existing business logic is untouched. */
+const PREMIUM_DATE_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PREMIUM_DATE_WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+let premiumDateOpen = null;
+let premiumDateUid = 0;
+
+function premiumDatePad(value) { return String(value).padStart(2, '0'); }
+function premiumDateTodayParts() {
+  const now = new Date();
+  return { year:now.getFullYear(), month:now.getMonth() + 1, day:now.getDate(), hour:now.getHours(), minute:now.getMinutes() };
+}
+function premiumDateParse(input) {
+  const value = String(input?.value || '');
+  const match = input?.type === 'month'
+    ? value.match(/^(\d{4})-(\d{2})$/)
+    : value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/);
+  if (!match) return null;
+  return { year:Number(match[1]), month:Number(match[2]), day:Number(match[3] || 1), hour:Number(match[4] || 0), minute:Number(match[5] || 0) };
+}
+function premiumDateValue(input, parts) {
+  const month = `${parts.year}-${premiumDatePad(parts.month)}`;
+  if (input.type === 'month') return month;
+  const date = `${month}-${premiumDatePad(parts.day)}`;
+  return input.type === 'datetime-local' ? `${date}T${premiumDatePad(parts.hour)}:${premiumDatePad(parts.minute)}` : date;
+}
+function premiumDateAccessibleName(input) {
+  return input.getAttribute('aria-label') || input.labels?.[0]?.textContent?.trim() || input.title || input.dataset.premiumTooltip || 'Choose a date';
+}
+function premiumDateDisplay(input) {
+  const parts = premiumDateParse(input);
+  if (!parts) return input.type === 'month' ? 'Select month' : input.type === 'datetime-local' ? 'Select date & time' : 'Select date';
+  const date = new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  if (input.type === 'month') return date.toLocaleDateString('en-US', { month:'long', year:'numeric' });
+  const dateText = date.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  return input.type === 'datetime-local'
+    ? `${dateText} · ${date.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })}` : dateText;
+}
+function syncPremiumDate(input) {
+  const wrapper = input?._premiumDateWrapper;
+  if (!wrapper) return;
+  const trigger = wrapper.querySelector('.premium-date-trigger');
+  wrapper.querySelector('.premium-date-label').textContent = premiumDateDisplay(input);
+  trigger.disabled = input.disabled;
+  trigger.setAttribute('aria-label', premiumDateAccessibleName(input));
+  trigger.setAttribute('aria-invalid', input.getAttribute('aria-invalid') || 'false');
+  wrapper.style.display = input.hidden || input.style.display === 'none' ? 'none' : (wrapper.dataset.premiumDisplay || 'inline-flex');
+}
+function closePremiumDate(restoreFocus=false) {
+  const state = premiumDateOpen;
+  if (!state) return;
+  premiumDateOpen = null;
+  state.wrapper.classList.remove('open');
+  state.trigger.setAttribute('aria-expanded', 'false');
+  state.trigger.removeAttribute('aria-controls');
+  state.menu.remove();
+  if (restoreFocus && state.trigger.isConnected) state.trigger.focus();
+}
+function positionPremiumDateMenu(state) {
+  if (!state?.menu?.isConnected) return;
+  const rect = state.trigger.getBoundingClientRect();
+  const gap = 8;
+  const width = Math.min(state.input.type === 'datetime-local' ? 320 : 292, window.innerWidth - gap * 2);
+  state.menu.style.width = `${width}px`;
+  state.menu.style.left = `${Math.min(Math.max(rect.left, gap), window.innerWidth - width - gap)}px`;
+  const height = state.menu.offsetHeight;
+  const below = window.innerHeight - rect.bottom - gap;
+  const above = rect.top - gap;
+  const openUp = below < height && above > below;
+  state.menu.style.top = `${openUp ? Math.max(gap, rect.top - height - 5) : Math.min(window.innerHeight - height - gap, rect.bottom + 5)}px`;
+}
+function premiumDateButton(text, className, onClick, ariaLabel='') {
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = className; button.textContent = text;
+  if (ariaLabel) button.setAttribute('aria-label', ariaLabel);
+  button.addEventListener('click', onClick);
+  return button;
+}
+function premiumDateCommit(state, parts, restoreFocus=true) {
+  const next = parts ? premiumDateValue(state.input, parts) : '';
+  const changed = state.input.value !== next;
+  state.input.value = next;
+  syncPremiumDate(state.input);
+  if (changed) {
+    state.input.dispatchEvent(new Event('input', { bubbles:true }));
+    state.input.dispatchEvent(new Event('change', { bubbles:true }));
+  }
+  closePremiumDate(restoreFocus);
+}
+function premiumDateRender(state) {
+  const { input, menu } = state;
+  menu.replaceChildren();
+  const head = document.createElement('div'); head.className = 'premium-date-head';
+  const previousLabel = input.type === 'month' ? 'Previous year' : 'Previous month';
+  const nextLabel = input.type === 'month' ? 'Next year' : 'Next month';
+  head.append(premiumDateButton('‹', 'premium-date-nav', () => {
+    if (input.type === 'month') state.cursorYear--;
+    else if (--state.cursorMonth < 1) { state.cursorMonth = 12; state.cursorYear--; }
+    premiumDateRender(state);
+  }, previousLabel));
+  const title = document.createElement('div'); title.className = 'premium-date-title';
+  title.textContent = input.type === 'month' ? String(state.cursorYear) : `${PREMIUM_DATE_MONTHS[state.cursorMonth - 1]} ${state.cursorYear}`;
+  head.append(title, premiumDateButton('›', 'premium-date-nav', () => {
+    if (input.type === 'month') state.cursorYear++;
+    else if (++state.cursorMonth > 12) { state.cursorMonth = 1; state.cursorYear++; }
+    premiumDateRender(state);
+  }, nextLabel));
+  menu.appendChild(head);
+
+  const today = premiumDateTodayParts();
+  if (input.type === 'month') {
+    const grid = document.createElement('div'); grid.className = 'premium-date-months';
+    PREMIUM_DATE_MONTHS.forEach((name, index) => {
+      const month = index + 1;
+      const selected = state.selected && state.selected.year === state.cursorYear && state.selected.month === month;
+      const button = premiumDateButton(name.slice(0, 3), `premium-date-month${selected ? ' selected' : ''}${today.year === state.cursorYear && today.month === month ? ' today' : ''}`,
+        () => premiumDateCommit(state, { ...today, year:state.cursorYear, month }));
+      button.title = name; grid.appendChild(button);
+    });
+    menu.appendChild(grid);
+  } else {
+    const weekdays = document.createElement('div'); weekdays.className = 'premium-date-weekdays';
+    PREMIUM_DATE_WEEKDAYS.forEach(day => { const label = document.createElement('span'); label.textContent = day; weekdays.appendChild(label); });
+    menu.appendChild(weekdays);
+    const days = document.createElement('div'); days.className = 'premium-date-days';
+    const firstDay = new Date(state.cursorYear, state.cursorMonth - 1, 1).getDay();
+    const dayCount = new Date(state.cursorYear, state.cursorMonth, 0).getDate();
+    for (let blank = 0; blank < firstDay; blank++) { const cell = document.createElement('span'); cell.className = 'premium-date-blank'; days.appendChild(cell); }
+    for (let day = 1; day <= dayCount; day++) {
+      const selected = state.pending && state.pending.year === state.cursorYear && state.pending.month === state.cursorMonth && state.pending.day === day;
+      const button = premiumDateButton(String(day), `premium-date-day${selected ? ' selected' : ''}${today.year === state.cursorYear && today.month === state.cursorMonth && today.day === day ? ' today' : ''}`, () => {
+        const parts = { ...(state.pending || today), year:state.cursorYear, month:state.cursorMonth, day };
+        if (input.type === 'datetime-local') { state.pending = parts; premiumDateRender(state); }
+        else premiumDateCommit(state, parts);
+      }, `${PREMIUM_DATE_MONTHS[state.cursorMonth - 1]} ${day}, ${state.cursorYear}`);
+      days.appendChild(button);
+    }
+    menu.appendChild(days);
+  }
+
+  let timeInput = null;
+  if (input.type === 'datetime-local') {
+    const timeRow = document.createElement('div'); timeRow.className = 'premium-date-time';
+    const label = document.createElement('label'); label.textContent = 'Time';
+    timeInput = document.createElement('input');
+    timeInput.type = 'text'; timeInput.className = 'premium-date-time-input'; timeInput.inputMode = 'numeric';
+    timeInput.placeholder = 'HH:MM (24-hour)'; timeInput.maxLength = 5;
+    timeInput.value = `${premiumDatePad(state.pending.hour)}:${premiumDatePad(state.pending.minute)}`;
+    timeInput.addEventListener('input', () => {
+      const match = timeInput.value.match(/^(\d{1,2}):(\d{2})$/);
+      if (match && Number(match[1]) < 24 && Number(match[2]) < 60) {
+        state.pending.hour = Number(match[1]); state.pending.minute = Number(match[2]); timeInput.removeAttribute('aria-invalid');
+      }
+    });
+    timeRow.append(label, timeInput); menu.appendChild(timeRow);
+  }
+
+  const footer = document.createElement('div'); footer.className = 'premium-date-footer';
+  footer.appendChild(premiumDateButton('Clear', 'tbtn', () => premiumDateCommit(state, null)));
+  const spacer = document.createElement('span'); spacer.className = 'premium-date-spacer'; footer.appendChild(spacer);
+  footer.appendChild(premiumDateButton(input.type === 'month' ? 'This month' : 'Today', 'tbtn', () => {
+    if (input.type === 'datetime-local') {
+      state.pending = today; state.cursorYear = today.year; state.cursorMonth = today.month; premiumDateRender(state);
+    } else premiumDateCommit(state, today);
+  }));
+  if (input.type === 'datetime-local') footer.appendChild(premiumDateButton('Apply', 'tbtn primary', () => {
+    const match = timeInput.value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
+      timeInput.setAttribute('aria-invalid', 'true'); timeInput.focus(); return;
+    }
+    state.pending.hour = Number(match[1]); state.pending.minute = Number(match[2]); premiumDateCommit(state, state.pending);
+  }));
+  menu.appendChild(footer);
+  requestAnimationFrame(() => positionPremiumDateMenu(state));
+}
+function openPremiumDate(input, focusMenu=false) {
+  const wrapper = input?._premiumDateWrapper;
+  if (!wrapper || input.disabled) return;
+  if (premiumDateOpen?.input === input) { closePremiumDate(true); return; }
+  closePremiumSelect(false); closePremiumDate(false); syncPremiumDate(input);
+  const selected = premiumDateParse(input);
+  const initial = selected || premiumDateTodayParts();
+  const trigger = wrapper.querySelector('.premium-date-trigger');
+  const menu = document.createElement('div');
+  menu.className = 'premium-date-menu'; menu.id = `premium-date-menu-${++premiumDateUid}`;
+  menu.setAttribute('role', 'dialog'); menu.setAttribute('aria-label', premiumDateAccessibleName(input));
+  const state = { input, wrapper, trigger, menu, selected, pending:{ ...initial }, cursorYear:initial.year, cursorMonth:initial.month };
+  document.body.appendChild(menu); premiumDateOpen = state; wrapper.classList.add('open');
+  trigger.setAttribute('aria-expanded', 'true'); trigger.setAttribute('aria-controls', menu.id);
+  premiumDateRender(state);
+  if (focusMenu) requestAnimationFrame(() => menu.querySelector('.selected, .premium-date-day, .premium-date-month')?.focus());
+}
+function enhancePremiumDate(input) {
+  if (!(input instanceof HTMLInputElement) || !input.matches('[data-premium-date]') || input.dataset.premiumDateReady) return;
+  input.dataset.premiumDateReady = 'true';
+  const computed = getComputedStyle(input); const rect = input.getBoundingClientRect();
+  const wrapper = document.createElement('span'); wrapper.className = 'premium-date';
+  wrapper.dataset.premiumDisplay = computed.display === 'block' ? 'flex' : 'inline-flex'; wrapper.style.display = wrapper.dataset.premiumDisplay;
+  if (input.style.width) wrapper.style.width = input.style.width;
+  else if (rect.width >= 40) wrapper.style.width = `${rect.width}px`;
+  if (input.style.flex) wrapper.style.flex = input.style.flex;
+  else if (Number(computed.flexGrow) > 0) wrapper.style.flex = `${computed.flexGrow} ${computed.flexShrink} ${computed.flexBasis}`;
+  if (!wrapper.style.width && !wrapper.style.flex) wrapper.style.minWidth = '142px';
+  input.parentNode.insertBefore(wrapper, input); wrapper.appendChild(input);
+  input.classList.add('premium-date-native'); input.tabIndex = -1; input.setAttribute('aria-hidden', 'true');
+  const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'premium-date-trigger';
+  trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-expanded', 'false');
+  trigger.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg><span class="premium-date-label"></span>';
+  wrapper.appendChild(trigger); input._premiumDateWrapper = wrapper;
+  trigger.addEventListener('click', () => openPremiumDate(input));
+  trigger.addEventListener('keydown', event => {
+    if (['Enter',' ','ArrowDown'].includes(event.key)) { event.preventDefault(); openPremiumDate(input, true); }
+    else if (event.key === 'Escape') closePremiumDate(true);
+  });
+  input.addEventListener('input', () => syncPremiumDate(input)); input.addEventListener('change', () => syncPremiumDate(input));
+  input.addEventListener('focus', () => trigger.focus()); syncPremiumDate(input);
+}
+function enhancePremiumDates(root=document) {
+  if (root instanceof HTMLInputElement) enhancePremiumDate(root);
+  root.querySelectorAll?.('input[data-premium-date]').forEach(enhancePremiumDate);
+}
+function initPremiumDates() {
+  enhancePremiumDates(document);
+  const observer = new MutationObserver(mutations => mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
+    if (node.nodeType === Node.ELEMENT_NODE) enhancePremiumDates(node);
+  })));
+  observer.observe(document.body, { childList:true, subtree:true });
+  document.addEventListener('pointerdown', event => {
+    if (premiumDateOpen && !premiumDateOpen.wrapper.contains(event.target) && !premiumDateOpen.menu.contains(event.target)) closePremiumDate(false);
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && premiumDateOpen) closePremiumDate(true); });
+  window.addEventListener('resize', () => closePremiumDate(false));
+  document.addEventListener('scroll', event => { if (premiumDateOpen && !premiumDateOpen.menu.contains(event.target)) closePremiumDate(false); }, true);
+  setInterval(() => {
+    document.querySelectorAll('input[data-premium-date-ready="true"]').forEach(syncPremiumDate);
+    if (premiumDateOpen && !premiumDateOpen.input.isConnected) closePremiumDate(false);
   }, 400);
 }
 
@@ -15930,6 +16396,7 @@ async function init(){
 
 /* ── Auth-gated boot ── */
 initPremiumSelects();
+initPremiumDates();
 let _appInitialized = false;
 if (auth) {
   onAuthStateChanged(auth, (user) => {
