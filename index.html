@@ -1182,8 +1182,9 @@
     .stbadge.declining{ background: var(--red-soft);    color: var(--red); }
     th.st-sortable { cursor: pointer; user-select: none; }
     th.st-sortable:hover { text-decoration: underline; }
-    tr.st-row-critical td { background: var(--red-soft); }
-    tr.st-row-persist td  { background: var(--red-soft); }
+    tr.st-row-critical td { background: var(--red-soft) !important; }
+    tr.st-row-persist td  { background: var(--red-soft) !important; }
+    tr.st-row-low td      { background: var(--orange-soft) !important; }
     td.st-cell-client { font-size: 10px; color: var(--text-3); }
     td.st-cell-acct   { font-weight: 600; color: var(--accent); }
     /* Hover-to-copy icon in Client / Account Code cells */
@@ -1624,8 +1625,24 @@
     #sms-bulk-panel .bulk-field select { padding: 0 30px 0 8px; }
     #sms-bulk-panel .bulk-actions { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
     #sms-bulk-panel .bulk-hint { font-size: 10px; color: var(--text-2); margin-bottom: 5px; }
-    .sms-bulk-col { width: 30px; text-align: center; padding: 0 !important; }
+    .sms-bulk-col { width: 40px; text-align: left; padding: 0 6px 0 11px !important; }
     .sms-bulk-col input { margin: 0; cursor: pointer; accent-color: var(--accent); vertical-align: middle; }
+    button.sms-toolbar-clear,
+    button.sms-toolbar-bulk {
+      min-height: 28px; padding-inline: 12px; font-weight: 800;
+      border-width: 1px; box-shadow: 0 1px 2px rgba(0,0,0,.16);
+    }
+    button.sms-toolbar-clear {
+      color: var(--orange); border-color: color-mix(in srgb, var(--orange) 52%, var(--border));
+      background: color-mix(in srgb, var(--orange-soft) 70%, var(--surface));
+    }
+    button.sms-toolbar-clear:hover { border-color: var(--orange); background: var(--orange-soft); }
+    button.sms-toolbar-bulk {
+      color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+      background: var(--accent-soft);
+    }
+    button.sms-toolbar-bulk:hover { border-color: var(--accent); filter: brightness(1.04); }
+    button.sms-toolbar-bulk.active { background: var(--accent); color: #fff; border-color: var(--accent); }
     body.sms-bulk-mode #sms-clients-tbody tr:hover td { background: var(--row-hover); }
     #sms-clients-tbody tr { cursor: pointer; }
     /* ── Inactive SMS client rows ── */
@@ -1988,10 +2005,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #spamhist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #spamhist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #spamhist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -2119,6 +2136,7 @@
     #delete-today-overlay.open #delete-today-box,
     #wipe-all-overlay.open #wipe-all-box,
     #crithist-wipe-overlay.open #crithist-wipe-box,
+    #spamhist-wipe-overlay.open #spamhist-wipe-box,
     #nothresh-wipe-overlay.open #nothresh-wipe-box,
     #rowdel-confirm-overlay.open #rowdel-confirm-box,
     #spamreset-overlay.open #spamreset-box,
@@ -2617,6 +2635,7 @@
     <div class="tsep tsep-bal"></div>
     <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
     <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
+    <button class="tbtn" id="tnav-spam-history" onclick="switchView('spam-history')" title="Every client flagged by Possible Spam — retained even after being marked Not Spam">Flagged Spam</button>
     <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots">No Threshold</button>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
@@ -3023,6 +3042,38 @@
         </div>
       </div>
 
+      <!-- ═══ FLAGGED SPAM HISTORY ═══════════════════
+           Persistent log of every reading detected by Possible Spam. Marking a
+           reading Not Spam keeps the event and records its reviewed status. -->
+      <div class="view" id="view-spam-history">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Flagged Spam History</div>
+          <div class="fbar">
+            <span style="font-size:11px;color:#444">Every Possible Spam flag is retained here, including readings later marked Not Spam.</span>
+            <input class="win-search" id="spamhist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="spamHistSearchInput(this.value)" style="margin-left:auto">
+            <button class="tbtn" onclick="exportSpamHistory()" title="Export the Flagged Spam History table to CSV">Export</button>
+            <button class="tbtn" style="color:var(--red)" onclick="openSpamHistWipeConfirm()" title="Delete all Flagged Spam History records">Delete All</button>
+          </div>
+          <div class="lv-wrap">
+            <table id="spamhist-tbl">
+              <thead><tr>
+                <th onclick="sortSpamHist('name')">Client</th>
+                <th onclick="sortSpamHist('count')" style="text-align:right">Times Flagged</th>
+                <th onclick="sortSpamHist('usage')" style="text-align:right">Last 30m Usage</th>
+                <th onclick="sortSpamHist('ratio')" style="text-align:right">vs Normal</th>
+                <th onclick="sortSpamHist('tier')">Last Tier</th>
+                <th onclick="sortSpamHist('status')">Review Status</th>
+                <th onclick="sortSpamHist('first')" title="Newest first by default">First Flagged ▼</th>
+                <th onclick="sortSpamHist('last')">Last Flagged</th>
+                <th class="col-act" title="Delete an entry"></th>
+              </tr></thead>
+              <tbody id="spamhist-tbody"></tbody>
+            </table>
+          </div>
+          <div style="font-size:10px;color:#888;margin-top:4px" id="spamhist-count">Loading…</div>
+        </div>
+      </div>
+
       <!-- ═══ NO-THRESHOLD CLIENTS ═══════════════════
            Persistent, forward-only log of every client that appeared in a
            snapshot with no Critical Balance / Credit Limit set (i.e. lands in
@@ -3127,8 +3178,8 @@
               <select class="win-inp" id="sms-filter-destination"     onchange="renderSmsClients()" title="Filter by Destination"><option value="">All Destinations</option></select>
               <select class="win-inp" id="sms-filter-account-manager" onchange="renderSmsClients()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
               <button class="tbtn" onclick="renderSmsClients()">Search</button>
-              <button class="tbtn" onclick="clearSmsFilters()">Clear</button>
-              <button class="tbtn" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
+              <button class="tbtn sms-toolbar-clear" onclick="clearSmsFilters()" title="Clear search and all route filters">Clear Filters</button>
+              <button class="tbtn sms-toolbar-bulk" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
               <span id="sms-selection-actions" aria-live="polite" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
                 <span class="sms-muted" id="sms-selection-count">0 selected</span>
@@ -3947,6 +3998,10 @@
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
           </div>
+          <div style="margin:8px 0 5px">Clear the <strong>Flagged Spam History</strong> tab. Possible Spam detection and its baseline are not affected. Admin only.</div>
+          <div class="danger-btns">
+            <button class="tbtn" style="color:#880000" onclick="openSpamHistWipeConfirm()">Delete ALL Flagged Spam History</button>
+          </div>
           <div style="margin:8px 0 5px">Clear the <strong>No-Threshold Clients</strong> tab — the separate log of every client seen in a snapshot with no threshold set. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openNoThreshWipeConfirm()">Clear No-Threshold List</button>
@@ -4110,6 +4165,25 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeCritHistory()">Delete All</button>
       <button class="tbtn" style="min-width:72px" onclick="closeCritHistWipeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete ALL Flagged Spam History Dialog -->
+<div id="spamhist-wipe-overlay">
+  <div id="spamhist-wipe-box" style="width:410px">
+    <div class="dlg-tb"><span>Delete All Flagged Spam History</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text">
+        <strong>Permanently delete ALL Flagged Spam History?</strong><br><br>
+        This removes every stored Possible Spam event, including entries marked Not Spam. Spam detection, baselines, exclusions, and snapshots are <strong>not</strong> affected.<br><br>
+        <span style="color:#880000">This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeSpamHistory()">Delete All</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeSpamHistWipeConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -4450,6 +4524,7 @@ let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
 let smsSortCol = 'date', smsSortDir = -1;
 let smsCredentials = [], smsCredentialEditingId = null;
 let smsCredentialSortCol = 'date_updated', smsCredentialSortDir = -1;
+let smsCredentialRecentIds = [];
 let smsCredentialRemoteApplying = false, smsCredentialSubscribed = false;
 let smsCredentialPendingSync = false, smsCredentialSyncRevision = 0;
 let smsCredentialSyncInFlight = null, smsCredentialSyncActiveRevision = -1;
@@ -5028,6 +5103,7 @@ window.switchView = name => {
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
+  if (name==='spam-history')  { ensureSpamFlagHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
 };
 
@@ -6282,10 +6358,317 @@ function scanSpamSuspects() {
   activeData().forEach(r => {
     if (!r?.carrier_name || isClientInactive(clientsMeta[r.carrier_name] || {})) return;
     const info = spamCheck(r);
-    if (info) suspects.push({ name: r.carrier_name, tier: info.tier, z: info.z });
+    if (info) suspects.push({ name: r.carrier_name, ...info });
   });
+  if (suspects.length && canPostBalance()) {
+    const { date, slot } = currentReadingMeta();
+    queueSpamFlagHistory(date, slot, latestSnap?.timestamp || new Date(), suspects);
+  }
   maybeAlertSpam(suspects);
 }
+
+/* ════════════════════════════════════════════════
+   FLAGGED SPAM HISTORY
+   Persistent audit trail of every reading detected by Possible Spam. Marking
+   a live reading Not Spam updates its review state but never removes the event.
+════════════════════════════════════════════════ */
+const SPAM_HIST_CAP = 500;
+let _spamFlagHistory = null;
+let _spamFlagHistoryLoaded = false, _spamFlagHistoryLoading = null, _spamFlagHistoryKicked = false;
+let _spamFlagHistoryQueue = Promise.resolve();
+let _spamHistSuppressed = null, _spamHistSuppressedLoaded = false;
+let spamHistSearch = '', spamHistSortCol = 'first', spamHistSortDir = -1;
+
+function spamHistDocId(name) { return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
+function spamHistKey(date, slot) { return `${date || ''} ${slot || ''}`; }
+function spamHistSuppRef() { return doc(db, 'spam_history_meta', 'suppressed'); }
+function sortSpamHistEvents(events) {
+  events.sort((a,b) => spamHistKey(a.d,a.s).localeCompare(spamHistKey(b.d,b.s)));
+}
+
+async function loadSpamHistSuppressed() {
+  if (_spamHistSuppressedLoaded) return;
+  const map = new Map();
+  try {
+    if (fbOk) {
+      const snap = await getDoc(spamHistSuppRef());
+      const keys = snap.exists() ? (snap.data().keys || {}) : {};
+      Object.values(keys).forEach(value => {
+        if (value?.name && value?.key) map.set(value.name, value.key);
+      });
+    }
+  } catch(e) { console.warn('Flagged Spam suppression load:', e); }
+  _spamHistSuppressed = map;
+  _spamHistSuppressedLoaded = true;
+}
+
+async function persistSpamHistSuppressed() {
+  if (!fbOk) return;
+  const keys = {};
+  (_spamHistSuppressed || new Map()).forEach((key,name) => {
+    keys[spamHistDocId(name)] = { name, key };
+  });
+  try { await setDoc(spamHistSuppRef(), { keys, updated_at:Timestamp.now() }); }
+  catch(e) { console.warn('Flagged Spam suppression save:', e); }
+}
+
+async function loadSpamFlagHistory() {
+  if (_spamFlagHistoryLoaded) return;
+  if (_spamFlagHistoryLoading) return _spamFlagHistoryLoading;
+  _spamFlagHistoryLoading = (async () => {
+    try {
+      const map = new Map();
+      if (fbOk) {
+        const snap = await getDocs(collection(db, 'spam_history'));
+        snap.docs.forEach(entry => {
+          const data = entry.data() || {};
+          const name = data.carrier_name || '';
+          const events = (Array.isArray(data.events) ? data.events : []).map(event => ({
+            d:String(event.d || ''), s:String(event.s || ''),
+            usage:amountNumber(event.usage), signal:amountNumber(event.signal),
+            median:amountNumber(event.median), z:amountNumber(event.z),
+            ratio:event.ratio == null ? NaN : Number(event.ratio),
+            tier:event.tier === 'high' ? 'high' : 'watch', not_spam:!!event.not_spam,
+            ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null),
+            reviewed_at:event.reviewed_at?.toDate?.() || null,
+          })).filter(event => event.d);
+          if (name && events.length) { sortSpamHistEvents(events); map.set(name, { events }); }
+        });
+      }
+      _spamFlagHistory = map;
+      _spamFlagHistoryLoaded = true;
+    } finally { _spamFlagHistoryLoading = null; }
+  })();
+  return _spamFlagHistoryLoading;
+}
+
+async function persistSpamFlagHistoryDocs(names) {
+  if (!fbOk || !names?.length) return;
+  const toTimestamp = value => Timestamp.fromDate(value instanceof Date && Number.isFinite(value.getTime()) ? value : new Date());
+  try {
+    let batch = writeBatch(db), count = 0;
+    for (const name of names) {
+      const ref = doc(db, 'spam_history', spamHistDocId(name));
+      const record = _spamFlagHistory?.get(name);
+      if (!record?.events?.length) {
+        batch.delete(ref);
+      } else {
+        const first = record.events[0], last = record.events[record.events.length - 1];
+        batch.set(ref, {
+          carrier_name:name, count:record.events.length,
+          first_d:first.d, first_s:first.s, last_d:last.d, last_s:last.s,
+          last_usage:last.usage, last_ratio:Number.isFinite(last.ratio) ? last.ratio : null,
+          last_tier:last.tier, last_not_spam:!!last.not_spam,
+          events:record.events.map(event => ({
+            d:event.d, s:event.s, usage:event.usage, signal:event.signal,
+            median:event.median, z:event.z,
+            ratio:Number.isFinite(event.ratio) ? event.ratio : null,
+            tier:event.tier, not_spam:!!event.not_spam,
+            ts:toTimestamp(event.ts), reviewed_at:event.reviewed_at ? toTimestamp(event.reviewed_at) : null,
+          })),
+          updated_at:Timestamp.now(),
+        });
+      }
+      if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count) await batch.commit();
+  } catch(e) { console.warn('Flagged Spam history save:', e); }
+}
+
+async function recordSpamFlagsNow(date, slot, ts, suspects) {
+  if (!date || !slot || !suspects?.length) return;
+  await Promise.all([loadSpamFlagHistory(), loadSpamHistSuppressed()]);
+  if (!_spamFlagHistory) _spamFlagHistory = new Map();
+  if (!_spamHistSuppressed) _spamHistSuppressed = new Map();
+  const key = spamHistKey(date, slot);
+  const changed = new Set();
+  let suppressionChanged = false;
+  for (const suspect of suspects) {
+    const name = suspect?.name;
+    if (!name) continue;
+    const suppressedKey = _spamHistSuppressed.get(name);
+    if (suppressedKey === key) continue;
+    if (suppressedKey && suppressedKey !== key) {
+      _spamHistSuppressed.delete(name);
+      suppressionChanged = true;
+    }
+    let record = _spamFlagHistory.get(name);
+    if (!record) { record = { events:[] }; _spamFlagHistory.set(name, record); }
+    if (record.events.some(event => spamHistKey(event.d,event.s) === key)) continue;
+    record.events.push({
+      d:date, s:slot, usage:amountNumber(suspect.usage), signal:amountNumber(suspect.signal),
+      median:amountNumber(suspect.median), z:amountNumber(suspect.z), ratio:Number(suspect.ratio),
+      tier:suspect.tier === 'high' ? 'high' : 'watch', not_spam:false,
+      ts:ts instanceof Date ? ts : new Date(), reviewed_at:null,
+    });
+    sortSpamHistEvents(record.events);
+    if (record.events.length > SPAM_HIST_CAP) record.events.splice(0, record.events.length - SPAM_HIST_CAP);
+    changed.add(name);
+  }
+  if (suppressionChanged) await persistSpamHistSuppressed();
+  if (changed.size) {
+    await persistSpamFlagHistoryDocs([...changed]);
+    if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
+  }
+}
+
+function queueSpamFlagHistory(date, slot, ts, suspects) {
+  _spamFlagHistoryQueue = _spamFlagHistoryQueue
+    .then(() => recordSpamFlagsNow(date, slot, ts, suspects))
+    .catch(error => console.warn('Flagged Spam history:', error));
+  return _spamFlagHistoryQueue;
+}
+
+async function markSpamHistoryNotSpam(name, date, slot) {
+  await _spamFlagHistoryQueue;
+  await loadSpamFlagHistory();
+  const event = _spamFlagHistory?.get(name)?.events?.find(item => spamHistKey(item.d,item.s) === spamHistKey(date,slot));
+  if (!event || event.not_spam) return;
+  event.not_spam = true;
+  event.reviewed_at = new Date();
+  await persistSpamFlagHistoryDocs([name]);
+  if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
+}
+
+function ensureSpamFlagHistory() {
+  if (_spamFlagHistoryLoaded || _spamFlagHistoryKicked) return;
+  _spamFlagHistoryKicked = true;
+  const count = document.getElementById('spamhist-count');
+  if (count) count.textContent = 'Loading…';
+  Promise.all([loadSpamFlagHistory(), loadSpamHistSuppressed()])
+    .then(() => { if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory(); })
+    .catch(() => { _spamFlagHistoryKicked = false; });
+}
+
+function spamHistRows() {
+  const rows = [];
+  (_spamFlagHistory || new Map()).forEach((record,name) => {
+    if (!record?.events?.length) return;
+    const first = record.events[0], last = record.events[record.events.length - 1];
+    rows.push({
+      name, count:record.events.length, usage:last.usage, ratio:last.ratio,
+      tier:last.tier, notSpam:!!last.not_spam,
+      firstD:first.d, firstS:first.s, lastD:last.d, lastS:last.s,
+      _first:spamHistKey(first.d,first.s), _last:spamHistKey(last.d,last.s),
+    });
+  });
+  return rows;
+}
+
+window.spamHistSearchInput = value => { spamHistSearch = String(value || '').toLowerCase().trim(); renderSpamHistory(); };
+window.sortSpamHist = column => {
+  spamHistSortDir = spamHistSortCol === column ? -spamHistSortDir : (column === 'name' ? 1 : -1);
+  spamHistSortCol = column;
+  renderSpamHistory();
+};
+
+function renderSpamHistory() {
+  const tbody = document.getElementById('spamhist-tbody');
+  if (!tbody) return;
+  let rows = spamHistRows();
+  if (spamHistSearch) rows = rows.filter(row => row.name.toLowerCase().includes(spamHistSearch));
+  const direction = spamHistSortDir;
+  rows.sort((a,b) => {
+    const values = {
+      name:[a.name.toLowerCase(),b.name.toLowerCase()], count:[a.count,b.count],
+      usage:[a.usage,b.usage], ratio:[a.ratio,b.ratio], tier:[a.tier,b.tier],
+      status:[a.notSpam ? 1 : 0,b.notSpam ? 1 : 0], first:[a._first,b._first], last:[a._last,b._last],
+    }[spamHistSortCol] || [a._first,b._first];
+    if (values[0] < values[1]) return -direction;
+    if (values[0] > values[1]) return direction;
+    return a.name.localeCompare(b.name);
+  });
+  const count = document.getElementById('spamhist-count');
+  if (count) count.textContent = !_spamFlagHistoryLoaded ? 'Loading…'
+    : rows.length ? `${rows.length} client(s) · ${rows.reduce((sum,row) => sum + row.count, 0)} flag event(s)`
+    : (spamHistSearch ? 'No matching clients.' : 'No Possible Spam flags logged yet.');
+  tbody.innerHTML = rows.map(row => `
+    <tr ondblclick="openClientPopup('${escAttr(row.name)}')" style="cursor:pointer" title="Double-click for client details">
+      <td><strong>${esc(row.name)}</strong></td><td class="num">${row.count}</td>
+      <td class="num">${fmt(row.usage)}</td><td class="num">${Number.isFinite(row.ratio) ? `${row.ratio.toFixed(1)}×` : '—'}</td>
+      <td><span class="stbadge ${row.tier === 'high' ? 'critical' : 'low'}">${row.tier === 'high' ? 'High' : 'Watch'}</span></td>
+      <td><span class="stbadge ${row.notSpam ? 'good' : 'watch'}">${row.notSpam ? 'Marked Not Spam' : 'Flagged'}</span></td>
+      <td style="white-space:nowrap">${esc(row.firstD)}${row.firstS ? ` · ${esc(fmt12(row.firstS))}` : ''}</td>
+      <td style="white-space:nowrap">${esc(row.lastD)}${row.lastS ? ` · ${esc(fmt12(row.lastS))}` : ''}</td>
+      ${rowDelCell('deleteSpamHistEntry', row.name)}
+    </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
+}
+
+window.exportSpamHistory = () => {
+  let rows = spamHistRows();
+  if (spamHistSearch) rows = rows.filter(row => row.name.toLowerCase().includes(spamHistSearch));
+  if (!rows.length) { toast('Nothing to export.', 'err'); return; }
+  const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const lines = [['Client','Times Flagged','Last 30m Usage','vs Normal','Last Tier','Review Status','First Flagged','Last Flagged'].map(csvCell).join(',')];
+  rows.forEach(row => lines.push([
+    row.name,row.count,row.usage,Number.isFinite(row.ratio) ? row.ratio : '',row.tier,
+    row.notSpam ? 'Marked Not Spam' : 'Flagged',`${row.firstD} ${row.firstS}`,`${row.lastD} ${row.lastS}`,
+  ].map(csvCell).join(',')));
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' }));
+  link.download = `flagged_spam_history_${todayStr()}.csv`;
+  document.body.appendChild(link); link.click();
+  setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 0);
+};
+
+window.deleteSpamHistEntry = name => {
+  if (!isAdmin()) { toast('Only admins can delete Flagged Spam history.', 'err'); return; }
+  if (!_spamFlagHistory?.has(name)) { renderSpamHistory(); return; }
+  openRowDelConfirm({
+    title:'Remove from Flagged Spam History',
+    html:`<strong>Remove "${esc(name)}" from Flagged Spam History?</strong><br><br>This deletes all stored spam-flag events for this client. A new flag in a later snapshot can add it again.`,
+    confirmLabel:'Remove',
+    run:async () => {
+      setLoading(true, 'Deleting entry…');
+      try {
+        const { date, slot } = currentReadingMeta();
+        await loadSpamHistSuppressed();
+        _spamHistSuppressed.set(name, spamHistKey(date,slot));
+        if (fbOk) await deleteDoc(doc(db, 'spam_history', spamHistDocId(name)));
+        _spamFlagHistory.delete(name);
+        await persistSpamHistSuppressed();
+        renderSpamHistory();
+        toast(`✓ Removed "${name}" from Flagged Spam History`, 'ok');
+      } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+      finally { setLoading(false); }
+    },
+  });
+};
+
+window.openSpamHistWipeConfirm = () => {
+  if (!isAdmin()) { toast('Only admins can delete Flagged Spam history.', 'err'); return; }
+  document.getElementById('settings-dlg')?.classList.remove('open');
+  document.getElementById('spamhist-wipe-overlay')?.classList.add('open');
+};
+window.closeSpamHistWipeConfirm = () => document.getElementById('spamhist-wipe-overlay')?.classList.remove('open');
+window.confirmWipeSpamHistory = async () => {
+  if (!isAdmin()) { toast('Only admins can delete Flagged Spam history.', 'err'); window.closeSpamHistWipeConfirm(); return; }
+  window.closeSpamHistWipeConfirm();
+  setLoading(true, 'Deleting Flagged Spam history…');
+  try {
+    await _spamFlagHistoryQueue;
+    await Promise.all([loadSpamFlagHistory(), loadSpamHistSuppressed()]);
+    const { date, slot } = currentReadingMeta();
+    const key = spamHistKey(date,slot);
+    activeData().forEach(row => { if (row?.carrier_name && spamCheck(row)) _spamHistSuppressed.set(row.carrier_name, key); });
+    let deleted = 0;
+    if (fbOk) {
+      const snapshot = await getDocs(collection(db, 'spam_history'));
+      let batch = writeBatch(db), count = 0;
+      for (const entry of snapshot.docs) {
+        batch.delete(doc(db, 'spam_history', entry.id)); deleted++;
+        if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count) await batch.commit();
+    }
+    _spamFlagHistory = new Map();
+    _spamFlagHistoryLoaded = true;
+    await persistSpamHistSuppressed();
+    renderSpamHistory();
+    toast(`✓ Deleted ${deleted} Flagged Spam history record(s)`, 'ok');
+  } catch(e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
 
 /* ════════════════════════════════════════════════
    CRITICAL HISTORY
@@ -9204,7 +9587,12 @@ function renderAlerts() {
 window.ignoreSpamReading = async (name) => {
   const { date, slot } = currentReadingMeta();
   const row = (activeData() || []).find(r => r.carrier_name === name) || {};
+  const info = spamCheck(row);
+  if (info && canPostBalance()) {
+    await queueSpamFlagHistory(date, slot, latestSnap?.timestamp || new Date(), [{ name, ...info }]);
+  }
   await toggleUsageExclusion(name, date, slot, amountNumber(row.usage_30min));
+  await markSpamHistoryNotSpam(name, date, slot);
   toast(`Disregarding this 30m usage for spam profiling — ${name}`, 'ok');
   safeRender('Alerts', renderAlerts);
 };
@@ -10786,6 +11174,7 @@ function normalizeSmsCredential(row) {
   const out = {};
   SMS_CREDENTIAL_FIELDS.forEach(field => out[field] = String(row?.[field] ?? '').trim());
   out.id = String(row?.id || ('cred_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)));
+  out.modified_at = String(row?.modified_at || '').trim();
   return out;
 }
 
@@ -10828,6 +11217,11 @@ function smsCredentialDateValue(value) {
   }
   const parsed = Date.parse(raw.replace(/\bSept\b/gi, 'Sep').replace(/,/g, ' '));
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function smsCredentialModifiedValue(row) {
+  const precise = Date.parse(String(row?.modified_at || ''));
+  return Number.isFinite(precise) ? precise : smsCredentialDateValue(row?.date_updated);
 }
 
 function smsCredentialDisplayDate(value) {
@@ -11457,7 +11851,10 @@ window.saveManualOtpToExistingCredential = () => {
       otp_algorithm:payload.algorithm,
       otp_digits:String(payload.digits),
       otp_period:String(payload.period),
+      date_updated:smsCredentialNowText(),
+      modified_at:new Date().toISOString(),
     };
+    smsCredentialRecentIds = [id, ...smsCredentialRecentIds.filter(value => value !== id)].slice(0, 2);
     saveSmsCredentials();
     renderSmsCredentials();
     refreshSmsOtpCredentialOptions();
@@ -11552,9 +11949,11 @@ window.saveSmsCredential = () => {
       }
     } catch(e) { toast('OTP secret was not saved: ' + e.message, 'err', 7000); return; }
   }
+  row.modified_at = new Date().toISOString();
   const idx = smsCredentialEditingId ? smsCredentials.findIndex(item => item.id === smsCredentialEditingId) : -1;
   if (idx >= 0) smsCredentials[idx] = row;
   else smsCredentials.push(row);
+  smsCredentialRecentIds = [row.id, ...smsCredentialRecentIds.filter(id => id !== row.id)].slice(0, 2);
   saveSmsCredentials();
   renderSmsCredentials();
   toast(idx >= 0 ? 'Credential updated' : 'Credential added', 'ok');
@@ -11619,7 +12018,7 @@ function filteredSmsCredentials() {
     .slice()
     .sort((a,b) => {
       const cmp = smsCredentialSortCol === 'date_updated'
-        ? smsCredentialDateValue(a.date_updated) - smsCredentialDateValue(b.date_updated)
+        ? smsCredentialModifiedValue(a) - smsCredentialModifiedValue(b)
         : String(a[smsCredentialSortCol] || '').localeCompare(String(b[smsCredentialSortCol] || ''), undefined, { sensitivity:'base' });
       return (cmp || String(a.client).localeCompare(String(b.client))) * smsCredentialSortDir;
     });
@@ -11654,6 +12053,7 @@ window.openSmsCredentialLink = inputId => {
 
 window.sortSmsCredentials = field => {
   if (!SMS_CREDENTIAL_FIELDS.includes(field)) return;
+  smsCredentialRecentIds = [];
   if (smsCredentialSortCol === field) smsCredentialSortDir *= -1;
   else { smsCredentialSortCol = field; smsCredentialSortDir = 1; }
   renderSmsCredentials();
@@ -11664,6 +12064,12 @@ window.renderSmsCredentials = () => {
   if (!tbody) return;
   refreshSmsCredentialFilters();
   const rows = filteredSmsCredentials();
+  if (smsCredentialRecentIds.length) {
+    const byId = new Map(rows.map(row => [row.id, row]));
+    const pinned = smsCredentialRecentIds.map(id => byId.get(id)).filter(Boolean);
+    const pinnedIds = new Set(pinned.map(row => row.id));
+    rows.splice(0, rows.length, ...pinned, ...rows.filter(row => !pinnedIds.has(row.id)));
+  }
   SMS_CREDENTIAL_FIELDS.forEach(field => {
     const th = document.getElementById('sms-cred-th-' + field);
     if (!th) return;
@@ -14863,7 +15269,8 @@ function processStatsRows(rows, tbodyId, full) {
   const currentSnap = statsCurrentSnap();
   const routeTrend = statsPreviousRouteTrendMap(currentSnap?.time_slot);
   tb.innerHTML = rows.map(r => {
-    const rowCls = r.persistent ? 'st-row-persist' : (r.cls === 'critical' ? 'st-row-critical' : '');
+    const rowCls = r.persistent ? 'st-row-persist'
+      : (r.cls === 'critical' ? 'st-row-critical' : (r.cls === 'low' ? 'st-row-low' : ''));
     const cells = full
       ? `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}${stDrillBtn()}</td>
          <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
