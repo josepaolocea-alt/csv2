@@ -415,20 +415,20 @@
     #view-summary .voip-summary-header { cursor: default; gap: 12px; }
     #view-summary .voip-summary-header:hover .groupbox-title { color: var(--text); }
     .summary-visibility-toggle {
-      flex: none; display: inline-grid; grid-template-columns: minmax(32px, auto) 25px;
-      align-items: center; min-height: 28px; padding: 0 0 0 10px;
+      flex: none; display: inline-grid; place-items: center;
+      width: 28px; height: 28px; min-width: 28px; padding: 0;
       font: 650 10px/1 var(--font); color: var(--text-2); cursor: pointer;
       background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, #fff), var(--surface-2));
-      border: 1px solid var(--border); border-radius: 10px;
+      border: 1px solid var(--border); border-radius: 50%;
       box-shadow: 0 1px 2px rgba(32,35,38,.07), inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent);
       outline: none;
       transition: color .14s ease-out, background-color .14s ease-out,
         border-color .14s ease-out, box-shadow .14s ease-out, transform .1s ease-out;
     }
     .summary-visibility-toggle .caret {
-      display: grid; place-items: center; align-self: stretch;
-      width: 25px; margin-left: 7px; border-left: 1px solid var(--border);
-      font-size: 8px; color: var(--text-3);
+      display: grid; place-items: center;
+      width: auto; margin: 0; border: 0;
+      font-size: 10px; line-height: 1; color: var(--text-3);
     }
     .summary-visibility-toggle:hover {
       color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
@@ -736,6 +736,16 @@
     .sum-section.ss-red   .ss-title { color: var(--red); }
     .sum-section .ss-empty { font-size: 11px; color: var(--text-2); }
     .sum-section .sum-movers { margin-top: 0; }
+    .voip-critical-coverage-scroll {
+      max-height: 280px; overflow: auto; overscroll-behavior: contain;
+      border-radius: var(--r-sm);
+    }
+    .voip-critical-coverage-table { border-collapse: separate; border-spacing: 0; }
+    .voip-critical-coverage-table thead th {
+      position: sticky; top: 0; z-index: 4;
+      background: color-mix(in srgb, var(--surface-2) 92%, var(--accent-soft));
+      box-shadow: 0 1px 0 var(--border-strong);
+    }
     /* Sparkline */
     .sparkline-wrap {
       margin-bottom: 8px; padding: 6px;
@@ -1802,25 +1812,62 @@
     }
     .sms-cred-subtab:hover { color: var(--text); background: var(--surface); }
     .sms-cred-subtab.active { color: #fff; background: var(--accent); box-shadow: var(--shadow-xs); }
-    #sms-credentials-register-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+    #sms-credentials-register-panel {
+      flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 10px;
+      contain: layout paint;
+    }
     #sms-credentials-form {
-      flex: none; max-height: min(52%, 520px); overflow-y: auto; overflow-x: hidden;
+      flex: 0 0 460px; min-height: 0; overflow: hidden;
+      display:flex; flex-direction:column;
       scrollbar-gutter: stable; border: 1px solid var(--border); border-radius: var(--r-md);
       padding: 9px; background: var(--surface-2); box-shadow: var(--shadow-sm);
+      transition:flex-basis .3s cubic-bezier(.22, 1, .36, 1),
+                 background-color .14s ease-out, border-color .14s ease-out;
+      will-change:flex-basis; contain:layout paint style;
+      transform:translateZ(0); backface-visibility:hidden;
     }
-    #sms-credentials-form[hidden] { display: none !important; }
     .sms-cred-form-head {
-      position: sticky; top: -9px; z-index: 4; display:flex; align-items:center;
-      justify-content:space-between; gap:10px; flex-wrap:wrap; margin:-9px -9px 8px;
-      padding:9px; background:color-mix(in srgb, var(--surface-2) 96%, transparent);
-      border-bottom:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      flex:none; display:flex; align-items:center; justify-content:space-between;
+      gap:10px; padding:0 0 7px; cursor:pointer;
     }
     .sms-cred-form-head .groupbox-title { margin:0; }
-    .sms-cred-form-head .fbar { flex:0 1 auto; margin:0; padding:0; border:0; background:transparent; }
-    #sms-credentials-register-panel > .lv-wrap { min-height: 150px; }
+    #sms-credentials-form:not(.collapsed) .sms-cred-form-head .caret { transform:rotate(90deg); }
+    .sms-cred-form-body {
+      flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding:2px 3px 0 0;
+      opacity:1; transform:translateX(0); visibility:visible;
+      transition:opacity .16s ease-out, transform .2s cubic-bezier(.22, 1, .36, 1), visibility 0s linear 0s;
+      will-change:opacity,transform; contain:layout paint style;
+    }
+    .sms-cred-form-body > .fbar { margin:0 0 9px; padding:5px; }
     .sms-cred-form-grid {
-      display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr));
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 7px 9px; margin-top: 6px;
+    }
+    .sms-cred-table-col {
+      flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column;
+      contain:layout paint; transform:translateZ(0); backface-visibility:hidden;
+    }
+    .sms-cred-table-col > .lv-wrap { flex:1; min-height:150px; }
+    #sms-credentials-form.sms-cred-form-opening .sms-cred-form-body {
+      opacity:0; transform:translateX(-8px); visibility:hidden; pointer-events:none;
+    }
+    #sms-credentials-form.collapsed {
+      flex-basis:40px; padding:8px 10px; cursor:pointer; align-items:center;
+    }
+    #sms-credentials-form.collapsed:hover { background:var(--accent-soft); border-color:var(--accent); }
+    #sms-credentials-form.collapsed .sms-cred-form-head {
+      flex-direction:column; align-items:center; justify-content:center;
+      width:100%; height:100%; padding:0;
+    }
+    #sms-credentials-form.collapsed .sms-cred-form-head .caret { display:none; }
+    #sms-credentials-form.collapsed .sms-cred-form-head .groupbox-title {
+      writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap;
+      font-size:11px; letter-spacing:.3px;
+    }
+    #sms-credentials-form.collapsed:hover .groupbox-title { color:var(--accent); }
+    #sms-credentials-form.collapsed .sms-cred-form-body {
+      opacity:0; transform:translateX(-8px); visibility:hidden; pointer-events:none;
+      transition:opacity .12s ease-out, transform .16s ease-out, visibility 0s linear .2s;
     }
     .sms-cred-key-field > label { color: var(--accent-strong); font-weight: 700; }
     .sms-cred-key-field .win-inp {
@@ -1954,10 +2001,27 @@
       .st-daily-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
       .st-daily-dashboard-grid { grid-template-columns: 1fr; }
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
-      .sms-cred-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-otp-grid { grid-template-columns: 1fr 1fr; }
       .sms-otp-existing { grid-template-columns: 1fr; }
       .sms-otp-existing-help { grid-column: 1; }
+    }
+    @media (max-width:720px) {
+      #sms-credentials-register-panel { flex-direction:column; }
+      #sms-credentials-form, #sms-credentials-form:not(.collapsed) {
+        flex-basis:auto; width:auto; max-height:60vh;
+      }
+      #sms-credentials-form.collapsed { flex-basis:auto; width:auto; padding:6px 10px; align-items:stretch; }
+      #sms-credentials-form.collapsed .sms-cred-form-head {
+        flex-direction:row; justify-content:space-between; width:auto; height:auto;
+      }
+      #sms-credentials-form.collapsed .sms-cred-form-head .caret { display:block; }
+      #sms-credentials-form.collapsed .sms-cred-form-head .groupbox-title { writing-mode:horizontal-tb; transform:none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #sms-credentials-form, .sms-cred-form-body { transition:none; }
+      #sms-credentials-form.sms-cred-form-opening .sms-cred-form-body {
+        opacity:1; transform:none; visibility:visible; pointer-events:auto;
+      }
     }
     label { font-size: 11px; }
     input[type="checkbox"] { accent-color: var(--accent); }
@@ -2805,6 +2869,7 @@
     body.night-mode .sms-bal-usage-hot { color:#fff4b8; background:#5b4a00 !important; }
     .sms-bal-required label::after { content:' *'; color:var(--red); font-weight:800; }
     .sms-bal-file-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:8px; border:1px dashed var(--border-strong); border-radius:var(--r-md); background:var(--surface-2); }
+    #sms-bal-manager-editor-toggle { margin-left:auto; flex:0 0 auto; }
     .sms-bal-premium-help { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--accent); background:var(--accent-soft); font-weight:800; cursor:help; }
     .sms-bal-note { color:var(--text-2); font-size:10px; line-height:1.45; }
     .sms-bal-danger { border-color:color-mix(in srgb,var(--red) 38%,var(--border)); background:color-mix(in srgb,var(--red-soft) 38%,var(--surface)); }
@@ -3078,7 +3143,7 @@
         <div class="groupbox">
           <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">Live Statistics</div>
-            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-live-body" aria-label="Hide Live Statistics section" title="Hide Live Statistics section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-live-body" aria-label="Hide Live Statistics section" title="Hide Live Statistics section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
           <div class="caret-body" id="voip-summary-live-body">
             <div class="stat-row live-stat-row">
@@ -3102,7 +3167,7 @@
         <div class="groupbox">
           <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">30-min Snapshot Timeline</div>
-            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-timeline-body" aria-label="Hide 30-min Snapshot Timeline section" title="Hide 30-min Snapshot Timeline section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-timeline-body" aria-label="Hide 30-min Snapshot Timeline section" title="Hide 30-min Snapshot Timeline section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
           <div class="caret-body" id="voip-summary-timeline-body">
             <div class="timeline-strip" id="timeline"></div>
@@ -3113,7 +3178,7 @@
         <div class="groupbox">
           <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">Today's Shift Summary</div>
-            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="shift-summary-body" aria-label="Hide Today's Shift Summary section" title="Hide Today's Shift Summary section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="shift-summary-body" aria-label="Hide Today's Shift Summary section" title="Hide Today's Shift Summary section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
           <div class="caret-body" id="shift-summary-body">
             <div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>
@@ -3525,7 +3590,6 @@
                         <section class="sms-bal-summary-card usage"><div class="sms-bal-summary-card-title">Top 30m Usage — Wholesale</div><div id="sms-bal-summary-usage-wholesale"></div></section>
                         <section class="sms-bal-summary-card payment"><div class="sms-bal-summary-card-title">Top Payments Today</div><div id="sms-bal-summary-payments"></div></section>
                         <section class="sms-bal-summary-card critical"><div class="sms-bal-summary-card-title">Reached Critical Balance / Zero Today</div><div id="sms-bal-summary-critical-hits"></div></section>
-                        <section class="sms-bal-summary-card overdraft"><div class="sms-bal-summary-card-title">Reached / Used Overdraft Today</div><div id="sms-bal-summary-overdraft-hits"></div></section>
                       </div>
                     </div>
                   </section>
@@ -3610,10 +3674,10 @@
                     <div class="sms-bal-file-actions">
                       <span class="sms-bal-premium-help" data-premium-tooltip="Client is required. For existing clients, only nonblank supplied values are updated; omitted or blank fields keep their saved values. Type is optional when the client name matches only one saved type.">?</span>
                       <button class="tbtn" onclick="downloadSmsBalanceClientSampleCsv()" data-premium-tooltip="Download a ready-to-fill CSV template with the required columns.">Download Sample CSV</button>
-                      <button class="tbtn" id="sms-bal-manager-editor-toggle" onclick="toggleSmsBalanceManagerEditor()" aria-controls="sms-bal-manager-editor" aria-expanded="false" data-premium-tooltip="Show the selected client's SMS Balance settings form.">✎ Show Form</button>
                       <button class="tbtn primary" onclick="document.getElementById('sms-bal-manager-file').click()" data-premium-tooltip="Upload a CSV and update only the nonblank values supplied for matching clients.">Upload &amp; Update Clients</button>
                       <input type="file" id="sms-bal-manager-file" accept=".csv,text/csv" style="display:none" onchange="importSmsBalanceClientsCsv(this.files[0]);this.value=''">
                       <span class="sms-muted">Threshold-only files are supported. Existing values in omitted or blank columns are preserved.</span>
+                      <button class="tbtn" id="sms-bal-manager-editor-toggle" onclick="toggleSmsBalanceManagerEditor()" aria-controls="sms-bal-manager-editor" aria-expanded="false" data-premium-tooltip="Show the selected client's SMS Balance settings form.">✎ Show Form</button>
                     </div>
                     <div class="fbar">
                       <input class="win-search" id="sms-bal-manager-search" type="search" placeholder="Search clients…" oninput="renderSmsBalanceManager()">
@@ -3808,16 +3872,18 @@
                 </div>
               </div>
               <div id="sms-credentials-register-panel">
-              <div id="sms-credentials-form" hidden>
-                <div class="sms-cred-form-head">
+              <div id="sms-credentials-form" class="collapsed">
+                <div class="sms-cred-form-head" onclick="toggleSmsCredentialForm()">
                   <div class="groupbox-title" id="sms-credentials-form-title">Add / Edit Credential</div>
+                  <span class="caret">▼</span>
+                </div>
+                <div class="sms-cred-form-body">
                   <div class="fbar">
                     <button class="tbtn primary" id="sms-cred-save-btn" onclick="saveSmsCredential()">Save Credential</button>
                     <button class="tbtn" id="sms-cred-cancel-btn" onclick="cancelSmsCredentialEdit()" style="display:none">Cancel Edit</button>
                     <button class="tbtn" onclick="newSmsCredential()">New / Clear</button>
                     <span class="sms-muted" id="sms-cred-edit-status">Adding new credential</span>
                   </div>
-                </div>
                   <div class="sms-cred-form-grid">
                     <div class="sms-field sms-cred-key-field"><label>Client / Vendor</label><input class="win-inp" id="sms-cred-client"></div>
                     <div class="sms-field sms-cred-key-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
@@ -3853,7 +3919,9 @@
                       <button type="button" class="tbtn" onclick="event.stopPropagation(); document.getElementById('sms-cred-qr-file').click()">Upload QR Image</button>
                     </div>
                   </div>
+                </div>
               </div>
+              <div class="sms-cred-table-col">
               <div class="fbar">
                 <input class="win-search" id="sms-cred-search" type="search" placeholder="Search all credential columns..." oninput="renderSmsCredentials()" style="min-width:250px">
                 <select class="win-inp" id="sms-cred-filter-account-type" onchange="renderSmsCredentials()"><option value="">All Account Types</option></select>
@@ -3888,6 +3956,7 @@
                   </tr></thead>
                   <tbody id="sms-credentials-tbody"></tbody>
                 </table>
+              </div>
               </div>
               </div>
               <div id="sms-credentials-otp-panel" style="display:none">
@@ -6104,8 +6173,6 @@ window.toggleCollapse = control => {
   toggle.setAttribute('aria-expanded', String(expanded));
   toggle.setAttribute('aria-label', `${action} ${section} section`);
   toggle.title = `${action} ${section} section`;
-  const label = toggle.querySelector('.summary-visibility-label');
-  if (label) label.textContent = action;
 };
 
 let smsFormRevealTimer = null;
@@ -11657,8 +11724,8 @@ function voipCriticalCoverageSummary(snaps,selectedShift='both') {
       if(!row?.carrier_name)return;
       const coverageDate=voipCoverageDate(snapshot,shift);
       const key=`${coverageDate}|${shift}|${snapCarrierKey(row.carrier_name)}`;
-      const level=alertLevel(row);latestLevels.set(key,level);
-      if(level!=='high'||firstHits.has(key))return;
+      const level=alertLevel(row),previousLevel=latestLevels.get(key);latestLevels.set(key,level);
+      if(previousLevel===undefined||previousLevel==='high'||level!=='high'||firstHits.has(key))return;
       firstHits.set(key,{
         key,coverage_date:coverageDate,shift,client:row.carrier_name,
         account_manager:accountManagerFor(row),reached_slot:snapshot.time_slot,
@@ -11680,9 +11747,9 @@ function voipSummaryWorksheetXml(snaps,selectedShift) {
     xlsTextCell(row.reached_time,'sumCritical'),xlsNumberCell(row.balance,'sumNum'),
     xlsTextCell(row.current_status,row.current_status==='Recovered'?'sumRecovered':'sumCritical')
   ].join('')+'</Row>').join(''):
-    '<Row><Cell ss:StyleID="sumEmpty" ss:MergeAcross="6"><Data ss:Type="String">No clients reached Critical Balance in the exported snapshot coverage.</Data></Cell></Row>';
+    '<Row><Cell ss:StyleID="sumEmpty" ss:MergeAcross="6"><Data ss:Type="String">No clients newly reached Critical Balance in the exported snapshot coverage.</Data></Cell></Row>';
   const title='<Row ss:Height="24"><Cell ss:StyleID="sumTitle" ss:MergeAcross="6"><Data ss:Type="String">VOIP Critical Balance Summary</Data></Cell></Row>'+
-    `<Row><Cell ss:StyleID="sumSub" ss:MergeAcross="6"><Data ss:Type="String">First critical snapshot per client within each 7AM-7PM or 7PM-7AM coverage · ${rows.length} client event(s)</Data></Cell></Row>`;
+    `<Row><Cell ss:StyleID="sumSub" ss:MergeAcross="6"><Data ss:Type="String">First new-critical transition per client within each 7AM-7PM or 7PM-7AM coverage · ${rows.length} client event(s)</Data></Cell></Row>`;
   const cols='<Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="190"/><Column ss:Width="120"/><Column ss:Width="100"/><Column ss:Width="110"/><Column ss:Width="125"/>';
   const options='<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>';
   return `<Worksheet ss:Name="Summary"><Table>${cols}${title}${headRow}${body}</Table>${options}</Worksheet>`;
@@ -12292,7 +12359,7 @@ function smsBalanceSummaryHighlights() {
   const latest=smsBalanceRows();
   const topUsage=source=>latest.filter(row=>row.source===source&&smsBalanceNumber(row.usage_30min)>0)
     .sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client)).slice(0,source==='reseller'?10:5);
-  const paymentsByClient=new Map(),criticalByClient=new Map(),overdraftByClient=new Map();
+  const paymentsByClient=new Map(),criticalByClient=new Map();
   sortSmsBalanceSnapshots(smsBalanceTodaySnaps).forEach(snapshot=>(snapshot.data||[]).forEach(raw=>{
     if(!raw?.client)return;
     const row={...raw,_status:smsBalanceStatus(raw),_slot:snapshot.time_slot};
@@ -12300,7 +12367,6 @@ function smsBalanceSummaryHighlights() {
     if(usage<0){const prior=paymentsByClient.get(key)||{row,amount:0};paymentsByClient.set(key,{row,amount:prior.amount-usage});}
     if(smsBalanceMetaFor(row)?.is_active===false)return;
     if(smsBalanceIsCritical(row))criticalByClient.set(key,row);
-    if(row._status.overdraft>0&&row._status.balance<=0)overdraftByClient.set(key,row);
   }));
   const payments=[...paymentsByClient.values()].sort((a,b)=>b.amount-a.amount||a.row.client.localeCompare(b.row.client)).slice(0,5);
   const byLatestSlot=(a,b)=>String(b._slot||'').localeCompare(String(a._slot||''))||a.client.localeCompare(b.client);
@@ -12308,8 +12374,7 @@ function smsBalanceSummaryHighlights() {
     resellerUsage:topUsage('reseller'),
     wholesaleUsage:topUsage('wholesale'),
     payments,
-    critical:[...criticalByClient.values()].sort(byLatestSlot),
-    overdraft:[...overdraftByClient.values()].sort(byLatestSlot)
+    critical:[...criticalByClient.values()].sort(byLatestSlot)
   };
 }
 function renderSmsBalanceSummaryHighlights() {
@@ -12323,7 +12388,6 @@ function renderSmsBalanceSummaryHighlights() {
   set('sms-bal-summary-usage-wholesale',ranked(data.wholesaleUsage,item=>smsBalanceFmt(item.usage_30min),'No Wholesale usage in the latest snapshot.'));
   set('sms-bal-summary-payments',ranked(data.payments,item=>smsBalanceFmt(item.amount),'No payments detected today.'));
   set('sms-bal-summary-critical-hits',ranked(data.critical,item=>`${esc(fmt12(item._slot))} · ${esc(item._status.label)}`,'No clients reached Critical or zero today.'));
-  set('sms-bal-summary-overdraft-hits',ranked(data.overdraft,item=>`${esc(fmt12(item._slot))} · OD ${smsBalanceFmt(Math.max(0,item._status.odRemaining))}`,'No clients reached or used overdraft today.'));
 }
 function renderSmsBalanceSummary() {
   const rows = smsBalanceRows(), warning = smsBalanceWarningRows();
@@ -14337,10 +14401,24 @@ window.saveManualOtpToExistingCredential = () => {
   } else apply();
 };
 
+let smsCredentialFormRevealTimer = null;
+
 window.setSmsCredentialForm = open => {
   const form=document.getElementById('sms-credentials-form');
   const button=document.getElementById('sms-credentials-form-toggle');
-  if(form)form.hidden=!open;
+  clearTimeout(smsCredentialFormRevealTimer);smsCredentialFormRevealTimer=null;
+  if(form){
+    form.classList.remove('sms-cred-form-opening');
+    if(open&&form.classList.contains('collapsed')){
+      form.classList.add('sms-cred-form-opening');
+      form.classList.remove('collapsed');
+      const revealDelay=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches?0:90;
+      smsCredentialFormRevealTimer=setTimeout(()=>{
+        form.classList.remove('sms-cred-form-opening');
+        smsCredentialFormRevealTimer=null;
+      },revealDelay);
+    }else form.classList.toggle('collapsed',!open);
+  }
   if(button){
     button.classList.toggle('active',!!open);
     button.setAttribute('aria-expanded',String(!!open));
@@ -14351,7 +14429,7 @@ window.setSmsCredentialForm = open => {
 
 window.toggleSmsCredentialForm = () => {
   const form=document.getElementById('sms-credentials-form');
-  window.setSmsCredentialForm(!!form?.hidden);
+  window.setSmsCredentialForm(!!form?.classList.contains('collapsed'));
 };
 
 function setSmsCredentialInput(field, value) {
@@ -16106,8 +16184,9 @@ function renderShiftSummary() {
   const el = document.getElementById('shift-summary-body'); if (!el) return;
   if (!todaySnaps.length) { el.innerHTML = '<div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>'; return; }
 
-  // First critical reading for every client within the configured day/night
-  // coverage. The scheduled snapshot slot is the closest reliable reached time.
+  // First non-critical → critical transition for every client within the
+  // configured day/night coverage. Clients already critical in the first
+  // coverage snapshot are intentionally excluded.
   const coverageSnaps=todaySnaps.filter(snapshot=>snapshotMatchesShift(snapshot,S.shift)).sort((a,b)=>
     slotIndexForShift(a.time_slot,S.shift)-slotIndexForShift(b.time_slot,S.shift)||snapshotTimeMs(a)-snapshotTimeMs(b));
   const criticalHits=voipCriticalCoverageSummary(coverageSnaps,S.shift);
@@ -16142,18 +16221,18 @@ function renderShiftSummary() {
   el.innerHTML = `
     <div class="sum-grid">
       <div class="sum-card"><div class="sc-val">${todaySnaps.length}</div><div class="sc-lbl">Snapshots today</div></div>
-      <div class="sum-card ${critEver.size?'sc-red':'sc-green'}"><div class="sc-val">${critEver.size}</div><div class="sc-lbl">Hit critical this shift</div></div>
+      <div class="sum-card ${critEver.size?'sc-red':'sc-green'}"><div class="sc-val">${critEver.size}</div><div class="sc-lbl">New critical this shift</div></div>
       <div class="sum-card ${recovered.length?'sc-green':''}"><div class="sc-val">${recovered.length}</div><div class="sc-lbl">Recovered</div></div>
       <div class="sum-card ${currentWarn?'sc-orange':''}"><div class="sc-val">${currentWarn}</div><div class="sc-lbl">Currently warning</div></div>
     </div>
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
     <div class="sum-section ss-red">
-      <div class="ss-title">Reached Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
-      ${criticalHits.length?`<table class="sum-movers" style="width:100%">
+      <div class="ss-title">New Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
+      ${criticalHits.length?`<div class="voip-critical-coverage-scroll"><table class="sum-movers voip-critical-coverage-table" style="width:100%">
         <thead><tr><th style="width:28px">#</th><th>Client</th><th style="width:120px">First reached</th><th style="width:110px">Status</th></tr></thead>
         <tbody>${criticalHits.map((hit,index)=>`<tr><td style="color:var(--text-2)">${index+1}.</td><td>${esc(hit.client)}</td><td style="font-family:var(--mono);color:var(--red)">${esc(hit.reached_time)}</td><td style="color:${hit.current_status==='Recovered'?'var(--green)':'var(--red)'};font-weight:700">${esc(hit.current_status)}</td></tr>`).join('')}</tbody>
-      </table>`:'<div class="ss-empty">No clients reached Critical Balance in this snapshot coverage.</div>'}
+      </table></div>`:'<div class="ss-empty">No clients reached New Critical Balance in this snapshot coverage.</div>'}
     </div>
     <div class="sum-section ss-green">
       <div class="ss-title">Payments today (clients with negative 30m usage):</div>
