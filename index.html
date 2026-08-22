@@ -562,7 +562,15 @@
       border-bottom-color: var(--accent); z-index: 1;
     }
     .tab-content { border-top: 1px solid var(--border); padding: 8px 0 0; }
-    #alert-tabs { flex-wrap: wrap; }
+    #alert-tabs {
+      display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start !important; gap: 6px; min-width: 0;
+    }
+    #alert-tabs .alert-tab-list { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
+    #alert-tabs .tab { flex: 0 0 auto; white-space: nowrap; }
+    #alert-tabs .alert-tab-actions { margin-left: 0; padding-left: 0; }
+    #alert-tabs .alert-tab-actions .tbtn.icon-only { width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; }
+    #alert-tabs .alert-tab-actions .tbtn.icon-only svg { width: 18px; height: 18px; flex: 0 0 18px; }
     .alert-tab-actions {
       display: flex; align-items: center; gap: 4px; margin-left: auto;
       padding-left: 4px; flex: 0 0 auto;
@@ -3034,18 +3042,20 @@
       <div class="view" id="view-alerts">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Alert Panel</div>
-          <div class="tab-bar" id="alert-tabs" style="display:flex;align-items:center">
-            <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
-            <div class="tab" onclick="setAlertFilter('high',this)">Critical</div>
-            <div class="tab" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</div>
-            <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
-            <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
-            <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
-            <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage jumped to a multiple of their own usual usage (e.g. doubled) — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
-            <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
-            <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
-            <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
-            <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
+          <div class="tab-bar" id="alert-tabs">
+            <div class="alert-tab-list" role="group" aria-label="VOIP alert filters">
+              <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
+              <div class="tab" onclick="setAlertFilter('high',this)">Critical</div>
+              <div class="tab" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</div>
+              <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
+              <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
+              <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
+              <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage jumped to a multiple of their own usual usage (e.g. doubled) — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
+              <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
+              <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
+              <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
+              <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
+            </div>
             <div class="alert-tab-actions" id="alert-actions">
               <button class="tbtn icon-only" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
@@ -3417,6 +3427,9 @@
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
                       <div class="alert-tab-actions" id="sms-bal-alert-actions">
+                        <button class="tbtn icon-only" id="sms-bal-alert-guide-toggle" onclick="toggleSmsBalanceStatusGuide()" title="Show SMS balance status guide" aria-label="Show SMS balance status guide" aria-controls="sms-bal-status-guide" aria-expanded="false" data-premium-tooltip="Show the SMS balance status guide.">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg>
+                        </button>
                         <button class="tbtn icon-only" id="sms-bal-alert-show-inactive" onclick="toggleSmsBalanceAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients" data-premium-tooltip="Show inactive clients in the current SMS Alerts view.">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
                         </button>
@@ -3425,7 +3438,7 @@
                         </button>
                       </div>
                     </div>
-                    <section class="sms-bal-status-guide" aria-labelledby="sms-bal-status-guide-title">
+                    <section class="sms-bal-status-guide" id="sms-bal-status-guide" aria-labelledby="sms-bal-status-guide-title" hidden>
                       <div class="sms-bal-status-guide-head">
                         <div class="sms-bal-status-guide-title" id="sms-bal-status-guide-title">SMS balance status guide</div>
                         <div class="sms-bal-status-guide-rule">Based on the current balance, overdraft, and client thresholds.</div>
@@ -12056,6 +12069,19 @@ window.toggleSmsBalanceAlertShowInactive = () => {
     button.setAttribute('aria-label', label);
   }
   window.renderSmsBalanceAlerts();
+};
+window.toggleSmsBalanceStatusGuide = () => {
+  const guide = document.getElementById('sms-bal-status-guide');
+  const button = document.getElementById('sms-bal-alert-guide-toggle');
+  if (!guide || !button) return;
+  const show = guide.hidden;
+  guide.hidden = !show;
+  button.classList.toggle('active', show);
+  button.setAttribute('aria-expanded', String(show));
+  const label = `${show ? 'Hide' : 'Show'} SMS balance status guide`;
+  button.title = label;
+  button.setAttribute('aria-label', label);
+  button.setAttribute('data-premium-tooltip', `${label}.`);
 };
 function renderSmsBalanceUsageHistory() {
   const thead=document.getElementById('sms-bal-usage-history-thead'), tbody=document.getElementById('sms-bal-usage-history-tbody'), foot=document.getElementById('sms-bal-usage-history-foot');
