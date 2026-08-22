@@ -1812,6 +1812,15 @@
       outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
       border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
     }
+    .sms-cred-qr-zone {
+      grid-column: 1 / -1; margin-top: 0; padding: 8px 10px;
+      display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+    }
+    .sms-cred-qr-zone .tbtn { flex: none; }
+    .sms-cred-qr-status { color: var(--text-3); }
+    .sms-cred-qr-zone.reading .sms-cred-qr-status { color: var(--accent); }
+    .sms-cred-qr-zone.success .sms-cred-qr-status { color: var(--green); }
+    .sms-cred-qr-zone.error .sms-cred-qr-status { color: var(--red); }
     .sms-otp-existing {
       display: grid; grid-template-columns: minmax(190px, 1fr) auto; gap: 6px;
       align-items: end; margin-top: 10px; padding: 10px 12px;
@@ -3375,6 +3384,14 @@
                     <div class="sms-field"><label>OTP Algorithm</label><select class="win-inp" id="sms-cred-otp-algorithm"><option value="SHA-1">SHA-1</option><option value="SHA-256">SHA-256</option><option value="SHA-512">SHA-512</option></select></div>
                     <div class="sms-field"><label>OTP Digits</label><select class="win-inp" id="sms-cred-otp-digits"><option value="6">6 digits</option><option value="8">8 digits</option></select></div>
                     <div class="sms-field"><label>OTP Period</label><select class="win-inp" id="sms-cred-otp-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
+                    <input type="file" id="sms-cred-qr-file" accept="image/*" style="display:none" onchange="scanSmsCredentialQrFile(this.files[0]); this.value=''">
+                    <div class="sms-otp-qr-zone sms-cred-qr-zone" id="sms-cred-qr-zone" tabindex="0" role="button"
+                      aria-label="Paste, upload, or drop an authenticator QR image"
+                      onclick="this.focus()" onpaste="onSmsCredentialQrPaste(event)"
+                      ondragover="onSmsCredentialQrDragOver(event)" ondragleave="onSmsCredentialQrDragLeave(event)" ondrop="onSmsCredentialQrDrop(event)">
+                      <span class="sms-cred-qr-status" id="sms-cred-qr-status" role="status" aria-live="polite">Click here and press <strong>Ctrl+V</strong> to paste a QR screenshot, or drop an image.</span>
+                      <button type="button" class="tbtn" onclick="event.stopPropagation(); document.getElementById('sms-cred-qr-file').click()">Upload QR Image</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -12011,6 +12028,58 @@ window.onSmsOtpQrDrop = event => {
   scanSmsOtpQrFile(Array.from(event.dataTransfer?.files || []).find(file => file.type.startsWith('image/')));
 };
 
+function setSmsCredentialQrStatus(message, state='') {
+  const zone = document.getElementById('sms-cred-qr-zone');
+  const status = document.getElementById('sms-cred-qr-status');
+  zone?.classList.remove('reading', 'success', 'error');
+  if (state) zone?.classList.add(state);
+  if (status) status.textContent = message;
+}
+
+function applySmsCredentialOtpPayload(payload, source='QR code') {
+  setSmsCredentialInput('otp_secret', payload.secret);
+  setSmsCredentialInput('otp_algorithm', payload.algorithm);
+  setSmsCredentialInput('otp_digits', String(payload.digits));
+  setSmsCredentialInput('otp_period', String(payload.period));
+  const secret = document.getElementById('sms-cred-otp-secret');
+  if (secret) secret.type = 'password';
+  const show = document.getElementById('sms-cred-otp-show-btn');
+  if (show) show.textContent = 'Show';
+  setSmsCredentialQrStatus(`${source} loaded${payload.label ? ` for ${payload.label}` : ''}. Review the details, then save the credential.`, 'success');
+}
+
+window.scanSmsCredentialQrFile = async file => {
+  if (!file) { setSmsCredentialQrStatus('No QR image was selected.', 'error'); return; }
+  setSmsCredentialQrStatus('Reading QR image…', 'reading');
+  try {
+    const payload = smsParseOtpPayload(await smsDecodeQrImage(file));
+    applySmsCredentialOtpPayload(payload);
+    toast('QR code added to the credential form. Click Save Credential to store it.', 'ok', 6000);
+  } catch(e) {
+    setSmsCredentialQrStatus(e.message, 'error');
+    toast('QR scan failed: ' + e.message, 'err', 7000);
+  }
+};
+
+window.onSmsCredentialQrPaste = event => {
+  const imageItem = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith('image/'));
+  if (!imageItem) { setSmsCredentialQrStatus('The clipboard does not contain an image.', 'error'); return; }
+  event.preventDefault();
+  scanSmsCredentialQrFile(imageItem.getAsFile());
+};
+
+window.onSmsCredentialQrDragOver = event => {
+  event.preventDefault();
+  document.getElementById('sms-cred-qr-zone')?.classList.add('dragover');
+};
+window.onSmsCredentialQrDragLeave = () => document.getElementById('sms-cred-qr-zone')?.classList.remove('dragover');
+window.onSmsCredentialQrDrop = event => {
+  event.preventDefault();
+  document.getElementById('sms-cred-qr-zone')?.classList.remove('dragover');
+  const file = Array.from(event.dataTransfer?.files || []).find(item => item.type.startsWith('image/'));
+  scanSmsCredentialQrFile(file);
+};
+
 async function smsTotpFromBase32(secret, options={}) {
   if (!globalThis.crypto?.subtle) throw new Error('Secure OTP generation is unavailable in this browser.');
   const algorithm = options.algorithm || 'SHA-1';
@@ -12363,6 +12432,7 @@ function readSmsCredentialForm() {
 window.newSmsCredential = (open=true) => {
   smsCredentialEditingId = null;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, ''));
+  setSmsCredentialQrStatus('Click here and press Ctrl+V to paste a QR screenshot, or drop an image.');
   setSmsCredentialInput('date_updated', smsCredentialNowText());
   const otpSecret = document.getElementById('sms-cred-otp-secret');
   if (otpSecret) otpSecret.type = 'password';
@@ -12384,6 +12454,7 @@ window.editSmsCredential = id => {
   if (!row) return;
   smsCredentialEditingId = id;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, row[field]));
+  setSmsCredentialQrStatus('Paste, upload, or drop a QR image to replace the OTP settings in this form.');
   setSmsCredentialInput('date_updated', smsCredentialNowText());
   const otpSecret = document.getElementById('sms-cred-otp-secret');
   if (otpSecret) otpSecret.type = 'password';
