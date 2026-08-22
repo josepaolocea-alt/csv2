@@ -409,6 +409,39 @@
     .collapsed .caret-body { display: none; }
     .collapsed .groupbox-title { margin-bottom: 0; }
 
+    /* VOIP Summary visibility controls. These use the same compact, layered
+       treatment as the premium dropdowns while remaining simple toggle
+       buttons with an explicit expanded state. */
+    #view-summary .voip-summary-header { cursor: default; gap: 12px; }
+    #view-summary .voip-summary-header:hover .groupbox-title { color: var(--text); }
+    .summary-visibility-toggle {
+      flex: none; display: inline-grid; grid-template-columns: minmax(32px, auto) 25px;
+      align-items: center; min-height: 28px; padding: 0 0 0 10px;
+      font: 650 10px/1 var(--font); color: var(--text-2); cursor: pointer;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, #fff), var(--surface-2));
+      border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(32,35,38,.07), inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent);
+      outline: none;
+      transition: color .14s ease-out, background-color .14s ease-out,
+        border-color .14s ease-out, box-shadow .14s ease-out, transform .1s ease-out;
+    }
+    .summary-visibility-toggle .caret {
+      display: grid; place-items: center; align-self: stretch;
+      width: 25px; margin-left: 7px; border-left: 1px solid var(--border);
+      font-size: 8px; color: var(--text-3);
+    }
+    .summary-visibility-toggle:hover {
+      color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 52%, var(--border));
+      background: linear-gradient(180deg, var(--surface), var(--surface-2));
+      box-shadow: 0 4px 12px rgba(32,35,38,.11), inset 0 1px 0 color-mix(in srgb, #fff 48%, transparent);
+    }
+    .summary-visibility-toggle:focus-visible {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 3px 10px rgba(32,35,38,.10);
+    }
+    .summary-visibility-toggle:active { transform: scale(.975); }
+    .groupbox.collapsed .summary-visibility-toggle .caret { transform: rotate(-90deg); }
+
     /* ── Stats row ──
        Tiles hold a short number, so tracks are capped and wrap instead of each
        tile growing to a third of the window on a wide screen. Equal-width
@@ -1747,7 +1780,9 @@
       display: flex; gap: 3px; flex: none; padding: 3px; width: max-content;
       background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm);
     }
-    .sms-cred-topbar { display:flex; align-items:center; justify-content:space-between; gap:8px; flex:none; }
+    .sms-cred-topbar { display:flex; align-items:center; gap:8px; flex:none; flex-wrap:wrap; }
+    .sms-cred-topbar-actions { display:flex; align-items:center; gap:6px; margin-left:auto; }
+    #sms-credentials-form-toggle[hidden] { display:none !important; }
     .sms-cred-sync {
       display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 8px;
       border:1px solid var(--border); border-radius:999px; background:var(--surface-2);
@@ -1769,13 +1804,20 @@
     .sms-cred-subtab.active { color: #fff; background: var(--accent); box-shadow: var(--shadow-xs); }
     #sms-credentials-register-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
     #sms-credentials-form {
-      flex: none; border: 1px solid var(--border); border-radius: var(--r-sm);
-      padding: 7px; background: var(--surface-2);
+      flex: none; max-height: min(52%, 520px); overflow-y: auto; overflow-x: hidden;
+      scrollbar-gutter: stable; border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 9px; background: var(--surface-2); box-shadow: var(--shadow-sm);
     }
-    #sms-credentials-form .collapsible-header { padding: 0 0 6px; }
-    #sms-credentials-form.collapsed .collapsible-header { padding-bottom: 0; cursor: pointer; }
-    #sms-credentials-form.collapsed .caret-body { display: none; }
-    #sms-credentials-form:not(.collapsed) .caret { transform: rotate(90deg); }
+    #sms-credentials-form[hidden] { display: none !important; }
+    .sms-cred-form-head {
+      position: sticky; top: -9px; z-index: 4; display:flex; align-items:center;
+      justify-content:space-between; gap:10px; flex-wrap:wrap; margin:-9px -9px 8px;
+      padding:9px; background:color-mix(in srgb, var(--surface-2) 96%, transparent);
+      border-bottom:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    }
+    .sms-cred-form-head .groupbox-title { margin:0; }
+    .sms-cred-form-head .fbar { flex:0 1 auto; margin:0; padding:0; border:0; background:transparent; }
+    #sms-credentials-register-panel > .lv-wrap { min-height: 150px; }
     .sms-cred-form-grid {
       display: grid; grid-template-columns: repeat(4, minmax(150px, 1fr));
       gap: 7px 9px; margin-top: 6px;
@@ -3034,11 +3076,11 @@
 
         <!-- Stats -->
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">Live Statistics</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-live-body" aria-label="Hide Live Statistics section" title="Hide Live Statistics section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body">
+          <div class="caret-body" id="voip-summary-live-body">
             <div class="stat-row live-stat-row">
               <div class="stat-box">       <div class="sv" id="st-total">—</div><div class="sl">Total clients</div></div>
               <div class="stat-box s-green"><div class="sv" id="st-active">—</div><div class="sl">Active</div></div>
@@ -3058,20 +3100,20 @@
 
         <!-- Timeline -->
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">30-min Snapshot Timeline</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="voip-summary-timeline-body" aria-label="Hide 30-min Snapshot Timeline section" title="Hide 30-min Snapshot Timeline section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body">
+          <div class="caret-body" id="voip-summary-timeline-body">
             <div class="timeline-strip" id="timeline"></div>
           </div>
         </div>
 
         <!-- Shift Summary -->
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header voip-summary-header">
             <div class="groupbox-title">Today's Shift Summary</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="shift-summary-body" aria-label="Hide Today's Shift Summary section" title="Hide Today's Shift Summary section"><span class="summary-visibility-label">Hide</span><span class="caret" aria-hidden="true">▼</span></button>
           </div>
           <div class="caret-body" id="shift-summary-body">
             <div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>
@@ -3534,31 +3576,23 @@
                       <button class="tbtn" onclick="renderSmsBalanceAlerts()">Refresh</button>
                       <span class="sms-muted" id="sms-bal-alert-result-count"></span>
                     </div>
-                    <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th id="sms-bal-alert-balance-bar-head" style="display:none">Balance Bar</th><th>Status</th><th>Notes</th></tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
                     <div class="sms-bal-table-wrap" id="sms-bal-usage-history-wrap" style="display:none"><table class="sms-bal-table"><thead id="sms-bal-usage-history-thead"></thead><tbody id="sms-bal-usage-history-tbody"></tbody></table></div>
                     <div class="sms-muted" id="sms-bal-usage-history-foot" style="display:none"></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-all">
-                    <div class="sms-bal-segmented" role="tablist" aria-label="All SMS Balance clients by type">
-                      <button class="tbtn active" id="sms-bal-all-source-reseller" onclick="setSmsBalanceAllSource('reseller',this)" data-premium-tooltip="Show only Reseller balance clients.">Reseller</button>
-                      <button class="tbtn" id="sms-bal-all-source-wholesale" onclick="setSmsBalanceAllSource('wholesale',this)" data-premium-tooltip="Show only Wholesale balance clients.">Wholesale</button>
-                    </div>
                     <div class="fbar">
                       <input class="win-search" id="sms-bal-search" type="search" placeholder="Search client, email, or number…" oninput="renderSmsBalanceAll()">
+                      <select class="win-sel" id="sms-bal-type-filter" aria-label="Filter SMS Balance clients by type" onchange="setSmsBalanceAllSource(this.value)" data-premium-tooltip="Show both client types, Reseller only, or Wholesale only."><option value="">Both</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
                       <select class="win-sel" id="sms-bal-status-filter" onchange="renderSmsBalanceAll()"><option value="">All statuses</option><option value="awaiting">Awaiting snapshot</option><option value="blocked">Blocked</option><option value="overdraft">Overdraft</option><option value="critical">Critical</option><option value="warning">Warning</option><option value="near">Near threshold</option><option value="safe">Safe</option><option value="nothreshold">No threshold</option></select>
                       <button class="tbtn" onclick="exportSmsBalanceCurrentCsv()">Export View</button>
                       <span class="sms-muted" id="sms-bal-all-count">0 clients</span>
                     </div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Type</th><th>Email</th><th>Number</th><th>Currency</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Total Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th></tr></thead><tbody id="sms-bal-all-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Type</th><th>Email</th><th>Number</th><th>Currency</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Total Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th></tr></thead><tbody id="sms-bal-all-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-manager">
-                    <div class="sms-bal-segmented" role="tablist" aria-label="SMS Balance Client Manager type">
-                      <button class="tbtn active" id="sms-bal-manager-source-reseller" onclick="setSmsBalanceManagerSource('reseller',this)" data-premium-tooltip="Maintain Reseller SMS Balance clients.">Reseller Clients</button>
-                      <button class="tbtn" id="sms-bal-manager-source-wholesale" onclick="setSmsBalanceManagerSource('wholesale',this)" data-premium-tooltip="Maintain Wholesale SMS Balance clients.">Wholesale Clients</button>
-                      <button class="tbtn" id="sms-bal-manager-editor-toggle" style="margin-left:auto" onclick="toggleSmsBalanceManagerEditor()" aria-controls="sms-bal-manager-editor" aria-expanded="false" data-premium-tooltip="Show the selected client's SMS Balance settings form.">✎ Show Form</button>
-                    </div>
                     <div class="sms-bal-panel" id="sms-bal-manager-editor" hidden>
                       <div class="groupbox-title" id="sms-bal-manager-title">SMS Balance Client Settings</div>
                       <div class="sms-bal-form">
@@ -3576,6 +3610,7 @@
                     <div class="sms-bal-file-actions">
                       <span class="sms-bal-premium-help" data-premium-tooltip="Client is required. For existing clients, only nonblank supplied values are updated; omitted or blank fields keep their saved values. Type is optional when the client name matches only one saved type.">?</span>
                       <button class="tbtn" onclick="downloadSmsBalanceClientSampleCsv()" data-premium-tooltip="Download a ready-to-fill CSV template with the required columns.">Download Sample CSV</button>
+                      <button class="tbtn" id="sms-bal-manager-editor-toggle" onclick="toggleSmsBalanceManagerEditor()" aria-controls="sms-bal-manager-editor" aria-expanded="false" data-premium-tooltip="Show the selected client's SMS Balance settings form.">✎ Show Form</button>
                       <button class="tbtn primary" onclick="document.getElementById('sms-bal-manager-file').click()" data-premium-tooltip="Upload a CSV and update only the nonblank values supplied for matching clients.">Upload &amp; Update Clients</button>
                       <input type="file" id="sms-bal-manager-file" accept=".csv,text/csv" style="display:none" onchange="importSmsBalanceClientsCsv(this.files[0]);this.value=''">
                       <span class="sms-muted">Threshold-only files are supported. Existing values in omitted or blank columns are preserved.</span>
@@ -3593,11 +3628,12 @@
 
                   <section class="sms-bal-view" id="sms-bal-view-export">
                     <div class="sms-bal-panel">
-                      <div class="groupbox-title">Four-Tab SMS Balance Workbook</div>
-                      <div class="sms-bal-note">Generates: RES DAY (7AM-7PM), WHS DAY (7AM-7PM), RES NIGHT (7PM-7AM), and WHS NIGHT (7PM-7AM). Each 30-minute block contains the Phoenix fields, balance, overdraft, 30-minute usage, and total usage.</div>
+                      <div class="groupbox-title">Five-Tab SMS Balance Workbook</div>
+                      <div class="sms-bal-note">Generates a visible Summary tab plus RES DAY (7AM-7PM), WHS DAY (7AM-7PM), RES NIGHT (7PM-7AM), and WHS NIGHT (7PM-7AM). Summary lists active clients first seen at Critical / Zero in each snapshot coverage, including the reached time. Each detail block contains the Phoenix fields, balance, overdraft, 30-minute usage, and total usage.</div>
                       <div style="display:flex;align-items:end;gap:8px;margin-top:10px;flex-wrap:wrap">
                         <div class="sms-field"><label>Report date</label><input class="win-inp" id="sms-bal-export-date" type="date" data-premium-date></div>
                         <button class="tbtn primary" onclick="exportSmsBalanceWorkbook()">Generate Excel (.xlsx)</button>
+                        <button class="tbtn" onclick="exportSmsBalanceCriticalSummaryCsv()" data-premium-tooltip="CSV files cannot contain tabs, so this downloads the same critical summary as a standalone CSV.">Download Summary CSV</button>
                       </div>
                     </div>
                   </section>
@@ -3766,21 +3802,22 @@
                   <button type="button" class="sms-cred-subtab active" id="sms-cred-subtab-register" onclick="switchSmsCredentialSubtab('register')">Credential Register</button>
                   <button type="button" class="sms-cred-subtab" id="sms-cred-subtab-otp" onclick="switchSmsCredentialSubtab('otp')">Manual OTP</button>
                 </div>
-                <span class="sms-cred-sync local" id="sms-cred-sync-status" role="status" aria-live="polite" title="Credential records are currently available from this browser's local cache.">Local only</span>
+                <div class="sms-cred-topbar-actions">
+                  <span class="sms-cred-sync local" id="sms-cred-sync-status" role="status" aria-live="polite" title="Credential records are currently available from this browser's local cache.">Local only</span>
+                  <button type="button" class="tbtn" id="sms-credentials-form-toggle" onclick="toggleSmsCredentialForm()" aria-controls="sms-credentials-form" aria-expanded="false" data-premium-tooltip="Show the Add / Edit Credential form.">✎ Show Form</button>
+                </div>
               </div>
               <div id="sms-credentials-register-panel">
-              <div id="sms-credentials-form" class="collapsed">
-                <div class="collapsible-header" onclick="toggleSmsCredentialForm()">
+              <div id="sms-credentials-form" hidden>
+                <div class="sms-cred-form-head">
                   <div class="groupbox-title" id="sms-credentials-form-title">Add / Edit Credential</div>
-                  <span class="caret">▶</span>
-                </div>
-                <div class="caret-body">
                   <div class="fbar">
                     <button class="tbtn primary" id="sms-cred-save-btn" onclick="saveSmsCredential()">Save Credential</button>
                     <button class="tbtn" id="sms-cred-cancel-btn" onclick="cancelSmsCredentialEdit()" style="display:none">Cancel Edit</button>
                     <button class="tbtn" onclick="newSmsCredential()">New / Clear</button>
                     <span class="sms-muted" id="sms-cred-edit-status">Adding new credential</span>
                   </div>
+                </div>
                   <div class="sms-cred-form-grid">
                     <div class="sms-field sms-cred-key-field"><label>Client / Vendor</label><input class="win-inp" id="sms-cred-client"></div>
                     <div class="sms-field sms-cred-key-field"><label>Account Type</label><input class="win-inp" id="sms-cred-account-type"></div>
@@ -3816,7 +3853,6 @@
                       <button type="button" class="tbtn" onclick="event.stopPropagation(); document.getElementById('sms-cred-qr-file').click()">Upload QR Image</button>
                     </div>
                   </div>
-                </div>
               </div>
               <div class="fbar">
                 <input class="win-search" id="sms-cred-search" type="search" placeholder="Search all credential columns..." oninput="renderSmsCredentials()" style="min-width:250px">
@@ -3830,7 +3866,7 @@
                 <button class="tbtn" onclick="exportSmsCredentialView()" title="Export only the rows currently shown by the filters">Export View</button>
                 <span class="sms-muted" id="sms-cred-count">0 credentials</span>
               </div>
-              <div class="lv-wrap" style="flex:1;min-height:0">
+              <div class="lv-wrap" style="flex:1">
                 <table id="sms-credentials-tbl">
                   <thead><tr>
                     <th id="sms-cred-th-client" onclick="sortSmsCredentials('client')">Client / Vendor</th>
@@ -5235,10 +5271,10 @@ if (smsBalanceView === 'critical') {
   localStorage.setItem('bm_sms_balance_view', 'alerts');
   localStorage.setItem('bm_sms_balance_alert_filter', 'critical');
 }
-let smsBalanceAllSource = localStorage.getItem('bm_sms_balance_all_source') || 'reseller';
-let smsBalanceManagerSource = localStorage.getItem('bm_sms_balance_manager_source') || 'reseller';
-if (!['reseller','wholesale'].includes(smsBalanceAllSource)) smsBalanceAllSource = 'reseller';
-if (!['reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceManagerSource = 'reseller';
+let smsBalanceAllSource = localStorage.getItem('bm_sms_balance_all_source') || '';
+let smsBalanceManagerSource = localStorage.getItem('bm_sms_balance_manager_source') || '';
+if (!['','reseller','wholesale'].includes(smsBalanceAllSource)) smsBalanceAllSource = '';
+if (!['','reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceManagerSource = '';
 let smsBalanceSelectedMetaKey = '';
 let smsBalanceDetailMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
@@ -6056,7 +6092,21 @@ window.switchView = name => {
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
 };
 
-window.toggleCollapse = hdr => hdr.closest('.groupbox').classList.toggle('collapsed');
+window.toggleCollapse = control => {
+  const group = control?.closest?.('.groupbox');
+  if (!group) return;
+  const collapsed = group.classList.toggle('collapsed');
+  const toggle = group.querySelector('.summary-visibility-toggle');
+  if (!toggle) return;
+  const expanded = !collapsed;
+  const section = group.querySelector('.groupbox-title')?.textContent?.trim() || 'Summary';
+  const action = expanded ? 'Hide' : 'Show';
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.setAttribute('aria-label', `${action} ${section} section`);
+  toggle.title = `${action} ${section} section`;
+  const label = toggle.querySelector('.summary-visibility-label');
+  if (label) label.textContent = action;
+};
 
 let smsFormRevealTimer = null;
 
@@ -11588,6 +11638,55 @@ function snapshotTimeLabel(s, showDate) {
   const time = s.time_slot ? fmt12(s.time_slot).replace(' ', '') : '';
   return showDate ? `${s.session_date || ''} ${time}`.trim() : time;
 }
+function voipCoverageDate(snapshot, shift) {
+  const date=String(snapshot?.session_date||'');
+  if(shift!=='7PM-7AM'||!date)return date;
+  const hour=Number(String(snapshot?.time_slot||'').split(':')[0]);
+  if(!Number.isFinite(hour)||hour>=19)return date;
+  const d=new Date(`${date}T00:00:00`);d.setDate(d.getDate()-1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function voipCriticalCoverageSummary(snaps,selectedShift='both') {
+  const shifts=selectedShift==='both'?['7AM-7PM','7PM-7AM']:[selectedShift];
+  const firstHits=new Map(),latestLevels=new Map();
+  shifts.forEach(shift=>{
+    const relevant=snaps.filter(snapshot=>snapshotMatchesShift(snapshot,shift)&&Array.isArray(snapshot.data)).sort((a,b)=>
+      voipCoverageDate(a,shift).localeCompare(voipCoverageDate(b,shift))||
+      slotIndexForShift(a.time_slot,shift)-slotIndexForShift(b.time_slot,shift)||snapshotTimeMs(a)-snapshotTimeMs(b));
+    relevant.forEach(snapshot=>(snapshot.data||[]).forEach(row=>{
+      if(!row?.carrier_name)return;
+      const coverageDate=voipCoverageDate(snapshot,shift);
+      const key=`${coverageDate}|${shift}|${snapCarrierKey(row.carrier_name)}`;
+      const level=alertLevel(row);latestLevels.set(key,level);
+      if(level!=='high'||firstHits.has(key))return;
+      firstHits.set(key,{
+        key,coverage_date:coverageDate,shift,client:row.carrier_name,
+        account_manager:accountManagerFor(row),reached_slot:snapshot.time_slot,
+        reached_time:fmt12(snapshot.time_slot),balance:amountNumber(row.amnt_receivable)
+      });
+    }));
+  });
+  return [...firstHits.values()].map(hit=>({...hit,current_status:latestLevels.get(hit.key)==='high'?'Still critical':'Recovered'})).sort((a,b)=>
+    a.coverage_date.localeCompare(b.coverage_date)||
+    ['7AM-7PM','7PM-7AM'].indexOf(a.shift)-['7AM-7PM','7PM-7AM'].indexOf(b.shift)||
+    slotIndexForShift(a.reached_slot,a.shift)-slotIndexForShift(b.reached_slot,b.shift)||a.client.localeCompare(b.client));
+}
+function voipSummaryWorksheetXml(snaps,selectedShift) {
+  const rows=voipCriticalCoverageSummary(snaps,selectedShift);
+  const headers=['Coverage Date','Shift','Client','Account Manager','Reached Critical','Amount Receivable','End-of-Coverage Status'];
+  const headRow='<Row>'+headers.map(header=>xlsTextCell(header,'sumHdr')).join('')+'</Row>';
+  const body=rows.length?rows.map(row=>'<Row>'+[
+    xlsTextCell(row.coverage_date),xlsTextCell(row.shift),xlsTextCell(row.client),xlsTextCell(row.account_manager),
+    xlsTextCell(row.reached_time,'sumCritical'),xlsNumberCell(row.balance,'sumNum'),
+    xlsTextCell(row.current_status,row.current_status==='Recovered'?'sumRecovered':'sumCritical')
+  ].join('')+'</Row>').join(''):
+    '<Row><Cell ss:StyleID="sumEmpty" ss:MergeAcross="6"><Data ss:Type="String">No clients reached Critical Balance in the exported snapshot coverage.</Data></Cell></Row>';
+  const title='<Row ss:Height="24"><Cell ss:StyleID="sumTitle" ss:MergeAcross="6"><Data ss:Type="String">VOIP Critical Balance Summary</Data></Cell></Row>'+
+    `<Row><Cell ss:StyleID="sumSub" ss:MergeAcross="6"><Data ss:Type="String">First critical snapshot per client within each 7AM-7PM or 7PM-7AM coverage · ${rows.length} client event(s)</Data></Cell></Row>`;
+  const cols='<Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="190"/><Column ss:Width="120"/><Column ss:Width="100"/><Column ss:Width="110"/><Column ss:Width="125"/>';
+  const options='<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>';
+  return `<Worksheet ss:Name="Summary"><Table>${cols}${title}${headRow}${body}</Table>${options}</Worksheet>`;
+}
 // Columns repeated per 30-min snapshot block. usage_30min ("30mins usage") is highlighted when non-zero.
 const SNAP_BLOCK_COLS = [
   { f:'carrier_name',     h:'CarrierName',      t:'s', w:150 },
@@ -11743,7 +11842,14 @@ window.exportSnapshotSheet = async () => {
   <Style ss:ID="useHi"><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFFF00" ss:Pattern="Solid"/></Style>
   <Style ss:ID="tri"><Font ss:Bold="1"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="triNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/></Style>
-</Styles>${sheets.join('')}</Workbook>`;
+  <Style ss:ID="sumTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Size="14" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sumSub"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:Italic="1" ss:Color="#44546A"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sumHdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sumCritical"><Font ss:Bold="1" ss:Color="#9C0006"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sumRecovered"><Font ss:Bold="1" ss:Color="#006100"/><Interior ss:Color="#C6EFCE" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sumNum"><NumberFormat ss:Format="0.00"/></Style>
+  <Style ss:ID="sumEmpty"><Alignment ss:Horizontal="Center"/><Font ss:Italic="1" ss:Color="#666666"/></Style>
+</Styles>${voipSummaryWorksheetXml(allSnaps,selectedShift)}${sheets.join('')}</Workbook>`;
     const labelShift = selectedShift === 'both' ? 'both_shifts' : selectedShift.replace(/[^a-z0-9]+/gi,'_');
     const url = URL.createObjectURL(new Blob([xml], { type:'application/vnd.ms-excel;charset=utf-8' }));
     const a = document.createElement('a');
@@ -11751,7 +11857,7 @@ window.exportSnapshotSheet = async () => {
     a.download = `snapshot_sheet_${range.from}${range.to!==range.from?'_to_'+range.to:''}_${labelShift}.xls`;
     a.click();
     URL.revokeObjectURL(url);
-    toast(`✓ Exported ${sheets.length} snapshot sheet(s)`, 'ok');
+    toast(`✓ Exported Summary + ${sheets.length} snapshot sheet(s)`, 'ok');
   } catch(e) {
     toast('Snapshot export failed: ' + (e.message || e), 'err');
   } finally {
@@ -12004,6 +12110,12 @@ function smsBalanceWarningIsHot(rowOrStatus) {
   const status=rowOrStatus?._status||rowOrStatus;
   return status?.code==='warning'&&(smsBalanceWarningProgress(status)??0)>=90;
 }
+function smsBalanceWarningBar(rowOrStatus) {
+  const progress=smsBalanceWarningProgress(rowOrStatus);
+  if(progress===null)return '<span class="sms-muted">—</span>';
+  const hot=progress>=90;
+  return `<div class="ubar-wrap" role="progressbar" aria-label="Balance progress toward Critical Balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.toFixed(1)}"><div class="ubar"><div class="ubar-fill ${hot?'high':'light'}" style="width:${progress.toFixed(2)}%"></div></div><span class="${hot?'bar-pct-danger':''}" style="font-family:var(--mono);font-size:10px">${progress.toFixed(1)}%</span></div>`;
+}
 function smsBalanceIsCritical(row) {
   if (!row) return false;
   const status = row?._status || smsBalanceStatus(row);
@@ -12065,18 +12177,16 @@ function smsBalanceWarningRows() {
 }
 function smsBalanceFmt(v) { return Number.isFinite(Number(v)) ? fmt(Number(v)) : '—'; }
 function smsBalanceEmptyRow(cols, text='No data available.') { return `<tr><td colspan="${cols}" style="padding:16px;text-align:center;color:var(--text-3)">${esc(text)}</td></tr>`; }
-function smsBalanceTableRow(row, compact=false) {
+function smsBalanceTableRow(row, compact=false, showBalanceBar=false) {
   const s = row._status || smsBalanceStatus(row), meta = row._meta || smsBalanceMetaFor(row);
   const shownStatus = row._removedFromCritical ? { ...s, code:'safe', label:'Removed from Critical' } : s;
   const rowTone = row._removedFromCritical ? 'safe' : s.code;
   const rowClass = `sms-bal-row-${rowTone}${!row._removedFromCritical&&smsBalanceWarningIsHot(s)?' sms-bal-row-warning-hot':''}`;
-  const route = row._routeMatches
-    ? (row._routeBlocked ? '<span class="sms-bal-badge blocked">Blocked</span>' : `<span class="sms-bal-badge safe">${row._routeMatches} Active Match</span>`)
-    : '<span class="sms-muted">No exact match</span>';
   const openDetail = `ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."`;
   if (compact) return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
   const usageClass = Math.abs(smsBalanceNumber(row.usage_30min)) >= 50 ? ' sms-bal-usage-hot' : '';
-  return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td><td>${route}</td><td>${esc(meta.notes || '')}</td></tr>`;
+  const balanceBarCell=showBalanceBar?`<td>${smsBalanceWarningBar(s)}</td>`:'';
+  return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td>${balanceBarCell}<td>${smsBalanceStatusBadge(shownStatus)}</td><td>${esc(meta.notes || '')}</td></tr>`;
 }
 function normalizeSmsBalanceSnapshot(snap) {
   const reseller = (snap?.reseller || []).map(row => smsBalanceNormalizeRow(row, 'reseller'));
@@ -12181,13 +12291,14 @@ function renderSmsBalanceTimeline() {
 function smsBalanceSummaryHighlights() {
   const latest=smsBalanceRows();
   const topUsage=source=>latest.filter(row=>row.source===source&&smsBalanceNumber(row.usage_30min)>0)
-    .sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client)).slice(0,5);
+    .sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client)).slice(0,source==='reseller'?10:5);
   const paymentsByClient=new Map(),criticalByClient=new Map(),overdraftByClient=new Map();
   sortSmsBalanceSnapshots(smsBalanceTodaySnaps).forEach(snapshot=>(snapshot.data||[]).forEach(raw=>{
     if(!raw?.client)return;
     const row={...raw,_status:smsBalanceStatus(raw),_slot:snapshot.time_slot};
     const key=smsBalanceMetaKey(row),usage=smsBalanceNumber(row.usage_30min);
     if(usage<0){const prior=paymentsByClient.get(key)||{row,amount:0};paymentsByClient.set(key,{row,amount:prior.amount-usage});}
+    if(smsBalanceMetaFor(row)?.is_active===false)return;
     if(smsBalanceIsCritical(row))criticalByClient.set(key,row);
     if(row._status.overdraft>0&&row._status.balance<=0)overdraftByClient.set(key,row);
   }));
@@ -12350,23 +12461,25 @@ window.renderSmsBalanceAlerts = () => {
   if(table)table.style.display=isHistory?'none':'';if(pivot)pivot.style.display=isHistory?'':'none';if(foot)foot.style.display=isHistory?'':'none';
   if(isHistory){renderSmsBalanceUsageHistory();return;}
   const rows=smsBalanceAlertRows();
-  const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row)).join(''):smsBalanceEmptyRow(12,'No clients match this Alerts view.');
+  const showBalanceBar=smsBalanceAlertFilter==='warning';
+  const balanceBarHead=document.getElementById('sms-bal-alert-balance-bar-head');if(balanceBarHead)balanceBarHead.style.display=showBalanceBar?'':'none';
+  const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row,false,showBalanceBar)).join(''):smsBalanceEmptyRow(showBalanceBar?12:11,'No clients match this Alerts view.');
   const count=document.getElementById('sms-bal-alert-result-count');if(count)count.textContent=`${rows.length} client row(s)`;
 };
 function smsBalanceFilteredRows() {
   const q = String(document.getElementById('sms-bal-search')?.value || '').toLowerCase();
   const status = document.getElementById('sms-bal-status-filter')?.value || '';
   return smsBalanceRosterRows().filter(row => !q || [row.client,row.email,row.number,row.account_type].some(v => String(v||'').toLowerCase().includes(q)))
-    .filter(row => row.source === smsBalanceAllSource).filter(row => !status || row._status.code === status)
+    .filter(row => !smsBalanceAllSource || row.source === smsBalanceAllSource).filter(row => !status || row._status.code === status)
     .sort((a,b) => smsBalanceStatusRank(b._status.code)-smsBalanceStatusRank(a._status.code) || a.client.localeCompare(b.client));
 }
 window.setSmsBalanceAllSource = source => {
-  smsBalanceAllSource=smsBalanceSource(source);localStorage.setItem('bm_sms_balance_all_source',smsBalanceAllSource);
-  document.querySelectorAll('[id^="sms-bal-all-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-all-source-${smsBalanceAllSource}`));
+  smsBalanceAllSource=['reseller','wholesale'].includes(source)?source:'';localStorage.setItem('bm_sms_balance_all_source',smsBalanceAllSource);
+  const typeFilter=document.getElementById('sms-bal-type-filter');if(typeFilter&&typeFilter.value!==smsBalanceAllSource)typeFilter.value=smsBalanceAllSource;
   window.renderSmsBalanceAll();
 };
 window.renderSmsBalanceAll = () => {
-  document.querySelectorAll('[id^="sms-bal-all-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-all-source-${smsBalanceAllSource}`));
+  const typeFilter=document.getElementById('sms-bal-type-filter');if(typeFilter&&typeFilter.value!==smsBalanceAllSource)typeFilter.value=smsBalanceAllSource;
   const rows = smsBalanceFilteredRows();
   const body = document.getElementById('sms-bal-all-tbody');
   const count = document.getElementById('sms-bal-all-count'); if (count) count.textContent = `${rows.length} client row(s)`;
@@ -12374,10 +12487,9 @@ window.renderSmsBalanceAll = () => {
   body.innerHTML = rows.length ? rows.map(row => {
     const s=row._status;
     const live=row._hasSnapshot!==false;
-    const route = !live ? 'Awaiting balance snapshot' : row._routeMatches ? (row._routeBlocked?'<span class="sms-bal-badge blocked">Blocked</span>':`${row._routeMatches} match(es)`) : 'No exact match';
     const liveValue=value=>live?smsBalanceFmt(value):'—';
-    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td></tr>`;
-  }).join('') : smsBalanceEmptyRow(15,'No SMS balance clients match the filters.');
+    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td></tr>`;
+  }).join('') : smsBalanceEmptyRow(14,'No SMS balance clients match the filters.');
 };
 function uniqueSmsBalanceClients() {
   const map = new Map();
@@ -12411,8 +12523,6 @@ function smsBalanceManagerFilteredRows() {
 window.renderSmsBalanceManager = () => {
   const typeFilter=document.getElementById('sms-bal-manager-type-filter');
   if(typeFilter&&!typeFilter.dataset.ready){typeFilter.value=smsBalanceManagerSource;typeFilter.dataset.ready='true';}
-  const selectedType=typeFilter?.value||'';
-  document.querySelectorAll('[id^="sms-bal-manager-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-manager-source-${selectedType}`));
   const list=smsBalanceManagerFilteredRows();
   const body=document.getElementById('sms-bal-manager-tbody'); if(!body)return;
   const count=document.getElementById('sms-bal-manager-count');if(count)count.textContent=`${list.length} client${list.length===1?'':'s'}`;
@@ -12511,14 +12621,10 @@ window.saveSmsBalanceClientDetail = async () => {
   setLoading(false);renderSmsBalanceModule();window.closeSmsBalanceClientDetail();
   toast(syncError?'SMS client saved locally; Firebase sync failed: '+syncError.message:`Saved SMS balance settings for ${item.row.client}`,syncError?'err':'ok',7000);
 };
-window.setSmsBalanceManagerSource = source => {
-  smsBalanceManagerSource=smsBalanceSource(source);localStorage.setItem('bm_sms_balance_manager_source',smsBalanceManagerSource);
-  const filter=document.getElementById('sms-bal-manager-type-filter');if(filter){filter.value=smsBalanceManagerSource;filter.dataset.ready='true';}
-  window.clearSmsBalanceClientEditor();window.setSmsBalanceManagerEditor(false);window.renderSmsBalanceManager();
-};
 window.setSmsBalanceManagerTypeFilter = value => {
   const normalized=['reseller','wholesale'].includes(value)?value:'';
-  if(normalized){smsBalanceManagerSource=normalized;localStorage.setItem('bm_sms_balance_manager_source',normalized);}
+  smsBalanceManagerSource=normalized;localStorage.setItem('bm_sms_balance_manager_source',normalized);
+  const filter=document.getElementById('sms-bal-manager-type-filter');if(filter)filter.dataset.ready='true';
   window.clearSmsBalanceClientEditor();window.setSmsBalanceManagerEditor(false);window.renderSmsBalanceManager();
 };
 window.setSmsBalanceManagerEditor = open => {
@@ -12953,7 +13059,7 @@ function buildSmsBalanceSheetData(source,shift,reportDate,snapshots) {
   blocks.forEach(block=>{header1.push(fmt12(block.slot).replace(' ',''),'','','','','','','','');header2.push('Client','Name','Email','Number','Currency',...(source==='reseller'?['BALANCE','Over Draft']:['OD','BALANCE']),'30mins usage','Total usage');});
   const aoa=[header1,header2];
   ordered.forEach(([key,base])=>{const meta=smsBalanceMeta[smsBalanceMetaKey(base)]||{};const allow=meta.allow_balance||(base.overdraft>0?`$${smsBalanceFmt(base.overdraft)} POSTPAID`:'$0 PREPAYMENT');const line=[base.client,allow];blocks.forEach(block=>{const row=block.map.get(key);if(!row){line.push('','','','','','','','','');return;}const common=[row.account_type,row.client,row.email,row.number,row.currency];line.push(...common,...(source==='reseller'?[row.balance,row.overdraft]:[row.overdraft,row.balance]),row.usage_30min,row.total_usage);});aoa.push(line);});
-  return {source,shift,slots,blocks,ordered,aoa};
+  return {source,shift,reportDate,slots,blocks,ordered,aoa};
 }
 function buildSmsBalanceWorkbookData(reportDate,snapshots) {
   return [
@@ -12963,6 +13069,56 @@ function buildSmsBalanceWorkbookData(reportDate,snapshots) {
     {name:'WHS NIGHT (7PM-7AM)',...buildSmsBalanceSheetData('wholesale','7PM-7AM',reportDate,snapshots)}
   ];
 }
+function buildSmsBalanceCriticalExportSummary(datasets) {
+  const hits=[];
+  datasets.forEach(data=>{
+    const firstByClient=new Map(),latestStatus=new Map();
+    data.blocks.forEach(block=>block.rows.forEach(raw=>{
+      const meta=smsBalanceMetaFor(raw);if(meta?.is_active===false)return;
+      const key=smsBalanceMetaKey(raw),status=smsBalanceStatus(raw);latestStatus.set(key,status);
+      if(!smsBalanceIsCritical({...raw,_status:status})||firstByClient.has(key))return;
+      const hit={
+        key,source:data.source,type:smsBalanceSourceLabel(data.source),shift:data.shift,
+        client:raw.client,account_manager:meta?.account_manager||'',
+        reached_date:smsBalanceSlotDate(data.reportDate,data.shift,block.slot),
+        reached_slot:block.slot,reached_time:fmt12(block.slot),balance:smsBalanceNumber(raw.balance),
+        critical_balance:status.critical,last_status:status.label
+      };
+      firstByClient.set(key,hit);hits.push(hit);
+    }));
+    firstByClient.forEach(hit=>{const current=latestStatus.get(hit.key);hit.end_status=smsBalanceIsCritical({_status:current})?'Still critical':'Recovered';});
+  });
+  return hits.sort((a,b)=>
+    ['7AM-7PM','7PM-7AM'].indexOf(a.shift)-['7AM-7PM','7PM-7AM'].indexOf(b.shift)||
+    a.type.localeCompare(b.type)||slotIndexForShift(a.reached_slot,a.shift)-slotIndexForShift(b.reached_slot,b.shift)||a.client.localeCompare(b.client));
+}
+function addSmsBalanceSummaryWorksheet(workbook,reportDate,rows,thinBorder) {
+  const sheet=workbook.addWorksheet('Summary',{views:[{state:'frozen',ySplit:4,showGridLines:false}]});
+  sheet.mergeCells('A1:I1');sheet.getCell('A1').value='SMS Balance Critical Summary';
+  sheet.getCell('A1').font={bold:true,size:16,color:{argb:'FFFFFFFF'}};
+  sheet.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17336F'}};
+  sheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};sheet.getRow(1).height=28;
+  sheet.mergeCells('A2:I2');sheet.getCell('A2').value=`Report date ${reportDate} · First Critical / Zero snapshot per active client within each shift coverage · ${rows.length} event(s)`;
+  sheet.getCell('A2').font={italic:true,color:{argb:'FF44546A'}};sheet.getCell('A2').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9EAF7'}};
+  const headers=['Type','Shift','Client','Account Manager','Reached Date','Reached Critical','Balance at Hit','Status at Hit','End-of-Coverage Status'];
+  const header=sheet.getRow(4);header.values=headers;header.height=24;
+  header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF274A83'}};cell.alignment={vertical:'middle',wrapText:true};cell.border={bottom:thinBorder};});
+  if(rows.length){
+    rows.forEach(item=>{
+      const row=sheet.addRow([item.type,item.shift,item.client,item.account_manager,item.reached_date,item.reached_time,item.balance,item.last_status,item.end_status]);
+      row.height=20;row.eachCell(cell=>{cell.alignment={vertical:'middle'};cell.border={bottom:thinBorder};});
+      row.getCell(7).numFmt='0.00';
+      [6,8].forEach(column=>{row.getCell(column).font={bold:true,color:{argb:'FF9C0006'}};row.getCell(column).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};});
+      const end=row.getCell(9),recovered=item.end_status==='Recovered';end.font={bold:true,color:{argb:recovered?'FF006100':'FF9C0006'}};end.fill={type:'pattern',pattern:'solid',fgColor:{argb:recovered?'FFC6EFCE':'FFFFC7CE'}};
+    });
+    sheet.autoFilter={from:{row:4,column:1},to:{row:4+rows.length,column:9}};
+  }else{
+    sheet.mergeCells('A5:I5');sheet.getCell('A5').value='No active clients reached Critical / Zero in the exported snapshot coverage.';
+    sheet.getCell('A5').font={italic:true,color:{argb:'FF666666'}};sheet.getCell('A5').alignment={horizontal:'center'};
+  }
+  [13,15,28,20,14,17,15,18,23].forEach((width,index)=>{sheet.getColumn(index+1).width=width;});
+  return sheet;
+}
 async function loadSmsBalanceExportSnapshots(reportDate) {
   const dates=[reportDate,smsBalanceDateAdd(reportDate,1)];let rows=[];
   if(fbOk){for(const date of dates){const q=query(collection(db,'sms_balance_snapshots'),where('session_date','==',date));const s=await getDocs(q);rows.push(...s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate?.()})));}}
@@ -12970,13 +13126,14 @@ async function loadSmsBalanceExportSnapshots(reportDate) {
 }
 window.exportSmsBalanceWorkbook = async () => {
   if(!window.ExcelJS){toast('Styled Excel export is still loading — reload and try again in a moment.','err');return;}
-  const reportDate=document.getElementById('sms-bal-export-date')?.value||todayStr();setLoading(true,'Building four-tab SMS workbook…');
+  const reportDate=document.getElementById('sms-bal-export-date')?.value||todayStr();setLoading(true,'Building five-tab SMS workbook…');
   try {
     const snapshots=await loadSmsBalanceExportSnapshots(reportDate);
     const datasets=buildSmsBalanceWorkbookData(reportDate,snapshots);
     const workbook=new window.ExcelJS.Workbook();
     workbook.creator='BalanceMonitor';workbook.created=new Date();
     const thinBorder={style:'thin',color:{argb:'FFD8DEE9'}};
+    addSmsBalanceSummaryWorksheet(workbook,reportDate,buildSmsBalanceCriticalExportSummary(datasets),thinBorder);
     datasets.forEach(data=>{
       const sheet=workbook.addWorksheet(data.name,{views:[{state:'frozen',xSplit:2,ySplit:2,showGridLines:false}]});
       sheet.addRows(data.aoa);
@@ -13028,8 +13185,22 @@ window.exportSmsBalanceWorkbook = async () => {
     const buffer=await workbook.xlsx.writeBuffer();
     const url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const anchor=document.createElement('a');anchor.href=url;anchor.download=`SMS Balance ${reportDate}.xlsx`;document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
-    toast('Generated styled SMS Balance workbook with four tabs','ok');
+    toast('Generated styled SMS Balance workbook with Summary + four detail tabs','ok');
   }catch(e){toast('SMS workbook export failed: '+(e.message||e),'err',7000);}finally{setLoading(false);}
+};
+window.exportSmsBalanceCriticalSummaryCsv = async () => {
+  const reportDate=document.getElementById('sms-bal-export-date')?.value||todayStr();setLoading(true,'Building SMS critical summary CSV…');
+  try{
+    const snapshots=await loadSmsBalanceExportSnapshots(reportDate);
+    const rows=buildSmsBalanceCriticalExportSummary(buildSmsBalanceWorkbookData(reportDate,snapshots));
+    if(!rows.length){toast('No active clients reached Critical / Zero in this snapshot coverage.','err');return;}
+    smsBalanceCsvDownload(
+      ['Type','Shift','Client','Account Manager','Reached Date','Reached Critical','Balance at Hit','Status at Hit','End-of-Coverage Status'],
+      rows.map(row=>[row.type,row.shift,row.client,row.account_manager,row.reached_date,row.reached_time,row.balance,row.last_status,row.end_status]),
+      `sms_balance_summary_${reportDate}.csv`
+    );
+    toast(`Downloaded SMS critical summary CSV — ${rows.length} event(s)`,'ok');
+  }catch(e){toast('SMS summary CSV export failed: '+(e.message||e),'err',7000);}finally{setLoading(false);}
 };
 function subscribeSmsBalanceData() {
   if(!fbOk||smsBalanceSubscriptionsStarted)return;
@@ -13655,8 +13826,10 @@ window.switchSmsCredentialSubtab = tab => {
   document.getElementById('sms-cred-subtab-otp')?.classList.toggle('active', tab === 'otp');
   const registerPanel = document.getElementById('sms-credentials-register-panel');
   const otpPanel = document.getElementById('sms-credentials-otp-panel');
+  const formToggle = document.getElementById('sms-credentials-form-toggle');
   if (registerPanel) registerPanel.style.display = tab === 'register' ? 'flex' : 'none';
   if (otpPanel) otpPanel.style.display = tab === 'otp' ? 'block' : 'none';
+  if (formToggle) formToggle.hidden = tab !== 'register';
   if (tab === 'otp') { refreshSmsOtpCredentialOptions(); startSmsOtpTimer(); }
   else stopSmsOtpTimer();
 };
@@ -14127,7 +14300,7 @@ window.useManualOtpInCredentialForm = () => {
     setSmsCredentialInput('otp_digits', String(payload.digits));
     setSmsCredentialInput('otp_period', String(payload.period));
     switchSmsCredentialSubtab('register');
-    document.getElementById('sms-credentials-form')?.classList.remove('collapsed');
+    window.setSmsCredentialForm(true);
     document.getElementById('sms-cred-otp-secret')?.scrollIntoView({ behavior:'smooth', block:'center' });
     toast(smsCredentialEditingId ? 'OTP settings placed in the credential being edited. Click Save Credential to store them.' : 'OTP settings placed in a new credential form. Add the client details and save.', 'ok', 7000);
   } catch(e) { toast('Could not use this OTP key: ' + e.message, 'err', 7000); }
@@ -14164,8 +14337,21 @@ window.saveManualOtpToExistingCredential = () => {
   } else apply();
 };
 
+window.setSmsCredentialForm = open => {
+  const form=document.getElementById('sms-credentials-form');
+  const button=document.getElementById('sms-credentials-form-toggle');
+  if(form)form.hidden=!open;
+  if(button){
+    button.classList.toggle('active',!!open);
+    button.setAttribute('aria-expanded',String(!!open));
+    button.textContent=open?'✕ Hide Form':'✎ Show Form';
+    button.setAttribute('data-premium-tooltip',`${open?'Hide':'Show'} the Add / Edit Credential form.`);
+  }
+};
+
 window.toggleSmsCredentialForm = () => {
-  document.getElementById('sms-credentials-form')?.classList.toggle('collapsed');
+  const form=document.getElementById('sms-credentials-form');
+  window.setSmsCredentialForm(!!form?.hidden);
 };
 
 function setSmsCredentialInput(field, value) {
@@ -14207,10 +14393,10 @@ window.newSmsCredential = (open=true) => {
   if (title) title.textContent = 'Add Credential';
   const cancel = document.getElementById('sms-cred-cancel-btn');
   if (cancel) cancel.style.display = 'none';
-  if (open) document.getElementById('sms-credentials-form')?.classList.remove('collapsed');
+  if (open) window.setSmsCredentialForm(true);
 };
 
-window.cancelSmsCredentialEdit = () => newSmsCredential(false);
+window.cancelSmsCredentialEdit = () => {newSmsCredential(false);window.setSmsCredentialForm(false);};
 
 window.editSmsCredential = id => {
   const row = smsCredentials.find(item => item.id === id);
@@ -14230,7 +14416,7 @@ window.editSmsCredential = id => {
   const cancel = document.getElementById('sms-cred-cancel-btn');
   if (cancel) cancel.style.display = '';
   const form = document.getElementById('sms-credentials-form');
-  form?.classList.remove('collapsed');
+  window.setSmsCredentialForm(true);
   form?.scrollIntoView({ behavior:'smooth', block:'start' });
 };
 
@@ -14258,7 +14444,7 @@ window.saveSmsCredential = () => {
   renderSmsCredentials();
   toast(idx >= 0 ? 'Credential updated' : 'Credential added', 'ok');
   newSmsCredential(false);
-  document.getElementById('sms-credentials-form')?.classList.add('collapsed');
+  window.setSmsCredentialForm(false);
 };
 
 window.generateSmsCredentialOtp = async (id, trigger=null) => {
@@ -15920,15 +16106,15 @@ function renderShiftSummary() {
   const el = document.getElementById('shift-summary-body'); if (!el) return;
   if (!todaySnaps.length) { el.innerHTML = '<div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>'; return; }
 
-  // Clients that hit critical at any point today
-  const critEver = new Set();
-  todaySnaps.forEach(s => s.data.forEach(r => { if (alertLevel(r) === 'high') critEver.add(r.carrier_name); }));
-
+  // First critical reading for every client within the configured day/night
+  // coverage. The scheduled snapshot slot is the closest reliable reached time.
+  const coverageSnaps=todaySnaps.filter(snapshot=>snapshotMatchesShift(snapshot,S.shift)).sort((a,b)=>
+    slotIndexForShift(a.time_slot,S.shift)-slotIndexForShift(b.time_slot,S.shift)||snapshotTimeMs(a)-snapshotTimeMs(b));
+  const criticalHits=voipCriticalCoverageSummary(coverageSnaps,S.shift);
+  const critEver = new Set(criticalHits.map(hit=>hit.client));
   const current = activeData();
-  const currentCrit   = new Set(current.filter(r => alertLevel(r) === 'high').map(r => r.carrier_name));
   const currentWarn   = current.filter(r => alertLevel(r) === 'light').length;
-  const recovered     = [...critEver].filter(n => !currentCrit.has(n));
-  const stillCrit     = [...critEver].filter(n =>  currentCrit.has(n));
+  const recovered     = criticalHits.filter(hit=>hit.current_status==='Recovered').map(hit=>hit.client);
 
   // Top 5 movers: biggest positive change in amnt_receivable from first to latest snapshot
   const firstSnap = todaySnaps[0];
@@ -15950,18 +16136,25 @@ function renderShiftSummary() {
     .map(([name, amt]) => ({ name, amt: -amt }))
     .sort((a,b) => b.amt - a.amt);
 
-  const first = todaySnaps[0], last = todaySnaps[todaySnaps.length-1];
+  const first = coverageSnaps[0]||todaySnaps[0], last = coverageSnaps[coverageSnaps.length-1]||todaySnaps[todaySnaps.length-1];
   const rangeStr = `${fmt12(first.time_slot)} – ${fmt12(last.time_slot)}`;
 
   el.innerHTML = `
     <div class="sum-grid">
       <div class="sum-card"><div class="sc-val">${todaySnaps.length}</div><div class="sc-lbl">Snapshots today</div></div>
-      <div class="sum-card ${critEver.size?'sc-red':'sc-green'}"><div class="sc-val">${critEver.size}</div><div class="sc-lbl">Hit critical today</div></div>
+      <div class="sum-card ${critEver.size?'sc-red':'sc-green'}"><div class="sc-val">${critEver.size}</div><div class="sc-lbl">Hit critical this shift</div></div>
       <div class="sum-card ${recovered.length?'sc-green':''}"><div class="sc-val">${recovered.length}</div><div class="sc-lbl">Recovered</div></div>
       <div class="sum-card ${currentWarn?'sc-orange':''}"><div class="sc-val">${currentWarn}</div><div class="sc-lbl">Currently warning</div></div>
     </div>
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
+    <div class="sum-section ss-red">
+      <div class="ss-title">Reached Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
+      ${criticalHits.length?`<table class="sum-movers" style="width:100%">
+        <thead><tr><th style="width:28px">#</th><th>Client</th><th style="width:120px">First reached</th><th style="width:110px">Status</th></tr></thead>
+        <tbody>${criticalHits.map((hit,index)=>`<tr><td style="color:var(--text-2)">${index+1}.</td><td>${esc(hit.client)}</td><td style="font-family:var(--mono);color:var(--red)">${esc(hit.reached_time)}</td><td style="color:${hit.current_status==='Recovered'?'var(--green)':'var(--red)'};font-weight:700">${esc(hit.current_status)}</td></tr>`).join('')}</tbody>
+      </table>`:'<div class="ss-empty">No clients reached Critical Balance in this snapshot coverage.</div>'}
+    </div>
     <div class="sum-section ss-green">
       <div class="ss-title">Payments today (clients with negative 30m usage):</div>
       ${payments.length ? `<table class="sum-movers" style="width:100%">
