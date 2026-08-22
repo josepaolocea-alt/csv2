@@ -1,7 +1,7 @@
 {
   "name": "BalanceMonitor",
   "short_name": "BalanceMonitor",
-  "description": "Carrier balance monitoring and alerting dashboard.",
+  "description": "VOIP and SMS balance monitoring, overdraft control, and alerting dashboard.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
