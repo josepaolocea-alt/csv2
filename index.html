@@ -2741,6 +2741,13 @@
     .sms-bal-premium-help { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--accent); background:var(--accent-soft); font-weight:800; cursor:help; }
     .sms-bal-note { color:var(--text-2); font-size:10px; line-height:1.45; }
     .sms-bal-danger { border-color:color-mix(in srgb,var(--red) 38%,var(--border)); background:color-mix(in srgb,var(--red-soft) 38%,var(--surface)); }
+    #sms-confirm-box.sms-bal-range-confirm { width:420px; max-width:calc(100vw - 24px); }
+    .sms-bal-delete-keep { margin-top:10px; padding:9px; text-align:left; color:var(--text); background:var(--surface-2); border:1px solid var(--border-strong); border-radius:var(--r-sm); }
+    .sms-bal-delete-keep > label { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; cursor:pointer; }
+    .sms-bal-delete-keep-inputs { display:none; margin-top:8px; }
+    .sms-bal-delete-keep-row { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:7px; margin-top:5px; }
+    .sms-bal-delete-keep-row .premium-date { width:100% !important; }
+    .sms-bal-delete-keep-note { margin-top:7px; color:var(--text-2); font-size:9.5px; line-height:1.4; }
     @media (max-width:1000px) {
       .sms-bal-shell { grid-template-columns:210px minmax(0,1fr); }
       .sms-bal-stat-grid { grid-template-columns:repeat(3,minmax(110px,1fr)); }
@@ -11807,6 +11814,14 @@ function smsBalanceDocId(key) {
   return `${raw.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').slice(0, 90)}_${(hash >>> 0).toString(36)}`;
 }
 function smsBalanceSnapshotId(date, slot) { return `${date}_${slot}`.toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
+function smsBalanceSnapshotDateTime(snapshot) {
+  const date=String(snapshot?.session_date||'').trim(), slot=String(snapshot?.time_slot||'').trim().slice(0,5);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date)&&/^\d{2}:\d{2}$/.test(slot)?`${date}T${slot}`:'';
+}
+function smsBalanceSnapshotInRange(snapshot,from,to) {
+  const value=smsBalanceSnapshotDateTime(snapshot);
+  return !!value&&value>=from&&value<=to;
+}
 function smsBalanceNormalizeRow(row, source) {
   return {
     source:smsBalanceSource(source || row?.source),
@@ -12488,11 +12503,43 @@ window.deleteTodaySmsBalanceSnapshots = async () => {
   catch(e){toast('Delete failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
+function smsBalanceDeleteKeepHtml() {
+  return `<div class="sms-bal-delete-keep" id="sms-bal-delete-keep">
+    <label><input type="checkbox" id="sms-bal-delete-keep-enable" onclick="toggleSmsBalanceDeleteKeep(this)"> Keep a range (don't delete these)</label>
+    <div class="sms-bal-delete-keep-inputs" id="sms-bal-delete-keep-inputs">
+      <div class="sms-bal-delete-keep-row"><span>From</span><input type="datetime-local" id="sms-bal-delete-keep-from" step="1800" data-premium-date aria-label="SMS snapshot keep range from" onchange="updateSmsBalanceDeleteKeepValidity()"></div>
+      <div class="sms-bal-delete-keep-row"><span>To</span><input type="datetime-local" id="sms-bal-delete-keep-to" step="1800" data-premium-date aria-label="SMS snapshot keep range to" onchange="updateSmsBalanceDeleteKeepValidity()"></div>
+      <div class="sms-bal-delete-keep-note">Snapshots inside this date-and-time window are preserved. Snapshots before and after it will be permanently deleted.</div>
+    </div>
+  </div>`;
+}
+window.updateSmsBalanceDeleteKeepValidity = () => {
+  const enabled=!!document.getElementById('sms-bal-delete-keep-enable')?.checked;
+  const from=document.getElementById('sms-bal-delete-keep-from')?.value||'';
+  const to=document.getElementById('sms-bal-delete-keep-to')?.value||'';
+  const button=document.getElementById('sms-confirm-ok');
+  if(button)button.disabled=enabled&&(!from||!to);
+};
+window.toggleSmsBalanceDeleteKeep = checkbox => {
+  const inputs=document.getElementById('sms-bal-delete-keep-inputs');
+  if(inputs)inputs.style.display=checkbox.checked?'block':'none';
+  window.updateSmsBalanceDeleteKeepValidity();
+};
 window.deleteAllSmsBalanceSnapshots = async () => {
   if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}
-  if(!await confirmSmsBalanceAction({title:'Delete All SMS Snapshots',label:'Delete All',html:'Permanently delete <strong>all SMS Balance snapshots</strong>?<br><br>This cannot be undone and affects New Critical, removed-critical, and usage comparisons.'}))return;
+  const confirmation=confirmSmsBalanceAction({title:'Delete All SMS Snapshots',label:'Delete Snapshots',html:`Permanently delete <strong>all SMS Balance snapshots</strong>?<br><br>This cannot be undone and affects New Critical, removed-critical, and usage comparisons.${smsBalanceDeleteKeepHtml()}`});
+  document.getElementById('sms-confirm-box')?.classList.add('sms-bal-range-confirm');
+  if(!await confirmation)return;
+  const keepOn=!!document.getElementById('sms-bal-delete-keep-enable')?.checked;
+  let keepFrom=document.getElementById('sms-bal-delete-keep-from')?.value||'';
+  let keepTo=document.getElementById('sms-bal-delete-keep-to')?.value||'';
+  if(keepOn&&(!keepFrom||!keepTo)){toast('Select both From and To for the range to preserve.','err');return;}
+  if(keepOn&&keepFrom>keepTo)[keepFrom,keepTo]=[keepTo,keepFrom];
   setLoading(true,'Deleting all SMS snapshots…');
-  try{await deleteSmsBalanceSnapshotsMatching(()=>true);toast('All SMS balance snapshots deleted','ok');}
+  try{
+    await deleteSmsBalanceSnapshotsMatching(snapshot=>!keepOn||!smsBalanceSnapshotInRange(snapshot,keepFrom,keepTo));
+    toast(keepOn?`SMS snapshots outside ${keepFrom.replace('T',' ')} – ${keepTo.replace('T',' ')} deleted; selected range preserved.`:'All SMS balance snapshots deleted','ok',7000);
+  }
   catch(e){toast('Delete failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
@@ -14692,7 +14739,7 @@ function openSmsConfirm(html, okLabel, callback, title='Confirm SMS Change', onC
   const text = document.getElementById('sms-confirm-text');
   if (text) text.innerHTML = html;
   const ok = document.getElementById('sms-confirm-ok');
-  if (ok) ok.textContent = okLabel || 'Delete';
+  if (ok) { ok.textContent = okLabel || 'Delete'; ok.disabled = false; }
   document.getElementById('sms-confirm-overlay')?.classList.add('open');
 }
 
@@ -14701,6 +14748,7 @@ window.closeSmsConfirm = () => {
   smsConfirmCallback = null;
   smsConfirmCancelCallback = null;
   document.getElementById('sms-confirm-overlay')?.classList.remove('open');
+  document.getElementById('sms-confirm-box')?.classList.remove('sms-bal-range-confirm');
   if (typeof onCancel === 'function') onCancel();
 };
 
