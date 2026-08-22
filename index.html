@@ -3277,7 +3277,7 @@
               <div class="sms-field"><label>Opt-Out</label><div class="sms-combo" data-combo="opt_out"><input class="win-inp" id="sms-opt-out" autocomplete="off" readonly onfocus="openSmsCombo('opt_out')" onclick="openSmsCombo('opt_out')"><button class="sms-combo-btn" type="button" onclick="toggleSmsCombo('opt_out',event)">▼</button><div class="sms-combo-options" id="sms-opt-out-options"></div></div></div>
               <div class="sms-field full"><label>Overdraft</label><input class="win-inp" id="sms-overdraft" placeholder="Example: Allowed / Blocked"></div>
               <div class="sms-form-section-title">Vendors &amp; priorities</div>
-              <div class="sms-field full"><label class="required-label">Vendor(s) &amp; priorities</label><div class="sms-vendor-box" id="sms-vendor-box" role="group" aria-label="Required vendors" aria-required="true"></div><div class="sms-vendor-priority-list" id="sms-vendor-priority-list" role="group" aria-label="Required vendor priorities" aria-required="true"><div class="sms-vendor-priority-row"><span>Tick a vendor to set priorities (up to 5)</span></div></div></div>
+              <div class="sms-field full"><label class="required-label">Vendor(s)</label><div class="sms-vendor-box" id="sms-vendor-box" role="group" aria-label="Required vendors" aria-required="true"></div><div class="sms-vendor-priority-list" id="sms-vendor-priority-list" role="group" aria-label="Optional vendor priorities"><div class="sms-vendor-priority-row"><span>Tick a vendor to set optional priorities (up to 5)</span></div></div></div>
               <div class="sms-form-section-title">Contacts &amp; notes</div>
               <div class="sms-field full-row" id="sms-email-wrap"><label>Email(s)</label><textarea class="sms-textarea" id="sms-emails" rows="2" placeholder="name@example.com; another@example.com"></textarea></div>
               <div class="sms-field full-row"><label>Notes / Remarks</label><textarea class="sms-textarea" id="sms-notes" rows="3" placeholder="Free-form notes, route requests, approvals, etc."></textarea></div>
@@ -13296,7 +13296,7 @@ window.toggleSmsEmailField = () => {
 window.newSmsClient = (showToast=true) => {
   smsEditingId = null;
   smsFillForm({ platform:'', type:'', status:'Active', opt_out:'Without', vendor:'' });
-  ['sms-client','sms-sender-id','sms-destination','sms-account-manager','sms-platform','sms-type','sms-msg-type','sms-vendor-box','sms-vendor-priority-list']
+  ['sms-client','sms-sender-id','sms-destination','sms-account-manager','sms-platform','sms-type','sms-msg-type','sms-vendor-box']
     .forEach(id => setRequiredFieldState(id, false));
   setSmsAdditionalSidEditMode(false);
   const st = document.getElementById('sms-edit-status');
@@ -13331,7 +13331,6 @@ window.saveSmsClient = () => {
     { id:'sms-type', label:'Type', empty:() => !row.type },
     { id:'sms-msg-type', label:'Message Type', empty:() => !row.msg_type },
     { id:'sms-vendor-box', label:'Vendor', empty:() => !row.vendor, focusSelector:'#sms-vendor-box input' },
-    { id:'sms-vendor-priority-list', label:'Vendor Priority', empty:() => !row.priority_vendor, focusSelector:'#sms-vendor-priority-list select' },
   ];
   if (!validateRequiredFields(requiredFields, `Cannot ${smsEditingId ? 'save this edit' : 'save this entry'}.`)) return;
   if (row.platform === 'Email' && !row.emails) { toast('Email platform needs email address(es)', 'err'); document.getElementById('sms-emails')?.focus(); return; }
