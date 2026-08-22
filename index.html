@@ -12081,6 +12081,13 @@ function populateSmsBalanceSlots() {
   const chosen = slots.includes(current) ? current : (slots.includes(next) ? next : slots[0]);
   sel.innerHTML = slots.map(slot => `<option value="${slot}" ${slot===chosen?'selected':''}>${fmt12(slot)}</option>`).join('');
 }
+function smsBalanceNextSlotAfterPost(slot) {
+  const slots=shiftSlots('24H'),index=slots.indexOf(slot);
+  return index>=0&&index<slots.length-1?slots[index+1]:slot;
+}
+function advanceSmsBalanceSlotAfterPost(slot) {
+  const select=document.getElementById('sms-bal-slot');if(select)select.value=smsBalanceNextSlotAfterPost(slot);
+}
 function loadSmsBalanceSettingsUi() {
   const near = document.getElementById('sms-bal-set-near'); if (near) near.value = SBS.nearPct;
   const retention = document.getElementById('sms-bal-set-retention'); if (retention) retention.value = String(SBS.retentionDays);
@@ -12204,6 +12211,10 @@ window.toggleSmsBalanceStatusGuide = () => {
   button.setAttribute('aria-label', label);
   button.setAttribute('data-premium-tooltip', `${label}.`);
 };
+function smsBalanceUsageHistoryCell(value,slot) {
+  if(value===undefined)return ['07:00','19:00'].includes(slot)?'0':'';
+  return smsBalanceFmt(value);
+}
 function renderSmsBalanceUsageHistory() {
   const thead=document.getElementById('sms-bal-usage-history-thead'), tbody=document.getElementById('sms-bal-usage-history-tbody'), foot=document.getElementById('sms-bal-usage-history-foot');
   if(!thead||!tbody)return;
@@ -12220,7 +12231,7 @@ function renderSmsBalanceUsageHistory() {
   }));
   let items=[...clients.values()].filter(item=>!q||[item.row.client,item.row.source,item.row.email].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>a.row.source.localeCompare(b.row.source)||a.row.client.localeCompare(b.row.client));
   thead.innerHTML=`<tr><th>Type</th><th>Client</th>${usedSlots.map(slot=>`<th class="num">${esc(fmt12(slot))}</th>`).join('')}</tr>`;
-  tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${v===undefined?'':smsBalanceFmt(v)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
+  tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${smsBalanceUsageHistoryCell(v,slot)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
   if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
   const resultCount=document.getElementById('sms-bal-alert-result-count');if(resultCount)resultCount.textContent=`${items.length} client row(s)`;
 }
@@ -12675,6 +12686,10 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];saveSmsBalanceLocal();
   if(fbOk)await Promise.all(remote.map(([collectionName,record])=>setDoc(doc(db,collectionName,smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));
 }
+function focusSmsBalanceNewCriticalView() {
+  window.switchSmsBalanceView('alerts');
+  window.setSmsBalanceAlertFilter('new',document.getElementById('sms-bal-alert-new'));
+}
 window.processSmsBalanceSnapshot = async () => {
   if(!canPostBalance()){toast('Posting SMS balance snapshots is restricted for this account.','err');return;}
   if(!requirePastedData('sms-bal-reseller-ta','Reseller SMS balance data')||!requirePastedData('sms-bal-wholesale-ta','Wholesale SMS balance data'))return;
@@ -12694,12 +12709,12 @@ window.processSmsBalanceSnapshot = async () => {
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
   smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();
-  window.clearSmsBalancePaste();renderSmsBalanceModule();
+  advanceSmsBalanceSlotAfterPost(slot);window.clearSmsBalancePaste();renderSmsBalanceModule();
+  if(freshCriticalCount){focusSmsBalanceNewCriticalView();if(SBS.soundAlert)playSmsNewCriticalAudio();}
   let blockedRoutes=0;
   try{blockedRoutes=await autoBlockSmsBalanceRoutes(data,snap);}catch(e){toast('Snapshot saved, but Phoenix auto-block sync failed: '+e.message,'err',7000);}
   try{await recordSmsBalanceHistories(snap,previous,historyEntries);}catch(e){console.warn('SMS balance history sync:',e);}
   if(fbOk){try{await setDoc(doc(db,'sms_balance_snapshots',snap.id),{...snap,timestamp:Timestamp.fromDate(now)});}catch(e){toast('SMS snapshot kept locally; Firebase save failed: '+e.message,'err',7000);}}
-  if(freshCriticalCount&&SBS.soundAlert)playSmsNewCriticalAudio();
   renderSmsBalanceModule();toast(`SMS snapshot saved — ${reseller.length} Reseller, ${wholesale.length} Wholesale${blockedRoutes?` · ${blockedRoutes} Phoenix route(s) auto-blocked`:''}`,'ok',7000);
 };
 async function deleteSmsBalanceSnapshotById(id) {
