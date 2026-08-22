@@ -2146,16 +2146,16 @@
     }
 
     /* ── Client detail popup ── */
-    #client-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
-    #client-detail-overlay.open { display: flex; }
-    #client-detail-box {
+    #client-detail-overlay, #sms-bal-client-detail-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 850; align-items: center; justify-content: center; }
+    #client-detail-overlay.open, #sms-bal-client-detail-overlay.open { display: flex; }
+    #client-detail-box, #sms-bal-client-detail-box {
       background: var(--surface); min-width: 360px; max-width: 480px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-lg);
       overflow: hidden;
     }
-    #client-detail-body {
+    #client-detail-body, #sms-bal-client-detail-body {
       padding: 10px 12px; max-height: 400px; overflow-y: auto;
       background: var(--surface);
       border: 1px solid var(--border); border-radius: var(--r-md);
@@ -2302,6 +2302,7 @@
     #gap-confirm-overlay.open #gap-confirm-box,
     #source-mismatch-overlay.open #source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
+    #sms-bal-client-detail-overlay.open #sms-bal-client-detail-box,
     #sms-detail-overlay.open #sms-detail-box,
     #sms-credential-otp-overlay.open #sms-credential-otp-box {
       animation: winPop .16s ease-out;
@@ -4875,6 +4876,23 @@
   </div>
 </div>
 
+<!-- SMS Balance Client Detail Popup -->
+<div id="sms-bal-client-detail-overlay">
+  <div id="sms-bal-client-detail-box">
+    <div class="dlg-tb" style="display:flex;align-items:center;justify-content:space-between;padding-right:4px">
+      <span id="sms-bal-client-detail-title">SMS Balance Client Details</span>
+      <div class="tb-btn" onclick="closeSmsBalanceClientDetail()" style="margin-left:4px">✕</div>
+    </div>
+    <div id="sms-bal-client-detail-body"></div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
+      <button class="tbtn" id="sms-bal-client-detail-edit" onclick="startSmsBalanceClientEdit()">Edit</button>
+      <button class="tbtn primary" id="sms-bal-client-detail-save" style="display:none" onclick="saveSmsBalanceClientDetail()">Save</button>
+      <button class="tbtn" id="sms-bal-client-detail-cancel" style="display:none" onclick="cancelSmsBalanceClientEdit()">Cancel</button>
+      <button class="tbtn" id="sms-bal-client-detail-close" onclick="closeSmsBalanceClientDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sender ID Comment Popover (anchored to the button) -->
 <div id="sms-comment-popover" onclick="event.stopPropagation()">
   <div class="pop-head">Sender ID Comment <span style="color:#888;font-weight:400">— preserved on CSV export</span></div>
@@ -5181,6 +5199,7 @@ let smsBalanceManagerSource = localStorage.getItem('bm_sms_balance_manager_sourc
 if (!['reseller','wholesale'].includes(smsBalanceAllSource)) smsBalanceAllSource = 'reseller';
 if (!['reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceManagerSource = 'reseller';
 let smsBalanceSelectedMetaKey = '';
+let smsBalanceDetailMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
 const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','settings']);
 const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
@@ -11984,9 +12003,10 @@ function smsBalanceTableRow(row, compact=false) {
   const route = row._routeMatches
     ? (row._routeBlocked ? '<span class="sms-bal-badge blocked">Blocked</span>' : `<span class="sms-bal-badge safe">${row._routeMatches} Active Match</span>`)
     : '<span class="sms-muted">No exact match</span>';
-  if (compact) return `<tr class="sms-bal-row-${rowTone}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
+  const openDetail = `ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."`;
+  if (compact) return `<tr class="sms-bal-row-${rowTone}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
   const usageClass = Math.abs(smsBalanceNumber(row.usage_30min)) >= 50 ? ' sms-bal-usage-hot' : '';
-  return `<tr class="sms-bal-row-${rowTone}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td><td>${route}</td><td>${esc(meta.notes || '')}</td></tr>`;
+  return `<tr class="sms-bal-row-${rowTone}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td><td>${route}</td><td>${esc(meta.notes || '')}</td></tr>`;
 }
 function normalizeSmsBalanceSnapshot(snap) {
   const reseller = (snap?.reseller || []).map(row => smsBalanceNormalizeRow(row, 'reseller'));
@@ -12173,7 +12193,7 @@ function renderSmsBalanceUsageHistory() {
   }));
   let items=[...clients.values()].filter(item=>!q||[item.row.client,item.row.source,item.row.email].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>a.row.source.localeCompare(b.row.source)||a.row.client.localeCompare(b.row.client));
   thead.innerHTML=`<tr><th>Type</th><th>Client</th>${usedSlots.map(slot=>`<th class="num">${esc(fmt12(slot))}</th>`).join('')}</tr>`;
-  tbody.innerHTML=items.length?items.map(item=>`<tr><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${v===undefined?'':smsBalanceFmt(v)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
+  tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${v===undefined?'':smsBalanceFmt(v)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
   if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
   const resultCount=document.getElementById('sms-bal-alert-result-count');if(resultCount)resultCount.textContent=`${items.length} client row(s)`;
 }
@@ -12213,7 +12233,7 @@ window.renderSmsBalanceAll = () => {
     const live=row._hasSnapshot!==false;
     const route = !live ? 'Awaiting balance snapshot' : row._routeMatches ? (row._routeBlocked?'<span class="sms-bal-badge blocked">Blocked</span>':`${row._routeMatches} match(es)`) : 'No exact match';
     const liveValue=value=>live?smsBalanceFmt(value):'—';
-    return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td></tr>`;
+    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td></tr>`;
   }).join('') : smsBalanceEmptyRow(15,'No SMS balance clients match the filters.');
 };
 function uniqueSmsBalanceClients() {
@@ -12230,8 +12250,97 @@ window.renderSmsBalanceManager = () => {
   body.innerHTML=list.length?list.map(({key,row})=>{
     const meta=smsBalanceMeta[key]||{}, s=row._status;
     const live=row._hasSnapshot!==false;
-    return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(meta.account_manager||'')}</td><td class="num">${live?smsBalanceFmt(row.balance):'—'}</td><td class="num">${live?smsBalanceFmt(row.overdraft):'—'}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${esc(meta.allow_balance||'')}</td><td>${esc(meta.notes||'')}</td><td><button class="tbtn" onclick="editSmsBalanceClient('${escAttr(key)}')">Edit</button></td></tr>`;
+    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(key)}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(meta.account_manager||'')}</td><td class="num">${live?smsBalanceFmt(row.balance):'—'}</td><td class="num">${live?smsBalanceFmt(row.overdraft):'—'}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${esc(meta.allow_balance||'')}</td><td>${esc(meta.notes||'')}</td><td><button class="tbtn" onclick="event.stopPropagation();editSmsBalanceClient('${escAttr(key)}')" ondblclick="event.stopPropagation()">Edit</button></td></tr>`;
   }).join(''):smsBalanceEmptyRow(10);
+};
+function smsBalanceDetailItem(key=smsBalanceDetailMetaKey) {
+  return uniqueSmsBalanceClients().find(entry=>entry.key===key) || null;
+}
+function setSmsBalanceDetailButtons(editing) {
+  const edit=document.getElementById('sms-bal-client-detail-edit'),save=document.getElementById('sms-bal-client-detail-save'),cancel=document.getElementById('sms-bal-client-detail-cancel'),close=document.getElementById('sms-bal-client-detail-close');
+  if(edit)edit.style.display=!editing&&canEditClients()?'':'none';
+  if(save)save.style.display=editing?'':'none';
+  if(cancel)cancel.style.display=editing?'':'none';
+  if(close)close.style.display=editing?'none':'';
+}
+function renderSmsBalanceClientDetail(editMode=false) {
+  const item=smsBalanceDetailItem();if(!item)return;
+  const {row,key}=item,meta=smsBalanceMeta[key]||{},s=row._status||smsBalanceStatus(row),live=row._hasSnapshot!==false;
+  const display=value=>value===null||value===undefined||value===''?'—':String(value);
+  const number=value=>live?smsBalanceFmt(value):'—';
+  const fields=[
+    {label:'Client',value:row.client},
+    {label:'Type',value:smsBalanceSourceLabel(row.source)},
+    {label:'Account Type',value:row.account_type||'CLIENT'},
+    {label:'Status',key:'active',value:meta.is_active===false?'Inactive':'Active',editable:true,type:'select'},
+    {label:'Account Manager',key:'account-manager',value:meta.account_manager||'',editable:true},
+    {label:'Email',value:display(row.email)},
+    {label:'Number',value:display(row.number)},
+    {label:'Currency',value:display(row.currency)},
+    {label:'Current Balance',value:number(row.balance)},
+    {label:'30m Usage',value:number(row.usage_30min)},
+    {label:'Total Usage',value:number(row.total_usage)},
+    {label:'Overdraft',value:number(row.overdraft)},
+    {label:'OD Remaining',value:live?smsBalanceFmt(Math.max(0,s.odRemaining)):'—'},
+    {label:'Allow Balance Label',key:'allow',value:meta.allow_balance||'',editable:true},
+    {label:'Credit Limit',key:'credit',value:s.credit===null?'':s.credit,editable:true,type:'number'},
+    {label:'Critical Balance',key:'critical',value:s.critical===null?'':s.critical,editable:true,type:'number'},
+    {label:'Balance Status',html:smsBalanceStatusBadge(s)},
+    {label:'Phoenix Route',value:!live?'Awaiting balance snapshot':row._routeMatches?`${row._routeMatches} match(es)${row._routeBlocked?' · Blocked':''}`:'No exact match'},
+    {label:'Notes',key:'notes',value:meta.notes||'',editable:true,type:'textarea'}
+  ];
+  const rows=fields.map(field=>{
+    let valueHtml;
+    if(field.html&&!editMode)valueHtml=field.html;
+    else if(editMode&&field.editable){
+      if(field.type==='select')valueHtml=`<select class="win-sel" id="sbcde-${field.key}" style="width:150px"><option ${field.value==='Active'?'selected':''}>Active</option><option ${field.value==='Inactive'?'selected':''}>Inactive</option></select>`;
+      else if(field.type==='textarea')valueHtml=`<textarea class="win-ta" id="sbcde-${field.key}" rows="3">${esc(field.value)}</textarea>`;
+      else valueHtml=`<input class="win-inp" id="sbcde-${field.key}" type="${field.type==='number'?'number':'text'}" ${field.type==='number'?'step="0.01"':''} value="${escAttr(field.value)}" style="width:220px">`;
+    } else valueHtml=`<span>${esc(display(field.value))}</span>`;
+    const full=field.type==='textarea'?' full':'';
+    return `<div class="detail-row${full}"><div class="detail-lbl">${esc(field.label)}</div><div class="detail-val">${valueHtml}</div></div>`;
+  });
+  const body=document.getElementById('sms-bal-client-detail-body');if(body)body.innerHTML=rows.join('');
+  setSmsBalanceDetailButtons(editMode);
+}
+window.openSmsBalanceClientPopup = key => {
+  const item=smsBalanceDetailItem(key);if(!item)return;
+  smsBalanceDetailMetaKey=key;
+  const title=document.getElementById('sms-bal-client-detail-title');if(title)title.textContent=`SMS Balance — ${item.row.client}`;
+  renderSmsBalanceClientDetail(false);
+  document.getElementById('sms-bal-client-detail-overlay')?.classList.add('open');
+};
+window.closeSmsBalanceClientDetail = () => {
+  document.getElementById('sms-bal-client-detail-overlay')?.classList.remove('open');
+  smsBalanceDetailMetaKey='';
+};
+window.startSmsBalanceClientEdit = () => {
+  if(!canEditClients()){toast('Editing SMS balance clients is restricted for this account.','err');return;}
+  renderSmsBalanceClientDetail(true);
+};
+window.cancelSmsBalanceClientEdit = () => renderSmsBalanceClientDetail(false);
+window.saveSmsBalanceClientDetail = async () => {
+  if(!canEditClients()){toast('Editing SMS balance clients is restricted for this account.','err');return;}
+  const item=smsBalanceDetailItem();if(!item)return;
+  const accountManager=document.getElementById('sbcde-account-manager')?.value.trim()||'';
+  const allow=document.getElementById('sbcde-allow')?.value.trim()||'';
+  const creditRaw=document.getElementById('sbcde-credit')?.value??'';
+  const criticalRaw=document.getElementById('sbcde-critical')?.value??'';
+  const required=[
+    {id:'sbcde-account-manager',label:'Account Manager',empty:()=>!accountManager},
+    {id:'sbcde-allow',label:'Allow Balance Label',empty:()=>SBS.requireClientThresholds&&!allow},
+    {id:'sbcde-credit',label:'Credit Limit',empty:()=>(SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&!Number.isFinite(Number(creditRaw)))},
+    {id:'sbcde-critical',label:'Critical Balance',empty:()=>(SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&!Number.isFinite(Number(criticalRaw)))}
+  ];
+  if(!validateRequiredFields(required,'Cannot save SMS Balance client settings.'))return;
+  if(creditRaw!==''&&criticalRaw!==''&&Number(criticalRaw)>Number(creditRaw)){setRequiredFieldState('sbcde-credit',true);setRequiredFieldState('sbcde-critical',true);toast('Credit Limit must be equal to or higher than Critical Balance.','err',7000);return;}
+  const key=item.key,prior=smsBalanceMeta[key]||{};
+  const meta={...prior,source:item.row.source,client:item.row.client,account_manager:accountManager,allow_balance:allow,credit_limit:creditRaw===''?null:Number(creditRaw),critical_balance:criticalRaw===''?null:Number(criticalRaw),is_active:document.getElementById('sbcde-active')?.value!=='Inactive',notes:document.getElementById('sbcde-notes')?.value.trim()||'',updated_at:new Date().toISOString()};
+  smsBalanceMeta[key]=meta;saveSmsBalanceLocal();setLoading(true,'Saving SMS balance client…');
+  let syncError=null;
+  if(fbOk)try{await setDoc(doc(db,'sms_balance_clients',smsBalanceDocId(key)),{...meta,meta_key:key,updated_at:Timestamp.now()});}catch(error){syncError=error;}
+  setLoading(false);renderSmsBalanceModule();window.closeSmsBalanceClientDetail();
+  toast(syncError?'SMS client saved locally; Firebase sync failed: '+syncError.message:`Saved SMS balance settings for ${item.row.client}`,syncError?'err':'ok',7000);
 };
 window.setSmsBalanceManagerSource = source => {
   smsBalanceManagerSource=smsBalanceSource(source);localStorage.setItem('bm_sms_balance_manager_source',smsBalanceManagerSource);
@@ -12421,18 +12530,36 @@ async function autoBlockSmsBalanceRoutes(rows, snap) {
   if(changed){await persistSmsPhoenixRoutes();if(smsActiveTab==='phoenix'){smsClients=smsDataByTab.phoenix;renderSmsClients();}}
   return changed;
 }
-async function recordSmsBalanceHistories(snap) {
+function smsBalanceHistoryStateMap(snap) {
   const worst=new Map();
   (snap.data||[]).forEach(row=>{const key=smsBalanceMetaKey(row),status=smsBalanceStatus(row),prior=worst.get(key);if(!prior||smsBalanceStatusRank(status.code)>smsBalanceStatusRank(prior.status.code))worst.set(key,{row,status});});
+  return worst;
+}
+function smsBalanceNewHistoryEntries(snap,previous=null) {
+  const current=smsBalanceHistoryStateMap(snap),before=smsBalanceHistoryStateMap(previous||{data:[]});
+  const critical=[],noThreshold=[];
+  current.forEach((entry,key)=>{
+    const prior=before.get(key);
+    const criticalNow=['critical','overdraft','blocked'].includes(entry.status.code);
+    const criticalBefore=!!prior&&['critical','overdraft','blocked'].includes(prior.status.code);
+    const noThresholdNow=entry.status.credit===null&&entry.status.critical===null;
+    const noThresholdBefore=!!prior&&prior.status.credit===null&&prior.status.critical===null;
+    if(criticalNow&&!criticalBefore)critical.push({key,...entry});
+    if(noThresholdNow&&!noThresholdBefore)noThreshold.push({key,...entry});
+  });
+  return {critical,noThreshold};
+}
+async function recordSmsBalanceHistories(snap,previous=null) {
+  const entries=smsBalanceNewHistoryEntries(snap,previous);
   const histMap=new Map(smsBalanceHistory.map(r=>[r.meta_key,r]));
   const noMap=new Map(smsBalanceNoThreshold.map(r=>[r.meta_key,r]));
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const remote=[];
-  worst.forEach(({row,status},key)=>{
-    if(['critical','overdraft','blocked'].includes(status.code)){
-      const prior=histMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_hit:prior?.first_hit||hitAt,last_hit:hitAt,count:prior?.last_hit===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance,od_remaining:status.odRemaining,last_status:status.code};histMap.set(key,record);remote.push(['sms_balance_history',record]);
-    }
-    if(status.credit===null&&status.critical===null){const prior=noMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance};noMap.set(key,record);remote.push(['sms_balance_no_threshold',record]);}
+  entries.critical.forEach(({key,row,status})=>{
+    const prior=histMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_hit:prior?.first_hit||hitAt,last_hit:hitAt,count:prior?.last_hit===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance,od_remaining:status.odRemaining,last_status:status.code};histMap.set(key,record);remote.push(['sms_balance_history',record]);
+  });
+  entries.noThreshold.forEach(({key,row})=>{
+    const prior=noMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance};noMap.set(key,record);remote.push(['sms_balance_no_threshold',record]);
   });
   smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];saveSmsBalanceLocal();
   if(fbOk)await Promise.all(remote.map(([collectionName,record])=>setDoc(doc(db,collectionName,smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));
@@ -12456,7 +12583,7 @@ window.processSmsBalanceSnapshot = async () => {
   window.clearSmsBalancePaste();renderSmsBalanceModule();
   let blockedRoutes=0;
   try{blockedRoutes=await autoBlockSmsBalanceRoutes(data,snap);}catch(e){toast('Snapshot saved, but Phoenix auto-block sync failed: '+e.message,'err',7000);}
-  try{await recordSmsBalanceHistories(snap);}catch(e){console.warn('SMS balance history sync:',e);}
+  try{await recordSmsBalanceHistories(snap,previous);}catch(e){console.warn('SMS balance history sync:',e);}
   if(fbOk){try{await setDoc(doc(db,'sms_balance_snapshots',snap.id),{...snap,timestamp:Timestamp.fromDate(now)});}catch(e){toast('SMS snapshot kept locally; Firebase save failed: '+e.message,'err',7000);}}
   const urgent=data.filter(row=>['blocked','critical'].includes(smsBalanceStatus(row).code)).length;
   if(urgent&&SBS.soundAlert)playAlertSound();
@@ -12543,8 +12670,20 @@ window.deleteAllSmsBalanceSnapshots = async () => {
   catch(e){toast('Delete failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
-window.clearSmsBalanceHistory = async () => {if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>Stored snapshots are not deleted.'}))return;await wipeSmsBalanceCollection('sms_balance_history');smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();toast('SMS Critical History cleared','ok');};
-window.clearSmsBalanceNoThreshold = async () => {if(!isAdmin()){toast('Only admins can clear the list.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS No-Threshold History',label:'Clear History',html:'Clear every client in the persistent <strong>SMS No-Threshold History</strong>?<br><br>Current clients without thresholds still appear in Alerts.'}))return;await wipeSmsBalanceCollection('sms_balance_no_threshold');smsBalanceNoThreshold=[];saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('SMS No-Threshold list cleared','ok');};
+window.clearSmsBalanceHistory = async () => {
+  if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>Clients that remain in the same state will stay cleared. Only clients that newly enter Critical / Overdraft afterward will be recorded.'}))return;
+  const backup=smsBalanceHistory.slice();smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();
+  try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — waiting for new entries','ok');}
+  catch(error){smsBalanceHistory=backup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not clear SMS Critical History: '+error.message,'err',7000);}
+};
+window.clearSmsBalanceNoThreshold = async () => {
+  if(!isAdmin()){toast('Only admins can clear the list.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Clear SMS No-Threshold History',label:'Clear History',html:'Clear every client in the persistent <strong>SMS No-Threshold History</strong>?<br><br>Clients that still have no thresholds will stay cleared. Only newly detected no-threshold clients will be recorded.'}))return;
+  const backup=smsBalanceNoThreshold.slice();smsBalanceNoThreshold=[];saveSmsBalanceLocal();renderSmsBalanceNoThreshold();
+  try{await wipeSmsBalanceCollection('sms_balance_no_threshold');toast('SMS No-Threshold History cleared — waiting for new entries','ok');}
+  catch(error){smsBalanceNoThreshold=backup;saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('Could not clear SMS No-Threshold History: '+error.message,'err',7000);}
+};
 window.deleteSmsBalanceNoThresholdEntry = async key => {if(!isAdmin())return;const row=smsBalanceNoThreshold.find(r=>r.meta_key===key);if(!await confirmSmsBalanceAction({title:'Remove No-Threshold Client',label:'Remove Client',html:`Remove <strong>${esc(row?.client||'this client')}</strong> from SMS No-Threshold History?`}))return;smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>r.meta_key!==key);saveSmsBalanceLocal();if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));renderSmsBalanceNoThreshold();};
 function smsBalanceCsvDownload(headers,rows,name) {const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
 window.exportSmsBalanceAlertView = () => {
@@ -12674,13 +12813,11 @@ function subscribeSmsBalanceData() {
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_history'),async s=>{
-      if(s.empty&&smsBalanceHistory.length&&canPostBalance()){await Promise.all(smsBalanceHistory.map(record=>setDoc(doc(db,'sms_balance_history',smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));return;}
       smsBalanceHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceHistory();
     },e=>console.warn('SMS balance history:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
-      if(s.empty&&smsBalanceNoThreshold.length&&canPostBalance()){await Promise.all(smsBalanceNoThreshold.map(record=>setDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));return;}
       smsBalanceNoThreshold=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceNoThreshold();
     },e=>console.warn('SMS balance no threshold:',e));
   } catch(e){console.warn(e);}
