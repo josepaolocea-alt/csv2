@@ -19,7 +19,7 @@
        showing a blank page. Defined before the CDN <script> tags so their
        onerror handlers can flip these flags. Only shows UI on real failure. */
     window.__bmBooted = false;                 // set true once the app module runs
-    window.__bmLibs = { papa: true, xlsx: true };
+    window.__bmLibs = { papa: true, xlsx: true, exceljs: true };
     window.__bmBanner = function (msg, level) {
       if (document.getElementById('bm-load-banner')) return;
       var bar = document.createElement('div');
@@ -44,7 +44,7 @@
         if (!window.__bmBooted) {
           window.__bmBanner('BalanceMonitor could not load its core libraries (Firebase). '
             + 'Check your internet connection or network/firewall restrictions, then reload.', 'error');
-        } else if (!window.__bmLibs.papa || !window.__bmLibs.xlsx) {
+        } else if (!window.__bmLibs.papa || !window.__bmLibs.xlsx || !window.__bmLibs.exceljs) {
           window.__bmBanner('CSV/Excel import libraries failed to load, so importing is disabled. '
             + 'The rest of the app works — reload to try again.', 'warn');
         }
@@ -53,6 +53,7 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" onerror="window.__bmLibs.papa=false"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window.__bmLibs.xlsx=false"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" onerror="window.__bmLibs.exceljs=false"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" onerror="window._jsQrFailed=true"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -2619,8 +2620,10 @@
 
     /* ── SMS Balance Monitor ─────────────────────────────────────────────── */
     #sms-balance-panel { display:none; flex:1; min-height:0; flex-direction:column; gap:6px; }
-    .sms-bal-subnav { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:5px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-sm); }
-    .sms-bal-subnav .tbtn.active { color:var(--on-accent); background:var(--accent); border-color:var(--accent); }
+    .sms-bal-subnav { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:7px; background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--border); border-radius:var(--r-md); box-shadow:var(--shadow-sm); }
+    .sms-bal-subnav .tbtn { min-height:30px; border-radius:999px; padding-inline:12px; transition:transform .16s ease,box-shadow .16s ease,background .16s ease; }
+    .sms-bal-subnav .tbtn:hover { transform:translateY(-1px); box-shadow:var(--shadow-sm); }
+    .sms-bal-subnav .tbtn.active { color:var(--on-accent); background:linear-gradient(135deg,var(--accent),var(--accent-strong)); border-color:transparent; box-shadow:0 5px 14px color-mix(in srgb,var(--accent) 25%,transparent); }
     .sms-bal-shell { display:grid; grid-template-columns:240px minmax(0,1fr); gap:6px; flex:1; min-height:0; }
     .sms-bal-sidebar { display:flex; min-height:0; flex-direction:column; gap:6px; padding:8px; overflow:auto; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-sm); }
     .sms-bal-sidebar textarea { min-height:120px; resize:vertical; font:10px/1.35 var(--mono); }
@@ -2634,16 +2637,18 @@
     .sms-bal-card.warning { background:var(--yellow-soft); border-color:color-mix(in srgb,var(--yellow-deep) 38%,var(--border)); }
     .sms-bal-card.critical, .sms-bal-card.blocked { background:var(--red-soft); border-color:color-mix(in srgb,var(--red) 42%,var(--border)); }
     .sms-bal-card.overdraft { background:var(--orange-soft); border-color:color-mix(in srgb,var(--orange) 42%,var(--border)); }
-    .sms-bal-table-wrap { flex:1; min-height:0; overflow:auto; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface); }
+    .sms-bal-table-wrap { flex:1; min-height:0; overflow:auto; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); box-shadow:var(--shadow-sm); }
     .sms-bal-table { width:100%; border-collapse:collapse; font-size:10.5px; }
     .sms-bal-table th { position:sticky; top:0; z-index:2; padding:6px 7px; text-align:left; white-space:nowrap; color:var(--text-2); background:var(--surface-2); border-bottom:1px solid var(--border-strong); }
     .sms-bal-table td { padding:5px 7px; border-bottom:1px solid var(--border); vertical-align:middle; }
     .sms-bal-table td.num, .sms-bal-table th.num { text-align:right; font-family:var(--mono); }
-    .sms-bal-table tr:hover td { background:var(--surface-2); }
-    .sms-bal-row-blocked td { background:color-mix(in srgb,var(--red-soft) 74%,var(--surface)); }
-    .sms-bal-row-overdraft td { background:color-mix(in srgb,var(--orange-soft) 72%,var(--surface)); }
-    .sms-bal-row-critical td { background:color-mix(in srgb,var(--red-soft) 48%,var(--surface)); }
-    .sms-bal-row-warning td, .sms-bal-row-near td { background:color-mix(in srgb,var(--yellow-soft) 56%,var(--surface)); }
+    .sms-bal-table tbody tr { transition:background .14s ease,box-shadow .14s ease; }
+    .sms-bal-table tbody tr:nth-child(even) td { background:color-mix(in srgb,var(--surface-2) 48%,var(--surface)); }
+    .sms-bal-table tbody tr:hover td { background:color-mix(in srgb,var(--accent-soft) 42%,var(--surface)) !important; }
+    .sms-bal-row-blocked td:first-child, .sms-bal-row-critical td:first-child { box-shadow:inset 3px 0 0 var(--red); }
+    .sms-bal-row-overdraft td:first-child { box-shadow:inset 3px 0 0 var(--orange); }
+    .sms-bal-row-warning td:first-child, .sms-bal-row-near td:first-child { box-shadow:inset 3px 0 0 var(--yellow); }
+    .sms-bal-row-safe td:first-child { box-shadow:inset 3px 0 0 var(--green); }
     .sms-bal-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; font-size:9px; font-weight:750; text-transform:uppercase; }
     .sms-bal-badge.safe { color:var(--green); background:var(--green-soft); }
     .sms-bal-badge.near, .sms-bal-badge.warning { color:var(--yellow-deep); background:var(--yellow-soft); }
@@ -2653,6 +2658,18 @@
     .sms-bal-panel { padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); }
     .sms-bal-form { display:grid; grid-template-columns:repeat(3,minmax(150px,1fr)); gap:8px; }
     .sms-bal-form .sms-field.full { grid-column:1/-1; }
+    .sms-bal-segmented { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); box-shadow:inset 0 1px 0 color-mix(in srgb,var(--surface) 85%,transparent); }
+    .sms-bal-segmented .tbtn { min-height:28px; border-radius:999px; padding-inline:11px; background:transparent; }
+    .sms-bal-segmented .tbtn.active { color:var(--on-accent); background:var(--accent); border-color:var(--accent); box-shadow:var(--shadow-sm); }
+    .sms-bal-segmented .tbtn[data-tone="critical"].active { background:var(--red); border-color:var(--red); }
+    .sms-bal-segmented .tbtn[data-tone="warning"].active { color:#302500; background:var(--yellow); border-color:var(--yellow); }
+    .sms-bal-segmented .tbtn[data-tone="safe"].active { background:var(--green); border-color:var(--green); }
+    .sms-bal-alert-toolbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:7px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
+    .sms-bal-usage-hot { color:#4b3900; background:#fff3a6 !important; font-weight:800; }
+    body.night-mode .sms-bal-usage-hot { color:#fff4b8; background:#5b4a00 !important; }
+    .sms-bal-required label::after { content:' *'; color:var(--red); font-weight:800; }
+    .sms-bal-file-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:8px; border:1px dashed var(--border-strong); border-radius:var(--r-md); background:var(--surface-2); }
+    .sms-bal-premium-help { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--accent); background:var(--accent-soft); font-weight:800; cursor:help; }
     .sms-bal-note { color:var(--text-2); font-size:10px; line-height:1.45; }
     .sms-bal-danger { border-color:color-mix(in srgb,var(--red) 38%,var(--border)); background:color-mix(in srgb,var(--red-soft) 38%,var(--surface)); }
     @media (max-width:1000px) {
@@ -3276,15 +3293,16 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div id="sms-balance-panel">
               <div class="sms-bal-subnav" aria-label="SMS Balance Monitor views">
-                <button class="tbtn active" id="sms-bal-nav-summary" onclick="switchSmsBalanceView('summary')">Summary</button>
-                <button class="tbtn" id="sms-bal-nav-warning" onclick="switchSmsBalanceView('warning')">Warning <span id="sms-bal-warning-count"></span></button>
-                <button class="tbtn" id="sms-bal-nav-all" onclick="switchSmsBalanceView('all')">All Clients</button>
-                <button class="tbtn" id="sms-bal-nav-manager" onclick="switchSmsBalanceView('manager')">Client Manager</button>
-                <button class="tbtn" id="sms-bal-nav-export" onclick="switchSmsBalanceView('export')">Export</button>
-                <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')">Logs</button>
-                <button class="tbtn" id="sms-bal-nav-critical" onclick="switchSmsBalanceView('critical')">Critical History</button>
-                <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')">No Threshold</button>
-                <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')">SMS Settings</button>
+                <button class="tbtn active" id="sms-bal-nav-summary" onclick="switchSmsBalanceView('summary')" data-premium-tooltip="SMS Balance overview and latest exceptions.">Summary</button>
+                <button class="tbtn" id="sms-bal-nav-alerts" onclick="switchSmsBalanceView('alerts')" data-premium-tooltip="Current SMS balance alerts, usage, transitions, and snapshot usage history.">Alerts <span id="sms-bal-alerts-count"></span></button>
+                <button class="tbtn" id="sms-bal-nav-critical" onclick="switchSmsBalanceView('critical')" data-premium-tooltip="Clients currently at balance zero, on overdraft, blocked, or at their configured critical balance.">Critical <span id="sms-bal-critical-count"></span></button>
+                <button class="tbtn" id="sms-bal-nav-all" onclick="switchSmsBalanceView('all')" data-premium-tooltip="Complete current client list, separated into Reseller and Wholesale.">All Clients</button>
+                <button class="tbtn" id="sms-bal-nav-manager" onclick="switchSmsBalanceView('manager')" data-premium-tooltip="Maintain required SMS balance thresholds by feed or bulk overwrite them from CSV.">Client Manager</button>
+                <button class="tbtn" id="sms-bal-nav-export" onclick="switchSmsBalanceView('export')" data-premium-tooltip="Generate the four-sheet day and night SMS Balance workbook.">Export</button>
+                <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')" data-premium-tooltip="Review and delete SMS Balance snapshots by scheduled slot.">Logs</button>
+                <button class="tbtn" id="sms-bal-nav-critical-history" onclick="switchSmsBalanceView('critical-history')" data-premium-tooltip="Persistent history of clients that entered a critical SMS balance state.">Critical History</button>
+                <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')" data-premium-tooltip="Persistent history of clients seen without credit and critical thresholds.">No Threshold History</button>
+                <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')" data-premium-tooltip="Configure SMS Balance alerts, retention, and themed data controls.">SMS Settings</button>
                 <span class="sms-muted" id="sms-bal-sync-label" style="margin-left:auto">No SMS balance snapshot</span>
               </div>
               <div class="sms-bal-shell">
@@ -3320,24 +3338,52 @@
                       <div class="sms-bal-note">Positive balances are prepaid credit remaining. A negative balance is overdraft already consumed. Remaining overdraft = <strong>Overdraft + Balance</strong>; for example, OD $100 and Balance −$90 leaves $10. At $0 remaining, matching Phoenix routes are marked Inactive / Blocked.</div>
                     </div>
                     <div class="sms-bal-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
-                      <div class="groupbox-title">Latest Warnings</div>
+                      <div class="groupbox-title">Latest Alerts</div>
                       <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th class="num">Balance</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th></tr></thead><tbody id="sms-bal-summary-tbody"></tbody></table></div>
                     </div>
                   </section>
 
-                  <section class="sms-bal-view" id="sms-bal-view-warning">
-                    <div class="fbar">
-                      <input class="win-search" id="sms-bal-warning-search" type="search" placeholder="Search warning clients…" oninput="renderSmsBalanceWarnings()">
-                      <select class="win-sel" id="sms-bal-warning-source" onchange="renderSmsBalanceWarnings()"><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
-                      <button class="tbtn" onclick="renderSmsBalanceWarnings()">Refresh</button>
+                  <section class="sms-bal-view" id="sms-bal-view-alerts">
+                    <div class="sms-bal-segmented" id="sms-bal-alert-tabs" role="tablist" aria-label="SMS Balance alert filters">
+                      <button class="tbtn active" id="sms-bal-alert-all" onclick="setSmsBalanceAlertFilter('all',this)" data-premium-tooltip="Every client in the latest Reseller and Wholesale snapshot.">All <span id="sms-bal-alert-count-all"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance zero, running/exhausted overdraft, or configured Critical Balance reached.">Critical <span id="sms-bal-alert-count-critical"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit but not yet critical.">Warning <span id="sms-bal-alert-count-warning"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="Current clients without both Credit Limit and Critical Balance settings.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="Latest snapshot clients with 30-minute usage of 50 or more.">Usage ≥50 <span id="sms-bal-alert-count-usage"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Clients that were not critical in the previous snapshot but are critical now.">New Critical <span id="sms-bal-alert-count-new"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
                     </div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-warning-tbody"></tbody></table></div>
+                    <div class="sms-bal-alert-toolbar">
+                      <input class="win-search" id="sms-bal-alert-search" type="search" placeholder="Search alert clients…" oninput="renderSmsBalanceAlerts()" data-premium-tooltip="Search by client, email, number, account type, or notes.">
+                      <select class="win-sel" id="sms-bal-alert-source" onchange="renderSmsBalanceAlerts()" data-premium-tooltip="Limit the current Alerts subtab to one SMS feed."><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
+                      <button class="tbtn" onclick="renderSmsBalanceAlerts()">Refresh</button>
+                      <button class="tbtn primary" onclick="exportSmsBalanceAlertView()" data-premium-tooltip="Download the currently selected Alerts subtab as CSV.">Export View</button>
+                      <span class="sms-muted" id="sms-bal-alert-result-count"></span>
+                    </div>
+                    <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap" id="sms-bal-usage-history-wrap" style="display:none"><table class="sms-bal-table"><thead id="sms-bal-usage-history-thead"></thead><tbody id="sms-bal-usage-history-tbody"></tbody></table></div>
+                    <div class="sms-muted" id="sms-bal-usage-history-foot" style="display:none"></div>
+                  </section>
+
+                  <section class="sms-bal-view" id="sms-bal-view-critical">
+                    <div class="sms-bal-alert-toolbar">
+                      <input class="win-search" id="sms-bal-current-critical-search" type="search" placeholder="Search current critical clients…" oninput="renderSmsBalanceCritical()">
+                      <select class="win-sel" id="sms-bal-current-critical-source" onchange="renderSmsBalanceCritical()"><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
+                      <span class="sms-muted">Balance ≤ 0, running/exhausted overdraft, or configured Critical Balance reached.</span>
+                    </div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-current-critical-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-all">
+                    <div class="sms-bal-segmented" role="tablist" aria-label="All SMS Balance clients by feed">
+                      <button class="tbtn active" id="sms-bal-all-source-reseller" onclick="setSmsBalanceAllSource('reseller',this)" data-premium-tooltip="Show only Reseller balance clients.">Reseller</button>
+                      <button class="tbtn" id="sms-bal-all-source-wholesale" onclick="setSmsBalanceAllSource('wholesale',this)" data-premium-tooltip="Show only Wholesale balance clients.">Wholesale</button>
+                    </div>
                     <div class="fbar">
                       <input class="win-search" id="sms-bal-search" type="search" placeholder="Search client, email, or number…" oninput="renderSmsBalanceAll()">
-                      <select class="win-sel" id="sms-bal-source-filter" onchange="renderSmsBalanceAll()"><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
                       <select class="win-sel" id="sms-bal-status-filter" onchange="renderSmsBalanceAll()"><option value="">All statuses</option><option value="blocked">Blocked</option><option value="overdraft">Overdraft</option><option value="critical">Critical</option><option value="warning">Warning</option><option value="near">Near threshold</option><option value="safe">Safe</option><option value="nothreshold">No threshold</option></select>
                       <button class="tbtn" onclick="exportSmsBalanceCurrentCsv()">Export View</button>
                       <span class="sms-muted" id="sms-bal-all-count">0 clients</span>
@@ -3346,18 +3392,29 @@
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-manager">
+                    <div class="sms-bal-segmented" role="tablist" aria-label="SMS Balance Client Manager feed">
+                      <button class="tbtn active" id="sms-bal-manager-source-reseller" onclick="setSmsBalanceManagerSource('reseller',this)" data-premium-tooltip="Maintain Reseller SMS Balance clients.">Reseller Clients</button>
+                      <button class="tbtn" id="sms-bal-manager-source-wholesale" onclick="setSmsBalanceManagerSource('wholesale',this)" data-premium-tooltip="Maintain Wholesale SMS Balance clients.">Wholesale Clients</button>
+                    </div>
                     <div class="sms-bal-panel">
                       <div class="groupbox-title" id="sms-bal-manager-title">SMS Balance Client Settings</div>
                       <div class="sms-bal-form">
-                        <div class="sms-field"><label>Client</label><input class="win-inp" id="sms-bal-meta-client" readonly></div>
-                        <div class="sms-field"><label>Feed</label><input class="win-inp" id="sms-bal-meta-source" readonly></div>
-                        <div class="sms-field"><label>Allow Balance Label</label><input class="win-inp" id="sms-bal-meta-allow" placeholder="$0 PREPAYMENT / $100 POSTPAID"></div>
-                        <div class="sms-field"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" step="0.01" placeholder="Example: 100"></div>
-                        <div class="sms-field"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" step="0.01" placeholder="Example: 10"></div>
-                        <div class="sms-field"><label>Status</label><select class="win-sel" id="sms-bal-meta-active"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                        <div class="sms-field sms-bal-required"><label>Client</label><input class="win-inp" id="sms-bal-meta-client" readonly required aria-required="true" data-premium-tooltip="Required. Select a client from the current feed table below."></div>
+                        <div class="sms-field sms-bal-required"><label>Feed</label><input class="win-inp" id="sms-bal-meta-source" readonly required aria-required="true" data-premium-tooltip="Required. Reseller and Wholesale settings are stored separately."></div>
+                        <div class="sms-field sms-bal-required"><label>Allow Balance Label</label><input class="win-inp" id="sms-bal-meta-allow" required aria-required="true" placeholder="$0 PREPAYMENT / $100 POSTPAID" data-premium-tooltip="Required label displayed in the generated workbook."></div>
+                        <div class="sms-field sms-bal-required"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" min="0" step="0.01" required aria-required="true" placeholder="Example: 100" data-premium-tooltip="Required positive balance that starts the Warning state."></div>
+                        <div class="sms-field sms-bal-required"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" min="0" step="0.01" required aria-required="true" placeholder="Example: 10" data-premium-tooltip="Required positive balance that starts the Critical state."></div>
+                        <div class="sms-field sms-bal-required"><label>Status</label><select class="win-sel" id="sms-bal-meta-active" required aria-required="true" data-premium-tooltip="Required. Inactive clients with usage appear in Alerts."><option value="true">Active</option><option value="false">Inactive</option></select></div>
                         <div class="sms-field full"><label>Notes</label><textarea class="win-ta" id="sms-bal-meta-notes" rows="2"></textarea></div>
                       </div>
                       <div style="display:flex;gap:5px;margin-top:8px"><button class="tbtn primary" onclick="saveSmsBalanceClientMeta()">Save Settings</button><button class="tbtn" onclick="clearSmsBalanceClientEditor()">Clear</button></div>
+                    </div>
+                    <div class="sms-bal-file-actions">
+                      <span class="sms-bal-premium-help" data-premium-tooltip="CSV columns: Client, Feed, Allow Balance Label, Credit Limit, Critical Balance, Status, Notes. Every valid client row in the upload overwrites that client's saved settings.">?</span>
+                      <button class="tbtn" onclick="downloadSmsBalanceClientSampleCsv()" data-premium-tooltip="Download a ready-to-fill CSV template with the required columns.">Download Sample CSV</button>
+                      <button class="tbtn primary" onclick="document.getElementById('sms-bal-manager-file').click()" data-premium-tooltip="Upload a CSV and overwrite settings for every client included in the file.">Upload &amp; Overwrite Clients</button>
+                      <input type="file" id="sms-bal-manager-file" accept=".csv,text/csv" style="display:none" onchange="importSmsBalanceClientsCsv(this.files[0]);this.value=''">
+                      <span class="sms-muted">Rows in the uploaded file overwrite matching Client + Feed settings.</span>
                     </div>
                     <div class="fbar"><input class="win-search" id="sms-bal-manager-search" type="search" placeholder="Search clients…" oninput="renderSmsBalanceManager()"><span class="sms-muted">Select a client to set positive warning and critical thresholds.</span></div>
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th class="num">Balance</th><th class="num">Overdraft</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Allow Balance</th><th>Notes</th><th>Action</th></tr></thead><tbody id="sms-bal-manager-tbody"></tbody></table></div>
@@ -3379,9 +3436,9 @@
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Operator</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Action</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
                   </section>
 
-                  <section class="sms-bal-view" id="sms-bal-view-critical">
-                    <div class="fbar"><input class="win-search" id="sms-bal-critical-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceHistory()"><button class="tbtn" onclick="exportSmsBalanceHistoryCsv()">Export</button></div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th></tr></thead><tbody id="sms-bal-critical-tbody"></tbody></table></div>
+                  <section class="sms-bal-view" id="sms-bal-view-critical-history">
+                    <div class="fbar"><input class="win-search" id="sms-bal-critical-history-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceHistory()"><button class="tbtn" onclick="exportSmsBalanceHistoryCsv()">Export</button></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th></tr></thead><tbody id="sms-bal-critical-history-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-nothreshold">
@@ -4091,7 +4148,7 @@
 <!-- SMS Confirm Dialog -->
 <div id="sms-confirm-overlay">
   <div id="sms-confirm-box">
-    <div class="dlg-tb"><span>Confirm SMS Change</span></div>
+    <div class="dlg-tb"><span id="sms-confirm-title">Confirm SMS Change</span></div>
     <div style="padding:12px;font-size:11px">
       <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
       <div style="display:flex;justify-content:flex-end;gap:6px">
@@ -4955,7 +5012,7 @@ let alertSortCol = '_level', alertSortDir = -1;
 let clientSortCol = 'carrier_name', clientSortDir = 1;
 let alertPage = 0, clientPage = 0;
 let PG = 500;
-let smsClients = [], smsEditingId = null, smsConfirmCallback = null;
+let smsClients = [], smsEditingId = null, smsConfirmCallback = null, smsConfirmCancelCallback = null;
 let smsSortCol = 'date', smsSortDir = -1;
 let smsCredentials = [], smsCredentialEditingId = null;
 let smsCredentialSortCol = 'date_updated', smsCredentialSortDir = -1;
@@ -4981,9 +5038,16 @@ const smsSubscribedTabs = new Set();
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [];
 let smsBalanceView = localStorage.getItem('bm_sms_balance_view') || 'summary';
+if (smsBalanceView === 'warning') smsBalanceView = 'alerts';
+let smsBalanceAlertFilter = localStorage.getItem('bm_sms_balance_alert_filter') || 'all';
+let smsBalanceAllSource = localStorage.getItem('bm_sms_balance_all_source') || 'reseller';
+let smsBalanceManagerSource = localStorage.getItem('bm_sms_balance_manager_source') || 'reseller';
+if (!['reseller','wholesale'].includes(smsBalanceAllSource)) smsBalanceAllSource = 'reseller';
+if (!['reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceManagerSource = 'reseller';
 let smsBalanceSelectedMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
-const SMS_BALANCE_VIEWS = new Set(['summary','warning','all','manager','export','logs','critical','nothreshold','settings']);
+const SMS_BALANCE_VIEWS = new Set(['summary','alerts','critical','all','manager','export','logs','critical-history','nothreshold','settings']);
+const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
 const SMS_BALANCE_LOCAL = {
   snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold'
 };
@@ -11678,6 +11742,7 @@ function smsBalanceStatus(row) {
   let code = 'safe', label = 'Safe';
   if ((overdraft === 0 && balance <= 0) || (balance < 0 && odRemaining <= 0)) { code = 'blocked'; label = 'Blocked — OD exhausted'; }
   else if (balance < 0) { code = 'overdraft'; label = 'Running on OD'; }
+  else if (balance === 0) { code = 'critical'; label = 'Balance Reached Zero'; }
   else if (critical !== null && balance <= critical) { code = 'critical'; label = 'Critical Balance'; }
   else if (credit !== null && balance <= credit) { code = 'warning'; label = 'Credit Limit Warning'; }
   else if (smsBalanceNearThreshold(balance, critical) || smsBalanceNearThreshold(balance, credit)) { code = 'near'; label = 'Near Threshold'; }
@@ -11686,6 +11751,11 @@ function smsBalanceStatus(row) {
 }
 function smsBalanceStatusRank(code) { return ({blocked:6,overdraft:5,critical:4,warning:3,near:2,nothreshold:1,safe:0})[code] ?? 0; }
 function smsBalanceStatusBadge(status) { return `<span class="sms-bal-badge ${status.code}">${esc(status.label)}</span>`; }
+function smsBalanceIsCritical(row) {
+  if (!row) return false;
+  const status = row?._status || smsBalanceStatus(row);
+  return smsBalanceNumber(row?.balance) <= 0 || ['critical','overdraft','blocked'].includes(status.code);
+}
 function smsBalanceRouteNameKey(v) { return smsBalanceCleanText(v).toUpperCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' '); }
 function smsBalanceMatchingPhoenixRows(row) {
   const key = smsBalanceRouteNameKey(row?.client);
@@ -11700,6 +11770,33 @@ function smsBalanceRows() {
     return { ...row, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:routeBlocked };
   });
 }
+function smsBalancePreviousSnapshot() {
+  const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
+  if (!ordered.length || !smsBalanceLatest) return null;
+  const latestKey = `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}`;
+  const index = ordered.findIndex(s => `${s.session_date}|${s.time_slot}` === latestKey);
+  return index > 0 ? ordered[index - 1] : null;
+}
+function smsBalanceDecoratedSnapshotRows(snap) {
+  return (snap?.data || []).filter(row => row?.client).map(row => {
+    const status = smsBalanceStatus(row), meta = smsBalanceMetaFor(row);
+    const matches = smsBalanceMatchingPhoenixRows(row);
+    return { ...row, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:matches.some(route => route.status === 'Inactive' || /blocked/i.test(route.overdraft)) };
+  });
+}
+function smsBalanceCriticalRows() {
+  return smsBalanceRows().filter(smsBalanceIsCritical)
+    .sort((a,b) => smsBalanceStatusRank(b._status.code)-smsBalanceStatusRank(a._status.code) || a.client.localeCompare(b.client));
+}
+function smsBalanceTransitionRows() {
+  const current = smsBalanceRows(), previous = smsBalanceDecoratedSnapshotRows(smsBalancePreviousSnapshot());
+  const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
+  const previousMap = new Map(previous.map(row => [smsBalanceMetaKey(row), row]));
+  const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(previousMap.get(smsBalanceMetaKey(row))));
+  const removed = previous.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(currentMap.get(smsBalanceMetaKey(row))))
+    .map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
+  return { added, removed };
+}
 function smsBalanceWarningRows() {
   return smsBalanceRows().filter(row => ['near','warning','critical','overdraft','blocked'].includes(row._status.code))
     .sort((a,b) => smsBalanceStatusRank(b._status.code) - smsBalanceStatusRank(a._status.code) || a.client.localeCompare(b.client));
@@ -11708,11 +11805,14 @@ function smsBalanceFmt(v) { return Number.isFinite(Number(v)) ? fmt(Number(v)) :
 function smsBalanceEmptyRow(cols, text='No data available.') { return `<tr><td colspan="${cols}" style="padding:16px;text-align:center;color:var(--text-3)">${esc(text)}</td></tr>`; }
 function smsBalanceTableRow(row, compact=false) {
   const s = row._status || smsBalanceStatus(row), meta = row._meta || smsBalanceMetaFor(row);
+  const shownStatus = row._removedFromCritical ? { ...s, code:'safe', label:'Removed from Critical' } : s;
+  const rowTone = row._removedFromCritical ? 'safe' : s.code;
   const route = row._routeMatches
     ? (row._routeBlocked ? '<span class="sms-bal-badge blocked">Blocked</span>' : `<span class="sms-bal-badge safe">${row._routeMatches} Active Match</span>`)
     : '<span class="sms-muted">No exact match</span>';
-  if (compact) return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td></tr>`;
-  return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td><td>${esc(meta.notes || '')}</td></tr>`;
+  if (compact) return `<tr class="sms-bal-row-${rowTone}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
+  const usageClass = Math.abs(smsBalanceNumber(row.usage_30min)) >= 50 ? ' sms-bal-usage-hot' : '';
+  return `<tr class="sms-bal-row-${rowTone}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td><td>${route}</td><td>${esc(meta.notes || '')}</td></tr>`;
 }
 function normalizeSmsBalanceSnapshot(snap) {
   const reseller = (snap?.reseller || []).map(row => smsBalanceNormalizeRow(row, 'reseller'));
@@ -11789,28 +11889,104 @@ function renderSmsBalanceSummary() {
   set('sms-bal-stat-overdraft', counts('overdraft'));
   set('sms-bal-stat-blocked', counts('blocked'));
   set('sms-bal-stat-nothreshold', rows.filter(row => row._status.credit === null && row._status.critical === null).length);
-  set('sms-bal-warning-count', warning.length ? `(${warning.length})` : '');
+  const criticalNow = smsBalanceCriticalRows();
+  set('sms-bal-alerts-count', warning.length ? `(${warning.length})` : '');
+  set('sms-bal-critical-count', criticalNow.length ? `(${criticalNow.length})` : '');
   const body = document.getElementById('sms-bal-summary-tbody');
   if (body) body.innerHTML = warning.length ? warning.slice(0,50).map(row => smsBalanceTableRow(row,true)).join('') : smsBalanceEmptyRow(8,'No clients are near a threshold or running on overdraft.');
 }
-window.renderSmsBalanceWarnings = () => {
-  const q = String(document.getElementById('sms-bal-warning-search')?.value || '').toLowerCase();
-  const source = document.getElementById('sms-bal-warning-source')?.value || '';
-  let rows = smsBalanceWarningRows();
-  if (q) rows = rows.filter(row => [row.client,row.email,row.number,row._meta?.notes].some(v => String(v||'').toLowerCase().includes(q)));
-  if (source) rows = rows.filter(row => row.source === source);
-  const body = document.getElementById('sms-bal-warning-tbody');
-  if (body) body.innerHTML = rows.length ? rows.map(row => smsBalanceTableRow(row)).join('') : smsBalanceEmptyRow(12,'No warning clients match the filters.');
+function smsBalanceAlertSets() {
+  const rows = smsBalanceRows();
+  const transitions = smsBalanceTransitionRows();
+  return {
+    all:rows,
+    critical:rows.filter(smsBalanceIsCritical),
+    warning:rows.filter(row => ['near','warning'].includes(row._status.code)),
+    safe:rows.filter(row => row._status.code === 'safe'),
+    nothreshold:rows.filter(row => row._status.credit === null && row._status.critical === null),
+    usage:rows.filter(row => smsBalanceNumber(row.usage_30min) >= 50),
+    new:transitions.added,
+    removed:transitions.removed,
+    inactiveusage:rows.filter(row => row._meta?.is_active === false && smsBalanceNumber(row.usage_30min) !== 0)
+  };
+}
+function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
+  const sets = smsBalanceAlertSets();
+  let rows = (sets[filter] || sets.all).slice();
+  if (applyUi) {
+    const q = String(document.getElementById('sms-bal-alert-search')?.value || '').toLowerCase();
+    const source = document.getElementById('sms-bal-alert-source')?.value || '';
+    if (q) rows = rows.filter(row => [row.client,row.email,row.number,row.account_type,row._meta?.notes].some(v => String(v||'').toLowerCase().includes(q)));
+    if (source) rows = rows.filter(row => row.source === source);
+  }
+  return rows.sort((a,b) => smsBalanceStatusRank(b._status?.code)-smsBalanceStatusRank(a._status?.code) || a.client.localeCompare(b.client));
+}
+function updateSmsBalanceAlertCounts() {
+  const sets = smsBalanceAlertSets();
+  ['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage'].forEach(filter => {
+    const el = document.getElementById(`sms-bal-alert-count-${filter}`);
+    if (el) el.textContent = sets[filter]?.length ? `(${sets[filter].length})` : '';
+  });
+}
+window.setSmsBalanceAlertFilter = (filter, button) => {
+  if (!SMS_BALANCE_ALERT_FILTERS.has(filter)) filter = 'all';
+  smsBalanceAlertFilter = filter;
+  localStorage.setItem('bm_sms_balance_alert_filter', filter);
+  document.querySelectorAll('#sms-bal-alert-tabs .tbtn').forEach(btn => btn.classList.toggle('active', btn === button || btn.id === `sms-bal-alert-${filter}`));
+  window.renderSmsBalanceAlerts();
+};
+function renderSmsBalanceUsageHistory() {
+  const thead=document.getElementById('sms-bal-usage-history-thead'), tbody=document.getElementById('sms-bal-usage-history-tbody'), foot=document.getElementById('sms-bal-usage-history-foot');
+  if(!thead||!tbody)return;
+  const source=document.getElementById('sms-bal-alert-source')?.value||'';
+  const q=String(document.getElementById('sms-bal-alert-search')?.value||'').toLowerCase();
+  const slots=shiftSlots('24H'), slotIndex=new Map(slots.map((slot,index)=>[slot,index]));
+  const snaps=sortSmsBalanceSnapshots(smsBalanceTodaySnaps).filter(s=>s.session_date===todayStr());
+  const usedSlots=[...new Set(snaps.map(s=>s.time_slot).filter(Boolean))].sort((a,b)=>(slotIndex.get(a)??999)-(slotIndex.get(b)??999));
+  const clients=new Map();
+  snaps.forEach(s=>(s.data||[]).forEach(row=>{
+    if(!row?.client||smsBalanceNumber(row.usage_30min)===0||source&&row.source!==source)return;
+    const key=smsBalanceMetaKey(row);const item=clients.get(key)||{row,bySlot:{}};item.bySlot[s.time_slot]=smsBalanceNumber(row.usage_30min);clients.set(key,item);
+  }));
+  let items=[...clients.values()].filter(item=>!q||[item.row.client,item.row.source,item.row.email].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>a.row.source.localeCompare(b.row.source)||a.row.client.localeCompare(b.row.client));
+  thead.innerHTML=`<tr><th>Feed</th><th>Client</th>${usedSlots.map(slot=>`<th class="num">${esc(fmt12(slot))}</th>`).join('')}</tr>`;
+  tbody.innerHTML=items.length?items.map(item=>`<tr><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${v===undefined?'':smsBalanceFmt(v)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
+  if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
+}
+window.renderSmsBalanceAlerts = () => {
+  if(!SMS_BALANCE_ALERT_FILTERS.has(smsBalanceAlertFilter))smsBalanceAlertFilter='all';
+  updateSmsBalanceAlertCounts();
+  document.querySelectorAll('#sms-bal-alert-tabs .tbtn').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-alert-${smsBalanceAlertFilter}`));
+  const isHistory=smsBalanceAlertFilter==='usagehistory';
+  const table=document.getElementById('sms-bal-alert-table-wrap'), pivot=document.getElementById('sms-bal-usage-history-wrap'), foot=document.getElementById('sms-bal-usage-history-foot');
+  if(table)table.style.display=isHistory?'none':'';if(pivot)pivot.style.display=isHistory?'':'none';if(foot)foot.style.display=isHistory?'':'none';
+  if(isHistory){renderSmsBalanceUsageHistory();return;}
+  const rows=smsBalanceAlertRows();
+  const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row)).join(''):smsBalanceEmptyRow(12,'No clients match this Alerts view.');
+  const count=document.getElementById('sms-bal-alert-result-count');if(count)count.textContent=`${rows.length} client row(s)`;
+};
+window.renderSmsBalanceCritical = () => {
+  const q=String(document.getElementById('sms-bal-current-critical-search')?.value||'').toLowerCase();
+  const source=document.getElementById('sms-bal-current-critical-source')?.value||'';
+  let rows=smsBalanceCriticalRows();
+  if(q)rows=rows.filter(row=>[row.client,row.email,row.number,row._meta?.notes].some(v=>String(v||'').toLowerCase().includes(q)));
+  if(source)rows=rows.filter(row=>row.source===source);
+  const body=document.getElementById('sms-bal-current-critical-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row)).join(''):smsBalanceEmptyRow(12,'No clients are currently critical.');
 };
 function smsBalanceFilteredRows() {
   const q = String(document.getElementById('sms-bal-search')?.value || '').toLowerCase();
-  const source = document.getElementById('sms-bal-source-filter')?.value || '';
   const status = document.getElementById('sms-bal-status-filter')?.value || '';
   return smsBalanceRows().filter(row => !q || [row.client,row.email,row.number,row.account_type].some(v => String(v||'').toLowerCase().includes(q)))
-    .filter(row => !source || row.source === source).filter(row => !status || row._status.code === status)
+    .filter(row => row.source === smsBalanceAllSource).filter(row => !status || row._status.code === status)
     .sort((a,b) => smsBalanceStatusRank(b._status.code)-smsBalanceStatusRank(a._status.code) || a.client.localeCompare(b.client));
 }
+window.setSmsBalanceAllSource = source => {
+  smsBalanceAllSource=smsBalanceSource(source);localStorage.setItem('bm_sms_balance_all_source',smsBalanceAllSource);
+  document.querySelectorAll('[id^="sms-bal-all-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-all-source-${smsBalanceAllSource}`));
+  window.renderSmsBalanceAll();
+};
 window.renderSmsBalanceAll = () => {
+  document.querySelectorAll('[id^="sms-bal-all-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-all-source-${smsBalanceAllSource}`));
   const rows = smsBalanceFilteredRows();
   const body = document.getElementById('sms-bal-all-tbody');
   const count = document.getElementById('sms-bal-all-count'); if (count) count.textContent = `${rows.length} client row(s)`;
@@ -11818,7 +11994,7 @@ window.renderSmsBalanceAll = () => {
   body.innerHTML = rows.length ? rows.map(row => {
     const s=row._status;
     const route = row._routeMatches ? (row._routeBlocked?'<span class="sms-bal-badge blocked">Blocked</span>':`${row._routeMatches} match(es)`) : 'No exact match';
-    return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.total_usage)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td></tr>`;
+    return `<tr class="sms-bal-row-${s.code}"><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.total_usage)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td><td>${route}</td></tr>`;
   }).join('') : smsBalanceEmptyRow(15,'No SMS balance clients match the filters.');
 };
 function uniqueSmsBalanceClients() {
@@ -11827,14 +12003,20 @@ function uniqueSmsBalanceClients() {
   return [...map.entries()].map(([key,row]) => ({key,row})).sort((a,b)=>a.row.client.localeCompare(b.row.client));
 }
 window.renderSmsBalanceManager = () => {
+  document.querySelectorAll('[id^="sms-bal-manager-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-manager-source-${smsBalanceManagerSource}`));
   const q = String(document.getElementById('sms-bal-manager-search')?.value || '').toLowerCase();
-  let list = uniqueSmsBalanceClients();
+  let list = uniqueSmsBalanceClients().filter(({row})=>row.source===smsBalanceManagerSource);
   if (q) list = list.filter(({row}) => [row.client,row.source,row.email].some(v=>String(v||'').toLowerCase().includes(q)));
   const body=document.getElementById('sms-bal-manager-tbody'); if(!body)return;
   body.innerHTML=list.length?list.map(({key,row})=>{
     const meta=smsBalanceMeta[key]||{}, s=row._status;
     return `<tr><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${esc(meta.allow_balance||'')}</td><td>${esc(meta.notes||'')}</td><td><button class="tbtn" onclick="editSmsBalanceClient('${escAttr(key)}')">Edit</button></td></tr>`;
   }).join(''):smsBalanceEmptyRow(9);
+};
+window.setSmsBalanceManagerSource = source => {
+  smsBalanceManagerSource=smsBalanceSource(source);localStorage.setItem('bm_sms_balance_manager_source',smsBalanceManagerSource);
+  document.querySelectorAll('[id^="sms-bal-manager-source-"]').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-manager-source-${smsBalanceManagerSource}`));
+  window.clearSmsBalanceClientEditor();window.renderSmsBalanceManager();
 };
 window.editSmsBalanceClient = key => {
   const item=uniqueSmsBalanceClients().find(entry=>entry.key===key); if(!item)return;
@@ -11852,17 +12034,33 @@ window.clearSmsBalanceClientEditor = () => {
   smsBalanceSelectedMetaKey='';
   ['sms-bal-meta-client','sms-bal-meta-source','sms-bal-meta-allow','sms-bal-meta-credit','sms-bal-meta-critical','sms-bal-meta-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const active=document.getElementById('sms-bal-meta-active');if(active)active.value='true';
+  ['sms-bal-meta-client','sms-bal-meta-source','sms-bal-meta-allow','sms-bal-meta-credit','sms-bal-meta-critical','sms-bal-meta-active'].forEach(id=>setRequiredFieldState(id,false));
   const title=document.getElementById('sms-bal-manager-title');if(title)title.textContent='SMS Balance Client Settings';
 };
 window.saveSmsBalanceClientMeta = async () => {
   if(!canEditClients()){toast('Only admins can edit SMS balance client settings.','err');return;}
-  if(!smsBalanceSelectedMetaKey){toast('Select a client to edit first.','err');return;}
+  const clientValue=document.getElementById('sms-bal-meta-client')?.value.trim()||'';
+  const sourceValue=document.getElementById('sms-bal-meta-source')?.value.trim()||'';
+  const allowValue=document.getElementById('sms-bal-meta-allow')?.value.trim()||'';
+  const creditRaw=document.getElementById('sms-bal-meta-credit')?.value??'';
+  const criticalRaw=document.getElementById('sms-bal-meta-critical')?.value??'';
+  const statusRaw=document.getElementById('sms-bal-meta-active')?.value??'';
+  const required=[
+    {id:'sms-bal-meta-client',label:'Client',empty:()=>!clientValue},
+    {id:'sms-bal-meta-source',label:'Feed',empty:()=>!sourceValue},
+    {id:'sms-bal-meta-allow',label:'Allow Balance Label',empty:()=>!allowValue},
+    {id:'sms-bal-meta-credit',label:'Credit Limit',empty:()=>creditRaw===''||!Number.isFinite(Number(creditRaw))||Number(creditRaw)<0},
+    {id:'sms-bal-meta-critical',label:'Critical Balance',empty:()=>criticalRaw===''||!Number.isFinite(Number(criticalRaw))||Number(criticalRaw)<0},
+    {id:'sms-bal-meta-active',label:'Status',empty:()=>!['true','false'].includes(statusRaw)}
+  ];
+  if(!validateRequiredFields(required,'Cannot save SMS Balance client settings.'))return;
+  if(Number(criticalRaw)>Number(creditRaw)){setRequiredFieldState('sms-bal-meta-credit',true);setRequiredFieldState('sms-bal-meta-critical',true);toast('Credit Limit must be equal to or higher than Critical Balance.','err',7000);return;}
+  if(!smsBalanceSelectedMetaKey){toast('Select a client from the current feed first.','err');return;}
   const item=uniqueSmsBalanceClients().find(entry=>entry.key===smsBalanceSelectedMetaKey); if(!item)return;
-  const parseOptional=id=>{const v=document.getElementById(id)?.value;if(v===''||v==null)return '';const n=Number(v);return Number.isFinite(n)?Math.max(0,n):'';};
   const meta={
     source:item.row.source, client:item.row.client,
-    allow_balance:document.getElementById('sms-bal-meta-allow')?.value.trim()||'',
-    credit_limit:parseOptional('sms-bal-meta-credit'), critical_balance:parseOptional('sms-bal-meta-critical'),
+    allow_balance:allowValue,
+    credit_limit:Math.max(0,Number(creditRaw)), critical_balance:Math.max(0,Number(criticalRaw)),
     is_active:document.getElementById('sms-bal-meta-active')?.value!=='false',
     notes:document.getElementById('sms-bal-meta-notes')?.value.trim()||'', updated_at:new Date().toISOString()
   };
@@ -11870,15 +12068,71 @@ window.saveSmsBalanceClientMeta = async () => {
   if(fbOk) try{await setDoc(doc(db,'sms_balance_clients',smsBalanceDocId(smsBalanceSelectedMetaKey)),{...meta,meta_key:smsBalanceSelectedMetaKey,updated_at:Timestamp.now()});}catch(e){toast('SMS client settings saved locally; Firebase sync failed: '+e.message,'err',7000);}
   renderSmsBalanceModule(); toast(`Saved SMS thresholds for ${item.row.client}`,'ok');
 };
+window.downloadSmsBalanceClientSampleCsv = () => {
+  smsBalanceCsvDownload(
+    ['Client','Feed','Allow Balance Label','Credit Limit','Critical Balance','Status','Notes'],
+    [
+      ['Sample Reseller Client','Reseller','$0 PREPAYMENT',100,20,'Active','Optional notes'],
+      ['Sample Wholesale Client','Wholesale','$100 POSTPAID',100,20,'Inactive','Optional notes']
+    ],
+    'sms_balance_client_manager_sample.csv'
+  );
+};
+function smsBalanceImportFeed(value) {
+  const normalized=String(value||'').trim().toLowerCase();
+  if(['reseller','res','retail'].includes(normalized))return 'reseller';
+  if(['wholesale','whs'].includes(normalized))return 'wholesale';
+  return '';
+}
+function smsBalanceImportStatus(value) {
+  const normalized=String(value||'').trim().toLowerCase();
+  if(['active','yes','true','1'].includes(normalized))return true;
+  if(['inactive','no','false','0'].includes(normalized))return false;
+  return null;
+}
+window.importSmsBalanceClientsCsv = async file => {
+  if(!file)return;
+  if(!canEditClients()){toast('Only admins can upload SMS Balance client settings.','err');return;}
+  if(!window.Papa){toast('CSV importer is still loading — try again in a moment.','err');return;}
+  try {
+    const parsed=Papa.parse(await file.text(),{header:true,skipEmptyLines:'greedy'});
+    if(parsed.errors?.length)throw new Error(parsed.errors[0].message||'Invalid CSV');
+    const normalizedRows=(parsed.data||[]).map((raw,index)=>{
+      const value=label=>{const found=Object.keys(raw).find(key=>smsBalanceHeaderKey(key).replace(/\s+/g,'')===smsBalanceHeaderKey(label).replace(/\s+/g,''));return found===undefined?'':String(raw[found]??'').trim();};
+      const client=value('Client'),source=smsBalanceImportFeed(value('Feed')),allow=value('Allow Balance Label');
+      const creditRaw=value('Credit Limit'),criticalRaw=value('Critical Balance'),active=smsBalanceImportStatus(value('Status'));
+      const credit=Number(creditRaw),critical=Number(criticalRaw);
+      const errors=[];
+      if(!client)errors.push('Client');if(!source)errors.push('Feed');if(!allow)errors.push('Allow Balance Label');
+      if(creditRaw===''||!Number.isFinite(credit)||credit<0)errors.push('Credit Limit');
+      if(criticalRaw===''||!Number.isFinite(critical)||critical<0)errors.push('Critical Balance');
+      if(active===null)errors.push('Status');if(Number.isFinite(credit)&&Number.isFinite(critical)&&critical>credit)errors.push('Critical Balance > Credit Limit');
+      return {line:index+2,errors,meta:{source,client,allow_balance:allow,credit_limit:credit,critical_balance:critical,is_active:active,notes:value('Notes'),updated_at:new Date().toISOString()}};
+    });
+    const invalid=normalizedRows.filter(row=>row.errors.length);
+    if(!normalizedRows.length)throw new Error('The CSV contains no client rows.');
+    if(invalid.length){toast(`Upload stopped. Fix ${invalid.length} invalid row(s): ${invalid.slice(0,3).map(row=>`line ${row.line} (${row.errors.join(', ')})`).join('; ')}.`, 'err', 9000);return;}
+    const confirmed=await confirmSmsBalanceAction({title:'Overwrite SMS Balance Clients',label:'Overwrite Clients',html:`Overwrite settings for <strong>${normalizedRows.length}</strong> Client + Feed row(s) from <strong>${esc(file.name)}</strong>?<br><br>Every client included in the file will replace its saved Allow Balance Label, Credit Limit, Critical Balance, Status, and Notes.`});
+    if(!confirmed)return;
+    normalizedRows.forEach(({meta})=>{smsBalanceMeta[smsBalanceMetaKey(meta)]=meta;});
+    saveSmsBalanceLocal();
+    if(fbOk){
+      let batch=writeBatch(db),pending=0;
+      for(const {meta} of normalizedRows){const key=smsBalanceMetaKey(meta);batch.set(doc(db,'sms_balance_clients',smsBalanceDocId(key)),{...meta,meta_key:key,updated_at:Timestamp.now()});if(++pending>=450){await batch.commit();batch=writeBatch(db);pending=0;}}
+      if(pending)await batch.commit();
+    }
+    renderSmsBalanceModule();toast(`Updated ${normalizedRows.length} SMS Balance client setting(s) from CSV.`,'ok',7000);
+  } catch(e){toast('SMS Balance client upload failed: '+(e.message||e),'err',8000);}
+};
 function renderSmsBalanceLogs() {
   const body=document.getElementById('sms-bal-logs-tbody');if(!body)return;
   const rows=smsBalanceTodaySnaps.slice().reverse();
   body.innerHTML=rows.length?rows.map(s=>`<tr><td>${esc(s.session_date)}</td><td>${esc(fmt12(s.time_slot))}</td><td>${esc((s.timestamp instanceof Date?s.timestamp:new Date(s.timestamp)).toLocaleString())}</td><td>${esc(s.operator||'')}</td><td class="num">${(s.reseller||[]).length}</td><td class="num">${(s.wholesale||[]).length}</td><td><button class="tbtn" onclick="deleteSmsBalanceSnapshot('${escAttr(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))}')">Delete</button></td></tr>`).join(''):smsBalanceEmptyRow(7,'No SMS balance logs today.');
 }
 function renderSmsBalanceHistory() {
-  const q=String(document.getElementById('sms-bal-critical-search')?.value||'').toLowerCase();
+  const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
   const rows=smsBalanceHistory.filter(r=>!q||[r.client,r.source,r.last_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_hit||'').localeCompare(String(a.last_hit||'')));
-  const body=document.getElementById('sms-bal-critical-tbody');if(!body)return;
+  const body=document.getElementById('sms-bal-critical-history-tbody');if(!body)return;
   body.innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_hit||'')}</td><td>${esc(r.last_hit||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td class="num">${smsBalanceFmt(Math.max(0,r.od_remaining||0))}</td><td><span class="sms-bal-badge ${escAttr(r.last_status||'critical')}">${esc(r.last_status||'critical')}</span></td></tr>`).join(''):smsBalanceEmptyRow(8,'No SMS critical or overdraft history yet.');
 }
 function renderSmsBalanceNoThreshold() {
@@ -11888,7 +12142,7 @@ function renderSmsBalanceNoThreshold() {
 }
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
-  window.renderSmsBalanceWarnings(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
+  window.renderSmsBalanceAlerts(); window.renderSmsBalanceCritical(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
   const sync=document.getElementById('sms-bal-sync-label');
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
   window.switchSmsBalanceView(smsBalanceView, false);
@@ -11901,9 +12155,9 @@ window.switchSmsBalanceView = (view, persist=true) => {
   document.getElementById(`sms-bal-nav-${view}`)?.classList.add('active');
   document.querySelectorAll('.sms-bal-view').forEach(panel=>panel.classList.remove('active'));
   document.getElementById(`sms-bal-view-${view}`)?.classList.add('active');
-  if(view==='warning')window.renderSmsBalanceWarnings(); if(view==='all')window.renderSmsBalanceAll();
+  if(view==='alerts')window.renderSmsBalanceAlerts(); if(view==='critical')window.renderSmsBalanceCritical(); if(view==='all')window.renderSmsBalanceAll();
   if(view==='manager')window.renderSmsBalanceManager(); if(view==='logs')renderSmsBalanceLogs();
-  if(view==='critical')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
+  if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
 };
 window.clearSmsBalancePaste = () => { ['sms-bal-reseller-ta','sms-bal-wholesale-ta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); };
 function computeSmsBalanceUsage(rows, previous) {
@@ -11955,7 +12209,7 @@ window.processSmsBalanceSnapshot = async () => {
   if(!reseller.length||!wholesale.length){toast(`Could not parse both reports — Reseller ${reseller.length} row(s), Wholesale ${wholesale.length} row(s).`,'err',7000);return;}
   const slot=document.getElementById('sms-bal-slot')?.value||nextSlot();
   const existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
-  if(existing&&!confirm(`The ${fmt12(slot)} SMS balance snapshot already exists today. Overwrite it?`))return;
+  if(existing&&!await confirmSmsBalanceAction({title:'Overwrite SMS Balance Snapshot',label:'Overwrite Snapshot',html:`The <strong>${esc(fmt12(slot))}</strong> SMS Balance snapshot already exists today.<br><br>Overwrite the Reseller and Wholesale rows stored for this slot?`}))return;
   const slotIndex=shiftSlots('24H').indexOf(slot);
   const previous=smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot&&shiftSlots('24H').indexOf(s.time_slot)<slotIndex).at(-1)||null;
   const data=computeSmsBalanceUsage([...reseller,...wholesale],previous);
@@ -11977,17 +12231,33 @@ async function deleteSmsBalanceSnapshotById(id) {
   smsBalanceTodaySnaps=smsBalanceTodaySnaps.filter(s=>s!==target);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||null;saveSmsBalanceLocal();
   if(fbOk)await deleteDoc(doc(db,'sms_balance_snapshots',id));renderSmsBalanceModule();
 }
-window.deleteSmsBalanceSnapshot = async id => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!confirm('Delete this SMS balance snapshot?'))return;try{await deleteSmsBalanceSnapshotById(id);toast('SMS balance snapshot deleted','ok');}catch(e){toast('Delete failed: '+e.message,'err');}};
+window.deleteSmsBalanceSnapshot = async id => {
+  if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}
+  const target=smsBalanceTodaySnaps.find(s=>(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))===id);
+  if(!target)return;
+  if(!await confirmSmsBalanceAction({title:'Delete SMS Balance Snapshot',label:'Delete Snapshot',html:`Delete the <strong>${esc(fmt12(target.time_slot))}</strong> SMS Balance snapshot for <strong>${esc(target.session_date)}</strong>?<br><br>This removes both Reseller and Wholesale data stored in that slot.`}))return;
+  try{await deleteSmsBalanceSnapshotById(id);toast('SMS balance snapshot deleted','ok');}catch(e){toast('Delete failed: '+e.message,'err');}
+};
 window.undoLastSmsBalanceSnapshot = async () => {const last=smsBalanceTodaySnaps.at(-1);if(!last){toast('No SMS balance snapshot to undo.','err');return;}await window.deleteSmsBalanceSnapshot(last.id||smsBalanceSnapshotId(last.session_date,last.time_slot));};
 async function wipeSmsBalanceCollection(name,predicate=()=>true) {
   if(!fbOk)return 0;const snap=await getDocs(collection(db,name));let batch=writeBatch(db),count=0,pending=0;for(const entry of snap.docs){if(!predicate(entry.data()))continue;batch.delete(doc(db,name,entry.id));count++;if(++pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}if(pending)await batch.commit();return count;
 }
-window.deleteTodaySmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!confirm("Delete all of today's SMS balance snapshots?"))return;setLoading(true,'Deleting SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots',d=>d.session_date===todayStr());smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast("Today's SMS balance snapshots deleted",'ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
-window.deleteAllSmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!confirm('Permanently delete ALL SMS balance snapshots?'))return;setLoading(true,'Deleting all SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots');smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast('All SMS balance snapshots deleted','ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
-window.clearSmsBalanceHistory = async () => {if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}if(!confirm('Clear all SMS Critical / Overdraft History?'))return;await wipeSmsBalanceCollection('sms_balance_history');smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();toast('SMS Critical History cleared','ok');};
-window.clearSmsBalanceNoThreshold = async () => {if(!isAdmin()){toast('Only admins can clear the list.','err');return;}if(!confirm('Clear the SMS No-Threshold list?'))return;await wipeSmsBalanceCollection('sms_balance_no_threshold');smsBalanceNoThreshold=[];saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('SMS No-Threshold list cleared','ok');};
-window.deleteSmsBalanceNoThresholdEntry = async key => {if(!isAdmin())return;if(!confirm('Remove this client from the SMS No-Threshold list?'))return;smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>r.meta_key!==key);saveSmsBalanceLocal();if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));renderSmsBalanceNoThreshold();};
+window.deleteTodaySmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!await confirmSmsBalanceAction({title:'Delete Today SMS Snapshots',label:'Delete Today',html:`Permanently delete all SMS Balance snapshots for <strong>${esc(todayStr())}</strong>?<br><br>New Critical and 30-minute usage comparisons may lose their earlier reference slots.`}))return;setLoading(true,'Deleting SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots',d=>d.session_date===todayStr());smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast("Today's SMS balance snapshots deleted",'ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
+window.deleteAllSmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!await confirmSmsBalanceAction({title:'Delete All SMS Snapshots',label:'Delete All',html:'Permanently delete <strong>all SMS Balance snapshots</strong>?<br><br>This cannot be undone and affects New Critical, removed-critical, and usage comparisons.'}))return;setLoading(true,'Deleting all SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots');smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast('All SMS balance snapshots deleted','ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
+window.clearSmsBalanceHistory = async () => {if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>Stored snapshots are not deleted.'}))return;await wipeSmsBalanceCollection('sms_balance_history');smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();toast('SMS Critical History cleared','ok');};
+window.clearSmsBalanceNoThreshold = async () => {if(!isAdmin()){toast('Only admins can clear the list.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS No-Threshold History',label:'Clear History',html:'Clear every client in the persistent <strong>SMS No-Threshold History</strong>?<br><br>Current clients without thresholds still appear in Alerts.'}))return;await wipeSmsBalanceCollection('sms_balance_no_threshold');smsBalanceNoThreshold=[];saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('SMS No-Threshold list cleared','ok');};
+window.deleteSmsBalanceNoThresholdEntry = async key => {if(!isAdmin())return;const row=smsBalanceNoThreshold.find(r=>r.meta_key===key);if(!await confirmSmsBalanceAction({title:'Remove No-Threshold Client',label:'Remove Client',html:`Remove <strong>${esc(row?.client||'this client')}</strong> from SMS No-Threshold History?`}))return;smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>r.meta_key!==key);saveSmsBalanceLocal();if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));renderSmsBalanceNoThreshold();};
 function smsBalanceCsvDownload(headers,rows,name) {const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+window.exportSmsBalanceAlertView = () => {
+  if(smsBalanceAlertFilter==='usagehistory'){
+    const table=document.querySelector('#sms-bal-usage-history-wrap table');
+    const matrix=table?[...table.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(cell=>cell.textContent.trim())):[];
+    if(matrix.length<2){toast('No 30-minute usage history to export.','err');return;}
+    smsBalanceCsvDownload(matrix[0],matrix.slice(1),`sms_balance_30m_usage_snapshot_${todayStr()}.csv`);return;
+  }
+  const rows=smsBalanceAlertRows();if(!rows.length){toast('No rows in this Alerts view.','err');return;}
+  smsBalanceCsvDownload(['Client','Feed','Account Type','Balance','30m Usage','Overdraft','OD Remaining','Credit Limit','Critical Balance','Status','Notes'],rows.map(row=>{const s=row._status;return[row.client,smsBalanceSourceLabel(row.source),row.account_type,row.balance,row.usage_30min,row.overdraft,s.odRemaining,s.credit??'',s.critical??'',row._removedFromCritical?'Removed from Critical':s.label,row._meta?.notes||''];}),`sms_balance_alerts_${smsBalanceAlertFilter}_${todayStr()}.csv`);
+};
 window.exportSmsBalanceCurrentCsv = () => {const rows=smsBalanceFilteredRows();if(!rows.length){toast('No SMS balance rows to export.','err');return;}smsBalanceCsvDownload(['Client','Feed','Account Type','Email','Number','Currency','Balance','30m Usage','Total Usage','Overdraft','OD Remaining','Credit Limit','Critical Balance','Status'],rows.map(row=>{const s=row._status;return[row.client,smsBalanceSourceLabel(row.source),row.account_type,row.email,row.number,row.currency,row.balance,row.usage_30min,row.total_usage,row.overdraft,s.odRemaining,s.credit??'',s.critical??'',s.label];}),`sms_balance_current_${todayStr()}.csv`);};
 window.exportSmsBalanceHistoryCsv = () => {if(!smsBalanceHistory.length){toast('No SMS history to export.','err');return;}smsBalanceCsvDownload(['Client','Feed','First Hit','Last Hit','Times Hit','Last Balance','OD Remaining','Last Status'],smsBalanceHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.first_hit,r.last_hit,r.count,r.last_balance,r.od_remaining,r.last_status]),`sms_balance_critical_history_${todayStr()}.csv`);};
 function smsBalanceDateAdd(date,days) {const d=new Date(`${date}T00:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -12019,9 +12289,67 @@ async function loadSmsBalanceExportSnapshots(reportDate) {
   rows.push(...smsBalanceTodaySnaps.filter(s=>dates.includes(s.session_date)));return dedupeSmsBalanceSnapshots(rows);
 }
 window.exportSmsBalanceWorkbook = async () => {
-  if(!window.XLSX){toast('Excel export is still loading — try again in a moment.','err');return;}
+  if(!window.ExcelJS){toast('Styled Excel export is still loading — reload and try again in a moment.','err');return;}
   const reportDate=document.getElementById('sms-bal-export-date')?.value||todayStr();setLoading(true,'Building four-tab SMS workbook…');
-  try{const snapshots=await loadSmsBalanceExportSnapshots(reportDate);const datasets=buildSmsBalanceWorkbookData(reportDate,snapshots);const wb=XLSX.utils.book_new();datasets.forEach(data=>{const ws=XLSX.utils.aoa_to_sheet(data.aoa);ws['!merges']=data.slots.map((slot,i)=>({s:{r:0,c:2+i*9},e:{r:0,c:10+i*9}}));ws['!cols']=[{wch:28},{wch:18},...data.slots.flatMap(()=>[{wch:11},{wch:28},{wch:27},{wch:14},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14}])];ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:1,c:0},e:{r:Math.max(1,data.aoa.length-1),c:data.aoa[1].length-1}})};for(let r=2;r<data.aoa.length;r++){for(let b=1;b<data.blocks.length;b++){const key=data.ordered[r-2]?.[0];const cur=data.blocks[b].map.get(key),prev=data.blocks[b-1].map.get(key);if(!cur||!prev)continue;const balOffset=data.source==='reseller'?5:6;const prevBal=2+(b-1)*9+balOffset,curBal=2+b*9+balOffset,usage=2+b*9+7,total=2+b*9+8,prevTotal=2+(b-1)*9+8;ws[XLSX.utils.encode_cell({r,c:usage})]={t:'n',v:cur.usage_30min,f:`${smsBalanceColumnName(prevBal)}${r+1}-${smsBalanceColumnName(curBal)}${r+1}`};ws[XLSX.utils.encode_cell({r,c:total})]={t:'n',v:cur.total_usage,f:`${smsBalanceColumnName(prevTotal)}${r+1}+${smsBalanceColumnName(usage)}${r+1}`};}}XLSX.utils.book_append_sheet(wb,ws,data.name);});XLSX.writeFile(wb,`SMS Balance ${reportDate}.xlsx`);toast('Generated SMS Balance workbook with four tabs','ok');}catch(e){toast('SMS workbook export failed: '+(e.message||e),'err',7000);}finally{setLoading(false);}
+  try {
+    const snapshots=await loadSmsBalanceExportSnapshots(reportDate);
+    const datasets=buildSmsBalanceWorkbookData(reportDate,snapshots);
+    const workbook=new window.ExcelJS.Workbook();
+    workbook.creator='BalanceMonitor';workbook.created=new Date();
+    const thinBorder={style:'thin',color:{argb:'FFD8DEE9'}};
+    datasets.forEach(data=>{
+      const sheet=workbook.addWorksheet(data.name,{views:[{state:'frozen',xSplit:2,ySplit:2,showGridLines:false}]});
+      sheet.addRows(data.aoa);
+      sheet.getColumn(1).width=28;sheet.getColumn(2).width=20;
+      data.slots.forEach((slot,blockIndex)=>{
+        const base=3+blockIndex*9;
+        sheet.mergeCells(1,base,1,base+8);
+        [11,28,27,14,10,14,14,14,14].forEach((width,offset)=>{sheet.getColumn(base+offset).width=width;});
+        [base+2,base+3,base+4].forEach(column=>{sheet.getColumn(column).hidden=true;});
+      });
+      [1,2].forEach(rowNumber=>{
+        const row=sheet.getRow(rowNumber);row.height=rowNumber===1?25:23;
+        row.eachCell({includeEmpty:true},cell=>{
+          cell.font={bold:true,color:{argb:'FFFFFFFF'},size:10};
+          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowNumber===1?'FF17336F':'FF274A83'}};
+          cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+          cell.border={bottom:thinBorder};
+        });
+      });
+      for(let rowIndex=0;rowIndex<data.ordered.length;rowIndex++){
+        const rowNumber=rowIndex+3,key=data.ordered[rowIndex][0];
+        const row=sheet.getRow(rowNumber);row.height=20;
+        row.eachCell({includeEmpty:true},cell=>{cell.alignment={vertical:'middle'};cell.border={bottom:thinBorder};});
+        for(let blockIndex=0;blockIndex<data.blocks.length;blockIndex++){
+          const base=3+blockIndex*9,cur=data.blocks[blockIndex].map.get(key);
+          if(!cur)continue;
+          const balanceOffset=data.source==='reseller'?5:6;
+          const usageColumn=base+7,totalColumn=base+8;
+          if(blockIndex>0){
+            const prev=data.blocks[blockIndex-1].map.get(key);
+            if(prev){
+              const prevBase=3+(blockIndex-1)*9;
+              const previousBalance=prevBase+balanceOffset,currentBalance=base+balanceOffset,previousTotal=prevBase+8;
+              sheet.getCell(rowNumber,usageColumn).value={formula:`${smsBalanceColumnName(previousBalance-1)}${rowNumber}-${smsBalanceColumnName(currentBalance-1)}${rowNumber}`,result:cur.usage_30min};
+              sheet.getCell(rowNumber,totalColumn).value={formula:`${smsBalanceColumnName(previousTotal-1)}${rowNumber}+${smsBalanceColumnName(usageColumn-1)}${rowNumber}`,result:cur.total_usage};
+            }
+          }
+          [base+5,base+6,usageColumn,totalColumn].forEach(column=>{sheet.getCell(rowNumber,column).numFmt='0.00';});
+          if(Math.round(Math.abs(smsBalanceNumber(cur.usage_30min))*1e6)!==0){
+            const usageCell=sheet.getCell(rowNumber,usageColumn);
+            usageCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+            usageCell.font={bold:true,color:{argb:'FF3D3300'}};
+          }
+        }
+      }
+      const lastColumn=2+data.slots.length*9;
+      sheet.autoFilter={from:{row:2,column:1},to:{row:Math.max(2,data.aoa.length),column:lastColumn}};
+    });
+    const buffer=await workbook.xlsx.writeBuffer();
+    const url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const anchor=document.createElement('a');anchor.href=url;anchor.download=`SMS Balance ${reportDate}.xlsx`;document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
+    toast('Generated styled SMS Balance workbook with four tabs','ok');
+  }catch(e){toast('SMS workbook export failed: '+(e.message||e),'err',7000);}finally{setLoading(false);}
 };
 function subscribeSmsBalanceData() {
   if(!fbOk||smsBalanceSubscriptionsStarted)return;
@@ -14103,9 +14431,13 @@ window.cancelSmsEdit = () => {
   toast('Edit cancelled — no changes saved', 'ok');
 };
 
-// Open the shared SMS confirm dialog with custom text, button label, and action
-function openSmsConfirm(html, okLabel, callback) {
+// Open the shared themed SMS confirmation dialog. SMS Balance settings use the
+// same surface so destructive actions never fall back to a browser-native box.
+function openSmsConfirm(html, okLabel, callback, title='Confirm SMS Change', onCancel=null) {
   smsConfirmCallback = callback;
+  smsConfirmCancelCallback = onCancel;
+  const titleEl = document.getElementById('sms-confirm-title');
+  if (titleEl) titleEl.textContent = title;
   const text = document.getElementById('sms-confirm-text');
   if (text) text.innerHTML = html;
   const ok = document.getElementById('sms-confirm-ok');
@@ -14114,15 +14446,23 @@ function openSmsConfirm(html, okLabel, callback) {
 }
 
 window.closeSmsConfirm = () => {
+  const onCancel = smsConfirmCancelCallback;
   smsConfirmCallback = null;
+  smsConfirmCancelCallback = null;
   document.getElementById('sms-confirm-overlay')?.classList.remove('open');
+  if (typeof onCancel === 'function') onCancel();
 };
 
 window.runSmsConfirm = () => {
   const cb = smsConfirmCallback;
+  smsConfirmCancelCallback = null;
   closeSmsConfirm();
   if (typeof cb === 'function') cb();
 };
+
+function confirmSmsBalanceAction({title='Confirm SMS Balance Change',html='Confirm this action?',label='Confirm'}={}) {
+  return new Promise(resolve => openSmsConfirm(html,label,()=>resolve(true),title,()=>resolve(false)));
+}
 
 window.deleteSmsClient = id => {
   const row = smsClients.find(r => r.id === id);
