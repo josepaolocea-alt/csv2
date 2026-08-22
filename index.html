@@ -413,10 +413,11 @@
        treatment as the premium dropdowns while remaining simple toggle
        buttons with an explicit expanded state. */
     #view-summary .voip-summary-header { cursor: default; gap: 12px; }
+    #view-summary .groupbox:not(.collapsed) > .voip-summary-header { margin-bottom: 8px; }
     #view-summary .voip-summary-header:hover .groupbox-title { color: var(--text); }
     .summary-visibility-toggle {
       flex: none; display: inline-grid; place-items: center;
-      width: 22px; height: 22px; min-width: 22px; padding: 0;
+      width: 22px; height: 22px; min-width: 22px; margin-right: 5px; padding: 0;
       font: 650 10px/1 var(--font); color: var(--text-2); cursor: pointer;
       background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, #fff), var(--surface-2));
       border: 1px solid var(--border); border-radius: 50%;
