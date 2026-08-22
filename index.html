@@ -12317,8 +12317,39 @@ window.undoLastSmsBalanceSnapshot = async () => {const last=smsBalanceTodaySnaps
 async function wipeSmsBalanceCollection(name,predicate=()=>true) {
   if(!fbOk)return 0;const snap=await getDocs(collection(db,name));let batch=writeBatch(db),count=0,pending=0;for(const entry of snap.docs){if(!predicate(entry.data()))continue;batch.delete(doc(db,name,entry.id));count++;if(++pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}if(pending)await batch.commit();return count;
 }
-window.deleteTodaySmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!await confirmSmsBalanceAction({title:'Delete Today SMS Snapshots',label:'Delete Today',html:`Permanently delete all SMS Balance snapshots for <strong>${esc(todayStr())}</strong>?<br><br>New Critical and 30-minute usage comparisons may lose their earlier reference slots.`}))return;setLoading(true,'Deleting SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots',d=>d.session_date===todayStr());smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast("Today's SMS balance snapshots deleted",'ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
-window.deleteAllSmsBalanceSnapshots = async () => {if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}if(!await confirmSmsBalanceAction({title:'Delete All SMS Snapshots',label:'Delete All',html:'Permanently delete <strong>all SMS Balance snapshots</strong>?<br><br>This cannot be undone and affects New Critical, removed-critical, and usage comparisons.'}))return;setLoading(true,'Deleting all SMS snapshots…');try{await wipeSmsBalanceCollection('sms_balance_snapshots');smsBalanceTodaySnaps=[];smsBalanceLatest=null;saveSmsBalanceLocal();renderSmsBalanceModule();toast('All SMS balance snapshots deleted','ok');}catch(e){toast('Delete failed: '+e.message,'err');}finally{setLoading(false);}};
+async function deleteSmsBalanceSnapshotsMatching(predicate) {
+  const backup = smsBalanceTodaySnaps.slice();
+  smsBalanceTodaySnaps = smsBalanceTodaySnaps.filter(snapshot => !predicate(snapshot));
+  smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
+  saveSmsBalanceLocal();
+  renderSmsBalanceModule();
+  try {
+    return await wipeSmsBalanceCollection('sms_balance_snapshots', predicate);
+  } catch (error) {
+    smsBalanceTodaySnaps = backup;
+    smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
+    saveSmsBalanceLocal();
+    renderSmsBalanceModule();
+    throw error;
+  }
+}
+window.deleteTodaySmsBalanceSnapshots = async () => {
+  if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}
+  const date=todayStr();
+  if(!await confirmSmsBalanceAction({title:'Delete Today SMS Snapshots',label:'Delete Today',html:`Permanently delete all SMS Balance snapshots for <strong>${esc(date)}</strong>?<br><br>New Critical and 30-minute usage comparisons may lose their earlier reference slots.`}))return;
+  setLoading(true,'Deleting SMS snapshots…');
+  try{await deleteSmsBalanceSnapshotsMatching(snapshot=>snapshot.session_date===date);toast("Today's SMS balance snapshots deleted",'ok');}
+  catch(e){toast('Delete failed: '+e.message,'err');}
+  finally{setLoading(false);}
+};
+window.deleteAllSmsBalanceSnapshots = async () => {
+  if(!canDeleteSnapshots()){toast('Deleting SMS snapshots is restricted.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Delete All SMS Snapshots',label:'Delete All',html:'Permanently delete <strong>all SMS Balance snapshots</strong>?<br><br>This cannot be undone and affects New Critical, removed-critical, and usage comparisons.'}))return;
+  setLoading(true,'Deleting all SMS snapshots…');
+  try{await deleteSmsBalanceSnapshotsMatching(()=>true);toast('All SMS balance snapshots deleted','ok');}
+  catch(e){toast('Delete failed: '+e.message,'err');}
+  finally{setLoading(false);}
+};
 window.clearSmsBalanceHistory = async () => {if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>Stored snapshots are not deleted.'}))return;await wipeSmsBalanceCollection('sms_balance_history');smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();toast('SMS Critical History cleared','ok');};
 window.clearSmsBalanceNoThreshold = async () => {if(!isAdmin()){toast('Only admins can clear the list.','err');return;}if(!await confirmSmsBalanceAction({title:'Clear SMS No-Threshold History',label:'Clear History',html:'Clear every client in the persistent <strong>SMS No-Threshold History</strong>?<br><br>Current clients without thresholds still appear in Alerts.'}))return;await wipeSmsBalanceCollection('sms_balance_no_threshold');smsBalanceNoThreshold=[];saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('SMS No-Threshold list cleared','ok');};
 window.deleteSmsBalanceNoThresholdEntry = async key => {if(!isAdmin())return;const row=smsBalanceNoThreshold.find(r=>r.meta_key===key);if(!await confirmSmsBalanceAction({title:'Remove No-Threshold Client',label:'Remove Client',html:`Remove <strong>${esc(row?.client||'this client')}</strong> from SMS No-Threshold History?`}))return;smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>r.meta_key!==key);saveSmsBalanceLocal();if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));renderSmsBalanceNoThreshold();};
@@ -12431,11 +12462,10 @@ function subscribeSmsBalanceData() {
   smsBalanceSubscriptionsStarted=true;
   try {
     const q=query(collection(db,'sms_balance_snapshots'),where('session_date','==',todayStr()));
-    onSnapshot(q,async s=>{
-      if(s.empty&&smsBalanceTodaySnaps.length&&canPostBalance()) {
-        await Promise.all(smsBalanceTodaySnaps.map(snap=>setDoc(doc(db,'sms_balance_snapshots',snap.id||smsBalanceSnapshotId(snap.session_date,snap.time_slot)),{...snap,timestamp:Timestamp.fromDate(snap.timestamp instanceof Date?snap.timestamp:new Date(snap.timestamp))})));
-        return;
-      }
+    onSnapshot(q,s=>{
+      // Firestore is authoritative while connected. In particular, an empty
+      // result after an intentional deletion must clear the browser cache;
+      // cached rows must never be uploaded again merely because the query is empty.
       smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots(s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate?.()})));
       smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||null;saveSmsBalanceLocal();renderSmsBalanceModule();
     },e=>console.warn('SMS balance snapshots:',e));
