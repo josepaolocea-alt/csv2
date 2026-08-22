@@ -2710,6 +2710,24 @@
     .sms-bal-panel { padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); }
     .sms-bal-setting-switch { grid-template-columns:38px minmax(0,1fr); gap:8px; min-height:28px; cursor:pointer; }
     .sms-bal-setting-switch > span { min-width:0; line-height:1.35; }
+    .sms-bal-summary-highlights { display:grid; grid-template-columns:repeat(2,minmax(240px,1fr)); gap:8px; margin-top:7px; }
+    .sms-bal-summary-card { min-width:0; padding:8px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); }
+    .sms-bal-summary-card-title { margin-bottom:4px; color:var(--text-2); font-size:10px; font-weight:700; }
+    .sms-bal-summary-card.usage .sms-bal-summary-card-title { color:var(--orange); }
+    .sms-bal-summary-card.payment .sms-bal-summary-card-title { color:var(--green); }
+    .sms-bal-summary-card.critical .sms-bal-summary-card-title,
+    .sms-bal-summary-card.overdraft .sms-bal-summary-card-title { color:var(--red); }
+    .sms-bal-summary-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:6px; align-items:center; min-height:25px; border-bottom:1px solid var(--border); font-size:10px; }
+    .sms-bal-summary-row:last-child { border-bottom:0; }
+    .sms-bal-summary-rank { color:var(--text-3); font-family:var(--mono); }
+    .sms-bal-summary-client { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
+    .sms-bal-summary-client small { margin-left:4px; color:var(--text-3); font-size:8px; font-weight:600; }
+    .sms-bal-summary-value { color:var(--accent); font-family:var(--mono); font-weight:700; white-space:nowrap; }
+    .sms-bal-summary-card.payment .sms-bal-summary-value { color:var(--green); }
+    .sms-bal-summary-card.critical .sms-bal-summary-value,
+    .sms-bal-summary-card.overdraft .sms-bal-summary-value { color:var(--red); }
+    .sms-bal-summary-empty { padding:6px 0; color:var(--text-3); font-size:10px; }
+    @media (max-width:800px) { .sms-bal-summary-highlights { grid-template-columns:1fr; } }
     .sms-bal-form { display:grid; grid-template-columns:repeat(3,minmax(150px,1fr)); gap:8px; }
     .sms-bal-form .sms-field.full { grid-column:1/-1; }
     .sms-bal-segmented { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); box-shadow:inset 0 1px 0 color-mix(in srgb,var(--surface) 85%,transparent); }
@@ -3457,6 +3475,16 @@
                     <div class="sms-bal-panel">
                       <div class="groupbox-title">30-min Snapshot Timeline</div>
                       <div class="timeline-strip" id="sms-bal-summary-timeline" aria-label="SMS Balance 30-minute snapshot timeline"></div>
+                    </div>
+                    <div class="sms-bal-panel">
+                      <div class="groupbox-title">SMS Snapshot Highlights</div>
+                      <div class="sms-bal-summary-highlights">
+                        <section class="sms-bal-summary-card usage"><div class="sms-bal-summary-card-title">Top 30m Usage — Reseller</div><div id="sms-bal-summary-usage-reseller"></div></section>
+                        <section class="sms-bal-summary-card usage"><div class="sms-bal-summary-card-title">Top 30m Usage — Wholesale</div><div id="sms-bal-summary-usage-wholesale"></div></section>
+                        <section class="sms-bal-summary-card payment"><div class="sms-bal-summary-card-title">Top Payments Today</div><div id="sms-bal-summary-payments"></div></section>
+                        <section class="sms-bal-summary-card critical"><div class="sms-bal-summary-card-title">Reached Critical Balance / Zero Today</div><div id="sms-bal-summary-critical-hits"></div></section>
+                        <section class="sms-bal-summary-card overdraft"><div class="sms-bal-summary-card-title">Reached / Used Overdraft Today</div><div id="sms-bal-summary-overdraft-hits"></div></section>
+                      </div>
                     </div>
                   </section>
 
@@ -12150,6 +12178,42 @@ function renderSmsBalanceTimeline() {
     return `<div class="tslot ${slot===current?'current':''}" title="${escAttr(title)}"><div class="stime">${label}</div><div class="scnt ${alertTone}">${snapshot?alerts:'-'}</div></div>`;
   }).join('');
 }
+function smsBalanceSummaryHighlights() {
+  const latest=smsBalanceRows();
+  const topUsage=source=>latest.filter(row=>row.source===source&&smsBalanceNumber(row.usage_30min)>0)
+    .sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client)).slice(0,5);
+  const paymentsByClient=new Map(),criticalByClient=new Map(),overdraftByClient=new Map();
+  sortSmsBalanceSnapshots(smsBalanceTodaySnaps).forEach(snapshot=>(snapshot.data||[]).forEach(raw=>{
+    if(!raw?.client)return;
+    const row={...raw,_status:smsBalanceStatus(raw),_slot:snapshot.time_slot};
+    const key=smsBalanceMetaKey(row),usage=smsBalanceNumber(row.usage_30min);
+    if(usage<0){const prior=paymentsByClient.get(key)||{row,amount:0};paymentsByClient.set(key,{row,amount:prior.amount-usage});}
+    if(smsBalanceIsCritical(row))criticalByClient.set(key,row);
+    if(row._status.overdraft>0&&row._status.balance<=0)overdraftByClient.set(key,row);
+  }));
+  const payments=[...paymentsByClient.values()].sort((a,b)=>b.amount-a.amount||a.row.client.localeCompare(b.row.client)).slice(0,5);
+  const byLatestSlot=(a,b)=>String(b._slot||'').localeCompare(String(a._slot||''))||a.client.localeCompare(b.client);
+  return {
+    resellerUsage:topUsage('reseller'),
+    wholesaleUsage:topUsage('wholesale'),
+    payments,
+    critical:[...criticalByClient.values()].sort(byLatestSlot),
+    overdraft:[...overdraftByClient.values()].sort(byLatestSlot)
+  };
+}
+function renderSmsBalanceSummaryHighlights() {
+  const data=smsBalanceSummaryHighlights();
+  const set=(id,html)=>{const el=document.getElementById(id);if(el)el.innerHTML=html;};
+  const ranked=(items,value,empty)=>items.length?items.map((item,index)=>{
+    const row=item.row||item;
+    return `<div class="sms-bal-summary-row"><span class="sms-bal-summary-rank">${index+1}.</span><span class="sms-bal-summary-client" title="${escAttr(row.client)}">${esc(row.client)}<small>${esc(smsBalanceSourceLabel(row.source))}</small></span><span class="sms-bal-summary-value">${value(item)}</span></div>`;
+  }).join(''):`<div class="sms-bal-summary-empty">${esc(empty)}</div>`;
+  set('sms-bal-summary-usage-reseller',ranked(data.resellerUsage,item=>smsBalanceFmt(item.usage_30min),'No Reseller usage in the latest snapshot.'));
+  set('sms-bal-summary-usage-wholesale',ranked(data.wholesaleUsage,item=>smsBalanceFmt(item.usage_30min),'No Wholesale usage in the latest snapshot.'));
+  set('sms-bal-summary-payments',ranked(data.payments,item=>smsBalanceFmt(item.amount),'No payments detected today.'));
+  set('sms-bal-summary-critical-hits',ranked(data.critical,item=>`${esc(fmt12(item._slot))} · ${esc(item._status.label)}`,'No clients reached Critical or zero today.'));
+  set('sms-bal-summary-overdraft-hits',ranked(data.overdraft,item=>`${esc(fmt12(item._slot))} · OD ${smsBalanceFmt(Math.max(0,item._status.odRemaining))}`,'No clients reached or used overdraft today.'));
+}
 function renderSmsBalanceSummary() {
   const rows = smsBalanceRows(), warning = smsBalanceWarningRows();
   const counts = code => rows.filter(row => row._status.code === code).length;
@@ -12162,6 +12226,7 @@ function renderSmsBalanceSummary() {
   set('sms-bal-stat-nothreshold', rows.filter(row => row._status.credit === null && row._status.critical === null).length);
   set('sms-bal-alerts-count', warning.length ? `(${warning.length})` : '');
   renderSmsBalanceTimeline();
+  renderSmsBalanceSummaryHighlights();
 }
 function smsBalanceAlertSets() {
   const rows = smsBalanceRows();
