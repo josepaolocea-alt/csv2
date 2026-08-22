@@ -2788,7 +2788,7 @@
           <button class="fltbtn active" id="snap-src-all" style="flex:1" onclick="setSnapSource('all')" title="Standard all-client data (Tritel not included)">All Clients</button>
           <button class="fltbtn" id="snap-src-tritel" style="flex:1" onclick="setSnapSource('tritel')" title="Tritel-only data — paste a full row or just the Amnt Receivable amount; added as an extra row below the Total">Tritel</button>
         </div>
-        <textarea id="snap-ta" placeholder="Paste data here…" required aria-required="true"></textarea>
+        <textarea id="snap-ta" placeholder="Paste data here…" required aria-required="true" data-premium-tooltip="Required: paste the All Clients report or Tritel snapshot data here before processing."></textarea>
         <select id="slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
         <div style="display:flex;gap:2px;margin-top:2px">
           <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processSnapshot()">Process</button>
@@ -2811,7 +2811,7 @@
         <!-- Posting controls — admin only (hidden for view-only users) -->
         <div id="stats-post-controls">
           <div class="snap-label">New Snapshot <span class="required-hint">Paste required</span></div>
-          <textarea id="stats-snap-ta" placeholder="Paste hourly stats data here…" required aria-required="true"></textarea>
+          <textarea id="stats-snap-ta" placeholder="Paste hourly stats data here…" required aria-required="true" data-premium-tooltip="Required: paste the hourly Stats report data here before processing."></textarea>
           <select id="stats-slot-sel" class="win-sel" style="width:100%;margin-top:2px"></select>
           <div style="display:flex;gap:2px;margin-top:2px">
             <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsSnapshot()">Process</button>
@@ -2834,7 +2834,7 @@
             <div class="snap-label">Daily Traffic Import <span class="required-hint">Paste required</span></div>
             <label for="stats-daily-import-date" class="required-label" style="font-size:11px;color:var(--muted);margin-top:2px">Traffic Date</label>
             <input id="stats-daily-import-date" class="win-inp" type="date" data-premium-date aria-label="Traffic Date" style="width:100%" required aria-required="true">
-            <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…" required aria-required="true"></textarea>
+            <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…" required aria-required="true" data-premium-tooltip="Required: paste the Client Wise Traffic report for the selected date here before processing."></textarea>
             <div style="display:flex;gap:2px">
               <button class="tbtn primary" style="flex:1;justify-content:center" onclick="processStatsDailyTraffic()">Process Daily Traffic</button>
               <button class="tbtn" onclick="document.getElementById('stats-daily-ta').value=''" title="Clear pasted daily traffic" aria-label="Clear pasted daily traffic">&#10005;</button>
