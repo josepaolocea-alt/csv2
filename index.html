@@ -2693,6 +2693,18 @@
     .sms-bal-segmented .tbtn[data-tone="critical"].active { background:var(--red); border-color:var(--red); }
     .sms-bal-segmented .tbtn[data-tone="warning"].active { color:#302500; background:var(--yellow); border-color:var(--yellow); }
     .sms-bal-segmented .tbtn[data-tone="safe"].active { background:var(--green); border-color:var(--green); }
+    .sms-bal-segmented .alert-tab-actions { margin-left:auto; padding-left:5px; }
+    .sms-bal-segmented .alert-tab-actions .tbtn.primary { color:var(--on-accent); background:var(--accent); border-color:var(--accent); }
+    .sms-bal-segmented .alert-tab-actions .tbtn.primary:hover { background:var(--accent-strong); border-color:var(--accent-strong); }
+    .sms-bal-subnav .tbtn.has-new-critical,
+    .sms-bal-subnav .tbtn.has-new-critical.active,
+    .sms-bal-segmented .tbtn.has-new-critical,
+    .sms-bal-segmented .tbtn.has-new-critical.active {
+      color:#fff; background:linear-gradient(135deg,var(--red),color-mix(in srgb,var(--red) 78%,#760018));
+      border-color:var(--red); box-shadow:0 5px 14px color-mix(in srgb,var(--red) 28%,transparent);
+    }
+    .sms-bal-subnav .tbtn.has-new-critical:hover,
+    .sms-bal-segmented .tbtn.has-new-critical:hover { color:#fff; border-color:var(--red); filter:brightness(1.06); }
     .sms-bal-alert-toolbar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:7px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); }
     .sms-bal-usage-hot { color:#4b3900; background:#fff3a6 !important; font-weight:800; }
     body.night-mode .sms-bal-usage-hot { color:#fff4b8; background:#5b4a00 !important; }
@@ -3335,7 +3347,6 @@
               <div class="sms-bal-subnav" aria-label="SMS Balance Monitor views">
                 <button class="tbtn active" id="sms-bal-nav-summary" onclick="switchSmsBalanceView('summary')" data-premium-tooltip="SMS Balance overview and latest exceptions.">Summary</button>
                 <button class="tbtn" id="sms-bal-nav-alerts" onclick="switchSmsBalanceView('alerts')" data-premium-tooltip="Current SMS balance alerts, usage, transitions, and snapshot usage history.">Alerts <span id="sms-bal-alerts-count"></span></button>
-                <button class="tbtn" id="sms-bal-nav-critical" onclick="switchSmsBalanceView('critical')" data-premium-tooltip="Clients currently at balance zero, on overdraft, blocked, or at their configured critical balance.">Critical <span id="sms-bal-critical-count"></span></button>
                 <button class="tbtn" id="sms-bal-nav-all" onclick="switchSmsBalanceView('all')" data-premium-tooltip="Complete current client list, separated into Reseller and Wholesale.">All Clients</button>
                 <button class="tbtn" id="sms-bal-nav-manager" onclick="switchSmsBalanceView('manager')" data-premium-tooltip="Maintain required SMS balance thresholds by feed or bulk overwrite them from CSV.">Client Manager</button>
                 <button class="tbtn" id="sms-bal-nav-export" onclick="switchSmsBalanceView('export')" data-premium-tooltip="Generate the four-sheet day and night SMS Balance workbook.">Export</button>
@@ -3395,26 +3406,24 @@
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
+                      <div class="alert-tab-actions" id="sms-bal-alert-actions">
+                        <button class="tbtn icon-only" id="sms-bal-alert-show-inactive" onclick="toggleSmsBalanceAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients" data-premium-tooltip="Show inactive clients in the current SMS Alerts view.">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        </button>
+                        <button class="tbtn primary icon-only" id="sms-bal-alert-export-view" onclick="exportSmsBalanceAlertView()" title="Download the current SMS Alerts view as CSV" aria-label="Download current SMS Alerts view as CSV" data-premium-tooltip="Download exactly the active SMS Alerts subtab and filters as CSV.">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+                        </button>
+                      </div>
                     </div>
                     <div class="sms-bal-alert-toolbar">
                       <input class="win-search" id="sms-bal-alert-search" type="search" placeholder="Search alert clients…" oninput="renderSmsBalanceAlerts()" data-premium-tooltip="Search by client, email, number, account type, or notes.">
                       <select class="win-sel" id="sms-bal-alert-source" onchange="renderSmsBalanceAlerts()" data-premium-tooltip="Limit the current Alerts subtab to one SMS feed."><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
                       <button class="tbtn" onclick="renderSmsBalanceAlerts()">Refresh</button>
-                      <button class="tbtn primary" onclick="exportSmsBalanceAlertView()" data-premium-tooltip="Download the currently selected Alerts subtab as CSV.">Export View</button>
                       <span class="sms-muted" id="sms-bal-alert-result-count"></span>
                     </div>
                     <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
                     <div class="sms-bal-table-wrap" id="sms-bal-usage-history-wrap" style="display:none"><table class="sms-bal-table"><thead id="sms-bal-usage-history-thead"></thead><tbody id="sms-bal-usage-history-tbody"></tbody></table></div>
                     <div class="sms-muted" id="sms-bal-usage-history-foot" style="display:none"></div>
-                  </section>
-
-                  <section class="sms-bal-view" id="sms-bal-view-critical">
-                    <div class="sms-bal-alert-toolbar">
-                      <input class="win-search" id="sms-bal-current-critical-search" type="search" placeholder="Search current critical clients…" oninput="renderSmsBalanceCritical()">
-                      <select class="win-sel" id="sms-bal-current-critical-source" onchange="renderSmsBalanceCritical()"><option value="">Both feeds</option><option value="reseller">Reseller</option><option value="wholesale">Wholesale</option></select>
-                      <span class="sms-muted">Balance ≤ 0, running/exhausted overdraft, or configured Critical Balance reached.</span>
-                    </div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Status</th><th>Route</th><th>Notes</th></tr></thead><tbody id="sms-bal-current-critical-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-all">
@@ -5079,15 +5088,21 @@ const smsSubscribedTabs = new Set();
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [];
 let smsBalanceView = localStorage.getItem('bm_sms_balance_view') || 'summary';
-if (smsBalanceView === 'warning') smsBalanceView = 'alerts';
 let smsBalanceAlertFilter = localStorage.getItem('bm_sms_balance_alert_filter') || 'all';
+let smsBalanceAlertShowInactive = false;
+if (smsBalanceView === 'warning') smsBalanceView = 'alerts';
+if (smsBalanceView === 'critical') {
+  smsBalanceView = 'alerts'; smsBalanceAlertFilter = 'critical';
+  localStorage.setItem('bm_sms_balance_view', 'alerts');
+  localStorage.setItem('bm_sms_balance_alert_filter', 'critical');
+}
 let smsBalanceAllSource = localStorage.getItem('bm_sms_balance_all_source') || 'reseller';
 let smsBalanceManagerSource = localStorage.getItem('bm_sms_balance_manager_source') || 'reseller';
 if (!['reseller','wholesale'].includes(smsBalanceAllSource)) smsBalanceAllSource = 'reseller';
 if (!['reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceManagerSource = 'reseller';
 let smsBalanceSelectedMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
-const SMS_BALANCE_VIEWS = new Set(['summary','alerts','critical','all','manager','export','logs','critical-history','nothreshold','settings']);
+const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','settings']);
 const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
 const SMS_BALANCE_LOCAL = {
   snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold'
@@ -11829,10 +11844,6 @@ function smsBalanceDecoratedSnapshotRows(snap) {
     return { ...row, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:matches.some(route => route.status === 'Inactive' || /blocked/i.test(route.overdraft)) };
   });
 }
-function smsBalanceCriticalRows() {
-  return smsBalanceRows().filter(smsBalanceIsCritical)
-    .sort((a,b) => smsBalanceStatusRank(b._status.code)-smsBalanceStatusRank(a._status.code) || a.client.localeCompare(b.client));
-}
 function smsBalanceTransitionRows() {
   const current = smsBalanceRows(), previous = smsBalanceDecoratedSnapshotRows(smsBalancePreviousSnapshot());
   const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
@@ -11934,9 +11945,7 @@ function renderSmsBalanceSummary() {
   set('sms-bal-stat-overdraft', counts('overdraft'));
   set('sms-bal-stat-blocked', counts('blocked'));
   set('sms-bal-stat-nothreshold', rows.filter(row => row._status.credit === null && row._status.critical === null).length);
-  const criticalNow = smsBalanceCriticalRows();
   set('sms-bal-alerts-count', warning.length ? `(${warning.length})` : '');
-  set('sms-bal-critical-count', criticalNow.length ? `(${criticalNow.length})` : '');
   const body = document.getElementById('sms-bal-summary-tbody');
   if (body) body.innerHTML = warning.length ? warning.slice(0,50).map(row => smsBalanceTableRow(row,true)).join('') : smsBalanceEmptyRow(8,'No clients are near a threshold or running on overdraft.');
 }
@@ -11958,6 +11967,7 @@ function smsBalanceAlertSets() {
 function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
   const sets = smsBalanceAlertSets();
   let rows = (sets[filter] || sets.all).slice();
+  if (!smsBalanceAlertShowInactive && filter !== 'inactiveusage') rows = rows.filter(row => row._meta?.is_active !== false);
   if (applyUi) {
     const q = String(document.getElementById('sms-bal-alert-search')?.value || '').toLowerCase();
     const source = document.getElementById('sms-bal-alert-source')?.value || '';
@@ -11968,16 +11978,38 @@ function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
 }
 function updateSmsBalanceAlertCounts() {
   const sets = smsBalanceAlertSets();
+  const countFor = filter => {
+    const rows = sets[filter] || [];
+    return (!smsBalanceAlertShowInactive && filter !== 'inactiveusage')
+      ? rows.filter(row => row._meta?.is_active !== false).length : rows.length;
+  };
   ['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage'].forEach(filter => {
     const el = document.getElementById(`sms-bal-alert-count-${filter}`);
-    if (el) el.textContent = sets[filter]?.length ? `(${sets[filter].length})` : '';
+    const count = countFor(filter);
+    if (el) el.textContent = count ? `(${count})` : '';
   });
+  const newCriticalCount = countFor('new');
+  const alertsCount = document.getElementById('sms-bal-alerts-count');
+  if (alertsCount) alertsCount.textContent = newCriticalCount ? `(${newCriticalCount})` : (sets.warning?.length ? `(${sets.warning.length})` : '');
+  document.getElementById('sms-bal-alert-new')?.classList.toggle('has-new-critical', newCriticalCount > 0);
+  document.getElementById('sms-bal-nav-alerts')?.classList.toggle('has-new-critical', newCriticalCount > 0);
 }
 window.setSmsBalanceAlertFilter = (filter, button) => {
   if (!SMS_BALANCE_ALERT_FILTERS.has(filter)) filter = 'all';
   smsBalanceAlertFilter = filter;
   localStorage.setItem('bm_sms_balance_alert_filter', filter);
-  document.querySelectorAll('#sms-bal-alert-tabs .tbtn').forEach(btn => btn.classList.toggle('active', btn === button || btn.id === `sms-bal-alert-${filter}`));
+  document.querySelectorAll('#sms-bal-alert-tabs > .tbtn').forEach(btn => btn.classList.toggle('active', btn === button || btn.id === `sms-bal-alert-${filter}`));
+  window.renderSmsBalanceAlerts();
+};
+window.toggleSmsBalanceAlertShowInactive = () => {
+  smsBalanceAlertShowInactive = !smsBalanceAlertShowInactive;
+  const button = document.getElementById('sms-bal-alert-show-inactive');
+  if (button) {
+    button.classList.toggle('active', smsBalanceAlertShowInactive);
+    const label = smsBalanceAlertShowInactive ? 'Hide inactive clients' : 'Show inactive clients';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+  }
   window.renderSmsBalanceAlerts();
 };
 function renderSmsBalanceUsageHistory() {
@@ -11991,17 +12023,19 @@ function renderSmsBalanceUsageHistory() {
   const clients=new Map();
   snaps.forEach(s=>(s.data||[]).forEach(row=>{
     if(!row?.client||smsBalanceNumber(row.usage_30min)===0||source&&row.source!==source)return;
+    if(!smsBalanceAlertShowInactive&&smsBalanceMetaFor(row)?.is_active===false)return;
     const key=smsBalanceMetaKey(row);const item=clients.get(key)||{row,bySlot:{}};item.bySlot[s.time_slot]=smsBalanceNumber(row.usage_30min);clients.set(key,item);
   }));
   let items=[...clients.values()].filter(item=>!q||[item.row.client,item.row.source,item.row.email].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>a.row.source.localeCompare(b.row.source)||a.row.client.localeCompare(b.row.client));
   thead.innerHTML=`<tr><th>Feed</th><th>Client</th>${usedSlots.map(slot=>`<th class="num">${esc(fmt12(slot))}</th>`).join('')}</tr>`;
   tbody.innerHTML=items.length?items.map(item=>`<tr><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${v===undefined?'':smsBalanceFmt(v)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
   if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
+  const resultCount=document.getElementById('sms-bal-alert-result-count');if(resultCount)resultCount.textContent=`${items.length} client row(s)`;
 }
 window.renderSmsBalanceAlerts = () => {
   if(!SMS_BALANCE_ALERT_FILTERS.has(smsBalanceAlertFilter))smsBalanceAlertFilter='all';
   updateSmsBalanceAlertCounts();
-  document.querySelectorAll('#sms-bal-alert-tabs .tbtn').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-alert-${smsBalanceAlertFilter}`));
+  document.querySelectorAll('#sms-bal-alert-tabs > .tbtn').forEach(btn=>btn.classList.toggle('active',btn.id===`sms-bal-alert-${smsBalanceAlertFilter}`));
   const isHistory=smsBalanceAlertFilter==='usagehistory';
   const table=document.getElementById('sms-bal-alert-table-wrap'), pivot=document.getElementById('sms-bal-usage-history-wrap'), foot=document.getElementById('sms-bal-usage-history-foot');
   if(table)table.style.display=isHistory?'none':'';if(pivot)pivot.style.display=isHistory?'':'none';if(foot)foot.style.display=isHistory?'':'none';
@@ -12009,14 +12043,6 @@ window.renderSmsBalanceAlerts = () => {
   const rows=smsBalanceAlertRows();
   const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row)).join(''):smsBalanceEmptyRow(12,'No clients match this Alerts view.');
   const count=document.getElementById('sms-bal-alert-result-count');if(count)count.textContent=`${rows.length} client row(s)`;
-};
-window.renderSmsBalanceCritical = () => {
-  const q=String(document.getElementById('sms-bal-current-critical-search')?.value||'').toLowerCase();
-  const source=document.getElementById('sms-bal-current-critical-source')?.value||'';
-  let rows=smsBalanceCriticalRows();
-  if(q)rows=rows.filter(row=>[row.client,row.email,row.number,row._meta?.notes].some(v=>String(v||'').toLowerCase().includes(q)));
-  if(source)rows=rows.filter(row=>row.source===source);
-  const body=document.getElementById('sms-bal-current-critical-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row)).join(''):smsBalanceEmptyRow(12,'No clients are currently critical.');
 };
 function smsBalanceFilteredRows() {
   const q = String(document.getElementById('sms-bal-search')?.value || '').toLowerCase();
@@ -12191,7 +12217,7 @@ function renderSmsBalanceNoThreshold() {
 }
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
-  window.renderSmsBalanceAlerts(); window.renderSmsBalanceCritical(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
+  window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
   const sync=document.getElementById('sms-bal-sync-label');
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
   window.switchSmsBalanceView(smsBalanceView, false);
@@ -12204,7 +12230,7 @@ window.switchSmsBalanceView = (view, persist=true) => {
   document.getElementById(`sms-bal-nav-${view}`)?.classList.add('active');
   document.querySelectorAll('.sms-bal-view').forEach(panel=>panel.classList.remove('active'));
   document.getElementById(`sms-bal-view-${view}`)?.classList.add('active');
-  if(view==='alerts')window.renderSmsBalanceAlerts(); if(view==='critical')window.renderSmsBalanceCritical(); if(view==='all')window.renderSmsBalanceAll();
+  if(view==='alerts')window.renderSmsBalanceAlerts(); if(view==='all')window.renderSmsBalanceAll();
   if(view==='manager')window.renderSmsBalanceManager(); if(view==='logs')renderSmsBalanceLogs();
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
 };
