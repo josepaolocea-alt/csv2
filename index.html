@@ -3448,7 +3448,7 @@
                     </div>
                     <div class="sms-bal-panel">
                       <div class="groupbox-title">SMS Balance Rules</div>
-                      <div class="sms-bal-note">Positive balances are prepaid credit remaining. A negative balance is overdraft already consumed. Reaching $0 fires a Critical event. If overdraft is available, negative balances then move to OD monitoring and OD exhaustion becomes the next Critical target. Remaining overdraft = <strong>Overdraft + Balance</strong>; for example, OD $100 and Balance −$90 leaves $10.</div>
+                      <div class="sms-bal-note">Positive balances are prepaid credit remaining. A negative balance is overdraft already consumed. Balance $0 is Critical only when no overdraft is available. If overdraft is available—even OD $1—the client moves to OD monitoring and OD exhaustion becomes the next Critical target. Remaining overdraft = <strong>Overdraft + Balance</strong>; for example, OD $100 and Balance −$90 leaves $10.</div>
                     </div>
                     <div class="sms-bal-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
                       <div class="groupbox-title">Latest Alerts</div>
@@ -3459,7 +3459,7 @@
                   <section class="sms-bal-view" id="sms-bal-view-alerts">
                     <div class="sms-bal-segmented" id="sms-bal-alert-tabs" role="tablist" aria-label="SMS Balance alert filters">
                       <button class="tbtn active" id="sms-bal-alert-all" onclick="setSmsBalanceAlertFilter('all',this)" data-premium-tooltip="Every client in the latest Reseller and Wholesale snapshot.">All <span id="sms-bal-alert-count-all"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted.">Critical <span id="sms-bal-alert-count-critical"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted.">Critical <span id="sms-bal-alert-count-critical"></span></button>
                       <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit but not yet critical.">Warning <span id="sms-bal-alert-count-warning"></span></button>
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
                       <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="Current clients without both Credit Limit and Critical Balance settings.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
@@ -3487,14 +3487,14 @@
                       </div>
                       <div class="sms-bal-status-guide-grid">
                         <div class="sms-bal-status-guide-item"><span class="sms-bal-badge blocked">Blocked</span>No overdraft and balance is zero/below, or the available overdraft is fully exhausted.</div>
-                        <div class="sms-bal-status-guide-item"><span class="sms-bal-badge critical">Critical</span>Balance has reached zero/the configured Critical Balance, or a signed critical overdraft level has been reached.</div>
+                        <div class="sms-bal-status-guide-item"><span class="sms-bal-badge critical">Critical</span>Balance has reached zero without available overdraft/the configured Critical Balance, or a signed critical overdraft level has been reached.</div>
                         <div class="sms-bal-status-guide-item"><span class="sms-bal-badge warning">Warning</span>Balance has reached the Credit Limit but has not yet reached the Critical Balance.</div>
                         <div class="sms-bal-status-guide-item"><span class="sms-bal-badge near">Near threshold</span>Balance is within <strong id="sms-bal-guide-near-pct">10%</strong> above a configured warning or critical threshold.</div>
-                        <div class="sms-bal-status-guide-item"><span class="sms-bal-badge overdraft">Running on OD</span>After the zero-balance Critical event, a negative balance uses the available overdraft. OD exhaustion is the next Critical target.</div>
+                        <div class="sms-bal-status-guide-item"><span class="sms-bal-badge overdraft">Running on OD</span>Balance is zero/negative while any overdraft remains. OD exhaustion is the next Critical target.</div>
                         <div class="sms-bal-status-guide-item"><span class="sms-bal-badge safe">Safe</span>Balance is above all configured thresholds and is not using overdraft.</div>
                         <div class="sms-bal-status-guide-item"><span class="sms-bal-badge nothreshold">No threshold</span>No Credit Limit or Critical Balance is configured; blocked and overdraft safety rules still apply.</div>
                       </div>
-                      <div class="sms-bal-status-guide-note"><strong>New Critical sequence:</strong> reaching zero records the first event. Moving below zero enters OD monitoring without marking the client recovered. Reaching a signed critical OD level or OD Remaining zero records another New Critical event. When a posted payment removes overdraft, the normal Credit Limit, Critical Balance, and zero-balance rules resume. <strong>OD Remaining = Overdraft + negative Balance.</strong></div>
+                      <div class="sms-bal-status-guide-note"><strong>New Critical sequence:</strong> reaching zero with no OD records an event. If OD is then added, zero/negative balance enters OD monitoring without marking the client recovered. Reaching a signed critical OD level or OD Remaining zero records another New Critical event. When a posted payment removes overdraft, the normal Credit Limit, Critical Balance, and zero-balance rules resume. <strong>OD Remaining = Overdraft + negative Balance.</strong></div>
                     </section>
                     <div class="sms-bal-alert-toolbar">
                       <input class="win-search" id="sms-bal-alert-search" type="search" placeholder="Search alert clients…" oninput="renderSmsBalanceAlerts()" data-premium-tooltip="Search by client, email, number, account type, or notes.">
@@ -11930,7 +11930,7 @@ function smsBalanceStatus(row) {
   const critical = smsBalanceThreshold(meta, 'critical_balance');
   const hasOverdraftThreshold = (credit !== null && credit < 0) || (critical !== null && critical < 0);
   const hasAvailableOverdraft = overdraft > 0 && odRemaining > 0;
-  const usingOverdraft = balance < 0 && hasAvailableOverdraft;
+  const usingOverdraft = balance <= 0 && hasAvailableOverdraft;
   let code = 'safe', label = 'Safe';
   if ((overdraft === 0 && balance <= 0) || (balance < 0 && odRemaining <= 0)) { code = 'blocked'; label = 'Blocked — OD exhausted'; }
   else if (usingOverdraft && critical !== null && critical < 0 && balance <= critical) { code = 'critical'; label = 'Critical Overdraft Level'; }
