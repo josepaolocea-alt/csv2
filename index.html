@@ -3452,8 +3452,8 @@
                         <div class="sms-field sms-bal-required"><label>Feed</label><input class="win-inp" id="sms-bal-meta-source" readonly required aria-required="true" data-premium-tooltip="Required. Reseller and Wholesale settings are stored separately."></div>
                         <div class="sms-field sms-bal-required"><label>Account Manager</label><input class="win-inp" id="sms-bal-meta-account-manager" required aria-required="true" placeholder="Account manager name" data-premium-tooltip="Required. The team member responsible for this SMS Balance client."></div>
                         <div class="sms-field" id="sms-bal-meta-allow-field"><label>Allow Balance Label</label><input class="win-inp" id="sms-bal-meta-allow" aria-required="false" placeholder="$0 PREPAYMENT / $100 POSTPAID" data-premium-tooltip="Optional workbook label unless threshold fields are required in SMS Settings."></div>
-                        <div class="sms-field" id="sms-bal-meta-credit-field"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" min="0" step="0.01" aria-required="false" placeholder="Example: 100" data-premium-tooltip="Optional positive Warning threshold unless required in SMS Settings."></div>
-                        <div class="sms-field" id="sms-bal-meta-critical-field"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" min="0" step="0.01" aria-required="false" placeholder="Example: 10" data-premium-tooltip="Optional positive Critical threshold unless required in SMS Settings."></div>
+                        <div class="sms-field" id="sms-bal-meta-credit-field"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" step="0.01" aria-required="false" placeholder="Example: 100 or -900000" data-premium-tooltip="Optional signed Warning threshold. Use a negative value to alert at a configured overdraft level."></div>
+                        <div class="sms-field" id="sms-bal-meta-critical-field"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" step="0.01" aria-required="false" placeholder="Example: 10 or -1000000" data-premium-tooltip="Optional signed Critical threshold. Use a negative value to notify when that overdraft level is reached."></div>
                         <div class="sms-field sms-bal-required"><label>Status</label><select class="win-sel" id="sms-bal-meta-active" required aria-required="true" data-premium-tooltip="Required. Inactive clients with usage appear in Alerts."><option value="true">Active</option><option value="false">Inactive</option></select></div>
                         <div class="sms-field full"><label>Notes</label><textarea class="win-ta" id="sms-bal-meta-notes" rows="2"></textarea></div>
                       </div>
@@ -3466,7 +3466,7 @@
                       <input type="file" id="sms-bal-manager-file" accept=".csv,text/csv" style="display:none" onchange="importSmsBalanceClientsCsv(this.files[0]);this.value=''">
                       <span class="sms-muted">Rows in the uploaded file overwrite matching Client + Feed settings.</span>
                     </div>
-                    <div class="fbar"><input class="win-search" id="sms-bal-manager-search" type="search" placeholder="Search clients…" oninput="renderSmsBalanceManager()"><span class="sms-muted">Select a client to set positive warning and critical thresholds.</span></div>
+                    <div class="fbar"><input class="win-search" id="sms-bal-manager-search" type="search" placeholder="Search clients…" oninput="renderSmsBalanceManager()"><span class="sms-muted">Thresholds may be positive balances or negative overdraft levels.</span></div>
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Feed</th><th>Account Manager</th><th class="num">Balance</th><th class="num">Overdraft</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th>Allow Balance</th><th>Notes</th><th>Action</th></tr></thead><tbody id="sms-bal-manager-tbody"></tbody></table></div>
                   </section>
 
@@ -11782,7 +11782,7 @@ function smsBalanceThreshold(meta, field) {
   const v = meta?.[field];
   if (v === '' || v === null || v === undefined) return null;
   const n = Number(v);
-  return Number.isFinite(n) ? Math.max(0, n) : null;
+  return Number.isFinite(n) ? n : null;
 }
 function smsBalanceOverdraftRemaining(row) {
   const bal = smsBalanceNumber(row?.balance), od = Math.max(0, smsBalanceNumber(row?.overdraft));
@@ -11800,21 +11800,25 @@ function smsBalanceStatus(row) {
   const odRemaining = smsBalanceOverdraftRemaining(row);
   const credit = smsBalanceThreshold(meta, 'credit_limit');
   const critical = smsBalanceThreshold(meta, 'critical_balance');
+  const hasOverdraftThreshold = (credit !== null && credit < 0) || (critical !== null && critical < 0);
   let code = 'safe', label = 'Safe';
   if ((overdraft === 0 && balance <= 0) || (balance < 0 && odRemaining <= 0)) { code = 'blocked'; label = 'Blocked — OD exhausted'; }
-  else if (balance < 0) { code = 'overdraft'; label = 'Running on OD'; }
-  else if (balance === 0) { code = 'critical'; label = 'Balance Reached Zero'; }
-  else if (critical !== null && balance <= critical) { code = 'critical'; label = 'Critical Balance'; }
-  else if (credit !== null && balance <= credit) { code = 'warning'; label = 'Credit Limit Warning'; }
+  else if (hasOverdraftThreshold && critical !== null && balance <= critical) { code = 'critical'; label = critical < 0 ? 'Critical Overdraft Level' : 'Critical Balance'; }
+  else if (hasOverdraftThreshold && credit !== null && balance <= credit && (credit < 0 || balance >= 0)) { code = 'warning'; label = credit < 0 ? 'Overdraft Warning Level' : 'Credit Limit Warning'; }
   else if (smsBalanceNearThreshold(balance, critical) || smsBalanceNearThreshold(balance, credit)) { code = 'near'; label = 'Near Threshold'; }
+  else if (balance < 0) { code = 'overdraft'; label = 'Running on OD'; }
+  else if (balance === 0 && !hasOverdraftThreshold) { code = 'critical'; label = 'Balance Reached Zero'; }
+  else if (!hasOverdraftThreshold && critical !== null && balance <= critical) { code = 'critical'; label = 'Critical Balance'; }
+  else if (!hasOverdraftThreshold && credit !== null && balance <= credit) { code = 'warning'; label = 'Credit Limit Warning'; }
   else if (credit === null && critical === null) { code = 'nothreshold'; label = 'No Threshold'; }
-  return { code, label, balance, overdraft, odRemaining, credit, critical };
+  return { code, label, balance, overdraft, odRemaining, credit, critical, hasOverdraftThreshold };
 }
-function smsBalanceStatusRank(code) { return ({blocked:6,overdraft:5,critical:4,warning:3,near:2,nothreshold:1,safe:0})[code] ?? 0; }
+function smsBalanceStatusRank(code) { return ({blocked:6,critical:5,overdraft:4,warning:3,near:2,nothreshold:1,safe:0})[code] ?? 0; }
 function smsBalanceStatusBadge(status) { return `<span class="sms-bal-badge ${status.code}">${esc(status.label)}</span>`; }
 function smsBalanceIsCritical(row) {
   if (!row) return false;
   const status = row?._status || smsBalanceStatus(row);
+  if (status.hasOverdraftThreshold) return ['critical','blocked'].includes(status.code);
   return smsBalanceNumber(row?.balance) <= 0 || ['critical','overdraft','blocked'].includes(status.code);
 }
 function smsBalanceRouteNameKey(v) { return smsBalanceCleanText(v).toUpperCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' '); }
@@ -12138,8 +12142,8 @@ window.saveSmsBalanceClientMeta = async () => {
     {id:'sms-bal-meta-source',label:'Feed',empty:()=>!sourceValue},
     {id:'sms-bal-meta-account-manager',label:'Account Manager',empty:()=>!accountManagerValue},
     {id:'sms-bal-meta-allow',label:'Allow Balance Label',empty:()=>SBS.requireClientThresholds&&!allowValue},
-    {id:'sms-bal-meta-credit',label:'Credit Limit',empty:()=>(SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&(!Number.isFinite(Number(creditRaw))||Number(creditRaw)<0))},
-    {id:'sms-bal-meta-critical',label:'Critical Balance',empty:()=>(SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&(!Number.isFinite(Number(criticalRaw))||Number(criticalRaw)<0))},
+    {id:'sms-bal-meta-credit',label:'Credit Limit',empty:()=>(SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&!Number.isFinite(Number(creditRaw)))},
+    {id:'sms-bal-meta-critical',label:'Critical Balance',empty:()=>(SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&!Number.isFinite(Number(criticalRaw)))},
     {id:'sms-bal-meta-active',label:'Status',empty:()=>!['true','false'].includes(statusRaw)}
   ];
   if(!validateRequiredFields(required,'Cannot save SMS Balance client settings.'))return;
@@ -12150,7 +12154,7 @@ window.saveSmsBalanceClientMeta = async () => {
     source:item.row.source, client:item.row.client,
     account_manager:accountManagerValue,
     allow_balance:allowValue,
-    credit_limit:creditRaw===''?null:Math.max(0,Number(creditRaw)), critical_balance:criticalRaw===''?null:Math.max(0,Number(criticalRaw)),
+    credit_limit:creditRaw===''?null:Number(creditRaw), critical_balance:criticalRaw===''?null:Number(criticalRaw),
     is_active:document.getElementById('sms-bal-meta-active')?.value!=='false',
     notes:document.getElementById('sms-bal-meta-notes')?.value.trim()||'', updated_at:new Date().toISOString()
   };
@@ -12194,8 +12198,8 @@ window.importSmsBalanceClientsCsv = async file => {
       const credit=Number(creditRaw),critical=Number(criticalRaw);
       const errors=[];
       if(!client)errors.push('Client');if(!source)errors.push('Feed');if(!accountManager)errors.push('Account Manager');if(SBS.requireClientThresholds&&!allow)errors.push('Allow Balance Label');
-      if((SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&(!Number.isFinite(credit)||credit<0)))errors.push('Credit Limit');
-      if((SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&(!Number.isFinite(critical)||critical<0)))errors.push('Critical Balance');
+      if((SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&!Number.isFinite(credit)))errors.push('Credit Limit');
+      if((SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&!Number.isFinite(critical)))errors.push('Critical Balance');
       if(active===null)errors.push('Status');if(creditRaw!==''&&criticalRaw!==''&&Number.isFinite(credit)&&Number.isFinite(critical)&&critical>credit)errors.push('Critical Balance > Credit Limit');
       return {line:index+2,errors,meta:{source,client,account_manager:accountManager,allow_balance:allow,credit_limit:creditRaw===''?null:credit,critical_balance:criticalRaw===''?null:critical,is_active:active,notes:value('Notes'),updated_at:new Date().toISOString()}};
     });
