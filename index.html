@@ -3451,16 +3451,16 @@
                         <div class="sms-field sms-bal-required"><label>Client</label><input class="win-inp" id="sms-bal-meta-client" readonly required aria-required="true" data-premium-tooltip="Required. Select a client from the current feed table below."></div>
                         <div class="sms-field sms-bal-required"><label>Feed</label><input class="win-inp" id="sms-bal-meta-source" readonly required aria-required="true" data-premium-tooltip="Required. Reseller and Wholesale settings are stored separately."></div>
                         <div class="sms-field sms-bal-required"><label>Account Manager</label><input class="win-inp" id="sms-bal-meta-account-manager" required aria-required="true" placeholder="Account manager name" data-premium-tooltip="Required. The team member responsible for this SMS Balance client."></div>
-                        <div class="sms-field sms-bal-required"><label>Allow Balance Label</label><input class="win-inp" id="sms-bal-meta-allow" required aria-required="true" placeholder="$0 PREPAYMENT / $100 POSTPAID" data-premium-tooltip="Required label displayed in the generated workbook."></div>
-                        <div class="sms-field sms-bal-required"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" min="0" step="0.01" required aria-required="true" placeholder="Example: 100" data-premium-tooltip="Required positive balance that starts the Warning state."></div>
-                        <div class="sms-field sms-bal-required"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" min="0" step="0.01" required aria-required="true" placeholder="Example: 10" data-premium-tooltip="Required positive balance that starts the Critical state."></div>
+                        <div class="sms-field" id="sms-bal-meta-allow-field"><label>Allow Balance Label</label><input class="win-inp" id="sms-bal-meta-allow" aria-required="false" placeholder="$0 PREPAYMENT / $100 POSTPAID" data-premium-tooltip="Optional workbook label unless threshold fields are required in SMS Settings."></div>
+                        <div class="sms-field" id="sms-bal-meta-credit-field"><label>Credit Limit (warning)</label><input class="win-inp" id="sms-bal-meta-credit" type="number" min="0" step="0.01" aria-required="false" placeholder="Example: 100" data-premium-tooltip="Optional positive Warning threshold unless required in SMS Settings."></div>
+                        <div class="sms-field" id="sms-bal-meta-critical-field"><label>Critical Balance</label><input class="win-inp" id="sms-bal-meta-critical" type="number" min="0" step="0.01" aria-required="false" placeholder="Example: 10" data-premium-tooltip="Optional positive Critical threshold unless required in SMS Settings."></div>
                         <div class="sms-field sms-bal-required"><label>Status</label><select class="win-sel" id="sms-bal-meta-active" required aria-required="true" data-premium-tooltip="Required. Inactive clients with usage appear in Alerts."><option value="true">Active</option><option value="false">Inactive</option></select></div>
                         <div class="sms-field full"><label>Notes</label><textarea class="win-ta" id="sms-bal-meta-notes" rows="2"></textarea></div>
                       </div>
                       <div style="display:flex;gap:5px;margin-top:8px"><button class="tbtn primary" onclick="saveSmsBalanceClientMeta()">Save Settings</button><button class="tbtn" onclick="clearSmsBalanceClientEditor()">Clear</button></div>
                     </div>
                     <div class="sms-bal-file-actions">
-                      <span class="sms-bal-premium-help" data-premium-tooltip="CSV columns: Client, Feed, Account Manager, Allow Balance Label, Credit Limit, Critical Balance, Status, Notes. Every valid client row in the upload overwrites that client's saved settings.">?</span>
+                      <span class="sms-bal-premium-help" data-premium-tooltip="CSV columns: Client, Feed, Account Manager, Allow Balance Label, Credit Limit, Critical Balance, Status, Notes. The three balance fields are optional unless enabled as required in SMS Settings.">?</span>
                       <button class="tbtn" onclick="downloadSmsBalanceClientSampleCsv()" data-premium-tooltip="Download a ready-to-fill CSV template with the required columns.">Download Sample CSV</button>
                       <button class="tbtn primary" onclick="document.getElementById('sms-bal-manager-file').click()" data-premium-tooltip="Upload a CSV and overwrite settings for every client included in the file.">Upload &amp; Overwrite Clients</button>
                       <input type="file" id="sms-bal-manager-file" accept=".csv,text/csv" style="display:none" onchange="importSmsBalanceClientsCsv(this.files[0]);this.value=''">
@@ -3503,6 +3503,7 @@
                         <div class="sms-field"><label>Near-threshold range (%)</label><input class="win-inp" id="sms-bal-set-near" type="number" min="0" max="100" step="1" onchange="saveSmsBalanceSettings()"></div>
                         <div class="sms-field"><label>Keep snapshots (days)</label><select class="win-sel" id="sms-bal-set-retention" onchange="saveSmsBalanceSettings()"><option value="0">Forever</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option><option value="90">90 days</option></select></div>
                         <div class="sms-field"><label style="display:flex;gap:7px;align-items:center;margin-top:18px"><input type="checkbox" id="sms-bal-set-sound" onchange="saveSmsBalanceSettings()"> Sound when blocked / critical</label></div>
+                        <div class="sms-field full"><label style="display:flex;gap:7px;align-items:center"><input type="checkbox" id="sms-bal-set-require-client-thresholds" onchange="saveSmsBalanceSettings()"> Require Allow Balance Label, Credit Limit, and Critical Balance in Client Manager</label><span class="sms-muted">Off by default. Applies to manual saves and CSV uploads.</span></div>
                       </div>
                     </div>
                     <div class="sms-bal-panel sms-bal-danger">
@@ -5107,7 +5108,7 @@ const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','no
 const SMS_BALANCE_LOCAL = {
   snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold'
 };
-let SBS = { nearPct:10, retentionDays:30, soundAlert:true };
+let SBS = { nearPct:10, retentionDays:30, soundAlert:true, requireClientThresholds:false };
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
@@ -11920,13 +11921,27 @@ function loadSmsBalanceSettingsUi() {
   const near = document.getElementById('sms-bal-set-near'); if (near) near.value = SBS.nearPct;
   const retention = document.getElementById('sms-bal-set-retention'); if (retention) retention.value = String(SBS.retentionDays);
   const sound = document.getElementById('sms-bal-set-sound'); if (sound) sound.checked = !!SBS.soundAlert;
+  const requireThresholds = document.getElementById('sms-bal-set-require-client-thresholds'); if (requireThresholds) requireThresholds.checked = !!SBS.requireClientThresholds;
+  syncSmsBalanceClientRequiredFields();
   const exportDate = document.getElementById('sms-bal-export-date'); if (exportDate && !exportDate.value) exportDate.value = todayStr();
+}
+function syncSmsBalanceClientRequiredFields() {
+  const required = !!SBS.requireClientThresholds;
+  [['sms-bal-meta-allow-field','sms-bal-meta-allow'],['sms-bal-meta-credit-field','sms-bal-meta-credit'],['sms-bal-meta-critical-field','sms-bal-meta-critical']].forEach(([fieldId,inputId]) => {
+    document.getElementById(fieldId)?.classList.toggle('sms-bal-required', required);
+    const input = document.getElementById(inputId); if (!input) return;
+    input.toggleAttribute('required', required);
+    input.setAttribute('aria-required', String(required));
+    if (!required) setRequiredFieldState(inputId, false);
+  });
 }
 window.saveSmsBalanceSettings = () => {
   SBS.nearPct = Math.max(0, Math.min(100, Number(document.getElementById('sms-bal-set-near')?.value) || 0));
   SBS.retentionDays = Math.max(0, Number(document.getElementById('sms-bal-set-retention')?.value) || 0);
   SBS.soundAlert = !!document.getElementById('sms-bal-set-sound')?.checked;
+  SBS.requireClientThresholds = !!document.getElementById('sms-bal-set-require-client-thresholds')?.checked;
   localStorage.setItem('bm_sms_balance_settings', JSON.stringify(SBS));
+  syncSmsBalanceClientRequiredFields();
   renderSmsBalanceModule();
 };
 function renderSmsBalanceSnapshotList() {
@@ -12122,20 +12137,20 @@ window.saveSmsBalanceClientMeta = async () => {
     {id:'sms-bal-meta-client',label:'Client',empty:()=>!clientValue},
     {id:'sms-bal-meta-source',label:'Feed',empty:()=>!sourceValue},
     {id:'sms-bal-meta-account-manager',label:'Account Manager',empty:()=>!accountManagerValue},
-    {id:'sms-bal-meta-allow',label:'Allow Balance Label',empty:()=>!allowValue},
-    {id:'sms-bal-meta-credit',label:'Credit Limit',empty:()=>creditRaw===''||!Number.isFinite(Number(creditRaw))||Number(creditRaw)<0},
-    {id:'sms-bal-meta-critical',label:'Critical Balance',empty:()=>criticalRaw===''||!Number.isFinite(Number(criticalRaw))||Number(criticalRaw)<0},
+    {id:'sms-bal-meta-allow',label:'Allow Balance Label',empty:()=>SBS.requireClientThresholds&&!allowValue},
+    {id:'sms-bal-meta-credit',label:'Credit Limit',empty:()=>(SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&(!Number.isFinite(Number(creditRaw))||Number(creditRaw)<0))},
+    {id:'sms-bal-meta-critical',label:'Critical Balance',empty:()=>(SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&(!Number.isFinite(Number(criticalRaw))||Number(criticalRaw)<0))},
     {id:'sms-bal-meta-active',label:'Status',empty:()=>!['true','false'].includes(statusRaw)}
   ];
   if(!validateRequiredFields(required,'Cannot save SMS Balance client settings.'))return;
-  if(Number(criticalRaw)>Number(creditRaw)){setRequiredFieldState('sms-bal-meta-credit',true);setRequiredFieldState('sms-bal-meta-critical',true);toast('Credit Limit must be equal to or higher than Critical Balance.','err',7000);return;}
+  if(creditRaw!==''&&criticalRaw!==''&&Number(criticalRaw)>Number(creditRaw)){setRequiredFieldState('sms-bal-meta-credit',true);setRequiredFieldState('sms-bal-meta-critical',true);toast('Credit Limit must be equal to or higher than Critical Balance.','err',7000);return;}
   if(!smsBalanceSelectedMetaKey){toast('Select a client from the current feed first.','err');return;}
   const item=uniqueSmsBalanceClients().find(entry=>entry.key===smsBalanceSelectedMetaKey); if(!item)return;
   const meta={
     source:item.row.source, client:item.row.client,
     account_manager:accountManagerValue,
     allow_balance:allowValue,
-    credit_limit:Math.max(0,Number(creditRaw)), critical_balance:Math.max(0,Number(criticalRaw)),
+    credit_limit:creditRaw===''?null:Math.max(0,Number(creditRaw)), critical_balance:criticalRaw===''?null:Math.max(0,Number(criticalRaw)),
     is_active:document.getElementById('sms-bal-meta-active')?.value!=='false',
     notes:document.getElementById('sms-bal-meta-notes')?.value.trim()||'', updated_at:new Date().toISOString()
   };
@@ -12178,11 +12193,11 @@ window.importSmsBalanceClientsCsv = async file => {
       const creditRaw=value('Credit Limit'),criticalRaw=value('Critical Balance'),active=smsBalanceImportStatus(value('Status'));
       const credit=Number(creditRaw),critical=Number(criticalRaw);
       const errors=[];
-      if(!client)errors.push('Client');if(!source)errors.push('Feed');if(!accountManager)errors.push('Account Manager');if(!allow)errors.push('Allow Balance Label');
-      if(creditRaw===''||!Number.isFinite(credit)||credit<0)errors.push('Credit Limit');
-      if(criticalRaw===''||!Number.isFinite(critical)||critical<0)errors.push('Critical Balance');
-      if(active===null)errors.push('Status');if(Number.isFinite(credit)&&Number.isFinite(critical)&&critical>credit)errors.push('Critical Balance > Credit Limit');
-      return {line:index+2,errors,meta:{source,client,account_manager:accountManager,allow_balance:allow,credit_limit:credit,critical_balance:critical,is_active:active,notes:value('Notes'),updated_at:new Date().toISOString()}};
+      if(!client)errors.push('Client');if(!source)errors.push('Feed');if(!accountManager)errors.push('Account Manager');if(SBS.requireClientThresholds&&!allow)errors.push('Allow Balance Label');
+      if((SBS.requireClientThresholds&&creditRaw==='')||(creditRaw!==''&&(!Number.isFinite(credit)||credit<0)))errors.push('Credit Limit');
+      if((SBS.requireClientThresholds&&criticalRaw==='')||(criticalRaw!==''&&(!Number.isFinite(critical)||critical<0)))errors.push('Critical Balance');
+      if(active===null)errors.push('Status');if(creditRaw!==''&&criticalRaw!==''&&Number.isFinite(credit)&&Number.isFinite(critical)&&critical>credit)errors.push('Critical Balance > Credit Limit');
+      return {line:index+2,errors,meta:{source,client,account_manager:accountManager,allow_balance:allow,credit_limit:creditRaw===''?null:credit,critical_balance:criticalRaw===''?null:critical,is_active:active,notes:value('Notes'),updated_at:new Date().toISOString()}};
     });
     const invalid=normalizedRows.filter(row=>row.errors.length);
     if(!normalizedRows.length)throw new Error('The CSV contains no client rows.');
