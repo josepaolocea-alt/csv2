@@ -10990,6 +10990,9 @@ function balanceBarPct(r) {
   const pos   = bal - credLim;
   return range !== 0 ? Math.min(Math.max(pos/range*100,0),100) : (bal>=critBal?100:0);
 }
+function balanceBarDisplayPct(progress) {
+  return progress>=100?'100.00':Math.min(progress,99.99).toFixed(2);
+}
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
   if (f === 'light') { alertSortCol = '_bw'; alertSortDir = -1; }
@@ -11177,6 +11180,7 @@ function renderAlerts() {
 
   document.getElementById('alert-tbody').innerHTML= prevLoadingNote + noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + spamNote + page.map(r=>{
     const bw = balanceBarPct(r);
+    const bwDisplay = balanceBarDisplayPct(bw);
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='spam' ? spamChipInfo(r) : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
     const spamBadge = (r._spam && alertFilter!=='spam')
@@ -11205,8 +11209,8 @@ function renderAlerts() {
       <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
       <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
-        <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bw.toFixed(2)}%"></div></div>
-        <span class="${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:'Courier New',monospace;font-size:10px">${bw.toFixed(1)}%</span>
+        <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bwDisplay}%"></div></div>
+        <span class="${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:'Courier New',monospace;font-size:10px">${bwDisplay}%</span>
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}${spamIgnore}</td>
       <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
