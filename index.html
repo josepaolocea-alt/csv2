@@ -777,6 +777,37 @@
     }
     #bulk-save-bar.visible { display: flex; }
 
+    /* VOIP All Clients toolbar: filters, query controls and actions keep their
+       own space instead of compressing into one long, uneven row. */
+    .clients-toolbar {
+      display:grid; grid-template-columns:auto minmax(260px,1fr) auto;
+      gap:8px; align-items:center; margin-bottom:8px; padding:7px;
+      background:var(--surface-2); border:1px solid var(--border);
+      border-radius:var(--r-md); box-shadow:var(--shadow-sm);
+    }
+    .clients-filter-group,
+    .clients-action-group { display:flex; flex-wrap:wrap; align-items:center; gap:5px; }
+    .clients-query-group {
+      display:grid; grid-template-columns:minmax(170px,1fr) minmax(145px,180px);
+      align-items:center; gap:6px; min-width:0;
+    }
+    .clients-query-group .win-search,
+    .clients-query-group .premium-select,
+    .clients-query-group .premium-select-trigger { width:100% !important; min-width:0; }
+    .clients-action-group { justify-content:flex-end; }
+    .clients-toolbar .tbtn,
+    .clients-toolbar .fltbtn { min-height:28px; white-space:nowrap; }
+    @media (max-width:1180px) {
+      .clients-toolbar { grid-template-columns:minmax(0,1fr) auto; }
+      .clients-filter-group { grid-column:1 / -1; }
+    }
+    @media (max-width:760px) {
+      .clients-toolbar { grid-template-columns:1fr; align-items:stretch; }
+      .clients-filter-group { grid-column:auto; }
+      .clients-query-group { grid-template-columns:1fr; }
+      .clients-action-group { justify-content:flex-start; }
+    }
+
     /* ETA approaching-critical row highlight */
     tr.row-eta-warn td { background: var(--yellow-soft) !important; }
     tr.row-eta-warn:hover td { background: var(--row-hover) !important; }
@@ -2237,11 +2268,19 @@
       background: var(--red-soft); border: 1px solid var(--border); border-radius: var(--r-md);
       padding: 8px; font-size: 10px; color: var(--red);
     }
-    /* Danger-zone action buttons: uniform width, left-aligned, wrap evenly. */
+    /* Danger actions stay available without visually overpowering the setting
+       descriptions. Confirmation dialogs still provide the strong warning. */
     .settings-danger .danger-btns { display: flex; flex-wrap: wrap; gap: 6px; }
-    .settings-danger .danger-btns .tbtn {
-      flex: 0 0 auto; min-width: 190px; justify-content: center; white-space: nowrap;
+    #voip-settings-danger-zone .danger-btns .tbtn {
+      flex:0 0 auto; min-width:0; min-height:24px; padding:2px 9px;
+      justify-content:center; white-space:nowrap; font-size:9.5px; font-weight:600;
+      color:var(--text-2) !important; background:color-mix(in srgb,var(--surface) 70%,transparent);
+      border-color:color-mix(in srgb,var(--red) 20%,var(--border)); box-shadow:none; opacity:.82;
     }
+    #voip-settings-danger-zone .danger-btns .tbtn:hover {
+      color:var(--red) !important; background:var(--surface); border-color:color-mix(in srgb,var(--red) 42%,var(--border)); opacity:1;
+    }
+    .settings-admin-only { display:contents; }
     .settings-note {
       font-size: 11px; color: var(--text-2);
       background: var(--surface-2);
@@ -3275,23 +3314,29 @@
       <div class="view" id="view-all-clients">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title" id="clients-title">All Clients</div>
-          <div class="fbar">
-            <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
-            <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
-            <button class="fltbtn" onclick="setClientsFilter('inactive',this)">Inactive only</button>
-            <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
-            <button class="fltbtn" onclick="setClientsFilter('usage',this)">Usage only</button>
-            <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()" style="margin-left:4px">Hide inactive</button>
-            <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">Export View</button>
-            <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
-            <select class="win-sel" id="clients-manager-filter" onchange="setClientManagerFilter(this.value)" title="Filter by account manager" style="height:22px;max-width:160px">
-              <option value="all">All managers</option>
-            </select>
-            <div class="col-wrap">
-              <button class="tbtn" onclick="toggleColDD()">Cols</button>
-              <div class="col-dd" id="col-dd"></div>
+          <div class="clients-toolbar" aria-label="All Clients filters and actions">
+            <div class="clients-filter-group" role="group" aria-label="Client status filters">
+              <button class="fltbtn active" onclick="setClientsFilter('all',this)">All</button>
+              <button class="fltbtn" onclick="setClientsFilter('active',this)">Active only</button>
+              <button class="fltbtn" onclick="setClientsFilter('inactive',this)">Inactive only</button>
+              <button class="fltbtn" id="btn-debit-only" onclick="showDebitOnlyClients(this)">Debit only</button>
+              <button class="fltbtn" onclick="setClientsFilter('usage',this)">Usage only</button>
             </div>
-            <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" style="margin-left:4px" title="Edit Credit Limit & Critical Balance for multiple clients at once">Bulk Edit</button>
+            <div class="clients-query-group">
+              <input class="win-search" id="clients-search" name="carrier_filter_not_email" type="search" placeholder="Search carrier..." autocomplete="off" autocapitalize="off" spellcheck="false" oninput="window.renderClients()">
+              <select class="win-sel" id="clients-manager-filter" onchange="setClientManagerFilter(this.value)" title="Filter by account manager">
+                <option value="all">All managers</option>
+              </select>
+            </div>
+            <div class="clients-action-group" aria-label="All Clients actions">
+              <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()">Hide inactive</button>
+              <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">Export View</button>
+              <div class="col-wrap">
+                <button class="tbtn" onclick="toggleColDD()">Cols</button>
+                <div class="col-dd" id="col-dd"></div>
+              </div>
+              <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" title="Edit Credit Limit & Critical Balance for multiple clients at once">Bulk Edit</button>
+            </div>
           </div>
           <div id="bulk-save-bar">
             <span id="bulk-change-count">0</span> unsaved change(s) —
@@ -4507,9 +4552,10 @@
 <div class="view settings-page" id="view-settings">
   <div class="settings-page-shell">
     <div class="sms-bal-panel settings-page-panel">
-    <div class="groupbox-title settings-page-title">Balance Monitor VOIP Settings</div>
+    <div class="groupbox-title settings-page-title" id="voip-settings-title">Balance Monitor VOIP Settings</div>
     <div class="settings-body">
       <div class="settings-grid">
+        <div class="settings-admin-only" id="voip-settings-admin-only">
         <div class="settings-row" style="display:none">
           <label style="min-width:130px">Fallback warning:</label>
           <input class="win-inp" id="set-light" type="number" value="-10" style="width:70px" onchange="saveSettings()" title="Credit Limit must be set per client. Blank Credit Limit does not trigger Warning.">
@@ -4648,8 +4694,9 @@
           Add or remove users in the Firebase Console → Authentication → Users.
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
-        <div class="settings-danger">
+        </div>
+        <div id="voip-settings-danger-title" style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
+        <div class="settings-danger" id="voip-settings-danger-zone">
           <div style="margin-bottom:5px">Delete today's stored snapshots only if you intentionally want to remove today's history. This can affect New Critical comparisons.</div>
           <div class="danger-btns">
             <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm()">Delete Today Snapshots</button>
@@ -4700,12 +4747,6 @@
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
           </div>
         </div>
-        <div class="settings-danger" id="stats-daily-wipe-setting">
-          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data. <strong>Admin only.</strong></div>
-          <div class="danger-btns">
-            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
-          </div>
-        </div>
       </div>
     </div>
     </div>
@@ -4727,6 +4768,12 @@
             <button type="button" class="tbtn" id="stats-daily-archive-btn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
           </div>
           <div class="stats-daily-archive-note" id="stats-daily-archive-note">Admin only. Semi-admins and viewers may review this setting but cannot archive.</div>
+        </div>
+        <div class="settings-danger" id="stats-daily-wipe-setting">
+          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data. <strong>Admin only.</strong></div>
+          <div class="danger-btns">
+            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
+          </div>
         </div>
       </div>
     </div>
@@ -9644,6 +9691,10 @@ function applyModuleAccess(){
   show('sms-bal-delete-all-btn', canDeleteSnapshots());
   show('sms-bal-clear-history-btn', admin);
   show('sms-bal-clear-nothreshold-btn', admin);
+  // VOIP operational settings are admin-only. Semi-admins and viewers see
+  // only the Danger Zone, where the existing action-level permissions apply.
+  show('voip-settings-title', admin);
+  show('voip-settings-admin-only', admin);
   disable('stats-daily-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
