@@ -5385,6 +5385,7 @@ try {
 ════════════════════════════════════════════════ */
 let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let priorSnap = null; // most recent snapshot from any day before today
+let priorSnapLoaded = !fbOk; // false while the connected comparison baseline is still resolving
 let tritelSnaps = [];  // additional Tritel-only data, one entry per time slot ({ session_date, time_slot, data:[...] }); persists independently of the all-client snapshots
 let snapSource = 'all';  // 'all' | 'tritel' — which source the New Snapshot paste represents
 let lastProcessedSnap = null; // demo/offline fallback only; connected Firestore snapshots are authoritative
@@ -6732,7 +6733,8 @@ function checkAndNotify(data, isNewSnapshot = false) {
   if (isNewSnapshot && hasCritical) {
     // Determine if any are newly critical (not in previous snapshot)
     const prevCritSet = getPrevCriticalSet();
-    const newlyCritical = critical.filter(r => prevCritSet === null || !prevCritSet.has(r.carrier_name));
+    const newlyCritical = prevCritSet === undefined ? []
+      : critical.filter(r => prevCritSet === null || !prevCritSet.has(r.carrier_name));
 
     // 2. Sound alert
     if (S.soundAlert) playAlertSound();
@@ -6837,7 +6839,10 @@ function getPrevSnapshot() {
 }
 function getPrevCriticalSet() {
   const prev = getPrevSnapshot();
-  if (!prev) return null; // null = no prior reference this session
+  // undefined = the connected prior-day query is still loading; null = it
+  // finished and confirmed that no prior reference exists. Keeping those states
+  // separate prevents a transient render from marking every Critical client new.
+  if (!prev) return priorSnapLoaded ? null : undefined;
   return new Set(prev.data.filter(r => alertLevel(r) === 'high').map(r => r.carrier_name));
 }
 function updateNewCriticalTab(newCount) {
@@ -10624,7 +10629,9 @@ function priorSnapshotQuery() {
     collection(db, 'snapshots'),
     where('session_date', '<', todayStr()),
     orderBy('session_date', 'desc'),
-    limit(30)
+    // A full day can contain 48 half-hour slots; 50 guarantees the latest
+    // prior date is represented completely before we choose its latest slot.
+    limit(50)
   );
 }
 
@@ -10641,13 +10648,15 @@ function priorSnapshotFromDocs(docs) {
 }
 
 async function loadPrevSnap() {
-  if (!fbOk) return;
+  if (!fbOk) { priorSnapLoaded = true; return; }
   // Clear the old baseline first so an empty authoritative result (for example
   // after another operator wipes all snapshots) cannot leave stale data behind.
   priorSnap = null;
+  priorSnapLoaded = false;
   try {
     const s = await getDocs(priorSnapshotQuery());
     priorSnap = priorSnapshotFromDocs(s.docs);
+    priorSnapLoaded = true;
   } catch(e) {
     console.warn('loadPrevSnap:', e);
     toast('New Critical comparison unavailable — could not load the previous snapshot: ' + (e.message || e), 'err', 7000);
@@ -10662,7 +10671,11 @@ function subscribePriorSnapshot() {
       // This listener matters during multi-batch full wipes: older documents
       // may disappear after today's query has already become empty.
       priorSnap = priorSnapshotFromDocs(snapshot.docs);
-      updateBalanceStatusBar();
+      priorSnapLoaded = true;
+      // New Critical depends on this baseline. Re-render every dependent view
+      // immediately so another account never needs to switch tabs to correct a
+      // temporary all-critical-as-new display.
+      refreshAll();
       if (!latestSnap) populateSlots();
     }, error => console.warn('prior snapshot onSnapshot:', error));
   } catch(e) { console.warn('prior snapshot subscribe:', e); }
@@ -10966,7 +10979,7 @@ window.alertPageTo = p => {alertPage=p;renderAlerts();};
 
 function alertRows() {
   const prevSnap = getPrevSnapshot();
-  const prevCritSet = getPrevCriticalSet(); // null = no prior snapshot to compare
+  const prevCritSet = getPrevCriticalSet(); // undefined = loading; null = confirmed no prior snapshot
   const toAlertRow = (r, compareForNew) => {
     const meta=clientsMeta[r.carrier_name]||{};
     const hasThreshold = hasClientThreshold(r);
@@ -10974,7 +10987,7 @@ function alertRows() {
     const credLim = getThreshold(meta,r,'credit_limit',null);
     const level   = alertLevel(r);
     // _isNew: critical NOW and either no prior snapshot OR was not critical before
-    const _isNew  = !!compareForNew && level==='high' && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
+    const _isNew  = !!compareForNew && level==='high' && prevCritSet!==undefined && (prevCritSet===null || !prevCritSet.has(r.carrier_name));
     const _spamInfo = compareForNew ? spamCheck(r) : null; // only for current (live) rows
     return {
       ...r,
@@ -11087,6 +11100,10 @@ function renderAlerts() {
   const page=rows.slice(alertPage*PG,(alertPage+1)*PG);
 
   // Header note for 'new' filter — explain what "new" means
+  const prevLoadingNote = (alertFilter==='new' || alertFilter==='removed') && prevCritSet===undefined
+    ? `<tr class="alert-note info"><td colspan="9">
+        Loading the previous snapshot comparison…
+       </td></tr>` : '';
   const noPrevNote = alertFilter==='new' && prevCritSet===null
     ? `<tr class="alert-note warn"><td colspan="9">
         ⓘ No previous snapshot to compare — showing all current critical clients as new.
@@ -11121,7 +11138,7 @@ function renderAlerts() {
     }
   }
 
-  document.getElementById('alert-tbody').innerHTML= noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + spamNote + page.map(r=>{
+  document.getElementById('alert-tbody').innerHTML= prevLoadingNote + noPrevNote + removedNoPrevNote + usingPriorNote + removedCompareNote + spamNote + page.map(r=>{
     const bw = balanceBarPct(r);
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='spam' ? spamChipInfo(r) : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
