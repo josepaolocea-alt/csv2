@@ -3762,12 +3762,12 @@
 
                   <section class="sms-bal-view" id="sms-bal-view-critical-history">
                     <div class="fbar"><input class="win-search" id="sms-bal-critical-history-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceHistory()"><button class="tbtn" onclick="exportSmsBalanceHistoryCsv()">Export</button></div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th></tr></thead><tbody id="sms-bal-critical-history-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-critical-history-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-nothreshold">
                     <div class="fbar"><span class="sms-muted">Clients seen without Credit Limit or Critical Balance. Overdraft and auto-block rules still apply.</span></div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Seen</th><th>Last Seen</th><th class="num">Times Seen</th><th class="num">Latest Balance</th><th>Action</th></tr></thead><tbody id="sms-bal-nothreshold-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Seen</th><th>Last Seen</th><th class="num">Times Seen</th><th class="num">Latest Balance</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-nothreshold-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-settings">
@@ -13435,12 +13435,12 @@ function renderSmsBalanceHistory() {
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
   const rows=smsBalanceHistory.filter(r=>!q||[r.client,r.source,r.last_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_hit||'').localeCompare(String(a.last_hit||'')));
   const body=document.getElementById('sms-bal-critical-history-tbody');if(!body)return;
-  body.innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_hit||'')}</td><td>${esc(r.last_hit||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td class="num">${smsBalanceFmt(Math.max(0,r.od_remaining||0))}</td><td><span class="sms-bal-badge ${escAttr(r.last_status||'critical')}">${esc(r.last_status||'critical')}</span></td></tr>`).join(''):smsBalanceEmptyRow(8,'No SMS critical or overdraft history yet.');
+  body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_hit||'')}</td><td>${esc(r.last_hit||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td class="num">${smsBalanceFmt(Math.max(0,r.od_remaining||0))}</td><td><span class="sms-bal-badge ${escAttr(r.last_status||'critical')}">${esc(r.last_status||'critical')}</span></td>${rowDelCell('deleteSmsBalanceHistoryEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(9,'No SMS critical or overdraft history yet.');
 }
 function renderSmsBalanceNoThreshold() {
   const body=document.getElementById('sms-bal-nothreshold-tbody');if(!body)return;
   const rows=smsBalanceNoThreshold.slice().sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
-  body.innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td>${isAdmin()?`<button class="tbtn" onclick="deleteSmsBalanceNoThresholdEntry('${escAttr(r.meta_key)}')">Remove</button>`:'<span class="sms-muted">View only</span>'}</td></tr>`).join(''):smsBalanceEmptyRow(7,'Every current client has a notification threshold.');
+  body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td>${rowDelCell('deleteSmsBalanceNoThresholdEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(7,'Every current client has a notification threshold.');
 }
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
@@ -13680,7 +13680,22 @@ window.clearSmsBalanceNoThreshold = async () => {
   try{await wipeSmsBalanceCollection('sms_balance_no_threshold');toast('SMS No-Threshold History cleared — waiting for new entries','ok');}
   catch(error){smsBalanceNoThreshold=backup;saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('Could not clear SMS No-Threshold History: '+error.message,'err',7000);}
 };
-window.deleteSmsBalanceNoThresholdEntry = async key => {if(!isAdmin())return;const row=smsBalanceNoThreshold.find(r=>r.meta_key===key);if(!await confirmSmsBalanceAction({title:'Remove No-Threshold Client',label:'Remove Client',html:`Remove <strong>${esc(row?.client||'this client')}</strong> from SMS No-Threshold History?`}))return;smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>r.meta_key!==key);saveSmsBalanceLocal();if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));renderSmsBalanceNoThreshold();};
+window.deleteSmsBalanceHistoryEntry = async key => {
+  if(!isAdmin()){toast('Only admins can delete SMS critical history.','err');return;}
+  const row=smsBalanceHistory.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
+  if(!await confirmSmsBalanceAction({title:'Remove Critical History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from SMS Critical History?<br><br>SMS snapshots and all other history entries are not affected.`}))return;
+  const backup=smsBalanceHistory.slice();smsBalanceHistory=smsBalanceHistory.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceHistory();
+  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_history',smsBalanceDocId(key)));toast(`Removed ${row.client} from SMS Critical History`,'ok');}
+  catch(error){smsBalanceHistory=backup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not remove SMS Critical History entry: '+error.message,'err',7000);}
+};
+window.deleteSmsBalanceNoThresholdEntry = async key => {
+  if(!isAdmin()){toast('Only admins can delete SMS No-Threshold History.','err');return;}
+  const row=smsBalanceNoThreshold.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
+  if(!await confirmSmsBalanceAction({title:'Remove No-Threshold History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from SMS No-Threshold History?<br><br>SMS snapshots and all other history entries are not affected.`}))return;
+  const backup=smsBalanceNoThreshold.slice();smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();
+  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));toast(`Removed ${row.client} from SMS No-Threshold History`,'ok');}
+  catch(error){smsBalanceNoThreshold=backup;saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();toast('Could not remove SMS No-Threshold History entry: '+error.message,'err',7000);}
+};
 function smsBalanceCsvDownload(headers,rows,name) {const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
 window.exportSmsBalanceAlertView = () => {
   if(smsBalanceAlertFilter==='usagehistory'){
