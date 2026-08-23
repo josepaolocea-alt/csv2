@@ -5386,7 +5386,7 @@ let latestSnap = null, todaySnaps = [], clientsMeta = {}, viewingIdx = null;
 let priorSnap = null; // most recent snapshot from any day before today
 let tritelSnaps = [];  // additional Tritel-only data, one entry per time slot ({ session_date, time_slot, data:[...] }); persists independently of the all-client snapshots
 let snapSource = 'all';  // 'all' | 'tritel' — which source the New Snapshot paste represents
-let lastProcessedSnap = null; // local fallback so processed rows remain visible even if Firestore refresh is empty/stale
+let lastProcessedSnap = null; // demo/offline fallback only; connected Firestore snapshots are authoritative
 let operatorName = localStorage.getItem('bm_operator') || '';
 let alertFilter = 'all', clientFilter = 'all', clientManagerFilter = 'all', showInactive = true, alertShowInactive = false;
 let alertSortCol = '_level', alertSortDir = -1;
@@ -9295,7 +9295,7 @@ function fmtSnapWhen(s) {
   return `${s.session_date} ${t}`;
 }
 // The snapshot a new post for the given feed will be diffed against.
-function gapPrevSnap(kind) { return kind === 'tritel' ? latestTritel() : latestSnap; }
+function gapPrevSnap(kind) { return kind === 'tritel' ? latestTritel() : (latestSnap || priorSnap); }
 function runGapProcess(kind, rows, timeSlot) {
   return kind === 'tritel' ? processTritelSnapshot(rows, timeSlot) : doProcessSnapshot(rows, timeSlot);
 }
@@ -9345,9 +9345,9 @@ async function doProcessSnapshot(inputRows, timeSlot){
     else toast('No client rows to process.','err');
     return;
   }
-  const prevSnap=latestSnap;                 // the snapshot usage_30min is diffed against (may be a prior day)
+  const prevSnap=latestSnap || priorSnap;    // the snapshot usage_30min is diffed against (may be a prior day)
   const prevMap={};
-  if(latestSnap) latestSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
+  if(prevSnap) prevSnap.data.forEach(r=>{prevMap[r.carrier_name]=r;});
   const data=rows.map(r=>({...r,...computeUsage(r,prevMap[r.carrier_name]||null)}));
   const now=new Date();
   const gapMinutes=prevSnap ? snapGapMinutes({session_date:todayStr(), time_slot:timeSlot}, prevSnap) : 0;  // scheduled-slot gap vs the previous snapshot
@@ -10343,6 +10343,7 @@ window.confirmDeleteTodaySnapshots = async () => {
     lastProcessedSnap = null;
     viewingIdx = null;
     try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+    try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
 
     if (fbOk) {
       const q = query(collection(db, 'snapshots'), where('session_date', '==', todayStr()));
@@ -10506,6 +10507,7 @@ window.confirmWipeAll = async () => {
       _historyBySlot.clear();
       _historyLoaded = false;
       try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+      try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
       document.getElementById('view-banner').classList.remove('visible');
       // Some of today's snapshots may have been preserved by the keep range —
       // reload them so the view isn't left blank.
@@ -10532,10 +10534,18 @@ async function loadSnaps() {
     todaySnaps=normalizeTodaySnaps(s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
     if(todaySnaps.length) {
       const loadedLatest=todaySnaps[todaySnaps.length-1];
-      latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
+      latestSnap=loadedLatest;
     } else {
-      const fallback = lastProcessedSnap?.data?.length ? lastProcessedSnap : priorSnap;
-      if (fallback?.data?.length) { todaySnaps=[fallback]; latestSnap=fallback; }
+      // A successful connected query is authoritative. Never repopulate the
+      // visible view from another account's stale browser cache or from the
+      // prior-day comparison baseline after snapshots have been deleted.
+      latestSnap=null;
+      lastProcessedSnap=null;
+      viewingIdx=null;
+      try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+      try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
+      document.getElementById('view-banner')?.classList.remove('visible');
+      await loadPrevSnap();
     }
   } catch(e){console.warn('loadSnaps:',e);}
 }
@@ -10578,34 +10588,56 @@ async function cleanupCsvImports() {
   } catch(e) { console.warn('CSV import cleanup error:', e); }
 }
 
+function priorSnapshotQuery() {
+  // Inequality + orderBy on the SAME field only — served by the automatic
+  // single-field index, so no composite index is required. The latest
+  // time_slot of the most recent prior date is then picked client-side.
+  return query(
+    collection(db, 'snapshots'),
+    where('session_date', '<', todayStr()),
+    orderBy('session_date', 'desc'),
+    limit(30)
+  );
+}
+
+function priorSnapshotFromDocs(docs) {
+  if (!docs.length) return null;
+  const latestDate = docs[0].data().session_date;
+  let best = null;
+  for (const d of docs) {
+    const data = d.data();
+    if (data.session_date !== latestDate) break; // docs are sorted by date desc
+    if (!best || String(data.time_slot) > String(best.time_slot)) best = { id:d.id, ...data };
+  }
+  return best ? { ...best, timestamp:best.timestamp?.toDate?.() || best.timestamp } : null;
+}
+
 async function loadPrevSnap() {
   if (!fbOk) return;
+  // Clear the old baseline first so an empty authoritative result (for example
+  // after another operator wipes all snapshots) cannot leave stale data behind.
+  priorSnap = null;
   try {
-    // Inequality + orderBy on the SAME field only — served by the automatic
-    // single-field index, so no composite index is required. The latest
-    // time_slot of the most recent prior date is then picked client-side.
-    const q = query(
-      collection(db, 'snapshots'),
-      where('session_date', '<', todayStr()),
-      orderBy('session_date', 'desc'),
-      limit(30)
-    );
-    const s = await getDocs(q);
-    if (!s.docs.length) return;
-    const latestDate = s.docs[0].data().session_date;
-    let best = null;
-    for (const d of s.docs) {
-      const data = d.data();
-      if (data.session_date !== latestDate) break; // docs are sorted by date desc
-      if (!best || String(data.time_slot) > String(best.time_slot)) {
-        best = { id: d.id, ...data };
-      }
-    }
-    if (best) priorSnap = { ...best, timestamp: best.timestamp?.toDate() };
+    const s = await getDocs(priorSnapshotQuery());
+    priorSnap = priorSnapshotFromDocs(s.docs);
   } catch(e) {
     console.warn('loadPrevSnap:', e);
     toast('New Critical comparison unavailable — could not load the previous snapshot: ' + (e.message || e), 'err', 7000);
   }
+}
+
+let _priorSnapshotUnsubscribe = null;
+function subscribePriorSnapshot() {
+  if (!fbOk || _priorSnapshotUnsubscribe) return;
+  try {
+    _priorSnapshotUnsubscribe = onSnapshot(priorSnapshotQuery(), snapshot => {
+      // This listener matters during multi-batch full wipes: older documents
+      // may disappear after today's query has already become empty.
+      priorSnap = priorSnapshotFromDocs(snapshot.docs);
+      updateBalanceStatusBar();
+      if (!latestSnap) populateSlots();
+    }, error => console.warn('prior snapshot onSnapshot:', error));
+  } catch(e) { console.warn('prior snapshot subscribe:', e); }
 }
 
 let _clientsSubscribed = false;
@@ -10773,8 +10805,12 @@ function updateBalanceStatusBar() {
     el.title = 'The latest posted Balance Monitor VOIP snapshot';
     return;
   }
+  // Local metadata is a demo/offline fallback. While connected, an empty
+  // Firestore result must display as empty rather than reviving a deleted sync.
   let meta = null;
-  try { const v = localStorage.getItem('bm_last_snap_meta'); if (v) meta = JSON.parse(v); } catch(e) {}
+  if (!fbOk) {
+    try { const v = localStorage.getItem('bm_last_snap_meta'); if (v) meta = JSON.parse(v); } catch(e) {}
+  }
   if (meta?.slot) {
     const date = meta.at ? new Date(meta.at) : null;
     const day = date && !isNaN(date.getTime())
@@ -18942,22 +18978,29 @@ async function init(){
   if(fbOk){
     try{
       const q=query(collection(db,'snapshots'),where('session_date','==',todayStr()));
-      onSnapshot(q,snap=>{
+      onSnapshot(q,async snap=>{
         todaySnaps=normalizeTodaySnaps(snap.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate()})));
-        if(todaySnaps.length&&viewingIdx===null) {
+        if(todaySnaps.length) {
           const loadedLatest=todaySnaps[todaySnaps.length-1];
-          latestSnap=loadedLatest?.data?.length ? loadedLatest : (lastProcessedSnap || loadedLatest);
+          latestSnap=loadedLatest;
+          if(viewingIdx!==null&&!todaySnaps[viewingIdx]) viewingIdx=null;
         } else if(!todaySnaps.length) {
-          const fallback = lastProcessedSnap?.data?.length ? lastProcessedSnap : priorSnap;
-          if(fallback?.data?.length) {
-            todaySnaps=[fallback];
-            if(viewingIdx===null) latestSnap=fallback;
-          }
+          // Firestore is authoritative while connected. An empty query is a
+          // real empty state (including a wipe performed by another account),
+          // not a reason to revive this browser's last locally processed rows.
+          latestSnap=null;
+          lastProcessedSnap=null;
+          viewingIdx=null;
+          try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+          try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
+          document.getElementById('view-banner')?.classList.remove('visible');
+          await loadPrevSnap();
         }
         refreshAll();
         populateSlots();   // re-anchor the time box as snapshots load / sync across operators
       });
     }catch(e){console.warn('onSnapshot:',e);}
+    subscribePriorSnapshot();
     // Tritel data lives in its own collection so it survives snapshot wipes and syncs across operators.
     try{
       const tq=query(collection(db,'tritel_snapshots'),where('session_date','==',todayStr()));
@@ -18965,6 +19008,9 @@ async function init(){
         tritelSnaps=snap.docs.map(d=>({id:d.id,...d.data(),updated_at:d.data().updated_at?.toDate?.()||new Date()}))
           .filter(t=>t.time_slot) // ignore any legacy docs without a slot
           .map(t=>({...t, data: normalizeTritelRows(t.data)})); // collapse Tritel casing so it never shows twice
+        // Mirror the authoritative remote result into the local fallback too.
+        // This prevents a deleted Tritel snapshot flashing back after reload.
+        persistTritelLocal();
         updateTritelStatus();
         refreshAll();
         populateSlots();   // a Tritel slot arriving (incl. cross-operator) can release the box to the next slot
