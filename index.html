@@ -3653,7 +3653,7 @@
                       <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted. Turns red while Critical clients exist.">Critical <span id="sms-bal-alert-count-critical"></span></button>
                       <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit but not yet critical. Turns red and highlights rows at 90% or more of the Credit-to-Critical range.">Warning <span id="sms-bal-alert-count-warning"></span></button>
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All current clients without both thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Clients that were not critical in the previous snapshot but are critical now.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
@@ -12707,20 +12707,23 @@ function smsBalanceRosterRows() {
 }
 function smsBalanceNoThresholdRows() {
   const byKey=new Map();
-  smsBalanceRosterRows().forEach(row=>{
-    if(row._status?.credit===null&&row._status?.critical===null)byKey.set(smsBalanceMetaKey(row),row);
-  });
+  const rosterByKey=new Map(smsBalanceRosterRows().map(row=>[smsBalanceMetaKey(row),row]));
   smsBalanceNoThreshold.forEach(record=>{
     const key=record.meta_key||smsBalanceMetaKey(record);
-    if(byKey.has(key)||!record?.client)return;
+    if(!record?.client)return;
+    const current=rosterByKey.get(key);
+    if(current&&current._status?.credit===null&&current._status?.critical===null){byKey.set(key,current);return;}
     const meta=smsBalanceMeta[key]||{};
-    if(smsBalanceThreshold(meta,'credit_limit')!==null||smsBalanceThreshold(meta,'critical_balance')!==null)return;
     const row=smsBalanceNormalizeRow({
       source:record.source,client:record.client,balance:record.last_balance,
       overdraft:record.last_overdraft,account_type:record.account_type,
       email:record.email,number:record.number,currency:record.currency
     },record.source);
-    byKey.set(key,{...row,_hasSnapshot:false,_historyRecord:true,_status:smsBalanceStatus(row),_meta:meta,_routeMatches:0,_routeBlocked:false});
+    const historicalStatus={...smsBalanceStatus(row),code:'nothreshold',label:'No Threshold',credit:null,critical:null};
+    byKey.set(key,{...row,_hasSnapshot:false,_historyRecord:true,_status:historicalStatus,_meta:meta,_routeMatches:0,_routeBlocked:false});
+  });
+  rosterByKey.forEach((row,key)=>{
+    if(!byKey.has(key)&&row._status?.credit===null&&row._status?.critical===null)byKey.set(key,row);
   });
   return [...byKey.values()];
 }
@@ -12976,7 +12979,7 @@ function smsBalanceAlertSets() {
 function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
   const sets = smsBalanceAlertSets();
   let rows = (sets[filter] || sets.all).slice();
-  if (!smsBalanceAlertShowInactive && filter !== 'inactiveusage') rows = rows.filter(row => row._meta?.is_active !== false);
+  if (!smsBalanceAlertShowInactive && !['inactiveusage','nothreshold'].includes(filter)) rows = rows.filter(row => row._meta?.is_active !== false);
   if (applyUi) {
     const q = String(document.getElementById('sms-bal-alert-search')?.value || '').toLowerCase();
     const source = document.getElementById('sms-bal-alert-source')?.value || '';
@@ -12989,7 +12992,7 @@ function updateSmsBalanceAlertCounts() {
   const sets = smsBalanceAlertSets();
   const rowsFor = filter => {
     const rows = sets[filter] || [];
-    return (!smsBalanceAlertShowInactive && filter !== 'inactiveusage')
+    return (!smsBalanceAlertShowInactive && !['inactiveusage','nothreshold'].includes(filter))
       ? rows.filter(row => row._meta?.is_active !== false) : rows;
   };
   const countFor = filter => rowsFor(filter).length;
@@ -13860,7 +13863,7 @@ function subscribeSmsBalanceData() {
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
-      smsBalanceNoThreshold=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceNoThreshold();
+      smsBalanceNoThreshold=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();
     },e=>console.warn('SMS balance no threshold:',e));
   } catch(e){console.warn(e);}
 }
