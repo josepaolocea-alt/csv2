@@ -12369,7 +12369,7 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
   const timeRow = '<Row><Cell ss:StyleID="time"/><Cell ss:StyleID="time"/>' +
     blocks.map(b => `<Cell ss:StyleID="time" ss:MergeAcross="${span}"><Data ss:Type="String">${xmlEsc(b.time)}</Data></Cell>`).join('') +
     '</Row>';
-  const headRow = '<Row>' + xlsTextCell('CarrierName', 'hdr') + xlsTextCell('Notes', 'hdr') +
+  const headRow = '<Row ss:AutoFitHeight="0" ss:Height="23">' + xlsTextCell('CarrierName', 'hdr') + xlsTextCell('Notes', 'hdr') +
     blocks.map(() => SNAP_BLOCK_COLS.map(c => xlsTextCell(c.h, 'hdr')).join('')).join('') + '</Row>';
   const clientRows = clients.order.map(c =>
     '<Row>' + xlsTextCell(c.name) + xlsTextCell(clients.notes[c.key] ?? '') +
