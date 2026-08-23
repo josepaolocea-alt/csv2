@@ -12602,7 +12602,11 @@ function parseSmsBalanceText(text, source) {
   const rows = [];
   dataLines.forEach(line => {
     const vals = splitDelimitedLine(line, delim).map(v => v.trim());
-    if (vals.filter(Boolean).length < 6) return;
+    // Email and Number are optional for a newly introduced snapshot client.
+    // Validate the report shape, not the number of nonblank cells, otherwise a
+    // valid new row is silently dropped before No Threshold and Client Manager
+    // can discover it.
+    if (vals.length < 6) return;
     const raw = {};
     if (hasHeader) mappedHeaders.forEach((field, i) => { if (field) raw[field] = vals[i] ?? ''; });
     else if (source === 'reseller') {
@@ -13458,10 +13462,19 @@ window.switchSmsBalanceView = (view, persist=true) => {
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
 };
 window.clearSmsBalancePaste = () => { ['sms-bal-reseller-ta','sms-bal-wholesale-ta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); };
+function resetSmsBalanceDiscoveryFilters() {
+  smsBalanceAllSource='';smsBalanceManagerSource='';
+  localStorage.setItem('bm_sms_balance_all_source','');
+  localStorage.setItem('bm_sms_balance_manager_source','');
+  ['sms-bal-search','sms-bal-manager-search','sms-bal-alert-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['sms-bal-status-filter','sms-bal-manager-type-filter','sms-bal-manager-status-filter','sms-bal-manager-account-filter','sms-bal-type-filter','sms-bal-alert-source'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const managerType=document.getElementById('sms-bal-manager-type-filter');if(managerType)managerType.dataset.ready='true';
+}
 function computeSmsBalanceUsage(rows, previous) {
   const prevMap=new Map((previous?.data||[]).map(row=>[smsBalanceRouteKey(row),row]));
   return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?smsBalanceNumber(prev.balance)-row.balance:0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
 }
+function smsBalanceWideGap(gapMinutes) { return Number.isFinite(gapMinutes)&&gapMinutes>30; }
 async function persistSmsPhoenixRoutes() {
   const rows=smsDataByTab.phoenix||[];
   try{localStorage.setItem(SMS_TAB_CONFIG.phoenix.storageKey,JSON.stringify(rows));}catch(e){}
@@ -13528,7 +13541,15 @@ window.processSmsBalanceSnapshot = async () => {
   const wholesale=parseSmsBalanceText(document.getElementById('sms-bal-wholesale-ta').value,'wholesale');
   if(!reseller.length||!wholesale.length){toast(`Could not parse both reports — Reseller ${reseller.length} row(s), Wholesale ${wholesale.length} row(s).`,'err',7000);return;}
   const slot=document.getElementById('sms-bal-slot')?.value||nextSlot();
-  const existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
+  let existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
+  if(!existing&&fbOk){
+    try{
+      setLoading(true,'Checking SMS snapshot slot…');
+      const saved=await getDoc(doc(db,'sms_balance_snapshots',smsBalanceSnapshotId(todayStr(),slot)));
+      if(saved.exists())existing={id:saved.id,...saved.data()};
+    }catch(error){console.warn('SMS balance overwrite check:',error);}
+    finally{setLoading(false);}
+  }
   if(existing&&!await confirmSmsBalanceAction({title:'Overwrite SMS Balance Snapshot',label:'Overwrite Snapshot',html:`The <strong>${esc(fmt12(slot))}</strong> SMS Balance snapshot already exists today.<br><br>Overwrite the Reseller and Wholesale rows stored for this slot?`}))return;
   const slotIndex=shiftSlots('24H').indexOf(slot);
   const previousToday=smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot&&shiftSlots('24H').indexOf(s.time_slot)<slotIndex).at(-1)||null;
@@ -13537,15 +13558,20 @@ window.processSmsBalanceSnapshot = async () => {
   // Critical or without thresholds overnight from being announced as new again.
   if(!previousToday&&!smsBalancePriorLoaded)await loadSmsBalancePriorSnapshot();
   const previous=previousToday||smsBalancePriorSnap;
+  const gapMinutes=previous?snapGapMinutes({session_date:todayStr(),time_slot:slot},previous):0;
+  if(smsBalanceWideGap(gapMinutes)&&!await confirmSmsBalanceAction({
+    title:'Non-Consecutive SMS Snapshot',label:'Post Snapshot',
+    html:`The previous SMS Balance snapshot was <strong>${esc(fmtGap(gapMinutes))}</strong> earlier, not 30 minutes.<br><br>The calculated usage will cover the complete gap and should not be interpreted as a single 30-minute interval. Continue posting?`
+  }))return;
   const data=computeSmsBalanceUsage([...reseller,...wholesale],previous);
   const split=source=>data.filter(row=>row.source===source);
   const now=new Date();
-  const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,operator:operatorName||currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
+  const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
   const historyEntries=smsBalanceNewHistoryEntries(snap,previous);
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
   const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row));
-  smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();
+  smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();resetSmsBalanceDiscoveryFilters();
   advanceSmsBalanceSlotAfterPost(slot);window.clearSmsBalancePaste();renderSmsBalanceModule();
   // Match Balance Monitor VOIP: after posting, open Alerts > New Critical when
   // the current snapshot has Critical/Blocked clients, even if every one is an
