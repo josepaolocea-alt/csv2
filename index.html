@@ -4585,6 +4585,10 @@
           <label>Sound alert on critical</label>
         </div>
         <div class="settings-check">
+          <input type="checkbox" role="switch" id="set-voip-voice" onchange="saveSettings()" style="margin:0">
+          <label>Say “VOIP NEW CRITICAL” 3× for new critical</label>
+        </div>
+        <div class="settings-check">
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
           <label>Browser notification on critical</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
@@ -5472,7 +5476,7 @@ const SMS_DEFAULT_PLATFORMS = ['MS Teams','Viber','WhatsApp','Telegram','Email']
 ════════════════════════════════════════════════ */
 let S = {
   lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM',
-  soundAlert:true, browserNotif:true, retentionDays:7,
+  soundAlert:true, voipVoiceAlert:true, browserNotif:true, retentionDays:7,
   useBands:false, bandMedium:-50, bandHigh:-101, bandCritical:-151,
   nightMode:false,
   slotReminder:false, slotReminderOffset:10
@@ -5488,6 +5492,7 @@ function loadSettings() {
   document.getElementById('set-tgt').value         = S.nearPct;
   document.getElementById('set-shift').value       = S.shift;
   document.getElementById('set-sound').checked     = S.soundAlert;
+  document.getElementById('set-voip-voice').checked = S.voipVoiceAlert;
   document.getElementById('set-notif').checked     = S.browserNotif;
   document.getElementById('set-retention').value   = S.retentionDays;
   document.getElementById('set-usebands').checked  = S.useBands;
@@ -5519,6 +5524,7 @@ window.saveSettings = () => {
   S.nearPct       = +document.getElementById('set-tgt').value    || 5;
   S.shift         = document.getElementById('set-shift').value;
   S.soundAlert    = document.getElementById('set-sound').checked;
+  S.voipVoiceAlert = document.getElementById('set-voip-voice').checked;
   S.browserNotif  = document.getElementById('set-notif').checked;
   S.retentionDays = +document.getElementById('set-retention').value;
   S.useBands      = document.getElementById('set-usebands').checked;
@@ -6478,6 +6484,7 @@ function populateSlots() {
 ════════════════════════════════════════════════ */
 let _alertSoundCtx = null, _alertSoundTimer = null, _alertSpeechUtterance = null;
 const SMS_NEW_CRITICAL_ANNOUNCEMENT = Array(3).fill('SMS NEW CRITICAL').join('. ');
+const VOIP_NEW_CRITICAL_ANNOUNCEMENT = Array(3).fill('VOIP NEW CRITICAL').join('. ');
 
 function playAlertSound(reps = 8) {
   stopAlertSound(); // stop any previous before starting new
@@ -6509,6 +6516,7 @@ function playSmsNewCriticalAudio() {
   try {
     const utterance = new window.SpeechSynthesisUtterance(SMS_NEW_CRITICAL_ANNOUNCEMENT);
     _alertSpeechUtterance = utterance;
+    const voice=preferredFemaleSpeechVoice();if(voice)utterance.voice=voice;
     utterance.rate = 0.88; utterance.pitch = 1; utterance.volume = 1;
     utterance.onend = () => { if (_alertSpeechUtterance === utterance) stopAlertSound(); };
     utterance.onerror = event => { if (event.error !== 'canceled') playAlertSound(3); };
@@ -6516,6 +6524,31 @@ function playSmsNewCriticalAudio() {
     window.speechSynthesis.speak(utterance);
     _alertSoundTimer = setTimeout(() => stopAlertSound(), 15000);
   } catch(e) { console.warn('SMS voice alert failed:', e); playAlertSound(3); }
+}
+
+function preferredFemaleSpeechVoice() {
+  const voices=window.speechSynthesis?.getVoices?.()||[];
+  const femaleName=/(zira|aria|jenny|sonia|samantha|victoria|karen|moira|tessa|susan|hazel|natasha|female)/i;
+  return voices.find(voice=>/^en\b/i.test(voice.lang||'')&&femaleName.test(voice.name||''))
+    ||voices.find(voice=>femaleName.test(voice.name||''))
+    ||voices.find(voice=>/^en\b/i.test(voice.lang||''))
+    ||null;
+}
+
+function playVoipNewCriticalAudio() {
+  stopAlertSound();
+  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){playAlertSound(3);return;}
+  try{
+    const utterance=new window.SpeechSynthesisUtterance(VOIP_NEW_CRITICAL_ANNOUNCEMENT);
+    _alertSpeechUtterance=utterance;
+    const voice=preferredFemaleSpeechVoice();if(voice)utterance.voice=voice;
+    utterance.rate=0.88;utterance.pitch=1.08;utterance.volume=1;
+    utterance.onend=()=>{if(_alertSpeechUtterance===utterance)stopAlertSound();};
+    utterance.onerror=event=>{if(event.error!=='canceled')playAlertSound(3);};
+    document.getElementById('snd-dismiss-btn')?.classList.add('active');
+    window.speechSynthesis.speak(utterance);
+    _alertSoundTimer=setTimeout(()=>stopAlertSound(),15000);
+  }catch(e){console.warn('VOIP voice alert failed:',e);playAlertSound(3);}
 }
 
 function stopAlertSound() {
@@ -6737,8 +6770,10 @@ function checkAndNotify(data, isNewSnapshot = false) {
     const newlyCritical = prevCritSet === undefined ? []
       : critical.filter(r => prevCritSet === null || !prevCritSet.has(r.carrier_name));
 
-    // 2. Sound alert
-    if (S.soundAlert) playAlertSound();
+    // 2. A genuine transition gets the optional spoken VOIP alert. The legacy
+    // critical sound remains the fallback (and still covers existing criticals).
+    if (newlyCritical.length > 0 && S.voipVoiceAlert) playVoipNewCriticalAudio();
+    else if (S.soundAlert) playAlertSound();
 
     // 3. Browser notification — mention if newly critical
     if (S.browserNotif && newlyCritical.length > 0) sendCriticalNotification(newlyCritical);
@@ -12991,6 +13026,7 @@ function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
     if (q) rows = rows.filter(row => [row.client,row.email,row.number,row.account_type,row._meta?.notes].some(v => String(v||'').toLowerCase().includes(q)));
     if (source) rows = rows.filter(row => row.source === source);
   }
+  if(filter==='usage')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
   return rows.sort((a,b) => smsBalanceStatusRank(b._status?.code)-smsBalanceStatusRank(a._status?.code) || a.client.localeCompare(b.client));
 }
 function updateSmsBalanceAlertCounts() {
