@@ -3746,7 +3746,7 @@
                   <section class="sms-bal-view" id="sms-bal-view-export">
                     <div class="sms-bal-panel">
                       <div class="groupbox-title">Five-Tab SMS Balance Workbook</div>
-                      <div class="sms-bal-note">Generates a visible Summary tab plus RES DAY (7AM-7PM), WHS DAY (7AM-7PM), RES NIGHT (7PM-7AM), and WHS NIGHT (7PM-7AM). Summary lists active clients first seen at Critical / Zero in each snapshot coverage, including the reached time. Each detail block contains the Phoenix fields, balance, overdraft, 30-minute usage, and total usage.</div>
+                      <div class="sms-bal-note">Generates a visible Summary tab plus RES DAY (7AM-7PM), WHS DAY (7AM-7PM), RES NIGHT (7PM-7AM), and WHS NIGHT (7PM-7AM). Summary separates active clients that newly reached Critical / Zero during coverage from those already Critical / Blocked at their first reading. Each detail block contains the Phoenix fields, balance, overdraft, 30-minute usage, and total usage.</div>
                       <div style="display:flex;align-items:end;gap:8px;margin-top:10px;flex-wrap:wrap">
                         <div class="sms-field"><label>Report date</label><input class="win-inp" id="sms-bal-export-date" type="date" data-premium-date></div>
                         <button class="tbtn primary" onclick="exportSmsBalanceWorkbook()">Generate Excel (.xlsx)</button>
@@ -10992,6 +10992,7 @@ function balanceBarPct(r) {
 }
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
+  if (f === 'light') { alertSortCol = '_bw'; alertSortDir = -1; }
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   if (f === 'spam')  { alertSortCol = 'usage_30min'; alertSortDir = -1; ensureSpamHistory(); }
   document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
@@ -12239,46 +12240,61 @@ function voipCoverageDate(snapshot, shift) {
   const d=new Date(`${date}T00:00:00`);d.setDate(d.getDate()-1);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function voipCriticalCoverageSummary(snaps,selectedShift='both') {
+function voipCriticalCoverageRows(snaps,selectedShift='both') {
   const shifts=selectedShift==='both'?['7AM-7PM','7PM-7AM']:[selectedShift];
-  const firstHits=new Map(),latestLevels=new Map();
+  const newHits=new Map(),existingHits=new Map(),latestLevels=new Map();
   shifts.forEach(shift=>{
     const relevant=snaps.filter(snapshot=>snapshotMatchesShift(snapshot,shift)&&Array.isArray(snapshot.data)).sort((a,b)=>
       voipCoverageDate(a,shift).localeCompare(voipCoverageDate(b,shift))||
       slotIndexForShift(a.time_slot,shift)-slotIndexForShift(b.time_slot,shift)||snapshotTimeMs(a)-snapshotTimeMs(b));
     relevant.forEach(snapshot=>(snapshot.data||[]).forEach(row=>{
       if(!row?.carrier_name)return;
+      const meta=clientMetaFor(row.carrier_name);if(isClientInactive(meta))return;
       const coverageDate=voipCoverageDate(snapshot,shift);
       const key=`${coverageDate}|${shift}|${snapCarrierKey(row.carrier_name)}`;
-      const level=alertLevel(row),previousLevel=latestLevels.get(key);latestLevels.set(key,level);
-      if(previousLevel===undefined||previousLevel==='high'||level!=='high'||firstHits.has(key))return;
-      firstHits.set(key,{
+      const level=alertLevel(row),hasPrevious=latestLevels.has(key),previousLevel=latestLevels.get(key);
+      const baseHit={
         key,coverage_date:coverageDate,shift,client:row.carrier_name,
         account_manager:accountManagerFor(row),reached_slot:snapshot.time_slot,
         reached_time:fmt12(snapshot.time_slot),balance:amountNumber(row.amnt_receivable)
-      });
+      };
+      if(level==='high'&&!hasPrevious&&!existingHits.has(key))existingHits.set(key,{...baseHit,category:'existing',category_label:'Already Critical at Start'});
+      if(level==='high'&&hasPrevious&&previousLevel!=='high'&&!newHits.has(key))newHits.set(key,{...baseHit,category:'new',category_label:'New Critical During Coverage'});
+      latestLevels.set(key,level);
     }));
   });
-  return [...firstHits.values()].map(hit=>({...hit,current_status:latestLevels.get(hit.key)==='high'?'Still critical':'Recovered'})).sort((a,b)=>
+  return [...newHits.values(),...existingHits.values()].map(hit=>({...hit,current_status:latestLevels.get(hit.key)==='high'?'Still critical':'Recovered'})).sort((a,b)=>
+    (a.category==='new'?0:1)-(b.category==='new'?0:1)||
     a.coverage_date.localeCompare(b.coverage_date)||
     ['7AM-7PM','7PM-7AM'].indexOf(a.shift)-['7AM-7PM','7PM-7AM'].indexOf(b.shift)||
     slotIndexForShift(a.reached_slot,a.shift)-slotIndexForShift(b.reached_slot,b.shift)||a.client.localeCompare(b.client));
 }
+function voipCriticalCoverageSummary(snaps,selectedShift='both') {
+  return voipCriticalCoverageRows(snaps,selectedShift).filter(row=>row.category==='new');
+}
 function voipSummaryWorksheetXml(snaps,selectedShift) {
-  const rows=voipCriticalCoverageSummary(snaps,selectedShift);
-  const headers=['Coverage Date','Shift','Client','Account Manager','Reached Critical','Amount Receivable','End-of-Coverage Status'];
-  const headRow='<Row>'+headers.map(header=>xlsTextCell(header,'sumHdr')).join('')+'</Row>';
-  const body=rows.length?rows.map(row=>'<Row>'+[
-    xlsTextCell(row.coverage_date),xlsTextCell(row.shift),xlsTextCell(row.client),xlsTextCell(row.account_manager),
-    xlsTextCell(row.reached_time,'sumCritical'),xlsNumberCell(row.balance,'sumNum'),
-    xlsTextCell(row.current_status,row.current_status==='Recovered'?'sumRecovered':'sumCritical')
-  ].join('')+'</Row>').join(''):
-    '<Row><Cell ss:StyleID="sumEmpty" ss:MergeAcross="6"><Data ss:Type="String">No clients newly reached Critical Balance in the exported snapshot coverage.</Data></Cell></Row>';
+  const rows=voipCriticalCoverageRows(snaps,selectedShift);
+  const newRows=rows.filter(row=>row.category==='new'),existingRows=rows.filter(row=>row.category==='existing');
+  const section=(label,timeHeader,items,emptyText)=>{
+    const headers=['Coverage Date','Shift','Client','Account Manager',timeHeader,'Amount Receivable','End-of-Coverage Status'];
+    const sectionRow=`<Row ss:Height="22"><Cell ss:StyleID="sumSection" ss:MergeAcross="6"><Data ss:Type="String">${xmlEsc(label)} · ${items.length} client(s)</Data></Cell></Row>`;
+    const headRow='<Row>'+headers.map(header=>xlsTextCell(header,'sumHdr')).join('')+'</Row>';
+    const body=items.length?items.map(row=>'<Row>'+[
+      xlsTextCell(row.coverage_date),xlsTextCell(row.shift),xlsTextCell(row.client),xlsTextCell(row.account_manager),
+      xlsTextCell(row.reached_time,'sumCritical'),xlsNumberCell(row.balance,'sumNum'),
+      xlsTextCell(row.current_status,row.current_status==='Recovered'?'sumRecovered':'sumCritical')
+    ].join('')+'</Row>').join(''):
+      `<Row><Cell ss:StyleID="sumEmpty" ss:MergeAcross="6"><Data ss:Type="String">${xmlEsc(emptyText)}</Data></Cell></Row>`;
+    return sectionRow+headRow+body;
+  };
   const title='<Row ss:Height="24"><Cell ss:StyleID="sumTitle" ss:MergeAcross="6"><Data ss:Type="String">VOIP Critical Balance Summary</Data></Cell></Row>'+
-    `<Row><Cell ss:StyleID="sumSub" ss:MergeAcross="6"><Data ss:Type="String">First new-critical transition per client within each 7AM-7PM or 7PM-7AM coverage · ${rows.length} client event(s)</Data></Cell></Row>`;
+    `<Row><Cell ss:StyleID="sumSub" ss:MergeAcross="6"><Data ss:Type="String">Active clients only · ${newRows.length} new critical · ${existingRows.length} already critical at first reading</Data></Cell></Row>`;
+  const body=section('New Critical During Coverage','Reached Critical',newRows,'No active clients newly reached Critical Balance in the exported snapshot coverage.')+
+    '<Row ss:Height="9"/>'+
+    section('Already Critical at Start','First Critical Reading',existingRows,'No active clients were already critical at their first reading in the exported snapshot coverage.');
   const cols='<Column ss:Width="90"/><Column ss:Width="90"/><Column ss:Width="190"/><Column ss:Width="120"/><Column ss:Width="100"/><Column ss:Width="110"/><Column ss:Width="125"/>';
-  const options='<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>3</SplitHorizontal><TopRowBottomPane>3</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>';
-  return `<Worksheet ss:Name="Summary"><Table>${cols}${title}${headRow}${body}</Table>${options}</Worksheet>`;
+  const options='<WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>4</SplitHorizontal><TopRowBottomPane>4</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions>';
+  return `<Worksheet ss:Name="Summary"><Table>${cols}${title}${body}</Table>${options}</Worksheet>`;
 }
 // Columns repeated per 30-min snapshot block. usage_30min ("30mins usage") is highlighted when non-zero.
 const SNAP_BLOCK_COLS = [
@@ -12437,6 +12453,7 @@ window.exportSnapshotSheet = async () => {
   <Style ss:ID="triNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Size="14" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumSub"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:Italic="1" ss:Color="#44546A"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sumSection"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumHdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="sumCritical"><Font ss:Bold="1" ss:Color="#9C0006"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumRecovered"><Font ss:Bold="1" ss:Color="#006100"/><Interior ss:Color="#C6EFCE" ss:Pattern="Solid"/></Style>
@@ -13027,6 +13044,7 @@ function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
     if (source) rows = rows.filter(row => row.source === source);
   }
   if(filter==='usage')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
+  if(filter==='warning')return rows.sort((a,b)=>(smsBalanceWarningProgress(b)??-1)-(smsBalanceWarningProgress(a)??-1)||a.client.localeCompare(b.client));
   return rows.sort((a,b) => smsBalanceStatusRank(b._status?.code)-smsBalanceStatusRank(a._status?.code) || a.client.localeCompare(b.client));
 }
 function updateSmsBalanceAlertCounts() {
@@ -13803,50 +13821,60 @@ function buildSmsBalanceWorkbookData(reportDate,snapshots) {
 function buildSmsBalanceCriticalExportSummary(datasets) {
   const hits=[];
   datasets.forEach(data=>{
-    const firstByClient=new Map(),latestStatus=new Map();
+    const newByClient=new Map(),existingByClient=new Map(),latestStatus=new Map();
     data.blocks.forEach(block=>block.rows.forEach(raw=>{
       const meta=smsBalanceMetaFor(raw);if(meta?.is_active===false)return;
-      const key=smsBalanceMetaKey(raw),status=smsBalanceStatus(raw);latestStatus.set(key,status);
-      if(!smsBalanceIsCritical({...raw,_status:status})||firstByClient.has(key))return;
-      const hit={
+      const key=smsBalanceMetaKey(raw),status=smsBalanceStatus(raw),hasPrevious=latestStatus.has(key),previousStatus=latestStatus.get(key);
+      const isCritical=smsBalanceIsCritical({...raw,_status:status});
+      const hit=category=>({
         key,source:data.source,type:smsBalanceSourceLabel(data.source),shift:data.shift,
+        category,category_label:category==='new'?'New Critical During Coverage':'Already Critical at Start',
         client:raw.client,account_manager:meta?.account_manager||'',
         reached_date:smsBalanceSlotDate(data.reportDate,data.shift,block.slot),
         reached_slot:block.slot,reached_time:fmt12(block.slot),balance:smsBalanceNumber(raw.balance),
         critical_balance:status.critical,last_status:status.label
-      };
-      firstByClient.set(key,hit);hits.push(hit);
+      });
+      if(isCritical&&!hasPrevious&&!existingByClient.has(key)){const item=hit('existing');existingByClient.set(key,item);hits.push(item);}
+      if(isCritical&&hasPrevious&&!smsBalanceIsCritical({_status:previousStatus})&&!newByClient.has(key)){const item=hit('new');newByClient.set(key,item);hits.push(item);}
+      latestStatus.set(key,status);
     }));
-    firstByClient.forEach(hit=>{const current=latestStatus.get(hit.key);hit.end_status=smsBalanceIsCritical({_status:current})?'Still critical':'Recovered';});
+    [...newByClient.values(),...existingByClient.values()].forEach(hit=>{const current=latestStatus.get(hit.key);hit.end_status=smsBalanceIsCritical({_status:current})?'Still critical':'Recovered';});
   });
   return hits.sort((a,b)=>
+    (a.category==='new'?0:1)-(b.category==='new'?0:1)||
     ['7AM-7PM','7PM-7AM'].indexOf(a.shift)-['7AM-7PM','7PM-7AM'].indexOf(b.shift)||
     a.type.localeCompare(b.type)||slotIndexForShift(a.reached_slot,a.shift)-slotIndexForShift(b.reached_slot,b.shift)||a.client.localeCompare(b.client));
 }
 function addSmsBalanceSummaryWorksheet(workbook,reportDate,rows,thinBorder) {
-  const sheet=workbook.addWorksheet('Summary',{views:[{state:'frozen',ySplit:4,showGridLines:false}]});
+  const sheet=workbook.addWorksheet('Summary',{views:[{state:'frozen',ySplit:5,showGridLines:false}]});
+  const newRows=rows.filter(row=>row.category==='new'),existingRows=rows.filter(row=>row.category==='existing');
   sheet.mergeCells('A1:I1');sheet.getCell('A1').value='SMS Balance Critical Summary';
   sheet.getCell('A1').font={bold:true,size:16,color:{argb:'FFFFFFFF'}};
   sheet.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17336F'}};
   sheet.getCell('A1').alignment={horizontal:'center',vertical:'middle'};sheet.getRow(1).height=28;
-  sheet.mergeCells('A2:I2');sheet.getCell('A2').value=`Report date ${reportDate} · First Critical / Zero snapshot per active client within each shift coverage · ${rows.length} event(s)`;
+  sheet.mergeCells('A2:I2');sheet.getCell('A2').value=`Report date ${reportDate} · Active clients only · ${newRows.length} new critical · ${existingRows.length} already critical at first reading`;
   sheet.getCell('A2').font={italic:true,color:{argb:'FF44546A'}};sheet.getCell('A2').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9EAF7'}};
-  const headers=['Type','Shift','Client','Account Manager','Reached Date','Reached Critical','Balance at Hit','Status at Hit','End-of-Coverage Status'];
-  const header=sheet.getRow(4);header.values=headers;header.height=24;
-  header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF274A83'}};cell.alignment={vertical:'middle',wrapText:true};cell.border={bottom:thinBorder};});
-  if(rows.length){
-    rows.forEach(item=>{
-      const row=sheet.addRow([item.type,item.shift,item.client,item.account_manager,item.reached_date,item.reached_time,item.balance,item.last_status,item.end_status]);
+  let rowNumber=4;
+  const addSection=(label,timeHeader,items,emptyText)=>{
+    sheet.mergeCells(rowNumber,1,rowNumber,9);const sectionCell=sheet.getCell(rowNumber,1);sectionCell.value=`${label} · ${items.length} client(s)`;
+    sectionCell.font={bold:true,color:{argb:'FFFFFFFF'}};sectionCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF17336F'}};sectionCell.alignment={vertical:'middle'};sheet.getRow(rowNumber).height=23;rowNumber++;
+    const headers=['Type','Shift','Client','Account Manager','Observed Date',timeHeader,'Balance at Hit','Status at Hit','End-of-Coverage Status'];
+    const header=sheet.getRow(rowNumber++);header.values=headers;header.height=24;
+    header.eachCell(cell=>{cell.font={bold:true,color:{argb:'FFFFFFFF'}};cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF274A83'}};cell.alignment={vertical:'middle',wrapText:true};cell.border={bottom:thinBorder};});
+    if(!items.length){
+      sheet.mergeCells(rowNumber,1,rowNumber,9);const empty=sheet.getCell(rowNumber++,1);empty.value=emptyText;empty.font={italic:true,color:{argb:'FF666666'}};empty.alignment={horizontal:'center'};return;
+    }
+    items.forEach(item=>{
+      const row=sheet.getRow(rowNumber++);row.values=[item.type,item.shift,item.client,item.account_manager,item.reached_date,item.reached_time,item.balance,item.last_status,item.end_status];
       row.height=20;row.eachCell(cell=>{cell.alignment={vertical:'middle'};cell.border={bottom:thinBorder};});
       row.getCell(7).numFmt='0.00';
       [6,8].forEach(column=>{row.getCell(column).font={bold:true,color:{argb:'FF9C0006'}};row.getCell(column).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};});
       const end=row.getCell(9),recovered=item.end_status==='Recovered';end.font={bold:true,color:{argb:recovered?'FF006100':'FF9C0006'}};end.fill={type:'pattern',pattern:'solid',fgColor:{argb:recovered?'FFC6EFCE':'FFFFC7CE'}};
     });
-    sheet.autoFilter={from:{row:4,column:1},to:{row:4+rows.length,column:9}};
-  }else{
-    sheet.mergeCells('A5:I5');sheet.getCell('A5').value='No active clients reached Critical / Zero in the exported snapshot coverage.';
-    sheet.getCell('A5').font={italic:true,color:{argb:'FF666666'}};sheet.getCell('A5').alignment={horizontal:'center'};
-  }
+  };
+  addSection('New Critical During Coverage','Reached Critical',newRows,'No active clients newly reached Critical / Zero in the exported snapshot coverage.');
+  rowNumber++;
+  addSection('Already Critical at Start','First Critical Reading',existingRows,'No active clients were already Critical / Blocked at their first reading in the exported snapshot coverage.');
   [13,15,28,20,14,17,15,18,23].forEach((width,index)=>{sheet.getColumn(index+1).width=width;});
   return sheet;
 }
@@ -13926,8 +13954,8 @@ window.exportSmsBalanceCriticalSummaryCsv = async () => {
     const rows=buildSmsBalanceCriticalExportSummary(buildSmsBalanceWorkbookData(reportDate,snapshots));
     if(!rows.length){toast('No active clients reached Critical / Zero in this snapshot coverage.','err');return;}
     smsBalanceCsvDownload(
-      ['Type','Shift','Client','Account Manager','Reached Date','Reached Critical','Balance at Hit','Status at Hit','End-of-Coverage Status'],
-      rows.map(row=>[row.type,row.shift,row.client,row.account_manager,row.reached_date,row.reached_time,row.balance,row.last_status,row.end_status]),
+      ['Category','Type','Shift','Client','Account Manager','Observed Date','Critical Time','Balance at Hit','Status at Hit','End-of-Coverage Status'],
+      rows.map(row=>[row.category_label,row.type,row.shift,row.client,row.account_manager,row.reached_date,row.reached_time,row.balance,row.last_status,row.end_status]),
       `sms_balance_summary_${reportDate}.csv`
     );
     toast(`Downloaded SMS critical summary CSV — ${rows.length} event(s)`,'ok');
