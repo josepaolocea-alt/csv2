@@ -7100,6 +7100,8 @@ let _profileSamples = null;   // Map<name, Array<{d, s, u}>>
 let _profilesLoaded = false;
 let _profilesLoading = null;
 let _usageProfiles = null;    // computed baseline cache (median/threshold per client)
+let _usageProfileDocs = null;
+let _usageProfilesUnsubscribe = null, _usageExclusionsUnsubscribe = null;
 function invalidateUsageProfiles() { _usageProfiles = null; }
 
 function sampleKey(d, s) { return `${d}|${s}`; }
@@ -7157,6 +7159,63 @@ function isExcludedReading(name, date, slot) { return _usageExclusions.has(exclu
 function persistExclusionsLocal() {
   try { localStorage.setItem('bm_usage_exclusions', JSON.stringify([..._usageExclusions])); } catch(e) {}
 }
+function usageExclusionsSetFromDocs(docs) {
+  const fresh = new Set();
+  (docs || []).forEach(entry => {
+    const data = entry.data();
+    if (data?.carrier_name) fresh.add(exclusionKey(data.carrier_name, data.date, data.slot));
+  });
+  return fresh;
+}
+function usageProfilesMapFromDocs(docs) {
+  const map = new Map();
+  (docs || []).forEach(entry => {
+    const data = entry.data();
+    const name = data.carrier_name;
+    if (!name || !Array.isArray(data.samples)) return;
+    const samples = data.samples
+      .map(sample => (typeof sample === 'number'
+        ? { d:'', s:'', u:sample }
+        : { d:sample.d || '', s:sample.s || '', u:amountNumber(sample.u) }))
+      .filter(sample => Number.isFinite(sample.u) && !isExcludedReading(name, sample.d, sample.s));
+    map.set(name, samples);
+  });
+  return map;
+}
+function refreshSpamProfileViews() {
+  invalidateUsageProfiles();
+  safeRender('Spam scan', scanSpamSuspects);
+  if (document.getElementById('view-alerts')?.classList.contains('active')) {
+    if (alertFilter === 'usagehistory') safeRender('Usage History', renderUsageHistory);
+    else safeRender('Alerts', renderAlerts);
+  }
+}
+function subscribeUsageProfileData() {
+  if (!fbOk) return;
+  if (!_usageExclusionsUnsubscribe) {
+    _usageExclusionsUnsubscribe = onSnapshot(collection(db, 'usage_exclusions'), snapshot => {
+      _usageExclusions = usageExclusionsSetFromDocs(snapshot.docs);
+      _exclusionsLoaded = true;
+      persistExclusionsLocal();
+      if (_usageProfileDocs) _profileSamples = usageProfilesMapFromDocs(_usageProfileDocs);
+      refreshSpamProfileViews();
+    }, error => {
+      console.warn('Usage exclusions subscribe:', error);
+      _usageExclusionsUnsubscribe = null;
+    });
+  }
+  if (!_usageProfilesUnsubscribe) {
+    _usageProfilesUnsubscribe = onSnapshot(collection(db, 'usage_profiles'), snapshot => {
+      _usageProfileDocs = snapshot.docs;
+      _profileSamples = usageProfilesMapFromDocs(snapshot.docs);
+      _profilesLoaded = true;
+      refreshSpamProfileViews();
+    }, error => {
+      console.warn('Usage profiles subscribe:', error);
+      _usageProfilesUnsubscribe = null;
+    });
+  }
+}
 // The snapshot the live table is currently showing — the reading a spam flag/
 // exclusion refers to (viewed historical slot, else the latest processed one).
 function currentReadingMeta() {
@@ -7172,9 +7231,7 @@ async function loadUsageExclusions() {
   try {
     if (fbOk) {
       const s = await getDocs(collection(db, 'usage_exclusions'));
-      const fresh = new Set();
-      s.docs.forEach(d => { const x = d.data(); if (x?.carrier_name) fresh.add(exclusionKey(x.carrier_name, x.date, x.slot)); });
-      _usageExclusions = fresh;                 // Firestore is source of truth when reachable
+      _usageExclusions = usageExclusionsSetFromDocs(s.docs); // Firestore is source of truth when reachable
       persistExclusionsLocal();
     }
   } catch(e) {}
@@ -7220,21 +7277,9 @@ async function loadUsageProfiles() {
     try {
       await loadUsageExclusions();   // so backfill/baseline honor manual exclusions
       if (fbOk) {
-        const map = new Map();
         const s = await getDocs(collection(db, 'usage_profiles'));
-        s.docs.forEach(d => {
-          const data = d.data();
-          const name = data.carrier_name;
-          if (name && Array.isArray(data.samples)) {
-            const arr = data.samples
-              .map(o => (typeof o === 'number'
-                ? { d: '', s: '', u: o }
-                : { d: o.d || '', s: o.s || '', u: amountNumber(o.u) }))
-              .filter(o => Number.isFinite(o.u) && !isExcludedReading(name, o.d, o.s));
-            map.set(name, arr);
-          }
-        });
-        _profileSamples = map;
+        _usageProfileDocs = s.docs;
+        _profileSamples = usageProfilesMapFromDocs(s.docs);
       } else {
         _profileSamples = _profileSamples || new Map();
       }
@@ -7562,10 +7607,12 @@ function updateSpamTab(count, highCount = 0) {
 // Spam tab count/rows populate without blocking the initial paint.
 let _spamKicked = false;
 function ensureSpamHistory() {
-  if (_profilesLoaded || _spamKicked) return;
+  if (_profilesLoaded) { subscribeUsageProfileData(); return; }
+  if (_spamKicked) return;
   _spamKicked = true;
   loadUsageProfiles()
     .then(() => {
+      subscribeUsageProfileData();
       scanSpamSuspects(); // seed the alerter (silent first pass) now the baseline is ready
       if (document.getElementById('view-alerts')?.classList.contains('active')) renderAlerts();
     })
@@ -7627,6 +7674,7 @@ let _spamFlagHistory = null;
 let _spamFlagHistoryLoaded = false, _spamFlagHistoryLoading = null, _spamFlagHistoryKicked = false;
 let _spamFlagHistoryQueue = Promise.resolve();
 let _spamHistSuppressed = null, _spamHistSuppressedLoaded = false;
+let _spamFlagHistoryUnsubscribe = null, _spamHistSuppUnsubscribe = null;
 let spamHistSearch = '', spamHistSortCol = 'first', spamHistSortDir = -1;
 
 function spamHistDocId(name) { return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
@@ -7636,16 +7684,22 @@ function sortSpamHistEvents(events) {
   events.sort((a,b) => spamHistKey(a.d,a.s).localeCompare(spamHistKey(b.d,b.s)));
 }
 
+function spamHistSuppressedMapFromDoc(snapshot) {
+  const map = new Map();
+  const keys = snapshot?.exists?.() ? (snapshot.data()?.keys || {}) : {};
+  Object.values(keys).forEach(value => {
+    if (value?.name && value?.key) map.set(value.name, value.key);
+  });
+  return map;
+}
+
 async function loadSpamHistSuppressed() {
   if (_spamHistSuppressedLoaded) return;
   const map = new Map();
   try {
     if (fbOk) {
       const snap = await getDoc(spamHistSuppRef());
-      const keys = snap.exists() ? (snap.data().keys || {}) : {};
-      Object.values(keys).forEach(value => {
-        if (value?.name && value?.key) map.set(value.name, value.key);
-      });
+      spamHistSuppressedMapFromDoc(snap).forEach((key, name) => map.set(name, key));
     }
   } catch(e) { console.warn('Flagged Spam suppression load:', e); }
   _spamHistSuppressed = map;
@@ -7662,6 +7716,52 @@ async function persistSpamHistSuppressed() {
   catch(e) { console.warn('Flagged Spam suppression save:', e); }
 }
 
+function spamFlagHistoryMapFromDocs(docs) {
+  const map = new Map();
+  (docs || []).forEach(entry => {
+    const data = entry.data() || {};
+    const name = data.carrier_name || '';
+    const events = (Array.isArray(data.events) ? data.events : []).map(event => ({
+      d:String(event.d || ''), s:String(event.s || ''),
+      usage:amountNumber(event.usage), signal:amountNumber(event.signal),
+      median:amountNumber(event.median), z:amountNumber(event.z),
+      ratio:event.ratio == null ? NaN : Number(event.ratio),
+      tier:event.tier === 'high' ? 'high' : 'watch', not_spam:!!event.not_spam,
+      ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null),
+      reviewed_at:event.reviewed_at?.toDate?.() || null,
+    })).filter(event => event.d);
+    if (name && events.length) { sortSpamHistEvents(events); map.set(name, { events }); }
+  });
+  return map;
+}
+
+// Keep already-open sessions synchronized when an admin removes a Flagged Spam
+// entry. The suppression record is watched as well so another operator cannot
+// immediately recreate that entry while processing the same snapshot.
+function subscribeSpamFlagHistoryRealtime() {
+  if (!fbOk || _spamFlagHistoryUnsubscribe) return;
+  _spamFlagHistoryUnsubscribe = onSnapshot(collection(db, 'spam_history'), snapshot => {
+    _spamFlagHistory = spamFlagHistoryMapFromDocs(snapshot.docs);
+    _spamFlagHistoryLoaded = true;
+    _spamFlagHistoryKicked = true;
+    if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
+  }, error => {
+    console.warn('Flagged Spam history subscribe:', error);
+    _spamFlagHistoryUnsubscribe = null;
+  });
+}
+
+function subscribeSpamHistSuppressedRealtime() {
+  if (!fbOk || _spamHistSuppUnsubscribe) return;
+  _spamHistSuppUnsubscribe = onSnapshot(spamHistSuppRef(), snapshot => {
+    _spamHistSuppressed = spamHistSuppressedMapFromDoc(snapshot);
+    _spamHistSuppressedLoaded = true;
+  }, error => {
+    console.warn('Flagged Spam suppression subscribe:', error);
+    _spamHistSuppUnsubscribe = null;
+  });
+}
+
 async function loadSpamFlagHistory() {
   if (_spamFlagHistoryLoaded) return;
   if (_spamFlagHistoryLoading) return _spamFlagHistoryLoading;
@@ -7670,20 +7770,7 @@ async function loadSpamFlagHistory() {
       const map = new Map();
       if (fbOk) {
         const snap = await getDocs(collection(db, 'spam_history'));
-        snap.docs.forEach(entry => {
-          const data = entry.data() || {};
-          const name = data.carrier_name || '';
-          const events = (Array.isArray(data.events) ? data.events : []).map(event => ({
-            d:String(event.d || ''), s:String(event.s || ''),
-            usage:amountNumber(event.usage), signal:amountNumber(event.signal),
-            median:amountNumber(event.median), z:amountNumber(event.z),
-            ratio:event.ratio == null ? NaN : Number(event.ratio),
-            tier:event.tier === 'high' ? 'high' : 'watch', not_spam:!!event.not_spam,
-            ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null),
-            reviewed_at:event.reviewed_at?.toDate?.() || null,
-          })).filter(event => event.d);
-          if (name && events.length) { sortSpamHistEvents(events); map.set(name, { events }); }
-        });
+        spamFlagHistoryMapFromDocs(snap.docs).forEach((record, name) => map.set(name, record));
       }
       _spamFlagHistory = map;
       _spamFlagHistoryLoaded = true;
@@ -7781,6 +7868,8 @@ async function markSpamHistoryNotSpam(name, date, slot) {
 }
 
 function ensureSpamFlagHistory() {
+  subscribeSpamFlagHistoryRealtime();
+  subscribeSpamHistSuppressedRealtime();
   if (_spamFlagHistoryLoaded || _spamFlagHistoryKicked) return;
   _spamFlagHistoryKicked = true;
   const count = document.getElementById('spamhist-count');
@@ -8020,6 +8109,8 @@ let _critHits = null;                  // Map<name, { events: Array<{d,s,bal,cri
 let _critHistLoaded = false;
 let _critHistLoading = null;
 let _critKicked = false;
+let _critHistUnsubscribe = null;
+let _critSuppUnsubscribe = null;
 let critHistSortCol = 'first', critHistSortDir = -1, critHistSearch = ''; // default: newest client added on top
 
 function critHistDocId(name){ return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
@@ -8042,14 +8133,20 @@ let _critSuppLoaded = false;
 const critSuppRef = () => doc(db, 'critical_history_meta', 'suppressed');
 function critSuppCount(){ return _critSuppressed ? _critSuppressed.size : 0; }
 
+function critSuppressedSetFromDoc(snapshot) {
+  const set = new Set();
+  const names = snapshot?.exists?.() && snapshot.data()?.names ? snapshot.data().names : {};
+  Object.values(names).forEach(name => { if (name) set.add(name); });
+  return set;
+}
+
 async function loadCritSuppressed() {
   if (_critSuppLoaded) return;
   const set = new Set();
   try {
     if (fbOk) {
       const d = await getDoc(critSuppRef());
-      const names = (d.exists() && d.data().names) ? d.data().names : {};
-      Object.values(names).forEach(n => { if (n) set.add(n); });
+      critSuppressedSetFromDoc(d).forEach(name => set.add(name));
     }
   } catch (e) { /* non-fatal: dismissals just won't be honoured this session */ }
   _critSuppressed = set;
@@ -8064,28 +8161,64 @@ async function persistCritSuppressed() {
   catch (e) { /* non-fatal */ }
 }
 
+function critHistoryMapFromDocs(docs) {
+  const map = new Map();
+  (docs || []).forEach(entry => {
+    const data = entry.data();
+    const name = data.carrier_name;
+    if (!name || !Array.isArray(data.events)) return;
+    const events = data.events.map(event => ({
+      d:event.d || '', s:event.s || '',
+      bal:amountNumber(event.bal),
+      crit:(event.crit === null || event.crit === undefined) ? null : amountNumber(event.crit),
+      ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null)
+    })).filter(event => event.d);
+    if (!events.length) return;
+    sortEventsInPlace(events);
+    map.set(name, { events });
+  });
+  return map;
+}
+
+// Keep every signed-in operator's Critical History cache synchronized. This is
+// required for admin deletions to disappear immediately from already-open
+// semi-admin/viewer sessions without a page refresh.
+function subscribeCritHistoryRealtime() {
+  if (!fbOk || _critHistUnsubscribe) return;
+  _critHistUnsubscribe = onSnapshot(collection(db, 'critical_history'), snapshot => {
+    _critHits = critHistoryMapFromDocs(snapshot.docs);
+    _critHistLoaded = true;
+    _critKicked = true;
+    markCritHistSeeded();
+    if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
+  }, error => {
+    console.warn('critical history subscribe:', error);
+    _critHistUnsubscribe = null;
+  });
+}
+
+// The dismissal list is synchronized too, so another operator processing the
+// next snapshot does not re-add a client that an admin just removed.
+function subscribeCritSuppressedRealtime() {
+  if (!fbOk || _critSuppUnsubscribe) return;
+  _critSuppUnsubscribe = onSnapshot(critSuppRef(), snapshot => {
+    _critSuppressed = critSuppressedSetFromDoc(snapshot);
+    _critSuppLoaded = true;
+    if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
+  }, error => {
+    console.warn('critical history suppression subscribe:', error);
+    _critSuppUnsubscribe = null;
+  });
+}
+
 async function loadCritHistory() {
   if (_critHistLoaded) return;
   if (_critHistLoading) return _critHistLoading;
   _critHistLoading = (async () => {
     try {
       if (fbOk) {
-        const map = new Map();
         const s = await getDocs(collection(db, 'critical_history'));
-        s.docs.forEach(d => {
-          const data = d.data();
-          const name = data.carrier_name;
-          if (name && Array.isArray(data.events)) {
-            const events = data.events.map(e => ({
-              d: e.d || '', s: e.s || '',
-              bal: amountNumber(e.bal),
-              crit: (e.crit === null || e.crit === undefined) ? null : amountNumber(e.crit),
-              ts: e.ts?.toDate?.() || (e.ts instanceof Date ? e.ts : null)
-            })).filter(e => e.d);
-            if (events.length) { sortEventsInPlace(events); map.set(name, { events }); }
-          }
-        });
-        _critHits = map;
+        _critHits = critHistoryMapFromDocs(s.docs);
       } else {
         _critHits = _critHits || new Map();
       }
@@ -8203,6 +8336,8 @@ async function persistCritHistDocs(names) {
 // Load the persistent history once (lazily), then re-render so the tab
 // populates without blocking. Mirrors ensureSpamHistory.
 function ensureCritHistory() {
+  subscribeCritHistoryRealtime();
+  subscribeCritSuppressedRealtime();
   if (_critHistLoaded || _critKicked) return;
   _critKicked = true;
   const countEl = document.getElementById('crithist-count');
@@ -8443,9 +8578,41 @@ let _noThreshSeen = null;              // Map<name, { events: Array<{d,s,bal,ts}
 let _noThreshLoaded = false;
 let _noThreshLoading = null;
 let _noThreshKicked = false;
+let _noThreshUnsubscribe = null;
 let noThreshSortCol = 'first', noThreshSortDir = -1, noThreshSearch = ''; // default: newest client added on top
 
 function noThreshDocId(name){ return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_'); }
+
+function noThreshHistoryMapFromDocs(docs) {
+  const map = new Map();
+  (docs || []).forEach(entry => {
+    const data = entry.data();
+    const name = data.carrier_name;
+    if (!name || !Array.isArray(data.events)) return;
+    const events = data.events.map(event => ({
+      d:event.d || '', s:event.s || '',
+      bal:amountNumber(event.bal),
+      ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null)
+    })).filter(event => event.d);
+    if (events.length) { sortEventsInPlace(events); map.set(name, { events }); }
+  });
+  return map;
+}
+
+// Admin row deletes and full clears must disappear from every already-open
+// semi-admin/viewer session without requiring a browser refresh.
+function subscribeNoThreshHistoryRealtime() {
+  if (!fbOk || _noThreshUnsubscribe) return;
+  _noThreshUnsubscribe = onSnapshot(collection(db, 'no_threshold_history'), snapshot => {
+    _noThreshSeen = noThreshHistoryMapFromDocs(snapshot.docs);
+    _noThreshLoaded = true;
+    _noThreshKicked = true;
+    if (document.getElementById('view-no-threshold')?.classList.contains('active')) renderNoThreshHistory();
+  }, error => {
+    console.warn('No Threshold history subscribe:', error);
+    _noThreshUnsubscribe = null;
+  });
+}
 
 async function loadNoThreshHistory() {
   if (_noThreshLoaded) return;
@@ -8453,21 +8620,8 @@ async function loadNoThreshHistory() {
   _noThreshLoading = (async () => {
     try {
       if (fbOk) {
-        const map = new Map();
         const s = await getDocs(collection(db, 'no_threshold_history'));
-        s.docs.forEach(d => {
-          const data = d.data();
-          const name = data.carrier_name;
-          if (name && Array.isArray(data.events)) {
-            const events = data.events.map(e => ({
-              d: e.d || '', s: e.s || '',
-              bal: amountNumber(e.bal),
-              ts: e.ts?.toDate?.() || (e.ts instanceof Date ? e.ts : null)
-            })).filter(e => e.d);
-            if (events.length) { sortEventsInPlace(events); map.set(name, { events }); }
-          }
-        });
-        _noThreshSeen = map;
+        _noThreshSeen = noThreshHistoryMapFromDocs(s.docs);
       } else {
         _noThreshSeen = _noThreshSeen || new Map();
       }
@@ -8540,6 +8694,7 @@ async function persistNoThreshDocs(names) {
 }
 
 function ensureNoThreshHistory() {
+  subscribeNoThreshHistoryRealtime();
   if (_noThreshLoaded || _noThreshKicked) return;
   _noThreshKicked = true;
   const countEl = document.getElementById('nothresh-count');
@@ -10464,11 +10619,24 @@ function clientEditUiOpen() {
      document.getElementById('btn-save-client')?.style.display !== 'none');
 }
 
+// Refresh every screen whose labels/status depend on the shared client record.
+// This includes an already-open read-only detail card and the persistent history
+// tabs, not only the All Clients table.
+function refreshClientDataViews() {
+  refreshAll();
+  if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
+  if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
+  if (document.getElementById('view-no-threshold')?.classList.contains('active')) renderNoThreshHistory();
+  const detailOpen = document.getElementById('client-detail-overlay')?.classList.contains('open');
+  const detailEditing = document.getElementById('btn-save-client')?.style.display !== 'none';
+  if (detailOpen && !detailEditing && _editingClient) renderClientDetailBody(false);
+}
+
 // Apply a client update that arrived while an edit form was open.
 function flushPendingClientRefresh() {
   if (!_pendingClientRefresh || clientEditUiOpen()) return;
   _pendingClientRefresh = false;
-  refreshAll();
+  refreshClientDataViews();
 }
 
 // Live listener on client records so edits by other signed-in users (e.g.
@@ -10490,7 +10658,7 @@ function subscribeClients() {
         });
         if (first) { first = false; resolve(); return; } // init() renders after this
         if (clientEditUiOpen()) _pendingClientRefresh = true;
-        else refreshAll();
+        else refreshClientDataViews();
       }, e => {
         console.warn('subscribeClients:', e);
         if (first) { first = false; resolve(); }
@@ -10506,7 +10674,7 @@ async function loadImpHist() {
   try {
     const q=query(collection(db,'csv_imports'),orderBy('imported_at','desc'),limit(10));
     const s=await getDocs(q);
-    return s.docs.map(d=>({id:d.id,...d.data(),imported_at:d.data().imported_at?.toDate()}));
+    return importHistoryFromDocs(s.docs);
   } catch(e){return [];}
 }
 
@@ -11756,11 +11924,19 @@ window.saveWizard=async()=>{
    IMPORT HISTORY
 ════════════════════════════════════════════════ */
 let _importHistory = [];
-async function renderImpHist(){
-  const el=document.getElementById('imp-hist-list');
-  const list=await loadImpHist();
-  _importHistory=list;
-  if(!list.length){el.innerHTML='<div class="empty-state">No imports yet.</div>';return;}
+let _importHistoryUnsubscribe = null;
+function importHistoryFromDocs(docs) {
+  return (docs || []).map(entry => ({
+    id:entry.id,
+    ...entry.data(),
+    imported_at:entry.data().imported_at?.toDate?.() || entry.data().imported_at,
+  }));
+}
+function renderImpHistList(list) {
+  const el = document.getElementById('imp-hist-list');
+  if (!el) return;
+  _importHistory = list;
+  if (!list.length) { el.innerHTML='<div class="empty-state">No imports yet.</div>'; return; }
   el.innerHTML=list.map((imp,i)=>{
     const dt=imp.imported_at instanceof Date?imp.imported_at:new Date(imp.imported_at||0);
     const canRollback=imp.before_state?.length>0&&!imp.rolled_back;
@@ -11772,6 +11948,24 @@ async function renderImpHist(){
       ${canRollback?`<button class="tbtn" style="font-size:10px;padding:0 6px;color:#880000" onclick="promptRollback(${i})">Rollback</button>`:''}
     </div>`;
   }).join('');
+}
+async function renderImpHist(){
+  const list=await loadImpHist();
+  renderImpHistList(list);
+}
+function subscribeImportHistory() {
+  if (!fbOk || _importHistoryUnsubscribe) return;
+  try {
+    const importQuery = query(collection(db, 'csv_imports'), orderBy('imported_at', 'desc'), limit(10));
+    _importHistoryUnsubscribe = onSnapshot(importQuery, snapshot => {
+      const list = importHistoryFromDocs(snapshot.docs);
+      _importHistory = list;
+      if (document.getElementById('view-client-manager')?.classList.contains('active')) renderImpHistList(list);
+    }, error => {
+      console.warn('Import history subscribe:', error);
+      _importHistoryUnsubscribe = null;
+    });
+  } catch(e) { console.warn('Import history subscribe:', e); }
 }
 
 /* ════════════════════════════════════════════════
@@ -18788,6 +18982,12 @@ async function init(){
   updatePresence();
   subscribePresence();
   subscribeLogs();
+  subscribeImportHistory();
+  subscribeCritHistoryRealtime();
+  subscribeCritSuppressedRealtime();
+  subscribeSpamFlagHistoryRealtime();
+  subscribeSpamHistSuppressedRealtime();
+  subscribeNoThreshHistoryRealtime();
   // User roles: register/refresh my own record (drives the online list + lets the
   // admin assign a role), watch my role live, and — for the admin — the whole list.
   upsertMyUserRole();
