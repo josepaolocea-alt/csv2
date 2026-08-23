@@ -12728,7 +12728,8 @@ function smsBalanceWarningBar(rowOrStatus) {
   const progress=smsBalanceWarningProgress(rowOrStatus);
   if(progress===null)return '<span class="sms-muted">—</span>';
   const hot=progress>=90;
-  return `<div class="ubar-wrap" role="progressbar" aria-label="Balance progress toward Critical Balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.toFixed(1)}"><div class="ubar"><div class="ubar-fill ${hot?'high':'light'}" style="width:${progress.toFixed(2)}%"></div></div><span class="${hot?'bar-pct-danger':''}" style="font-family:var(--mono);font-size:10px">${progress.toFixed(1)}%</span></div>`;
+  const displayProgress=progress>=100?'100.00':Math.min(progress,99.99).toFixed(2);
+  return `<div class="ubar-wrap" role="progressbar" aria-label="Balance progress toward Critical Balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${displayProgress}"><div class="ubar"><div class="ubar-fill ${hot?'high':'light'}" style="width:${displayProgress}%"></div></div><span class="${hot?'bar-pct-danger':''}" style="font-family:var(--mono);font-size:10px">${displayProgress}%</span></div>`;
 }
 function smsBalanceIsCritical(row) {
   if (!row) return false;
