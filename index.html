@@ -4690,9 +4690,10 @@
         </div>
         <div id="voip-settings-danger-title" style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
         <div class="settings-danger" id="voip-settings-danger-zone">
-          <div style="margin-bottom:5px">Delete today's stored snapshots only if you intentionally want to remove today's history. This can affect New Critical comparisons.</div>
+          <div style="margin-bottom:5px">Delete snapshots saved from 12:00 AM through 11:59 PM today for one source. This can affect New Critical comparisons.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm()">Delete Today Snapshots</button>
+            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm('snapshots')">Delete Today Snapshots for All Clients</button>
+            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm('tritel')">Delete Today Snapshots for Tritel</button>
           </div>
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
@@ -4827,17 +4828,17 @@
 <!-- Delete Today Snapshots Dialog -->
 <div id="delete-today-overlay">
   <div id="delete-today-box" style="width:390px">
-    <div class="dlg-tb"><span>Delete Today Snapshots</span></div>
+    <div class="dlg-tb"><span id="delete-today-title">Delete Today Snapshots for All Clients</span></div>
     <div class="dlg-body">
       <div class="dlg-ico">!</div>
-      <div class="dlg-text">
-        <strong>Permanently delete today's snapshots?</strong><br><br>
-        This removes today's saved snapshots from Firestore and can remove the history needed by New Critical.<br><br>
-        <span style="color:#880000">Use this only when you truly want to wipe today's snapshot history.</span>
+      <div class="dlg-text" id="delete-today-text">
+        <strong>Permanently delete today's All Clients snapshots?</strong><br><br>
+        This removes All Clients snapshots saved from 12:00 AM through 11:59 PM today and can remove the history needed by New Critical.<br><br>
+        <span style="color:#880000">Tritel snapshots are not affected.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
-      <button class="tbtn danger" style="min-width:110px" onclick="confirmDeleteTodaySnapshots()">Delete Snapshots</button>
+      <button class="tbtn danger" id="delete-today-ok" style="min-width:110px" onclick="confirmDeleteTodaySnapshots()">Delete All Clients</button>
       <button class="tbtn" style="min-width:72px" onclick="closeDeleteTodayConfirm()">Cancel</button>
     </div>
   </div>
@@ -10034,7 +10035,22 @@ window.confirmDeleteLogs = async () => {
 
 window.openResetConfirm  = () => document.getElementById('confirm-overlay').classList.add('open');
 window.closeResetConfirm = () => document.getElementById('confirm-overlay').classList.remove('open');
-window.openDeleteTodayConfirm  = () => document.getElementById('delete-today-overlay').classList.add('open');
+let pendingDeleteTodayKind = 'snapshots'; // 'snapshots' (All Clients) | 'tritel'
+window.openDeleteTodayConfirm = (kind = 'snapshots') => {
+  pendingDeleteTodayKind = kind === 'tritel' ? 'tritel' : 'snapshots';
+  const isTritel = pendingDeleteTodayKind === 'tritel';
+  const sourceLabel = isTritel ? 'Tritel' : 'All Clients';
+  const title = document.getElementById('delete-today-title');
+  const text = document.getElementById('delete-today-text');
+  const ok = document.getElementById('delete-today-ok');
+  if (title) title.textContent = `Delete Today Snapshots for ${sourceLabel}`;
+  if (text) text.innerHTML =
+    `<strong>Permanently delete today's ${sourceLabel} snapshots?</strong><br><br>` +
+    `This removes ${sourceLabel} snapshots saved from <strong>12:00 AM through 11:59 PM today</strong> (${todayStr()}) from Firestore.<br><br>` +
+    `<span style="color:#880000">${isTritel ? 'All Clients snapshots are not affected.' : 'Tritel snapshots are not affected. This can remove history needed by New Critical.'}</span>`;
+  if (ok) ok.textContent = `Delete ${sourceLabel}`;
+  document.getElementById('delete-today-overlay').classList.add('open');
+};
 window.closeDeleteTodayConfirm = () => document.getElementById('delete-today-overlay').classList.remove('open');
 
 /* ════════════════════════════════════════════════
@@ -10335,24 +10351,22 @@ window.confirmResetToday = async () => {
 
 window.confirmDeleteTodaySnapshots = async () => {
   if(!canDeleteSnapshots()){ closeDeleteTodayConfirm(); toast('Deleting snapshots is restricted for this account.','err'); return; }
+  const kind = pendingDeleteTodayKind === 'tritel' ? 'tritel' : 'snapshots';
+  const isTritel = kind === 'tritel';
+  const sourceLabel = isTritel ? 'Tritel' : 'All Clients';
   closeDeleteTodayConfirm();
-  setLoading(true, 'Deleting today snapshots...');
+  setLoading(true, `Deleting today's ${sourceLabel} snapshots...`);
   try {
     let deletedCount = 0;
-    todaySnaps = [];
-    latestSnap = null;
-    lastProcessedSnap = null;
-    viewingIdx = null;
-    try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
-    try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
-
     if (fbOk) {
-      const q = query(collection(db, 'snapshots'), where('session_date', '==', todayStr()));
+      // session_date is the app-local calendar date stamped when posting, so
+      // this covers 12:00 AM through 11:59 PM today regardless of time slot.
+      const q = query(collection(db, kind === 'tritel' ? 'tritel_snapshots' : 'snapshots'), where('session_date', '==', todayStr()));
       const s = await getDocs(q);
       const BATCH_MAX = 490;
       let batch = writeBatch(db), count = 0;
       for (const d of s.docs) {
-        batch.delete(doc(db, 'snapshots', d.id));
+        batch.delete(doc(db, kind === 'tritel' ? 'tritel_snapshots' : 'snapshots', d.id));
         deletedCount++;
         if (++count >= BATCH_MAX) {
           await batch.commit();
@@ -10363,10 +10377,23 @@ window.confirmDeleteTodaySnapshots = async () => {
       if (count > 0) await batch.commit();
     }
 
-    document.getElementById('view-banner').classList.remove('visible');
+    if (isTritel) {
+      tritelSnaps = [];
+      try { localStorage.removeItem('bm_tritel_snaps'); } catch(e) {}
+      updateTritelStatus();
+    } else {
+      todaySnaps = [];
+      latestSnap = null;
+      lastProcessedSnap = null;
+      viewingIdx = null;
+      try { localStorage.removeItem('bm_last_processed_snap'); } catch(e) {}
+      try { localStorage.removeItem('bm_last_snap_meta'); } catch(e) {}
+      document.getElementById('view-banner').classList.remove('visible');
+    }
     refreshAll();
     window.renderClients();
-    toast(`Deleted ${deletedCount} today snapshot(s)`, 'ok');
+    populateSlots();
+    toast(`Deleted ${deletedCount} ${sourceLabel} snapshot(s) for ${todayStr()}`, 'ok');
   } catch(e) {
     toast('Delete error: ' + e.message, 'err');
   } finally {
