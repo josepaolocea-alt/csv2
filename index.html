@@ -12705,6 +12705,25 @@ function smsBalanceRosterRows() {
   });
   return [...byKey.values()];
 }
+function smsBalanceNoThresholdRows() {
+  const byKey=new Map();
+  smsBalanceRosterRows().forEach(row=>{
+    if(row._status?.credit===null&&row._status?.critical===null)byKey.set(smsBalanceMetaKey(row),row);
+  });
+  smsBalanceNoThreshold.forEach(record=>{
+    const key=record.meta_key||smsBalanceMetaKey(record);
+    if(byKey.has(key)||!record?.client)return;
+    const meta=smsBalanceMeta[key]||{};
+    if(smsBalanceThreshold(meta,'credit_limit')!==null||smsBalanceThreshold(meta,'critical_balance')!==null)return;
+    const row=smsBalanceNormalizeRow({
+      source:record.source,client:record.client,balance:record.last_balance,
+      overdraft:record.last_overdraft,account_type:record.account_type,
+      email:record.email,number:record.number,currency:record.currency
+    },record.source);
+    byKey.set(key,{...row,_hasSnapshot:false,_historyRecord:true,_status:smsBalanceStatus(row),_meta:meta,_routeMatches:0,_routeBlocked:false});
+  });
+  return [...byKey.values()];
+}
 function smsBalancePreviousContext() {
   const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
   if (!ordered.length || !smsBalanceLatest) return { snapshot:null, ready:smsBalancePriorLoaded };
@@ -12743,7 +12762,9 @@ function smsBalanceTableRow(row, compact=false, showBalanceBar=false) {
   const shownStatus = row._removedFromCritical ? { ...s, code:'safe', label:'Removed from Critical' } : s;
   const rowTone = row._removedFromCritical ? 'safe' : s.code;
   const rowClass = `sms-bal-row-${rowTone}${!row._removedFromCritical&&smsBalanceWarningIsHot(s)?' sms-bal-row-warning-hot':''}`;
-  const openDetail = `ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."`;
+  const openDetail = row._historyRecord
+    ? 'data-premium-tooltip="Loaded from persistent No Threshold History; no current snapshot row is available."'
+    : `ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."`;
   if (compact) return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
   const usageClass = Math.abs(smsBalanceNumber(row.usage_30min)) >= 50 ? ' sms-bal-usage-hot' : '';
   const balanceBarCell=showBalanceBar?`<td>${smsBalanceWarningBar(s)}</td>`:'';
@@ -12944,7 +12965,7 @@ function smsBalanceAlertSets() {
     critical:rows.filter(smsBalanceIsCritical),
     warning:rows.filter(row => ['near','warning'].includes(row._status.code)),
     safe:rows.filter(row => row._status.code === 'safe'),
-    nothreshold:rows.filter(row => row._status.credit === null && row._status.critical === null),
+    nothreshold:smsBalanceNoThresholdRows(),
     newnothreshold:newNoThreshold,
     usage:rows.filter(row => smsBalanceNumber(row.usage_30min) > 0),
     new:transitions.added,
