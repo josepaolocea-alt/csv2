@@ -288,6 +288,7 @@
 
     /* Per-row delete action (Critical History / No-Threshold tables) */
     .col-act { width: 40px; text-align: center; white-space: nowrap; }
+    #spamhist-tbl .col-act { width: 180px; }
     .row-del {
       display: inline-flex; align-items: center; justify-content: center;
       width: 24px; height: 24px; padding: 0;
@@ -441,7 +442,8 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 3px 10px rgba(32,35,38,.10);
     }
     .summary-visibility-toggle:active { transform: scale(.975); }
-    .groupbox.collapsed .summary-visibility-toggle .caret { transform: rotate(-90deg); }
+    .groupbox.collapsed .summary-visibility-toggle .caret,
+    .sms-bal-panel.collapsed .summary-visibility-toggle .caret { transform: rotate(-90deg); }
 
     /* ── Stats row ──
        Tiles hold a short number, so tracks are capped and wrap instead of each
@@ -1086,7 +1088,7 @@
     body.sms-mode #sidebar,
     body.sms-mode #toolbar,
     body.sms-mode #toolbar .tbtn[id^="tnav-"],
-    body.sms-mode #btn-settings,
+    body.sms-mode #tnav-settings,
     body.sms-mode #snd-dismiss-btn,
     body.sms-mode #sync-label {
       display: none !important;
@@ -1097,7 +1099,7 @@
     #users-toolbar-label { display: none; font-size: 11px; font-weight: 600; color: var(--text); padding: 0 6px; }
     body.users-mode #sidebar,
     body.users-mode #toolbar .tbtn[id^="tnav-"],
-    body.users-mode #btn-settings,
+    body.users-mode #tnav-settings,
     body.users-mode #snd-dismiss-btn,
     body.users-mode #sync-label {
       display: none !important;
@@ -1141,7 +1143,7 @@
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok.active { background: var(--yellow-deep) !important; color: #fff !important; border-color: var(--yellow-deep) !important; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-good.active { background: var(--green) !important; color: #fff !important; border-color: var(--green) !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
-    body.stats-mode #btn-settings,
+    body.stats-mode #tnav-settings,
     body.stats-mode #snd-dismiss-btn,
     body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
@@ -2210,11 +2212,15 @@
       .exp-date-separator { width: 100%; height: 12px; transform: rotate(90deg); }
     }
 
-    /* ── Settings dialog ── */
-    #settings-dlg, #stats-settings-dlg { display: none; position: fixed; top: 48px; left: 50%; transform: translateX(-50%); z-index: 500; width: min(440px, calc(100vw - 24px)); max-height: calc(100vh - 80px); }
-    #settings-dlg.open, #stats-settings-dlg.open { display: block; }
-    #settings-dlg .win-dialog, #stats-settings-dlg .win-dialog { width: 100%; max-height: calc(100vh - 80px); display: flex; flex-direction: column; }
-    #settings-dlg .settings-body, #stats-settings-dlg .settings-body { padding: 14px; overflow-y: auto; }
+    /* ── In-page settings ──
+       VOIP, Stats and Daily Traffic settings use the same native workspace
+       treatment as SMS Balance Settings instead of floating dialog windows. */
+    .settings-page { min-height:0; overflow:auto; }
+    .settings-page.active, .st-daily-panel.settings-page { align-items:flex-start; }
+    .settings-page-shell { width:100%; max-width:920px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+    .settings-page-panel { width:100%; padding:12px; box-shadow:var(--shadow-sm); }
+    .settings-page-title { margin-bottom:10px; font-size:12px; }
+    .settings-page .settings-body { min-height:0; padding:0; overflow:visible; }
     .settings-grid { display: grid; gap: 7px; }
     .settings-row { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(90px, 150px); gap: 8px; align-items: center; }
     .settings-row label { min-width: 0 !important; white-space: normal; line-height: 1.2; }
@@ -2387,8 +2393,6 @@
     }
     .view.active { animation: viewIn .16s ease-out; }
     .groupbox, .stat-box, .sum-card { transition: background-color .12s ease-out, border-color .12s ease-out; }
-    #settings-dlg.open .win-dialog,
-    #stats-settings-dlg.open .win-dialog,
     #operator-dlg .win-dialog,
     #login-overlay .win-dialog,
     #loading.on .win-dialog,
@@ -2815,9 +2819,14 @@
     .sms-bal-badge.nothreshold { color:var(--text-2); background:var(--surface-3); }
     .sms-bal-badge.awaiting { color:var(--accent); background:var(--accent-soft); }
     .sms-bal-panel { padding:10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); }
+    .sms-bal-panel > .sms-summary-header { cursor:default; gap:12px; }
+    .sms-bal-panel > .sms-summary-header .groupbox-title { margin-bottom:0; }
+    .sms-bal-panel:not(.collapsed) > .sms-summary-header { margin-bottom:8px; }
+    .sms-bal-panel > .sms-summary-header:hover .groupbox-title { color:var(--text); }
     .sms-bal-setting-switch { grid-template-columns:38px minmax(0,1fr); gap:8px; min-height:28px; cursor:pointer; }
     .sms-bal-setting-switch > span { min-width:0; line-height:1.35; }
     .sms-bal-summary-highlights { display:grid; grid-template-columns:repeat(2,minmax(240px,1fr)); gap:8px; margin-top:7px; }
+    .sms-bal-panel > .sms-bal-summary-highlights { margin-top:0; }
     .sms-bal-summary-card { min-width:0; padding:8px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md); }
     .sms-bal-summary-card-title { margin-bottom:4px; color:var(--text-2); font-size:10px; font-weight:700; }
     .sms-bal-summary-card.usage .sms-bal-summary-card-title { color:var(--orange); }
@@ -3027,9 +3036,9 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
-    <button class="tbtn stats-tab" id="btn-stats-settings" onclick="toggleStatsSettings()">Stats Settings</button>
+    <button class="tbtn stats-tab" id="stnav-stats-settings" onclick="switchStatsView('settings')">Settings</button>
     <div class="tsep tsep-bal"></div>
-    <button class="tbtn" id="btn-settings" onclick="toggleSettings()">Settings</button>
+    <button class="tbtn" id="tnav-settings" onclick="switchView('settings')">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="users-toolbar-label">Users &amp; Roles</span>
     <span id="sync-label">No data loaded</span>
@@ -3077,7 +3086,7 @@
       <!-- Stats snapshot paste -->
       <div id="stats-sidebar-snap">
         <div id="stats-sidebar-current">
-        <!-- Posting controls — admin only (hidden for view-only users) -->
+        <!-- Posting controls — admin/semi-admin (hidden for view-only users) -->
         <div id="stats-post-controls">
           <div class="snap-label">New Snapshot <span class="required-hint">Paste required</span></div>
           <textarea id="stats-snap-ta" placeholder="Paste hourly stats data here…" required aria-required="true" data-premium-tooltip="Required: paste the hourly Stats report data here before processing."></textarea>
@@ -3112,14 +3121,6 @@
               <button class="tbtn" style="width:100%;justify-content:center" onclick="undoLastStatsDailyTraffic()" title="Remove the most recently saved Daily Traffic date">Undo Last Daily Traffic</button>
             </div>
             <div class="settings-note" style="margin-top:2px">One record is kept per selected Traffic Date. Normal sessions read only the newest 14 reports.</div>
-          </div>
-          <div id="stats-daily-archive-controls" class="stats-daily-archive">
-            <div class="snap-label">Archive a Month</div>
-            <div class="stats-daily-archive-row">
-              <input id="stats-daily-archive-month" class="win-inp" type="month" data-premium-date aria-label="Daily Traffic month to archive">
-              <button type="button" class="tbtn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
-            </div>
-            <div class="stats-daily-archive-note">Moves the selected month to a separate Firebase archive. Archived records are kept, but are not read by normal Daily Traffic sessions.</div>
           </div>
           <div class="snap-label">Saved Daily Dates</div>
           <div id="stats-daily-date-list"><div class="top-usage-empty">No daily traffic data yet.</div></div>
@@ -3482,7 +3483,7 @@
                 <th onclick="sortSpamHist('status')">Review Status</th>
                 <th onclick="sortSpamHist('first')" title="Newest first by default">First Flagged ▼</th>
                 <th onclick="sortSpamHist('last')">Last Flagged</th>
-                <th class="col-act" title="Delete an entry"></th>
+                <th class="col-act" title="Administrative actions">Actions</th>
               </tr></thead>
               <tbody id="spamhist-tbody"></tbody>
             </table>
@@ -3551,9 +3552,9 @@
               <div class="sms-bal-shell">
                 <aside class="sms-bal-sidebar">
                   <div class="snap-label">Reseller Snapshot <span class="required-hint">Paste required</span></div>
-                  <textarea class="win-ta" id="sms-bal-reseller-ta" placeholder="Paste Reseller Phoenix balance data…" required aria-required="true"></textarea>
+                  <textarea class="win-ta" id="sms-bal-reseller-ta" placeholder="Paste Reseller Phoenix balance data…" required aria-required="true" data-premium-tooltip="Required: paste the Reseller Phoenix balance report here. Expected balance columns are Balance, then Overdraft."></textarea>
                   <div class="snap-label">Wholesale Snapshot <span class="required-hint">Paste required</span></div>
-                  <textarea class="win-ta" id="sms-bal-wholesale-ta" placeholder="Paste Wholesale Phoenix balance data…" required aria-required="true"></textarea>
+                  <textarea class="win-ta" id="sms-bal-wholesale-ta" placeholder="Paste Wholesale Phoenix balance data…" required aria-required="true" data-premium-tooltip="Required: paste the Wholesale Phoenix balance report here. Expected balance columns are Overdraft, then Balance; they are normalized automatically."></textarea>
                   <label class="snap-label" for="sms-bal-slot">Snapshot Slot</label>
                   <select class="win-sel" id="sms-bal-slot" style="width:100%"></select>
                   <div style="display:flex;gap:4px">
@@ -3577,16 +3578,25 @@
                       <div class="sms-bal-card"><div class="value" id="sms-bal-stat-nothreshold">0</div><div class="label">No notification threshold</div></div>
                     </div>
                     <div class="sms-bal-panel">
-                      <div class="groupbox-title">SMS Balance Rules</div>
-                      <div class="sms-bal-note">Positive balances are prepaid credit remaining. A negative balance is overdraft already consumed. Balance $0 is Critical only when no overdraft is available. If overdraft is available—even OD $1—the client moves to OD monitoring and OD exhaustion becomes the next Critical target. Remaining overdraft = <strong>Overdraft + Balance</strong>; for example, OD $100 and Balance −$90 leaves $10.</div>
+                      <div class="collapsible-header sms-summary-header">
+                        <div class="groupbox-title">SMS Balance Rules</div>
+                        <button type="button" class="summary-visibility-toggle" data-collapse-key="sms-summary-rules" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="sms-bal-summary-rules-body" aria-label="Hide SMS Balance Rules section" title="Hide SMS Balance Rules section"><span class="caret" aria-hidden="true">▼</span></button>
+                      </div>
+                      <div class="caret-body" id="sms-bal-summary-rules-body"><div class="sms-bal-note">Positive balances are prepaid credit remaining. A negative balance is overdraft already consumed. Balance $0 is Critical only when no overdraft is available. If overdraft is available—even OD $1—the client moves to OD monitoring and OD exhaustion becomes the next Critical target. Remaining overdraft = <strong>Overdraft + Balance</strong>; for example, OD $100 and Balance −$90 leaves $10.</div></div>
                     </div>
                     <div class="sms-bal-panel">
-                      <div class="groupbox-title">30-min Snapshot Timeline</div>
-                      <div class="timeline-strip" id="sms-bal-summary-timeline" aria-label="SMS Balance 30-minute snapshot timeline"></div>
+                      <div class="collapsible-header sms-summary-header">
+                        <div class="groupbox-title">30-min Snapshot Timeline</div>
+                        <button type="button" class="summary-visibility-toggle" data-collapse-key="sms-summary-timeline" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="sms-bal-summary-timeline-body" aria-label="Hide 30-min Snapshot Timeline section" title="Hide 30-min Snapshot Timeline section"><span class="caret" aria-hidden="true">▼</span></button>
+                      </div>
+                      <div class="caret-body" id="sms-bal-summary-timeline-body"><div class="timeline-strip" id="sms-bal-summary-timeline" aria-label="SMS Balance 30-minute snapshot timeline"></div></div>
                     </div>
                     <div class="sms-bal-panel">
-                      <div class="groupbox-title">SMS Snapshot Highlights</div>
-                      <div class="sms-bal-summary-highlights">
+                      <div class="collapsible-header sms-summary-header">
+                        <div class="groupbox-title">SMS Snapshot Highlights</div>
+                        <button type="button" class="summary-visibility-toggle" data-collapse-key="sms-summary-highlights" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="sms-bal-summary-highlights-body" aria-label="Hide SMS Snapshot Highlights section" title="Hide SMS Snapshot Highlights section"><span class="caret" aria-hidden="true">▼</span></button>
+                      </div>
+                      <div class="caret-body sms-bal-summary-highlights" id="sms-bal-summary-highlights-body">
                         <section class="sms-bal-summary-card usage"><div class="sms-bal-summary-card-title">Top 30m Usage — Reseller</div><div id="sms-bal-summary-usage-reseller"></div></section>
                         <section class="sms-bal-summary-card usage"><div class="sms-bal-summary-card-title">Top 30m Usage — Wholesale</div><div id="sms-bal-summary-usage-wholesale"></div></section>
                         <section class="sms-bal-summary-card payment"><div class="sms-bal-summary-card-title">Top Payments Today</div><div id="sms-bal-summary-payments"></div></section>
@@ -3705,7 +3715,7 @@
 
                   <section class="sms-bal-view" id="sms-bal-view-logs">
                     <div class="fbar"><span class="sms-muted">Audit trail of SMS balance snapshots posted by slot.</span><button class="tbtn" onclick="renderSmsBalanceLogs()">Refresh</button></div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Operator</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Action</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Operator</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Action</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-critical-history">
@@ -3732,10 +3742,10 @@
                       <div class="groupbox-title">SMS Danger Zone</div>
                       <div class="sms-bal-note">These actions affect only SMS Balance Monitor data. VOIP snapshots, Client, SMS Phoenix Platform, Credentials, and Flagged Spam are not touched.</div>
                       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
-                        <button class="tbtn danger" onclick="deleteTodaySmsBalanceSnapshots()">Delete Today's SMS Snapshots</button>
-                        <button class="tbtn danger" onclick="deleteAllSmsBalanceSnapshots()">Delete ALL SMS Snapshots</button>
-                        <button class="tbtn danger" onclick="clearSmsBalanceHistory()">Clear SMS Critical History</button>
-                        <button class="tbtn danger" onclick="clearSmsBalanceNoThreshold()">Clear SMS No-Threshold List</button>
+                        <button class="tbtn danger" id="sms-bal-delete-today-btn" onclick="deleteTodaySmsBalanceSnapshots()">Delete Today's SMS Snapshots</button>
+                        <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()">Delete ALL SMS Snapshots</button>
+                        <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()">Clear SMS Critical History</button>
+                        <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()">Clear SMS No-Threshold List</button>
                       </div>
                     </div>
                   </section>
@@ -3761,7 +3771,7 @@
               <input type="file" id="sms-csv-file" accept=".csv,text/csv" style="display:none" onchange="importSmsClientCsv(this.files[0]); this.value=''">
               <button class="tbtn" onclick="document.getElementById('sms-csv-file').click()">Import CSV</button>
               <button class="tbtn" onclick="exportSmsClientsCsv()">Export CSV</button>
-              <button class="tbtn sms-form-delete-btn" onclick="deleteAllSmsClients()">Delete All</button>
+              <button class="tbtn sms-form-delete-btn" id="sms-delete-all-btn" onclick="deleteAllSmsClients()">Delete All</button>
               </div>
             </div>
             <div class="sms-form-grid">
@@ -3811,7 +3821,7 @@
                 <span class="sms-muted">Download selected:</span>
                 <button class="tbtn sms-selected-export csv" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">↓ CSV</button>
                 <button class="tbtn sms-selected-export excel" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">↓ Excel</button>
-                <button class="tbtn" style="color:#880000" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
+                <button class="tbtn" id="sms-delete-selected-btn" style="color:#880000" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
                 <button class="tbtn" onclick="clearSmsSelection()" title="Clear the current selection">Clear selection</button>
               </span>
             </div>
@@ -4030,8 +4040,8 @@
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 12px;overflow:auto">
             <div style="font-size:11.5px;color:var(--text-2);margin-bottom:10px;line-height:1.5">
               Everyone who signs in appears here. Set each person's role — <strong>Semi-admin</strong>
-              (post/undo VOIP, SMS Balance &amp; Stats snapshots, manage Stats remarks, delete snapshot collections;
-              no client, Phoenix-route, or credential editing) or <strong>Viewer</strong> (read-only). New logins are Viewer by default.<br>
+              (post/undo VOIP, SMS Balance &amp; Stats snapshots; add/edit clients, SMS routes and credentials;
+              manage Stats remarks; delete snapshot collections but not protected histories or SMS records) or <strong>Viewer</strong> (read-only). New logins are Viewer by default.<br>
               <span style="color:var(--text-3)">To add a person, first create their login in Firebase Console → Authentication → Users; they show up here after their first sign-in.</span>
             </div>
             <table id="users-table">
@@ -4077,6 +4087,17 @@
               <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
               <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — low ASR but ≤30 attempts (often just new)</div>
             </div>
+          </div>
+        </div>
+
+        <div class="groupbox">
+          <div class="collapsible-header" onclick="toggleCollapse(this)">
+            <div class="groupbox-title">1-hour Snapshot Timeline</div>
+            <span class="caret">▼</span>
+          </div>
+          <div class="caret-body">
+            <div class="timeline-strip" id="stats-summary-timeline" aria-label="Stats one-hour snapshot timeline"></div>
+            <div class="sms-bal-note" style="margin-top:6px">Each number is the Critical + Low client count for that posted hourly snapshot. Select a posted hour to view it.</div>
           </div>
         </div>
 
@@ -4314,6 +4335,7 @@
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
+            <button type="button" class="st-daily-tab" id="st-daily-tab-settings" role="tab" aria-selected="false" onclick="switchStatsDailyTab('settings')">Settings</button>
             <div class="st-daily-export-actions" aria-label="Export current Daily Traffic tab">
               <button type="button" class="tbtn st-daily-export-btn" onclick="exportStatsDailyTab('csv')" title="Export the current Daily Traffic tab to CSV">&#8595; CSV</button>
               <button type="button" class="tbtn primary st-daily-export-btn" onclick="exportStatsDailyTab('xlsx')" title="Export the current Daily Traffic tab to Excel">&#8595; Excel</button>
@@ -4477,10 +4499,11 @@
   </div>
 </div>
 
-<!-- Settings Dialog -->
-<div id="settings-dlg">
-  <div class="win-dialog">
-    <div class="dlg-tb"><span>Settings</span></div>
+<!-- In-page Balance Monitor VOIP Settings -->
+<div class="view settings-page" id="view-settings">
+  <div class="settings-page-shell">
+    <div class="sms-bal-panel settings-page-panel">
+    <div class="groupbox-title settings-page-title">Balance Monitor VOIP Settings</div>
     <div class="settings-body">
       <div class="settings-grid">
         <div class="settings-row" style="display:none">
@@ -4625,7 +4648,7 @@
         <div class="settings-danger">
           <div style="margin-bottom:5px">Delete today's stored snapshots only if you intentionally want to remove today's history. This can affect New Critical comparisons.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="toggleSettings(); openDeleteTodayConfirm()">Delete Today Snapshots</button>
+            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm()">Delete Today Snapshots</button>
           </div>
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
@@ -4650,17 +4673,16 @@
           </div>
         </div>
       </div>
-      <div style="margin-top:10px;display:flex;justify-content:center">
-        <button class="tbtn" style="min-width:72px" onclick="toggleSettings()">OK</button>
-      </div>
+    </div>
     </div>
   </div>
 </div>
 
-<!-- Stats Settings Dialog — settings that belong to the Stats module only -->
-<div id="stats-settings-dlg">
-  <div class="win-dialog">
-    <div class="dlg-tb"><span>Stats Settings</span></div>
+<!-- In-page Stats Settings -->
+<div class="view settings-page" id="view-stats-settings">
+  <div class="settings-page-shell">
+    <div class="sms-bal-panel settings-page-panel">
+    <div class="groupbox-title settings-page-title">Stats Settings</div>
     <div class="settings-body">
       <div class="settings-grid">
         <div class="settings-note">
@@ -4674,16 +4696,36 @@
             <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
           </div>
         </div>
-        <div class="settings-danger">
-          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data.</div>
+        <div class="settings-danger" id="stats-daily-wipe-setting">
+          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data. <strong>Admin only.</strong></div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
+            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
           </div>
         </div>
       </div>
-      <div style="margin-top:10px;display:flex;justify-content:center">
-        <button class="tbtn" style="min-width:72px" onclick="toggleStatsSettings()">OK</button>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- In-page Daily Traffic Settings — visible to all monitoring roles; archiving is admin-only -->
+<div class="st-daily-panel settings-page" id="st-daily-panel-settings" role="tabpanel" aria-labelledby="st-daily-tab-settings" hidden>
+  <div class="settings-page-shell">
+    <div class="sms-bal-panel settings-page-panel">
+    <div class="groupbox-title settings-page-title">Daily Traffic Settings</div>
+    <div class="settings-body">
+      <div class="settings-grid">
+        <div class="settings-note">Archive completed months to keep them in Firebase while excluding them from normal Daily Traffic reads.</div>
+        <div id="stats-daily-archive-controls" class="stats-daily-archive">
+          <div class="snap-label">Archive a Month</div>
+          <div class="stats-daily-archive-row">
+            <input id="stats-daily-archive-month" class="win-inp" type="month" data-premium-date aria-label="Daily Traffic month to archive">
+            <button type="button" class="tbtn" id="stats-daily-archive-btn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
+          </div>
+          <div class="stats-daily-archive-note" id="stats-daily-archive-note">Admin only. Semi-admins and viewers may review this setting but cannot archive.</div>
+        </div>
       </div>
+    </div>
     </div>
   </div>
 </div>
@@ -5453,17 +5495,27 @@ window.toggleNightMode = () => {
 };
 
 /* ════════════════════════════════════════════════
-   SETTINGS DIALOG
+   IN-PAGE SETTINGS
 ════════════════════════════════════════════════ */
-window.toggleSettings = () => document.getElementById('settings-dlg').classList.toggle('open');
-window.toggleStatsSettings = () => document.getElementById('stats-settings-dlg').classList.toggle('open');
+function mountSettingsViews() {
+  const content = document.getElementById('content');
+  ['view-settings','view-stats-settings'].forEach(id => {
+    const view = document.getElementById(id);
+    if (content && view && view.parentElement !== content) content.appendChild(view);
+  });
+  const dailyPanel = document.getElementById('st-daily-panel-settings');
+  const dailyHost = document.querySelector('#view-stats-daily > .groupbox');
+  if (dailyHost && dailyPanel && dailyPanel.parentElement !== dailyHost) dailyHost.appendChild(dailyPanel);
+}
+
+window.toggleSettings = () => window.switchView(
+  document.getElementById('view-settings')?.classList.contains('active') ? 'summary' : 'settings'
+);
+window.toggleStatsSettings = () => window.switchStatsView(
+  document.getElementById('view-stats-settings')?.classList.contains('active') ? 'summary' : 'settings'
+);
+window.toggleDailyTrafficSettings = () => window.switchStatsDailyTab(statsDailyTab === 'settings' ? 'today' : 'settings');
 document.addEventListener('click', e => {
-  const sd = document.getElementById('settings-dlg');
-  if (sd.classList.contains('open') && !sd.contains(e.target) && !e.target.closest('[onclick*="toggleSettings"]'))
-    sd.classList.remove('open');
-  const stsd = document.getElementById('stats-settings-dlg');
-  if (stsd && stsd.classList.contains('open') && !stsd.contains(e.target) && !e.target.closest('[onclick*="toggleStatsSettings"]'))
-    stsd.classList.remove('open');
   if (!e.target.closest('#view-menu')) closeViewMenu();
   if (!e.target.closest('.sms-combo')) closeSmsCombos();
   // Close the Sender ID comment popover when clicking outside it or its trigger button
@@ -6071,7 +6123,7 @@ window.switchModule = module => {
   closeViewMenu();
   document.body.classList.remove('users-mode', 'traffic-mode');
   // Users & Roles is admin-only. SMS Balance is visible to the monitoring team;
-  // its Client / Phoenix / Credentials tabs remain admin-only.
+  // its Client / Phoenix / Credentials tabs are available to admin and semi-admin.
   if (module === 'users' && !isAdmin()) module = 'balance';
   if (module === 'users') {
     document.body.classList.remove('sms-mode');
@@ -6088,7 +6140,7 @@ window.switchModule = module => {
     return;
   }
   if (module === 'sms') {
-    if (!isAdmin() && smsActiveTab !== 'balance') smsActiveTab = 'balance';
+    if (!canManageSmsRegisters() && smsActiveTab !== 'balance') smsActiveTab = 'balance';
     document.body.classList.remove('stats-mode');
     document.body.classList.add('sms-mode');
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -6136,8 +6188,8 @@ window.switchModule = module => {
 
 window.switchView = name => {
   if (name === 'sms') { window.switchModule('sms'); return; }
-  if (name === 'client-manager' && !canEditClients()) {
-    toast('Client Manager is restricted for this account.', 'err');
+  if (name === 'client-manager' && !canManageClientImports()) {
+    toast('Client Manager CSV imports are restricted to admins.', 'err');
     name = 'summary';
   }
   closeViewMenu();
@@ -6162,18 +6214,46 @@ window.switchView = name => {
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
 };
 
-window.toggleCollapse = control => {
-  const group = control?.closest?.('.groupbox');
-  if (!group) return;
-  const collapsed = group.classList.toggle('collapsed');
-  const toggle = group.querySelector('.summary-visibility-toggle');
+const SUMMARY_COLLAPSE_STORAGE_KEY = 'bm_summary_collapsed';
+
+function summaryCollapseState() {
+  try { return JSON.parse(localStorage.getItem(SUMMARY_COLLAPSE_STORAGE_KEY) || '{}') || {}; }
+  catch(e) { return {}; }
+}
+
+function syncSummaryCollapseControl(group) {
+  const toggle = group?.querySelector?.('.summary-visibility-toggle');
   if (!toggle) return;
-  const expanded = !collapsed;
+  const expanded = !group.classList.contains('collapsed');
   const section = group.querySelector('.groupbox-title')?.textContent?.trim() || 'Summary';
   const action = expanded ? 'Hide' : 'Show';
   toggle.setAttribute('aria-expanded', String(expanded));
   toggle.setAttribute('aria-label', `${action} ${section} section`);
   toggle.title = `${action} ${section} section`;
+}
+
+function applySummaryCollapseState() {
+  const state = summaryCollapseState();
+  document.querySelectorAll('.summary-visibility-toggle[data-collapse-key]').forEach(toggle => {
+    const group = toggle.closest('.groupbox, .sms-bal-panel');
+    if (!group) return;
+    group.classList.toggle('collapsed', !!state[toggle.dataset.collapseKey]);
+    syncSummaryCollapseControl(group);
+  });
+}
+
+window.toggleCollapse = control => {
+  const group = control?.closest?.('.groupbox, .sms-bal-panel');
+  if (!group) return;
+  const collapsed = group.classList.toggle('collapsed');
+  const toggle = group.querySelector('.summary-visibility-toggle');
+  if (!toggle) return;
+  syncSummaryCollapseControl(group);
+  if (toggle.dataset.collapseKey) {
+    const state = summaryCollapseState();
+    state[toggle.dataset.collapseKey] = collapsed;
+    try { localStorage.setItem(SUMMARY_COLLAPSE_STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  }
 };
 
 let smsFormRevealTimer = null;
@@ -7716,9 +7796,57 @@ function renderSpamHistory() {
       <td><span class="stbadge ${row.notSpam ? 'good' : 'watch'}">${row.notSpam ? 'Marked Not Spam' : 'Flagged'}</span></td>
       <td style="white-space:nowrap">${esc(row.firstD)}${row.firstS ? ` · ${esc(fmt12(row.firstS))}` : ''}</td>
       <td style="white-space:nowrap">${esc(row.lastD)}${row.lastS ? ` · ${esc(fmt12(row.lastS))}` : ''}</td>
-      ${rowDelCell('deleteSpamHistEntry', row.name)}
+      ${spamHistAdminActions(row)}
     </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
 }
+
+function spamHistAdminActions(row) {
+  if (!isAdmin()) return '<td class="col-act"></td>';
+  return `<td class="col-act"><button type="button" class="tbtn" title="Remove every flagged reading for this client from the usage profile while keeping the audit history" onclick="event.stopPropagation(); removeSpamProfileData('${escAttr(row.name)}')" ondblclick="event.stopPropagation()">Remove Profile Data</button> <button type="button" class="row-del" title="Delete this history entry" onclick="event.stopPropagation(); deleteSpamHistEntry('${escAttr(row.name)}')" ondblclick="event.stopPropagation()">${DEL_ICON_SVG}</button></td>`;
+}
+
+window.removeSpamProfileData = name => {
+  if (!isAdmin()) { toast('Only admins can remove Flagged Spam readings from usage profiles.', 'err'); return; }
+  const record = _spamFlagHistory?.get(name);
+  if (!record?.events?.length) { toast('No flagged profile readings were found for this client.', 'err'); return; }
+  openRowDelConfirm({
+    title:'Remove Flagged Readings from Usage Profile',
+    html:`<strong>Remove ${record.events.length} flagged reading(s) for "${esc(name)}" from the usage profile?</strong><br><br>The Flagged Spam audit history will remain and will be marked Not Spam. These exact date/slot readings will stay excluded from future profile rebuilds.`,
+    confirmLabel:'Remove Profile Data',
+    run:async () => {
+      setLoading(true, 'Removing flagged profile data…');
+      try {
+        await Promise.all([loadUsageProfiles(), loadUsageExclusions()]);
+        const eventKeys = new Set(record.events.map(event => sampleKey(event.d, event.s)));
+        const samples = _profileSamples?.get(name) || [];
+        _profileSamples?.set(name, samples.filter(sample => !eventKeys.has(sampleKey(sample.d, sample.s))));
+        const newExclusions = record.events.filter(event => {
+          const key = exclusionKey(name, event.d, event.s);
+          if (_usageExclusions.has(key)) return false;
+          _usageExclusions.add(key);
+          return true;
+        });
+        record.events.forEach(event => { event.not_spam = true; event.reviewed_at = new Date(); });
+        invalidateUsageProfiles();
+        persistExclusionsLocal();
+        await persistProfileDocs([name]);
+        if (fbOk && newExclusions.length) {
+          let batch = writeBatch(db), count = 0;
+          for (const event of newExclusions) {
+            batch.set(doc(db, 'usage_exclusions', exclusionDocId(name, event.d, event.s)), { carrier_name:name, date:event.d, slot:event.s, updated_at:Timestamp.now() });
+            if (++count >= 450) { await batch.commit(); batch = writeBatch(db); count = 0; }
+          }
+          if (count) await batch.commit();
+        }
+        await persistSpamFlagHistoryDocs([name]);
+        renderSpamHistory();
+        safeRender('Alerts', renderAlerts);
+        toast(`✓ Removed ${record.events.length} flagged reading(s) from ${name}'s usage profile`, 'ok', 7000);
+      } catch(e) { toast('Profile cleanup failed: ' + e.message, 'err', 7000); }
+      finally { setLoading(false); }
+    },
+  });
+};
 
 window.exportSpamHistory = () => {
   let rows = spamHistRows();
@@ -7763,7 +7891,6 @@ window.deleteSpamHistEntry = name => {
 
 window.openSpamHistWipeConfirm = () => {
   if (!isAdmin()) { toast('Only admins can delete Flagged Spam history.', 'err'); return; }
-  document.getElementById('settings-dlg')?.classList.remove('open');
   document.getElementById('spamhist-wipe-overlay')?.classList.add('open');
 };
 window.closeSpamHistWipeConfirm = () => document.getElementById('spamhist-wipe-overlay')?.classList.remove('open');
@@ -8145,7 +8272,6 @@ window.exportCritHistory = () => {
 
 window.openCritHistWipeConfirm = () => {
   if (!isAdmin()){ toast('Only admins can delete critical history.','err'); return; }
-  toggleSettings();
   document.getElementById('crithist-wipe-overlay')?.classList.add('open');
 };
 window.closeCritHistWipeConfirm = () => document.getElementById('crithist-wipe-overlay')?.classList.remove('open');
@@ -8470,7 +8596,6 @@ window.exportNoThreshHistory = () => {
 
 window.openNoThreshWipeConfirm = () => {
   if (!isAdmin()){ toast('Only admins can clear the no-threshold list.','err'); return; }
-  toggleSettings();
   document.getElementById('nothresh-wipe-overlay')?.classList.add('open');
 };
 window.closeNoThreshWipeConfirm = () => document.getElementById('nothresh-wipe-overlay')?.classList.remove('open');
@@ -8528,7 +8653,6 @@ window.openSpamResetConfirm = () => {
   const ins = document.getElementById('spamreset-keep-inputs'); if (ins) ins.style.display = 'none';
   const kf = document.getElementById('spamreset-keep-from'); if (kf) kf.value = '';
   const kt = document.getElementById('spamreset-keep-to');   if (kt) kt.value = '';
-  toggleSettings();
   document.getElementById('spamreset-overlay')?.classList.add('open');
 };
 window.closeSpamResetConfirm = () => document.getElementById('spamreset-overlay')?.classList.remove('open');
@@ -9429,8 +9553,8 @@ function isAdmin(){ return !!currentUserEmail && ADMIN_EMAILS.includes(currentUs
 // by the admin in the Users & Roles tab. Effective role is one of:
 //   'admin'      — pinned by email (ADMIN_EMAILS); full access, unchanged.
 //   'semi-admin' — VOIP Balance + SMS Balance + Stats; post/undo snapshots,
-//                  manage Stats remarks, delete snapshot collections. NO client,
-//                  Phoenix-route, or credential editing.
+//                  add/edit client metadata, SMS/Phoenix routes and credentials,
+//                  and manage Stats remarks. Protected deletes remain admin-only.
 //   'viewer'     — read-only everywhere (default for a brand-new login).
 // Seed emails are treated as semi-admin before any user_roles doc exists so the
 // existing Customer Support account keeps working out of the box.
@@ -9449,8 +9573,16 @@ function isSemiAdmin(){ return !isAdmin() && currentRole === 'semi-admin'; }
 function isViewer(){ return !isAdmin() && !isSemiAdmin(); }
 
 // Capability helpers, role-based.
-// Client records (add/upload/edit, Client Manager, Bulk Edit) — admin only.
-function canEditClients(){ return isAdmin(); }
+// Existing/new client records may be edited by admin and semi-admin. The CSV
+// Client Manager/import rollback remains admin-only because it can rewrite many
+// records at once and includes destructive rollback operations.
+function canEditClients(){ return isAdmin() || isSemiAdmin(); }
+function canManageClientImports(){ return isAdmin(); }
+// SMS route and credential registers are operational tools for admin and
+// semi-admin. Destructive removal of a route/credential remains admin-only.
+function canManageSmsRegisters(){ return isAdmin() || isSemiAdmin(); }
+function canDeleteSmsRegisters(){ return isAdmin(); }
+function canArchiveDailyTraffic(){ return isAdmin(); }
 // Posting/undoing snapshots (Balance, Tritel, Stats) — admin & semi-admin.
 function canPostBalance(){ return isAdmin() || isSemiAdmin(); }
 function canPostStats(){ return isAdmin() || isSemiAdmin(); }
@@ -9463,18 +9595,22 @@ function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
 // Show/hide top-level modules based on the signed-in user's role. Stats and
 // Traffic are
 // available to every signed-in user (view-only for viewers). SMS Balance is also
-// available to everyone; its Client / Phoenix / Credentials tabs stay admin only.
+// available to everyone; its Client / Phoenix / Credentials tabs are available
+// to admin and semi-admin, with destructive record removal reserved for admin.
 function applyModuleAccess(){
   const admin = isAdmin();
+  const smsEditor = canManageSmsRegisters();
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-  // Stats + Traffic + SMS Balance: everyone. Users & Roles and sensitive SMS tabs: admin only.
+  const disable = (id, on) => { const el = document.getElementById(id); if (el) el.disabled = !!on; };
+  // Stats + Traffic + SMS Balance: everyone. Users & Roles stays admin-only;
+  // SMS register tabs are available to admin and semi-admin.
   show('view-menu-stats',   true);
   show('view-menu-traffic', true);
   show('view-menu-sms',     true);
   show('view-menu-users',   admin);
-  show('sms-tab-client',      admin);
-  show('sms-tab-phoenix',     admin);
-  show('sms-tab-credentials', admin);
+  show('sms-tab-client',      smsEditor);
+  show('sms-tab-phoenix',     smsEditor);
+  show('sms-tab-credentials', smsEditor);
   show('sms-bal-nav-manager', canEditClients());
   // Balance snapshot posting (New Snapshot / Process / Undo / Tritel) — admin &
   // semi-admin. Viewers keep the read-only Top-30m panel but lose the editor.
@@ -9483,19 +9619,35 @@ function applyModuleAccess(){
   // viewers still see today's snapshots and can export.
   show('stats-post-controls', canPostStats());
   show('stats-daily-post-controls', canPostStats());
-  show('stats-daily-archive-controls', canDeleteSnapshots());
   show('sms-bal-process-btn', canPostBalance());
   show('sms-bal-undo-btn', canDeleteSnapshots());
-  // Client editing surfaces: Client Manager tab (CSV upload wizard) and the
-  // Bulk Edit button in All Clients — admin only.
-  ['tnav-client-manager','snav-client-manager','btn-bulk-edit'].forEach(id => show(id, canEditClients()));
-  if (!canEditClients() && document.getElementById('view-client-manager')?.classList.contains('active')) {
+  // Individual and bulk editing are admin/semi-admin; the CSV import manager is admin-only.
+  ['tnav-client-manager','snav-client-manager'].forEach(id => show(id, canManageClientImports()));
+  show('btn-bulk-edit', canEditClients());
+  if (!canManageClientImports() && document.getElementById('view-client-manager')?.classList.contains('active')) {
     window.switchView('summary');
   }
-  // Non-admins should never sit on the admin-only Users module or sensitive SMS tabs.
+  // SMS register deletion is always admin-only, while add/edit/export remains
+  // available to semi-admins.
+  show('sms-delete-all-btn', canDeleteSmsRegisters());
+  show('sms-delete-selected-btn', canDeleteSmsRegisters());
+  // SMS Balance settings: admin controls shared thresholds/retention/required
+  // fields; every role may choose the local sound preference.
+  disable('sms-bal-set-near', !admin);
+  disable('sms-bal-set-retention', !admin);
+  disable('sms-bal-set-require-client-thresholds', !admin);
+  show('sms-bal-delete-today-btn', canDeleteSnapshots());
+  show('sms-bal-delete-all-btn', canDeleteSnapshots());
+  show('sms-bal-clear-history-btn', admin);
+  show('sms-bal-clear-nothreshold-btn', admin);
+  disable('stats-daily-wipe-btn', !admin);
+  disable('stats-daily-archive-month', !canArchiveDailyTraffic());
+  disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
+  // Non-admins should never sit on the admin-only Users module. Viewers should
+  // never sit on the SMS register tabs.
   if (!admin && document.body.classList.contains('users-mode')) {
     window.switchModule('balance');
-  } else if (!admin && document.body.classList.contains('sms-mode') && smsActiveTab !== 'balance') {
+  } else if (!smsEditor && document.body.classList.contains('sms-mode') && smsActiveTab !== 'balance') {
     window.switchSmsTab('balance');
   }
 }
@@ -9511,6 +9663,7 @@ function logLateness(log){
   const sched = new Date(`${log.session_date}T${log.time_slot}:00`);
   if (isNaN(sched.getTime())) return { min:null, label:'—', color:'#888' };
   const min = Math.round((log.processed_at - sched) / 60000);
+  if (!Number.isFinite(min)) return { min:null, label:'—', color:'#888' };
   // Negative = posted before the slot. A few minutes early is fine, but posting
   // well ahead of the scheduled slot is a data-entry problem, not "on time".
   if (min < -15) return { min, label:`${fmtDur(-min)} early`,    color:'#cc0000' };
@@ -9839,6 +9992,7 @@ function remarksFor(name) {
 
 /* Toggle the latest reading's spam-profiling exclusion from the client popup. */
 window.toggleReadingExclusionFromPopup = async () => {
+  if (!canPostBalance()) { toast('Only admins and semi-admins can change spam-profile readings.', 'err'); return; }
   const name = _editingClient; if (!name) return;
   const snap = (latestSnap?.data || []).find(r => r.carrier_name === name) || {};
   const date = latestSnap?.session_date || todayStr();
@@ -10010,9 +10164,10 @@ window.confirmDeleteTodaySnapshots = async () => {
 
 let pendingWipeAll = null; // 'snapshots' | 'stats' | 'stats-daily' | 'tritel'
 
-// Semi-admins may wipe the three snapshot collections (snapshots / stats /
-// tritel); everything else in the Danger Zone stays admin only.
-const SEMI_WIPEABLE = ['snapshots','stats','stats-daily','tritel'];
+// Semi-admins may wipe snapshot collections (snapshots / stats / tritel), but
+// the persistent Daily Traffic history and all other protected histories stay
+// admin-only.
+const SEMI_WIPEABLE = ['snapshots','stats','tritel'];
 function canWipe(kind){ return isAdmin() || (isSemiAdmin() && SEMI_WIPEABLE.includes(kind)); }
 window.openWipeAllConfirm = kind => {
   if (!canWipe(kind)){ toast('You do not have permission to delete these snapshots.','err'); return; }
@@ -10048,9 +10203,6 @@ window.openWipeAllConfirm = kind => {
     const kf = document.getElementById('wipe-keep-from'); if (kf) kf.value = '';
     const kt = document.getElementById('wipe-keep-to');   if (kt) kt.value = '';
   }
-  // Close whichever settings dialog launched this (main or Stats) before showing the confirm.
-  document.getElementById('settings-dlg')?.classList.remove('open');
-  document.getElementById('stats-settings-dlg')?.classList.remove('open');
   document.getElementById('wipe-all-overlay').classList.add('open');
 };
 window.toggleWipeKeep = (cb) => {
@@ -10058,12 +10210,18 @@ window.toggleWipeKeep = (cb) => {
   if (ins) ins.style.display = cb.checked ? '' : 'none';
 };
 function reopenSettingsAfterWipe(kind) {
-  const settingsId = (kind === 'stats' || kind === 'stats-daily')
-    ? 'stats-settings-dlg'
-    : 'settings-dlg';
-  // Defer until the current click finishes so the document's outside-click
-  // handler does not immediately close the restored Settings panel again.
-  setTimeout(() => document.getElementById(settingsId)?.classList.add('open'), 0);
+  setTimeout(() => {
+    if (kind === 'stats-daily') {
+      window.switchModule('traffic');
+      window.switchStatsDailyTab('settings');
+    } else if (kind === 'stats') {
+      window.switchModule('stats');
+      window.switchStatsView('settings');
+    } else {
+      window.switchModule('balance');
+      window.switchView('settings');
+    }
+  }, 0);
 }
 window.closeWipeAllConfirm = (reopenSettings = true) => {
   const kind = pendingWipeAll;
@@ -10683,7 +10841,7 @@ function renderAlerts() {
     const spamBadge = (r._spam && alertFilter!=='spam')
       ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's baseline">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
       : '';
-    const spamIgnore = (alertFilter==='spam') ? `<button class="tbtn" style="margin-left:6px;font-size:9px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
+    const spamIgnore = (alertFilter==='spam' && canPostBalance()) ? `<button class="tbtn" style="margin-left:6px;font-size:9px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
     const profileMax = r._spamInfo?.profileMax;
     const hasProfileMax = alertFilter==='spam' && profileMax !== null && profileMax !== undefined && Number.isFinite(amountNumber(profileMax));
     const maxWhen = hasProfileMax && r._spamInfo?.profileMaxDate
@@ -10720,6 +10878,7 @@ function renderAlerts() {
 /* One-click dismissal from the Possible Spam tab: mark a flagged reading as a
    recurring charge so it drops off the list and stops feeding the baseline. */
 window.ignoreSpamReading = async (name) => {
+  if (!canPostBalance()) { toast('Only admins and semi-admins can mark a reading Not spam.', 'err'); return; }
   const { date, slot } = currentReadingMeta();
   const row = (activeData() || []).find(r => r.carrier_name === name) || {};
   const info = spamCheck(row);
@@ -11505,7 +11664,7 @@ function buildDiff(){
 }
 window.checkAll=chk=>{wChanges.forEach(c=>{if(wDiffF==='all'||c.type.toLowerCase()===wDiffF)wChecked[c._id]=chk.checked;});window.renderWizard();};
 window.saveWizard=async()=>{
-  if(!canEditClients()){toast('Adding or uploading clients is restricted for this account.','err');return;}
+  if(!canManageClientImports()){toast('Adding or uploading clients by CSV is restricted to admins.','err');return;}
   const toSave=wChanges.filter(c=>wChecked[c._id]!==false);
   if(!toSave.length){toast('No changes selected','err');return;}
   setLoading(true,'Saving to Firestore…');
@@ -12328,10 +12487,12 @@ function syncSmsBalanceClientRequiredFields() {
   });
 }
 window.saveSmsBalanceSettings = () => {
-  SBS.nearPct = Math.max(0, Math.min(100, Number(document.getElementById('sms-bal-set-near')?.value) || 0));
-  SBS.retentionDays = Math.max(0, Number(document.getElementById('sms-bal-set-retention')?.value) || 0);
   SBS.soundAlert = !!document.getElementById('sms-bal-set-sound')?.checked;
-  SBS.requireClientThresholds = !!document.getElementById('sms-bal-set-require-client-thresholds')?.checked;
+  if (isAdmin()) {
+    SBS.nearPct = Math.max(0, Math.min(100, Number(document.getElementById('sms-bal-set-near')?.value) || 0));
+    SBS.retentionDays = Math.max(0, Number(document.getElementById('sms-bal-set-retention')?.value) || 0);
+    SBS.requireClientThresholds = !!document.getElementById('sms-bal-set-require-client-thresholds')?.checked;
+  }
   localStorage.setItem('bm_sms_balance_settings', JSON.stringify(SBS));
   syncSmsBalanceClientRequiredFields();
   renderSmsBalanceModule();
@@ -12723,7 +12884,7 @@ window.clearSmsBalanceClientEditor = () => {
   const title=document.getElementById('sms-bal-manager-title');if(title)title.textContent='SMS Balance Client Settings';
 };
 window.saveSmsBalanceClientMeta = async () => {
-  if(!canEditClients()){toast('Only admins can edit SMS balance client settings.','err');return;}
+  if(!canEditClients()){toast('Only admins and semi-admins can edit SMS balance client settings.','err');return;}
   const clientValue=document.getElementById('sms-bal-meta-client')?.value.trim()||'';
   const sourceValue=document.getElementById('sms-bal-meta-source')?.value.trim()||'';
   const accountManagerValue=document.getElementById('sms-bal-meta-account-manager')?.value.trim()||'';
@@ -12841,7 +13002,7 @@ function smsBalanceBuildClientImportRows(data) {
 }
 window.importSmsBalanceClientsCsv = async file => {
   if(!file)return;
-  if(!canEditClients()){toast('Only admins can upload SMS Balance client settings.','err');return;}
+  if(!canEditClients()){toast('Only admins and semi-admins can upload SMS Balance client settings.','err');return;}
   if(!window.Papa){toast('CSV importer is still loading — try again in a moment.','err');return;}
   try {
     const parsed=Papa.parse(await file.text(),{header:true,skipEmptyLines:'greedy'});
@@ -12870,7 +13031,7 @@ window.importSmsBalanceClientsCsv = async file => {
 function renderSmsBalanceLogs() {
   const body=document.getElementById('sms-bal-logs-tbody');if(!body)return;
   const rows=smsBalanceTodaySnaps.slice().reverse();
-  body.innerHTML=rows.length?rows.map(s=>`<tr><td>${esc(s.session_date)}</td><td>${esc(fmt12(s.time_slot))}</td><td>${esc((s.timestamp instanceof Date?s.timestamp:new Date(s.timestamp)).toLocaleString())}</td><td>${esc(s.operator||'')}</td><td class="num">${(s.reseller||[]).length}</td><td class="num">${(s.wholesale||[]).length}</td><td><button class="tbtn" onclick="deleteSmsBalanceSnapshot('${escAttr(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))}')">Delete</button></td></tr>`).join(''):smsBalanceEmptyRow(7,'No SMS balance logs today.');
+  body.innerHTML=rows.length?rows.map(s=>{const posted=s.timestamp instanceof Date?s.timestamp:new Date(s.timestamp);const late=logLateness({processed_at:posted,time_slot:s.time_slot,session_date:s.session_date});const action=canDeleteSnapshots()?`<button class="tbtn" onclick="deleteSmsBalanceSnapshot('${escAttr(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))}')">Delete</button>`:'<span class="sms-muted">View only</span>';return `<tr><td>${esc(s.session_date)}</td><td>${esc(fmt12(s.time_slot))}</td><td>${esc(posted.toLocaleString())}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(s.operator||'')}</td><td class="num">${(s.reseller||[]).length}</td><td class="num">${(s.wholesale||[]).length}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(8,'No SMS balance logs today.');
 }
 function renderSmsBalanceHistory() {
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
@@ -12881,7 +13042,7 @@ function renderSmsBalanceHistory() {
 function renderSmsBalanceNoThreshold() {
   const body=document.getElementById('sms-bal-nothreshold-tbody');if(!body)return;
   const rows=smsBalanceNoThreshold.slice().sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
-  body.innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td><button class="tbtn" onclick="deleteSmsBalanceNoThresholdEntry('${escAttr(r.meta_key)}')">Remove</button></td></tr>`).join(''):smsBalanceEmptyRow(7,'Every current client has a notification threshold.');
+  body.innerHTML=rows.length?rows.map(r=>`<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td>${isAdmin()?`<button class="tbtn" onclick="deleteSmsBalanceNoThresholdEntry('${escAttr(r.meta_key)}')">Remove</button>`:'<span class="sms-muted">View only</span>'}</td></tr>`).join(''):smsBalanceEmptyRow(7,'Every current client has a notification threshold.');
 }
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
@@ -14478,6 +14639,7 @@ window.newSmsCredential = (open=true) => {
 window.cancelSmsCredentialEdit = () => {newSmsCredential(false);window.setSmsCredentialForm(false);};
 
 window.editSmsCredential = id => {
+  if (!canManageSmsRegisters()) { toast('Editing credentials requires admin or semi-admin access.', 'err'); return; }
   const row = smsCredentials.find(item => item.id === id);
   if (!row) return;
   smsCredentialEditingId = id;
@@ -14500,6 +14662,7 @@ window.editSmsCredential = id => {
 };
 
 window.saveSmsCredential = () => {
+  if (!canManageSmsRegisters()) { toast('Saving credentials requires admin or semi-admin access.', 'err'); return; }
   setSmsCredentialInput('date_updated', smsCredentialNowText());
   const row = readSmsCredentialForm();
   if (!row.client) { toast('Client / Vendor is required.', 'err'); return; }
@@ -14539,6 +14702,7 @@ window.generateSmsCredentialOtp = async (id, trigger=null) => {
 };
 
 window.deleteSmsCredential = id => {
+  if (!canDeleteSmsRegisters()) { toast('Only admins can delete credential records.', 'err'); return; }
   const row = smsCredentials.find(item => item.id === id);
   if (!row) return;
   openSmsConfirm(`Delete the credential record for <strong>${esc(row.client)}</strong>?`, 'Delete', () => {
@@ -14678,7 +14842,7 @@ window.renderSmsCredentials = () => {
     <td>${esc(row.platform)}</td>
     <td>${clipped(row.notes)}</td>
     <td>${otpCell(row)}</td>
-    <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button> <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button></td>
+    <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button>${canDeleteSmsRegisters()?` <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button>`:''}</td>
   </tr>`).join('') : '<tr><td colspan="16" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
   refreshSmsOtpCredentialOptions();
 };
@@ -14730,6 +14894,7 @@ function smsCredentialDateText(value) {
 }
 
 window.importSmsCredentialWorkbook = async file => {
+  if (!canManageSmsRegisters()) { toast('Importing credentials requires admin or semi-admin access.', 'err'); return; }
   if (!file) return;
   if (!window.XLSX) { toast('Excel importer is still loading. Please try again.', 'err'); return; }
   setLoading(true, 'Reading credential workbook…');
@@ -15109,7 +15274,7 @@ function updateSmsTabUi() {
 }
 
 window.switchSmsTab = tab => {
-  if (!isAdmin() && tab !== 'balance') { toast('Client, Phoenix, and Credentials are admin-only.', 'err'); return; }
+  if (!canManageSmsRegisters() && tab !== 'balance') { toast('Client, Phoenix, and Credentials require admin or semi-admin access.', 'err'); return; }
   if (!SMS_ALL_TABS.has(tab) || tab === smsActiveTab) return;
   if (smsActiveTab === 'credentials' && tab !== 'credentials') stopSmsOtpTimer();
   if (SMS_TAB_CONFIG[smsActiveTab]) syncActiveSmsClients();
@@ -15150,7 +15315,7 @@ window.switchSmsTab = tab => {
 
 function initSmsModule() {
   if (!SMS_ALL_TABS.has(smsActiveTab)) smsActiveTab = 'balance';
-  if (!isAdmin() && smsActiveTab !== 'balance') smsActiveTab = 'balance';
+  if (!canManageSmsRegisters() && smsActiveTab !== 'balance') smsActiveTab = 'balance';
   Object.keys(SMS_TAB_CONFIG).forEach(loadSmsClients);
   loadSmsCredentials();
   smsClients = smsDataByTab[SMS_TAB_CONFIG[smsActiveTab] ? smsActiveTab : 'client'] || [];
@@ -15294,6 +15459,7 @@ window.newSmsClient = (showToast=true) => {
 };
 
 window.saveSmsClient = () => {
+  if (!canManageSmsRegisters()) { toast('Saving SMS routes requires admin or semi-admin access.', 'err'); return; }
   const additionalSidInput = smsFormValue('sms-additional-sender-id');
   const removeSidInput = smsFormValue('sms-remove-sender-id');
   const existingSidInput = smsFormValue('sms-sender-id');
@@ -15352,6 +15518,7 @@ window.saveSmsClient = () => {
 };
 
 window.editSmsClient = id => {
+  if (!canManageSmsRegisters()) { toast('Editing SMS routes requires admin or semi-admin access.', 'err'); return; }
   const row = smsClients.find(r => r.id === id);
   if (!row) return;
   openSmsForm();
@@ -15408,6 +15575,7 @@ function confirmSmsBalanceAction({title='Confirm SMS Balance Change',html='Confi
 }
 
 window.deleteSmsClient = id => {
+  if (!canDeleteSmsRegisters()) { toast('Only admins can delete SMS routes.', 'err'); return; }
   const row = smsClients.find(r => r.id === id);
   if (!row) return;
   openSmsConfirm(
@@ -15432,6 +15600,7 @@ window.deleteSmsClient = id => {
 };
 
 window.deleteAllSmsClients = () => {
+  if (!canDeleteSmsRegisters()) { toast('Only admins can delete SMS routes.', 'err'); return; }
   if (!smsClients.length) { toast('No SMS client routes to delete', 'err'); return; }
   const n = smsClients.length;
   openSmsConfirm(
@@ -15593,6 +15762,7 @@ function refreshSmsBulkCount() {
 }
 
 window.toggleSmsBulkEdit = () => {
+  if (!canManageSmsRegisters()) { toast('Bulk editing SMS routes requires admin or semi-admin access.', 'err'); return; }
   smsBulkMode = !smsBulkMode;
   document.body.classList.toggle('sms-bulk-mode', smsBulkMode);
   document.getElementById('sms-bulk-panel')?.classList.toggle('open', smsBulkMode);
@@ -15643,6 +15813,7 @@ window.onSmsRowDoubleClick = (e, id) => {
 };
 
 window.applySmsBulkEdit = () => {
+  if (!canManageSmsRegisters()) { toast('Bulk editing SMS routes requires admin or semi-admin access.', 'err'); return; }
   if (smsBulkSelected.size === 0) { toast('Tick at least one row first', 'err'); return; }
   const val = id => (document.getElementById(id)?.value ?? '').trim();
   const fieldMap = {
@@ -15749,7 +15920,7 @@ window.renderSmsClients = () => {
     <td>${r.priority_vendor ? smsSplitMulti(r.priority_vendor).map((vendor, index) => `<span class="sms-prio-badge" title="Vendor priority ${index + 1}">P${index + 1}</span> <strong>${esc(vendor)}</strong>`).join(' ') : '<span class="sms-muted">—</span>'}</td>
     <td><div class="sms-cell-clip" title="${esc(r.emails)}">${esc(r.emails)}</div></td>
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
-    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button><button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button></span></td>
+    <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button>${canDeleteSmsRegisters()?`<button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button>`:''}</span></td>
   </tr>`;
   }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?16:15}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
@@ -15855,6 +16026,7 @@ window.exportSmsSelected = format => {
 };
 
 window.deleteSmsSelected = () => {
+  if (!canDeleteSmsRegisters()) { toast('Only admins can delete SMS routes.', 'err'); return; }
   if (!smsBulkSelected.size) { toast('Tick at least one route to delete', 'err'); return; }
   const ids = new Set(smsBulkSelected);
   const n = ids.size;
@@ -15909,6 +16081,7 @@ function smsApplyPartial(idx, provided, row) {
 }
 
 window.importSmsClientCsv = file => {
+  if (!canManageSmsRegisters()) { toast('Importing SMS routes requires admin or semi-admin access.', 'err'); return; }
   if (!file) return;
   if (!window.Papa?.parse) { toast('CSV parser is not available', 'err'); return; }
   Papa.parse(file, {
@@ -16268,7 +16441,7 @@ window.closeRollbackConfirm = () => {
   _pendingRollback = null;
 };
 window.confirmRollback = async () => {
-  if (!canEditClients()) { toast('Editing clients is restricted for this account.', 'err'); return; }
+  if (!canManageClientImports()) { toast('Import rollback is restricted to admins.', 'err'); return; }
   const imp = _pendingRollback;
   closeRollbackConfirm();
   if (!imp) return;
@@ -16775,7 +16948,7 @@ function statsDailyMonthBounds(month) {
 }
 
 window.archiveStatsDailyMonth = async () => {
-  if (!canDeleteSnapshots()) { toast('Archiving Daily Traffic is restricted for this account.', 'err'); return; }
+  if (!canArchiveDailyTraffic()) { toast('Only admins can archive Daily Traffic months.', 'err'); return; }
   const month = document.getElementById('stats-daily-archive-month')?.value || '';
   const bounds = statsDailyMonthBounds(month);
   if (!bounds) { toast('Select a valid month to archive.', 'err'); return; }
@@ -17266,7 +17439,7 @@ window.exportStatsDailyTab = format => {
 
 function updateStatsDailyTabUI() {
   document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
-  ['dashboard','today','history'].forEach(tab => {
+  ['dashboard','today','history','settings'].forEach(tab => {
     const active = statsDailyTab === tab;
     const button = document.getElementById(`st-daily-tab-${tab}`);
     const panel = document.getElementById(`st-daily-panel-${tab}`);
@@ -17278,11 +17451,12 @@ function updateStatsDailyTabUI() {
 }
 
 window.switchStatsDailyTab = tab => {
-  statsDailyTab = ['dashboard','today','history'].includes(tab) ? tab : 'today';
+  statsDailyTab = ['dashboard','today','history','settings'].includes(tab) ? tab : 'today';
   updateStatsDailyTabUI();
   if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
-  else renderStatsDailyTraffic();
+  else if (statsDailyTab === 'today') renderStatsDailyTraffic();
+  setSbStatus(statsDailyTab === 'settings' ? 'Traffic: Settings' : `Traffic: ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
 };
 
 function statsDailyDecreaseStreak(days, dayIndex, key) {
@@ -17973,7 +18147,32 @@ function renderStatsTables() {
 }
 window.renderStatsTables = renderStatsTables;
 
+function renderStatsSummaryTimeline() {
+  const el = document.getElementById('stats-summary-timeline');
+  if (!el) return;
+  const slots = statsSlots();
+  const now = new Date();
+  const current = `${String(now.getHours()).padStart(2,'0')}:00`;
+  const viewing = statsCurrentSnap()?.time_slot || '';
+  const bySlot = new Map(statsSortedSnaps().map(snapshot => [snapshot.time_slot, snapshot]));
+  el.innerHTML = slots.map(slot => {
+    const snapshot = bySlot.get(slot);
+    const rows = snapshot ? [...groupStatsSnapshot(snapshot).values()] : [];
+    const problems = rows.filter(row => row.cls === 'critical' || row.cls === 'low').length;
+    const tone = snapshot ? (problems === 0 ? 'g' : problems <= 3 ? 'a' : 'r') : '';
+    const label = fmt12(slot).replace(' AM','a').replace(' PM','p');
+    const title = snapshot
+      ? `${fmt12(slot)} · ${rows.length} clients, ${problems} Critical + Low`
+      : `${fmt12(slot)} · No snapshot`;
+    return `<div class="tslot ${slot === current ? 'current' : ''} ${snapshot ? 'has-data' : ''} ${slot === viewing ? 'viewing' : ''}"`
+      + `${snapshot ? ` onclick="viewStatsSlot('${slot}')"` : ''} title="${stEsc(title)}">`
+      + `<div class="stime">${stEsc(label)}</div><div class="scnt ${tone}">${snapshot ? problems : '·'}</div></div>`;
+  }).join('');
+}
+window.renderStatsSummaryTimeline = renderStatsSummaryTimeline;
+
 function renderStatsSummary() {
+  renderStatsSummaryTimeline();
   const rows = statsCurrentRows();
   const cur = statsCurrentSnap();
   updateStatsSummarySortHeaders();
@@ -18420,7 +18619,7 @@ function subscribeStatsDailyHistory() {
 }
 
 async function cleanupOldStatsSnapshots() {
-  // Deleting old snapshots is a write — admin only (non-admins have read-only stats).
+  // Deleting old snapshots is a write — admin/semi-admin only; viewers are read-only.
   if (!fbOk || !S.retentionDays || !canEditStats()) return;
   try {
     const cutoff = new Date();
@@ -18473,7 +18672,7 @@ async function initStats() {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); updateBalanceStatusBar(); window.renderWizard(); window.renderClients();
+  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); applySummaryCollapseState(); updateBalanceStatusBar(); window.renderWizard(); window.renderClients();
   // A hand-pick of the time box stops it from auto-following "last sync + 1"; the next post re-enables tracking.
   document.getElementById('slot-sel')?.addEventListener('change', () => { slotAutoTrack = false; });
   // operator identity
@@ -18541,15 +18740,16 @@ async function init(){
   subscribeMyRole();
   subscribeAllUsers();
   // Stats and SMS Balance monitoring are available to every signed-in user.
-  // The Client / Phoenix / Credentials stores stay admin-only.
+  // The Client / Phoenix / Credentials stores are available to admin and semi-admin.
   initStats();
-  if (isAdmin()) {
+  if (canManageSmsRegisters()) {
     Object.keys(SMS_TAB_CONFIG).forEach(tab => subscribeSmsClients(tab));
     subscribeSmsCredentials();
   }
 }
 
 /* ── Auth-gated boot ── */
+mountSettingsViews();
 initPremiumSelects();
 initPremiumDates();
 let _appInitialized = false;
