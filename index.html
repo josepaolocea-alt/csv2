@@ -5119,6 +5119,7 @@
     </div>
     <div id="sms-bal-client-detail-body"></div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:4px 12px 12px">
+      <button class="tbtn danger" id="sms-bal-client-detail-delete" onclick="deleteSmsBalanceClient()">Delete Client</button>
       <button class="tbtn" id="sms-bal-client-detail-edit" onclick="startSmsBalanceClientEdit()">Edit</button>
       <button class="tbtn primary" id="sms-bal-client-detail-save" style="display:none" onclick="saveSmsBalanceClientDetail()">Save</button>
       <button class="tbtn" id="sms-bal-client-detail-cancel" style="display:none" onclick="cancelSmsBalanceClientEdit()">Cancel</button>
@@ -13153,15 +13154,19 @@ window.renderSmsBalanceManager = () => {
   body.innerHTML=list.length?list.map(({key,row})=>{
     const meta=smsBalanceMeta[key]||{}, s=row._status, active=meta.is_active!==false;
     const live=row._hasSnapshot!==false;
-    return `<tr class="sms-bal-row-${s.code}${active?'':' sms-bal-manager-inactive'}" ondblclick="openSmsBalanceClientPopup('${escAttr(key)}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(meta.account_manager||'')}</td><td><span class="sms-bal-badge ${active?'safe':'nothreshold'}">${active?'Active':'Inactive'}</span></td><td class="num">${live?smsBalanceFmt(row.balance):'—'}</td><td class="num">${live?smsBalanceFmt(row.overdraft):'—'}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${esc(meta.allow_balance||'')}</td><td>${esc(meta.notes||'')}</td><td><button class="tbtn" onclick="event.stopPropagation();editSmsBalanceClient('${escAttr(key)}')" ondblclick="event.stopPropagation()">Edit</button></td></tr>`;
+    const persisted=Object.prototype.hasOwnProperty.call(smsBalanceMeta,key);
+    const deleteButton=isAdmin()&&persisted?`<button type="button" class="row-del" title="Delete this SMS Balance client" aria-label="Delete ${escAttr(row.client)}" onclick="event.stopPropagation();deleteSmsBalanceClient('${escAttr(key)}')" ondblclick="event.stopPropagation()">${DEL_ICON_SVG}</button>`:'';
+    return `<tr class="sms-bal-row-${s.code}${active?'':' sms-bal-manager-inactive'}" ondblclick="openSmsBalanceClientPopup('${escAttr(key)}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(meta.account_manager||'')}</td><td><span class="sms-bal-badge ${active?'safe':'nothreshold'}">${active?'Active':'Inactive'}</span></td><td class="num">${live?smsBalanceFmt(row.balance):'—'}</td><td class="num">${live?smsBalanceFmt(row.overdraft):'—'}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${esc(meta.allow_balance||'')}</td><td>${esc(meta.notes||'')}</td><td><span class="sms-row-actions"><button class="tbtn" onclick="event.stopPropagation();editSmsBalanceClient('${escAttr(key)}')" ondblclick="event.stopPropagation()">Edit</button>${deleteButton}</span></td></tr>`;
   }).join(''):smsBalanceEmptyRow(11,'No SMS balance clients match the current filters.');
 };
 function smsBalanceDetailItem(key=smsBalanceDetailMetaKey) {
   return uniqueSmsBalanceClients().find(entry=>entry.key===key) || null;
 }
 function setSmsBalanceDetailButtons(editing) {
-  const edit=document.getElementById('sms-bal-client-detail-edit'),save=document.getElementById('sms-bal-client-detail-save'),cancel=document.getElementById('sms-bal-client-detail-cancel'),close=document.getElementById('sms-bal-client-detail-close');
+  const edit=document.getElementById('sms-bal-client-detail-edit'),del=document.getElementById('sms-bal-client-detail-delete'),save=document.getElementById('sms-bal-client-detail-save'),cancel=document.getElementById('sms-bal-client-detail-cancel'),close=document.getElementById('sms-bal-client-detail-close');
+  const persisted=!!smsBalanceDetailMetaKey&&Object.prototype.hasOwnProperty.call(smsBalanceMeta,smsBalanceDetailMetaKey);
   if(edit)edit.style.display=!editing&&canEditClients()?'':'none';
+  if(del)del.style.display=!editing&&isAdmin()&&persisted?'':'none';
   if(save)save.style.display=editing?'':'none';
   if(cancel)cancel.style.display=editing?'':'none';
   if(close)close.style.display=editing?'none':'';
@@ -13244,6 +13249,24 @@ window.saveSmsBalanceClientDetail = async () => {
   if(fbOk)try{await setDoc(doc(db,'sms_balance_clients',smsBalanceDocId(key)),{...meta,meta_key:key,updated_at:Timestamp.now()});}catch(error){syncError=error;}
   setLoading(false);renderSmsBalanceModule();window.closeSmsBalanceClientDetail();
   toast(syncError?'SMS client saved locally; Firebase sync failed: '+syncError.message:`Saved SMS balance settings for ${item.row.client}`,syncError?'err':'ok',7000);
+};
+window.deleteSmsBalanceClient = async key => {
+  key=key||smsBalanceDetailMetaKey||smsBalanceSelectedMetaKey;
+  if(!isAdmin()){toast('Only admins can delete SMS Balance clients.','err');return;}
+  if(!key||!Object.prototype.hasOwnProperty.call(smsBalanceMeta,key)){toast('This client has no saved SMS Balance settings to delete.','err');return;}
+  const item=uniqueSmsBalanceClients().find(entry=>entry.key===key);
+  const meta=smsBalanceMeta[key],client=item?.row?.client||meta?.client||'this client',type=smsBalanceSourceLabel(item?.row?.source||meta?.source);
+  const live=smsBalanceRows().some(row=>smsBalanceMetaKey(row)===key);
+  const liveNote=live?'<br><br><strong>This client is still present in the latest snapshot.</strong> It will remain visible as an unconfigured No Threshold client until it is removed from a later Phoenix report.':'';
+  if(!await confirmSmsBalanceAction({title:'Delete SMS Balance Client',label:'Delete Client',html:`Delete the saved SMS Balance client <strong>${esc(client)}</strong> (${esc(type)})?<br><br>This removes its Account Manager, thresholds, status, Allow Balance label, and notes. Snapshots and history records are not deleted.${liveNote}`}))return;
+  delete smsBalanceMeta[key];saveSmsBalanceLocal();
+  if(smsBalanceSelectedMetaKey===key){window.clearSmsBalanceClientEditor();window.setSmsBalanceManagerEditor(false);}
+  if(smsBalanceDetailMetaKey===key)window.closeSmsBalanceClientDetail();
+  renderSmsBalanceModule();
+  try{
+    if(fbOk)await deleteDoc(doc(db,'sms_balance_clients',smsBalanceDocId(key)));
+    toast(`Deleted saved SMS Balance client ${client}${live?' — current snapshot row remains visible':''}`,'ok',7000);
+  }catch(error){smsBalanceMeta[key]=meta;saveSmsBalanceLocal();renderSmsBalanceModule();toast('Could not delete SMS Balance client: '+error.message,'err',7000);}
 };
 window.setSmsBalanceManagerTypeFilter = value => {
   const normalized=['reseller','wholesale'].includes(value)?value:'';
