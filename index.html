@@ -5417,6 +5417,7 @@ const smsRemoteApplyingByTab = { client: false, phoenix: false };
 const smsSubscribedTabs = new Set();
 
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
+let smsBalancePriorSnap = null, smsBalancePriorLoaded = false, smsBalancePriorUnsubscribe = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [];
 let smsBalanceView = localStorage.getItem('bm_sms_balance_view') || 'summary';
 let smsBalanceAlertFilter = localStorage.getItem('bm_sms_balance_alert_filter') || 'all';
@@ -12660,13 +12661,15 @@ function smsBalanceRosterRows() {
   });
   return [...byKey.values()];
 }
-function smsBalancePreviousSnapshot() {
+function smsBalancePreviousContext() {
   const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
-  if (!ordered.length || !smsBalanceLatest) return null;
+  if (!ordered.length || !smsBalanceLatest) return { snapshot:null, ready:smsBalancePriorLoaded };
   const latestKey = `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}`;
   const index = ordered.findIndex(s => `${s.session_date}|${s.time_slot}` === latestKey);
-  return index > 0 ? ordered[index - 1] : null;
+  if (index > 0) return { snapshot:ordered[index - 1], ready:true };
+  return { snapshot:smsBalancePriorSnap, ready:smsBalancePriorLoaded };
 }
+function smsBalancePreviousSnapshot() { return smsBalancePreviousContext().snapshot; }
 function smsBalanceDecoratedSnapshotRows(snap) {
   return (snap?.data || []).filter(row => row?.client).map(row => {
     const status = smsBalanceStatus(row), meta = smsBalanceMetaFor(row);
@@ -12675,7 +12678,9 @@ function smsBalanceDecoratedSnapshotRows(snap) {
   });
 }
 function smsBalanceTransitionRows() {
-  const current = smsBalanceRows(), previous = smsBalanceDecoratedSnapshotRows(smsBalancePreviousSnapshot());
+  const previousContext = smsBalancePreviousContext();
+  if (!previousContext.ready) return { added:[], removed:[] };
+  const current = smsBalanceRows(), previous = smsBalanceDecoratedSnapshotRows(previousContext.snapshot);
   const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
   const previousMap = new Map(previous.map(row => [smsBalanceMetaKey(row), row]));
   const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(previousMap.get(smsBalanceMetaKey(row))));
@@ -12720,6 +12725,40 @@ function dedupeSmsBalanceSnapshots(list) {
     if (!prior || smsBalanceSnapshotMs(snap) >= smsBalanceSnapshotMs(prior)) map.set(key, snap);
   });
   return sortSmsBalanceSnapshots([...map.values()]);
+}
+function smsBalancePriorSnapshotQuery() {
+  return query(
+    collection(db,'sms_balance_snapshots'),
+    where('session_date','<',todayStr()),
+    orderBy('session_date','desc'),
+    limit(50)
+  );
+}
+function smsBalancePriorSnapshotFromDocs(docs) {
+  if (!docs.length) return null;
+  const latestDate=docs[0].data().session_date;
+  const latestDateRows=docs.filter(entry=>entry.data().session_date===latestDate)
+    .map(entry=>({id:entry.id,...entry.data(),timestamp:entry.data().timestamp?.toDate?.()||entry.data().timestamp}));
+  return dedupeSmsBalanceSnapshots(latestDateRows).at(-1)||null;
+}
+async function loadSmsBalancePriorSnapshot() {
+  if(!fbOk){smsBalancePriorLoaded=true;return smsBalancePriorSnap;}
+  try{
+    const result=await getDocs(smsBalancePriorSnapshotQuery());
+    smsBalancePriorSnap=smsBalancePriorSnapshotFromDocs(result.docs);
+    smsBalancePriorLoaded=true;
+  }catch(error){console.warn('SMS balance prior snapshot:',error);}
+  return smsBalancePriorSnap;
+}
+function subscribeSmsBalancePriorSnapshot() {
+  if(!fbOk||smsBalancePriorUnsubscribe)return;
+  try{
+    smsBalancePriorUnsubscribe=onSnapshot(smsBalancePriorSnapshotQuery(),snapshot=>{
+      smsBalancePriorSnap=smsBalancePriorSnapshotFromDocs(snapshot.docs);
+      smsBalancePriorLoaded=true;
+      if(smsBalanceTodaySnaps.length)renderSmsBalanceModule();
+    },error=>console.warn('SMS balance prior snapshot subscription:',error));
+  }catch(error){console.warn('SMS balance prior snapshot subscribe:',error);}
 }
 function loadSmsBalanceLocal() {
   try { smsBalanceTodaySnaps = dedupeSmsBalanceSnapshots(JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.snapshots) || '[]')).filter(s => s.session_date === todayStr()); } catch(e) { smsBalanceTodaySnaps = []; }
@@ -12853,7 +12892,9 @@ function renderSmsBalanceSummary() {
 function smsBalanceAlertSets() {
   const rows = smsBalanceRows();
   const transitions = smsBalanceTransitionRows();
-  const newNoThreshold=smsBalanceNewHistoryEntries(smsBalanceLatest||{data:[]},smsBalancePreviousSnapshot()).noThreshold.map(entry=>({...entry.row,_status:entry.status,_meta:smsBalanceMetaFor(entry.row)}));
+  const previousContext=smsBalancePreviousContext();
+  const newNoThreshold=(previousContext.ready?smsBalanceNewHistoryEntries(smsBalanceLatest||{data:[]},previousContext.snapshot).noThreshold:[])
+    .map(entry=>({...entry.row,_status:entry.status,_meta:smsBalanceMetaFor(entry.row)}));
   return {
     all:rows,
     critical:rows.filter(smsBalanceIsCritical),
@@ -13422,7 +13463,12 @@ window.processSmsBalanceSnapshot = async () => {
   const existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
   if(existing&&!await confirmSmsBalanceAction({title:'Overwrite SMS Balance Snapshot',label:'Overwrite Snapshot',html:`The <strong>${esc(fmt12(slot))}</strong> SMS Balance snapshot already exists today.<br><br>Overwrite the Reseller and Wholesale rows stored for this slot?`}))return;
   const slotIndex=shiftSlots('24H').indexOf(slot);
-  const previous=smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot&&shiftSlots('24H').indexOf(s.time_slot)<slotIndex).at(-1)||null;
+  const previousToday=smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot&&shiftSlots('24H').indexOf(s.time_slot)<slotIndex).at(-1)||null;
+  // Match VOIP behavior: the first snapshot today compares with the latest
+  // snapshot from the most recent prior day. This prevents clients that stayed
+  // Critical or without thresholds overnight from being announced as new again.
+  if(!previousToday&&!smsBalancePriorLoaded)await loadSmsBalancePriorSnapshot();
+  const previous=previousToday||smsBalancePriorSnap;
   const data=computeSmsBalanceUsage([...reseller,...wholesale],previous);
   const split=source=>data.filter(row=>row.source===source);
   const now=new Date();
@@ -13716,6 +13762,7 @@ window.exportSmsBalanceCriticalSummaryCsv = async () => {
 function subscribeSmsBalanceData() {
   if(!fbOk||smsBalanceSubscriptionsStarted)return;
   smsBalanceSubscriptionsStarted=true;
+  subscribeSmsBalancePriorSnapshot();
   try {
     const q=query(collection(db,'sms_balance_snapshots'),where('session_date','==',todayStr()));
     onSnapshot(q,s=>{
