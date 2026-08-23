@@ -416,6 +416,10 @@
     #view-summary .voip-summary-header { cursor: default; gap: 12px; }
     #view-summary .groupbox:not(.collapsed) > .voip-summary-header { margin-bottom: 8px; }
     #view-summary .voip-summary-header:hover .groupbox-title { color: var(--text); }
+    #view-stats-summary .stats-summary-header { cursor: default; gap: 12px; }
+    #view-stats-summary .groupbox:not(.collapsed) > .stats-summary-header { margin-bottom: 8px; }
+    #view-stats-summary .stats-summary-header .groupbox-title { margin-bottom: 0; }
+    #view-stats-summary .stats-summary-header:hover .groupbox-title { color: var(--text); }
     .summary-visibility-toggle {
       flex: none; display: inline-grid; place-items: center;
       width: 22px; height: 22px; min-width: 22px; margin-right: 5px; padding: 0;
@@ -4060,11 +4064,11 @@
       <div class="view" id="view-stats-summary">
        <div class="dash-shell">
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">Stats Overview — <span id="st-sum-slot">no snapshot</span></div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-overview" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-overview-body" aria-label="Hide Stats Overview section" title="Hide Stats Overview section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body">
+          <div class="caret-body" id="stats-summary-overview-body">
             <div class="stat-row">
               <div class="stat-box">         <div class="sv" id="st-sum-total">—</div><div class="sl">Total clients</div></div>
               <div class="stat-box s-high">  <div class="sv" id="st-sum-critical">—</div><div class="sl">Critical</div></div>
@@ -4091,22 +4095,22 @@
         </div>
 
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">1-hour Snapshot Timeline</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-timeline" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-timeline-body" aria-label="Hide 1-hour Snapshot Timeline section" title="Hide 1-hour Snapshot Timeline section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body">
+          <div class="caret-body" id="stats-summary-timeline-body">
             <div class="timeline-strip" id="stats-summary-timeline" aria-label="Stats one-hour snapshot timeline"></div>
             <div class="sms-bal-note" style="margin-top:6px">Each number is the Critical + Low client count for that posted hourly snapshot. Select a posted hour to view it.</div>
           </div>
         </div>
 
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">Persistent Problems — bad 3+ snapshots in a row</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-persistent" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-persistent-body" aria-label="Hide Persistent Problems section" title="Hide Persistent Problems section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:200px">
+          <div class="caret-body" id="stats-summary-persistent-body"><div class="lv-wrap" style="min-height:60px;max-height:200px">
             <table><thead><tr>
               <th class="st-sortable" data-st-sum-sort="persist:customer_name" data-label="Client" onclick="sortStatsSummary('persist','customer_name')">Client</th>
               <th class="st-sortable" data-st-sum-sort="persist:asr" data-label="ASR %" onclick="sortStatsSummary('persist','asr')" style="text-align:right">ASR %</th>
@@ -4120,11 +4124,11 @@
         </div>
 
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">Performing Bad — Critical &amp; Low</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-bad" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-bad-body" aria-label="Hide Performing Bad section" title="Hide Performing Bad section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body"><div class="lv-wrap" style="min-height:60px;max-height:240px">
+          <div class="caret-body" id="stats-summary-bad-body"><div class="lv-wrap" style="min-height:60px;max-height:240px">
             <table><thead><tr>
               <th class="st-sortable" data-st-sum-sort="bad:customer_name" data-label="Client" onclick="sortStatsSummary('bad','customer_name')">Client</th>
               <th class="st-sortable" data-st-sum-sort="bad:asr" data-label="ASR %" onclick="sortStatsSummary('bad','asr')" style="text-align:right">ASR %</th>
@@ -4137,11 +4141,11 @@
         </div>
 
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">New Clients This Snapshot</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-new" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-new-body" aria-label="Hide New Clients This Snapshot section" title="Hide New Clients This Snapshot section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:200px">
+          <div class="caret-body" id="stats-summary-new-body"><div class="lv-wrap" style="min-height:50px;max-height:200px">
             <table><thead><tr>
               <th class="st-sortable" data-st-sum-sort="new:customer_name" data-label="Client" onclick="sortStatsSummary('new','customer_name')">Client</th>
               <th class="st-sortable" data-st-sum-sort="new:asr" data-label="ASR %" onclick="sortStatsSummary('new','asr')" style="text-align:right">ASR %</th>
@@ -4153,11 +4157,11 @@
         </div>
 
         <div class="groupbox">
-          <div class="collapsible-header" onclick="toggleCollapse(this)">
+          <div class="collapsible-header stats-summary-header">
             <div class="groupbox-title">Performing Well — Good</div>
-            <span class="caret">▼</span>
+            <button type="button" class="summary-visibility-toggle" data-collapse-key="stats-summary-good" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="stats-summary-good-body" aria-label="Hide Performing Well section" title="Hide Performing Well section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
-          <div class="caret-body"><div class="lv-wrap" style="min-height:50px;max-height:240px">
+          <div class="caret-body" id="stats-summary-good-body"><div class="lv-wrap" style="min-height:50px;max-height:240px">
             <table><thead><tr>
               <th class="st-sortable" data-st-sum-sort="good:customer_name" data-label="Client" onclick="sortStatsSummary('good','customer_name')">Client</th>
               <th class="st-sortable" data-st-sum-sort="good:asr" data-label="ASR %" onclick="sortStatsSummary('good','asr')" style="text-align:right">ASR %</th>
