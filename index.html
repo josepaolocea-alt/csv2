@@ -2268,17 +2268,10 @@
       background: var(--red-soft); border: 1px solid var(--border); border-radius: var(--r-md);
       padding: 8px; font-size: 10px; color: var(--red);
     }
-    /* Danger actions stay available without visually overpowering the setting
-       descriptions. Confirmation dialogs still provide the strong warning. */
+    /* Danger-zone action buttons: uniform width, left-aligned, wrap evenly. */
     .settings-danger .danger-btns { display: flex; flex-wrap: wrap; gap: 6px; }
-    #voip-settings-danger-zone .danger-btns .tbtn {
-      flex:0 0 auto; min-width:0; min-height:24px; padding:2px 9px;
-      justify-content:center; white-space:nowrap; font-size:9.5px; font-weight:600;
-      color:var(--text-2) !important; background:color-mix(in srgb,var(--surface) 70%,transparent);
-      border-color:color-mix(in srgb,var(--red) 20%,var(--border)); box-shadow:none; opacity:.82;
-    }
-    #voip-settings-danger-zone .danger-btns .tbtn:hover {
-      color:var(--red) !important; background:var(--surface); border-color:color-mix(in srgb,var(--red) 42%,var(--border)); opacity:1;
+    .settings-danger .danger-btns .tbtn {
+      flex: 0 0 auto; min-width: 190px; justify-content: center; white-space: nowrap;
     }
     .settings-admin-only { display:contents; }
     .settings-note {
@@ -4708,19 +4701,19 @@
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
+            <button class="tbtn" id="voip-delete-critical-history-btn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Flagged Spam History</strong> tab. Possible Spam detection and its baseline are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openSpamHistWipeConfirm()">Delete ALL Flagged Spam History</button>
+            <button class="tbtn" id="voip-delete-spam-history-btn" style="color:#880000" onclick="openSpamHistWipeConfirm()">Delete ALL Flagged Spam History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>No-Threshold Clients</strong> tab — the separate log of every client seen in a snapshot with no threshold set. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openNoThreshWipeConfirm()">Clear No-Threshold List</button>
+            <button class="tbtn" id="voip-clear-no-threshold-btn" style="color:#880000" onclick="openNoThreshWipeConfirm()">Clear No-Threshold List</button>
           </div>
           <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected. You can optionally keep a date/time range so its samples are preserved as-is. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openSpamResetConfirm()">Reset Spam Baseline</button>
+            <button class="tbtn" id="voip-reset-spam-baseline-btn" style="color:#880000" onclick="openSpamResetConfirm()">Reset Spam Baseline</button>
           </div>
         </div>
       </div>
@@ -9642,6 +9635,12 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // Wiping the snapshots / stats_snapshots / tritel_snapshots collections —
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
+const VOIP_ADMIN_DANGER_BUTTONS = [
+  'voip-delete-critical-history-btn',
+  'voip-delete-spam-history-btn',
+  'voip-clear-no-threshold-btn',
+  'voip-reset-spam-baseline-btn'
+];
 
 // Show/hide top-level modules based on the signed-in user's role. Stats and
 // Traffic are
@@ -9695,6 +9694,7 @@ function applyModuleAccess(){
   // only the Danger Zone, where the existing action-level permissions apply.
   show('voip-settings-title', admin);
   show('voip-settings-admin-only', admin);
+  VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
