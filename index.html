@@ -19215,7 +19215,7 @@ function renderStatsStopped() {
     const label = stEsc((row.customer_name || '') + (row.destination && row.destination !== '(no dest)' ? ' — ' + row.destination : ''));
     const status = row.currentlyStopped
       ? '<span class="st-stopped-status active">Still stopped</span>'
-      : `<span class="st-stopped-status resumed" title="Traffic returned at ${stEsc(fmt12(row.resumedSlot))}">Traffic resumed</span>`;
+      : `<span class="st-stopped-status resumed" title="Traffic returned at ${stEsc(fmt12(row.resumedSlot))}">Traffic resumed · ${stEsc(fmt12(row.resumedSlot))}</span>`;
     return `<tr class="${row.currentlyStopped ? 'st-stopped-active' : ''}" data-rk="${rk}" data-label="${label}">`
       + `<td class="st-cell-client">${stEsc(row.customer_name)}${stCopyBtn(row.customer_name)}${stDrillBtn()}</td>`
       + `<td class="st-cell-acct">${stEsc(row.acct_list)}${stCopyBtn(row.acct_list)}${stDrillBtn()}</td>`
