@@ -4597,14 +4597,14 @@
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Balance Check Reminder</div>
         <div style="font-size:10px;color:#666;margin-bottom:4px">Desktop reminder a few minutes after each snapshot slot, while this app is open. Follows the Default shift above, and stays quiet for a slot you already posted.</div>
         <div class="settings-check">
-          <input type="checkbox" id="set-remind" onchange="saveSettings()" style="margin:0">
+          <input type="checkbox" id="set-remind" onchange="saveVoipReminderSettings()" style="margin:0">
           <label>Remind me to check the balance</label>
           <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
         <div class="settings-band">
           <div class="settings-row">
             <label style="min-width:140px">Remind at slot +:</label>
-            <input class="win-inp" id="set-remind-offset" type="number" min="1" max="29" value="10" style="width:70px" onchange="saveSettings()" title="Minutes after each :00 / :30 slot to remind you. 10 → 10:10, 10:40, 11:10 …">
+            <input class="win-inp" id="set-remind-offset" type="number" min="1" max="29" value="10" style="width:70px" onchange="saveVoipReminderSettings()" title="Minutes after each :00 / :30 slot to remind you. 10 → 10:10, 10:40, 11:10 …">
             <span style="font-size:10px;color:#666;margin-left:4px">min after :00 / :30</span>
           </div>
           <div class="settings-row">
@@ -5481,11 +5481,113 @@ let S = {
   nightMode:false,
   slotReminder:false, slotReminderOffset:10
 };
+let legacyVoipReminderSettings = null;
+const VOIP_REMINDER_DEFAULTS = { enabled:false, offset:10 };
+
+function voipUserStorageKey(prefix) {
+  const identity = currentUserUid || String(currentUserEmail || '').trim().toLowerCase() || 'local';
+  return `${prefix}_${encodeURIComponent(identity)}`;
+}
+function voipReminderSettingsKey() { return voipUserStorageKey('bm_voip_reminder'); }
+function voipReminderFiredKey() { return voipUserStorageKey('bm_slot_remind_fired'); }
+function normalizeVoipReminderSettings(value) {
+  return {
+    enabled:!!value?.enabled,
+    offset:Math.min(29, Math.max(1, Number(value?.offset) || VOIP_REMINDER_DEFAULTS.offset)),
+  };
+}
+function applyVoipReminderSettings(value) {
+  const reminder = normalizeVoipReminderSettings(value);
+  S.slotReminder = reminder.enabled;
+  S.slotReminderOffset = reminder.offset;
+  const enabled = document.getElementById('set-remind');
+  const offset = document.getElementById('set-remind-offset');
+  if (enabled) enabled.checked = reminder.enabled;
+  if (offset) offset.value = reminder.offset;
+  updateReminderPreview();
+  return reminder;
+}
+function saveVoipReminderLocal(value) {
+  try { localStorage.setItem(voipReminderSettingsKey(), JSON.stringify(normalizeVoipReminderSettings(value))); } catch(e) {}
+}
+function sharedVoipSettingsPayload() {
+  const { slotReminder, slotReminderOffset, ...shared } = S;
+  // Until the admin has migrated the old shared reminder, preserve that legacy
+  // value when another account saves an unrelated VOIP preference.
+  if (!isAdmin() && legacyVoipReminderSettings) {
+    shared.slotReminder = legacyVoipReminderSettings.enabled;
+    shared.slotReminderOffset = legacyVoipReminderSettings.offset;
+  }
+  return shared;
+}
+async function loadVoipReminderSettings() {
+  let reminder = null;
+  try {
+    const local = localStorage.getItem(voipReminderSettingsKey());
+    if (local) reminder = normalizeVoipReminderSettings(JSON.parse(local));
+  } catch(e) {}
+  if (fbOk && currentUserUid) {
+    try {
+      const snapshot = await getDoc(doc(db, 'user_preferences', currentUserUid));
+      if (snapshot.exists() && snapshot.data()?.voip_balance_reminder) {
+        reminder = normalizeVoipReminderSettings(snapshot.data().voip_balance_reminder);
+      }
+    } catch(e) { console.warn('load VOIP reminder settings:', e); }
+  }
+  // Preserve the admin's legacy reminder once. Semi-admins never inherit the
+  // old shared-browser value, because their reminder must start independently.
+  if (!reminder && isAdmin() && legacyVoipReminderSettings) {
+    reminder = normalizeVoipReminderSettings(legacyVoipReminderSettings);
+  }
+  reminder = applyVoipReminderSettings(reminder || VOIP_REMINDER_DEFAULTS);
+  saveVoipReminderLocal(reminder);
+  if (fbOk && currentUserUid && isAdmin() && legacyVoipReminderSettings) {
+    try {
+      await setDoc(doc(db, 'user_preferences', currentUserUid), {
+        voip_balance_reminder:reminder,
+        updated_at:Timestamp.now(),
+      }, { merge:true });
+    } catch(e) { console.warn('migrate VOIP reminder settings:', e); }
+  }
+  if (isAdmin()) legacyVoipReminderSettings = null;
+}
+window.saveVoipReminderSettings = async () => {
+  const reminder = applyVoipReminderSettings({
+    enabled:document.getElementById('set-remind')?.checked,
+    offset:document.getElementById('set-remind-offset')?.value,
+  });
+  saveVoipReminderLocal(reminder);
+  if (fbOk && currentUserUid) {
+    try {
+      await setDoc(doc(db, 'user_preferences', currentUserUid), {
+        voip_balance_reminder:reminder,
+        updated_at:Timestamp.now(),
+      }, { merge:true });
+    } catch(e) {
+      console.warn('save VOIP reminder settings:', e);
+      toast('Reminder saved on this device, but account sync failed.', 'err', 6000);
+    }
+  }
+  checkSlotReminder();
+  updateReminderPreview();
+};
 function applyNightMode() {
   document.body.classList.toggle('night-mode', !!S.nightMode);
 }
 function loadSettings() {
-  try { const v=localStorage.getItem('bm_s98'); if(v) S={...S,...JSON.parse(v)}; } catch(e){}
+  try {
+    const v=localStorage.getItem('bm_s98');
+    if(v) {
+      const parsed = JSON.parse(v);
+      if (Object.prototype.hasOwnProperty.call(parsed, 'slotReminder') || Object.prototype.hasOwnProperty.call(parsed, 'slotReminderOffset')) {
+        legacyVoipReminderSettings = { enabled:!!parsed.slotReminder, offset:parsed.slotReminderOffset };
+      }
+      S={...S,...parsed};
+    }
+  } catch(e){}
+  // Reminder preferences are loaded separately for the authenticated account.
+  S.slotReminder = VOIP_REMINDER_DEFAULTS.enabled;
+  S.slotReminderOffset = VOIP_REMINDER_DEFAULTS.offset;
   applyNightMode();
   document.getElementById('set-light').value       = S.lightMax;
   document.getElementById('set-medium').value      = S.mediumMax;
@@ -5520,24 +5622,22 @@ function loadLastProcessedSnap() {
 }
 window.saveSettings = () => {
   S.lightMax      = +document.getElementById('set-light').value  || -50;
-  S.mediumMax     = +document.getElementById('set-medium').value || -100;
-  S.nearPct       = +document.getElementById('set-tgt').value    || 5;
+  if (isAdmin()) {
+    S.mediumMax     = +document.getElementById('set-medium').value || -100;
+    S.nearPct       = +document.getElementById('set-tgt').value    || 5;
+    S.retentionDays = +document.getElementById('set-retention').value;
+  }
   S.shift         = document.getElementById('set-shift').value;
   S.soundAlert    = document.getElementById('set-sound').checked;
   S.voipVoiceAlert = document.getElementById('set-voip-voice').checked;
   S.browserNotif  = document.getElementById('set-notif').checked;
-  S.retentionDays = +document.getElementById('set-retention').value;
   S.useBands      = document.getElementById('set-usebands').checked;
   S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
   S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
   S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
-  S.slotReminder  = document.getElementById('set-remind').checked;
-  // Keep the offset inside the slot it belongs to: 30+ would land on the next slot.
-  S.slotReminderOffset = Math.min(29, Math.max(1, +document.getElementById('set-remind-offset').value || 10));
-  document.getElementById('set-remind-offset').value = S.slotReminderOffset;
   applyNightMode();
   updateReminderPreview();
-  localStorage.setItem('bm_s98', JSON.stringify(S));
+  localStorage.setItem('bm_s98', JSON.stringify(sharedVoipSettingsPayload()));
   populateSlots(); refreshAll();
   checkSlotReminder();   // fire right away if a slot is currently due (e.g. just enabled)
   updateReminderPreview();
@@ -5545,7 +5645,7 @@ window.saveSettings = () => {
 window.toggleNightMode = () => {
   S.nightMode = !S.nightMode;
   applyNightMode();
-  localStorage.setItem('bm_s98', JSON.stringify(S));
+  localStorage.setItem('bm_s98', JSON.stringify(sharedVoipSettingsPayload()));
 };
 
 /* ════════════════════════════════════════════════
@@ -6600,14 +6700,14 @@ function reminderTimes() {
 
 function loadRemindFired() {
   try {
-    const v = JSON.parse(localStorage.getItem('bm_slot_remind_fired') || 'null');
+    const v = JSON.parse(localStorage.getItem(voipReminderFiredKey()) || 'null');
     if (v && v.date === todayStr() && Array.isArray(v.slots)) return new Set(v.slots);
   } catch(e) {}
   return new Set();
 }
 function saveRemindFired(set) {
   try {
-    localStorage.setItem('bm_slot_remind_fired', JSON.stringify({ date: todayStr(), slots: [...set] }));
+    localStorage.setItem(voipReminderFiredKey(), JSON.stringify({ date: todayStr(), slots: [...set] }));
   } catch(e) {}
 }
 
@@ -9888,10 +9988,15 @@ function applyModuleAccess(){
   show('sms-bal-delete-all-btn', canDeleteSnapshots());
   show('sms-bal-clear-history-btn', admin);
   show('sms-bal-clear-nothreshold-btn', admin);
-  // VOIP operational settings are admin-only. Semi-admins and viewers see
-  // only the Danger Zone, where the existing action-level permissions apply.
-  show('voip-settings-title', admin);
-  show('voip-settings-admin-only', admin);
+  // VOIP settings are visible to operational roles. The shared critical,
+  // near-target and retention controls remain admin-owned; reminder settings
+  // are stored separately for each authenticated account.
+  const voipSettingsUser = canPostBalance();
+  show('voip-settings-title', voipSettingsUser);
+  show('voip-settings-admin-only', voipSettingsUser);
+  disable('set-medium', !admin);
+  disable('set-tgt', !admin);
+  disable('set-retention', !admin);
   VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
@@ -10995,6 +11100,7 @@ function balanceBarDisplayPct(progress) {
 }
 window.setAlertFilter = (f,btn) => {
   alertFilter=f; alertPage=0;
+  if (f === 'high')  { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   if (f === 'light') { alertSortCol = '_bw'; alertSortDir = -1; }
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   if (f === 'spam')  { alertSortCol = 'usage_30min'; alertSortDir = -1; ensureSpamHistory(); }
@@ -13049,6 +13155,7 @@ function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
     if (source) rows = rows.filter(row => row.source === source);
   }
   if(filter==='usage')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
+  if(filter==='critical')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
   if(filter==='warning')return rows.sort((a,b)=>(smsBalanceWarningProgress(b)??-1)-(smsBalanceWarningProgress(a)??-1)||a.client.localeCompare(b.client));
   return rows.sort((a,b) => smsBalanceStatusRank(b._status?.code)-smsBalanceStatusRank(a._status?.code) || a.client.localeCompare(b.client));
 }
@@ -19211,7 +19318,9 @@ async function initStats() {
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
-  loadSettings(); loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); applySummaryCollapseState(); updateBalanceStatusBar(); window.renderWizard(); window.renderClients();
+  loadSettings();
+  await loadVoipReminderSettings();
+  loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); applySummaryCollapseState(); updateBalanceStatusBar(); window.renderWizard(); window.renderClients();
   // A hand-pick of the time box stops it from auto-following "last sync + 1"; the next post re-enables tracking.
   document.getElementById('slot-sel')?.addEventListener('change', () => { slotAutoTrack = false; });
   // operator identity
