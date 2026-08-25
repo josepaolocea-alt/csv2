@@ -4371,6 +4371,10 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Stopped Traffic Log — <span id="st-stopped-count">0</span></div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
+          <div class="fbar">
+            <button class="tbtn" id="st-stopped-toggle-did" onclick="toggleStatsStoppedDID()" title="Show stopped account codes containing -DID">Show -DID</button>
+            <span class="sms-muted" id="st-stopped-filter-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table id="st-tbl-stopped">
               <thead><tr>
@@ -17218,6 +17222,7 @@ let statsHideDID = false;      // hide account codes containing "-DID"
 let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
 let statsHourlyFocusKey = null;   // when set, the Hourly view is pinned to this one gkey (Account Code | Destination)
 let statsHourlyFocusLabel = '';   // friendly label for the focus banner
+let statsStoppedShowDID = false;  // Stopped tab hides -DID accounts by default
 // Per-client remarks, keyed by the group key (Account Code + Destination). Kept
 // in its own 'stats_remarks' Firestore collection so notes survive snapshot wipes
 // and reappear whenever the same client/destination shows up again.
@@ -18857,7 +18862,8 @@ function statsStoppedTrafficRows(snaps = statsSortedSnaps()) {
     });
   }
   return [...log.values()].sort((a,b) =>
-    Number(b.currentlyStopped) - Number(a.currentlyStopped)
+    (Number(b.attempts) || 0) - (Number(a.attempts) || 0)
+    || Number(b.currentlyStopped) - Number(a.currentlyStopped)
     || b.hoursStopped - a.hoursStopped
     || String(a.customer_name || '').localeCompare(String(b.customer_name || '')));
 }
@@ -19076,12 +19082,26 @@ function processStatsRows(rows, tbodyId, full) {
 }
 
 function renderStatsStopped() {
-  const rows = statsStoppedTrafficRows();
+  const allRows = statsStoppedTrafficRows();
+  const rows = statsStoppedShowDID
+    ? allRows
+    : allRows.filter(row => !/-DID/i.test(String(row.acct_list || row.account_code || '')));
   const tbody = document.getElementById('st-tbody-stopped');
   const count = document.getElementById('st-stopped-count');
   const tabCount = document.getElementById('sttab-cnt-stopped');
+  const toggle = document.getElementById('st-stopped-toggle-did');
+  const filterNote = document.getElementById('st-stopped-filter-note');
+  const hiddenDID = allRows.length - rows.length;
   if (count) count.textContent = rows.length;
   if (tabCount) tabCount.textContent = rows.length ? `(${rows.length})` : '(none)';
+  if (toggle) {
+    toggle.textContent = statsStoppedShowDID ? 'Hide -DID' : 'Show -DID';
+    toggle.title = `${statsStoppedShowDID ? 'Hide' : 'Show'} stopped account codes containing -DID`;
+    toggle.classList.toggle('active', statsStoppedShowDID);
+  }
+  if (filterNote) filterNote.textContent = hiddenDID
+    ? `${rows.length} shown · ${hiddenDID} -DID hidden`
+    : `${rows.length} route(s) · sorted by Attempts (highest first)`;
   if (!tbody) return;
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="12" style="padding:10px;color:#888;text-align:center">No stopped traffic detected in today\'s Stats snapshots.</td></tr>';
@@ -19104,6 +19124,10 @@ function renderStatsStopped() {
   }).join('');
 }
 window.renderStatsStopped = renderStatsStopped;
+window.toggleStatsStoppedDID = () => {
+  statsStoppedShowDID = !statsStoppedShowDID;
+  renderStatsStopped();
+};
 
 function statsRowHasFlag(r, f) {
   switch (f) {
