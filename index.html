@@ -6623,6 +6623,19 @@ window.switchModule = module => {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    // Entering from the top-level Stats icon is a predictable fresh landing:
+    // latest snapshot, every client, with the busiest routes first.
+    statsViewName = 'all';
+    statsViewingSlot = null;
+    statsSortCol = 'attempts';
+    statsSortDir = -1;
+    const statsSearch = document.getElementById('st-search');
+    if (statsSearch) statsSearch.value = '';
+    const statsFlagFilter = document.getElementById('st-flag-filter');
+    if (statsFlagFilter) {
+      statsFlagFilter.value = 'all';
+      if (statsFlagFilter._premiumSelectWrapper) syncPremiumSelect(statsFlagFilter);
+    }
     updateViewMenuState();
     window.switchStatsMode('current');
     return;
@@ -17664,7 +17677,7 @@ let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
 let statsDailyTab = 'today';
 let statsViewingSlot = null;   // null = view latest
-let statsSortCol = 'asr', statsSortDir = 1;
+let statsSortCol = 'attempts', statsSortDir = -1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
 let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | raw_dur | asr_acd | att_asr_acd
@@ -19771,6 +19784,17 @@ window.sortStats = col => {
   renderStatsTables();
 };
 
+function updateStatsAllSortHeaders() {
+  document.querySelectorAll('#st-tbl-all thead th[onclick^="sortStats"]').forEach(th => {
+    const field = th.getAttribute('onclick')?.match(/sortStats\('([^']+)'\)/)?.[1] || '';
+    const label = th.dataset.sortLabel || th.textContent.replace(/\s*[▲▼]\s*$/,'').trim();
+    th.dataset.sortLabel = label;
+    th.classList.add('st-sortable');
+    th.textContent = field === statsSortCol ? `${label} ${statsSortDir < 0 ? '▼' : '▲'}` : label;
+    th.setAttribute('aria-sort', field === statsSortCol ? (statsSortDir < 0 ? 'descending' : 'ascending') : 'none');
+  });
+}
+
 function statsSortRows(rows) {
   const col = statsSortCol, dir = statsSortDir;
   return [...rows].sort((a,b) => {
@@ -19948,6 +19972,7 @@ function statsRowHasFlag(r, f) {
 }
 
 function renderStatsTables() {
+  updateStatsAllSortHeaders();
   const rows = statsCurrentRows();
   const search = (document.getElementById('st-search')?.value || '').trim().toLowerCase();
   const flagF = document.getElementById('st-flag-filter')?.value || 'all';
