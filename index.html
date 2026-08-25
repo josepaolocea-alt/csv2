@@ -314,8 +314,6 @@
       border-color: var(--orange); font-weight: 600;
     }
     #sms-cancel-edit-btn:hover { background: var(--orange); color: #fff; border-color: transparent; }
-    #sync-label { margin-left: auto; font-size: 10px; color: var(--text-3); white-space: nowrap; }
-
     /* Per-row delete action (Critical History / No-Threshold tables) */
     .col-act { width: 40px; text-align: center; white-space: nowrap; }
     #spamhist-tbl .col-act { width: 180px; }
@@ -1170,8 +1168,7 @@
     body.sms-mode #toolbar,
     body.sms-mode #toolbar .tbtn[id^="tnav-"],
     body.sms-mode #tnav-settings,
-    body.sms-mode #snd-dismiss-btn,
-    body.sms-mode #sync-label {
+    body.sms-mode #snd-dismiss-btn {
       display: none !important;
     }
     body.sms-mode #view-banner { display: none !important; }
@@ -1181,8 +1178,7 @@
     body.users-mode #sidebar,
     body.users-mode #toolbar .tbtn[id^="tnav-"],
     body.users-mode #tnav-settings,
-    body.users-mode #snd-dismiss-btn,
-    body.users-mode #sync-label {
+    body.users-mode #snd-dismiss-btn {
       display: none !important;
     }
     body.users-mode #users-toolbar-label { display: inline-flex; }
@@ -1228,7 +1224,6 @@
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #tnav-settings,
     body.stats-mode #snd-dismiss-btn,
-    body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
     body.stats-mode #voip-action-menu,
     body.traffic-mode #voip-action-menu,
@@ -1364,7 +1359,13 @@
     .st-view-actions .app-action-menu-trigger svg {
       display: block; width: 18px; height: 18px; flex: 0 0 18px; pointer-events: none;
     }
-    .stats-action-menu-panel { min-width: 220px; }
+    .stats-action-menu-panel { min-width: 200px; }
+    .stats-action-menu-panel .tbtn {
+      min-height: 32px; gap: 8px; padding: 6px 9px; font-size: 11px;
+    }
+    .stats-action-menu-panel .tbtn svg {
+      display: block; width: 16px; height: 16px; flex: 0 0 16px; pointer-events: none;
+    }
     #stats-view-guide-overlay {
       display: none; position: fixed; inset: 0; z-index: 2750; align-items: center; justify-content: center;
       padding: 18px; background: rgba(8,14,26,.48); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
@@ -3230,7 +3231,6 @@
     <button class="tbtn stats-tab" id="stnav-stats-settings" onclick="switchStatsView('settings')">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
     <span id="users-toolbar-label">Admin</span>
-    <span id="sync-label">No data loaded</span>
   </div>
 
   <!-- App body -->
@@ -6073,8 +6073,8 @@ function updateViewMenuState() {
   document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'SMS'
-    : stMode ? 'BalanceMonitor - Stats'
-    : trafficMode ? 'BalanceMonitor - Traffic'
+    : stMode ? 'Stats'
+    : trafficMode ? 'Traffic'
     : usersMode ? 'Admin' : 'BalanceMonitor VOIP';
 }
 
@@ -11536,10 +11536,6 @@ function refreshAll() {
 
 function updateSync() {
   updateBalanceStatusBar();
-  const syncLabel=latestSnap
-    ? `Last sync: ${fmt12(latestSnap.time_slot)} · ${latestSnap.session_date || todayStr()}`
-    : 'No data loaded';
-  document.getElementById('sync-label').textContent = syncLabel;
   document.getElementById('print-date').textContent = `${todayStr()} · ${S.shift}`;
 }
 
@@ -13003,6 +12999,11 @@ function snapYesNo(v) {
   return String(v);
 }
 function snapUsed(v) { const n = amountNumber(v); return Number.isFinite(n) && Math.round(n * 1e6) !== 0; }
+// The receivable cells form a visual timeline: the first red cell is the
+// snapshot where the client reached Critical, and the following cells stay red
+// while the client remains Critical. A payment / balance recovery naturally
+// ends the run because that later snapshot no longer has a high alert level.
+function snapReceivableCritical(row) { return !!row && alertLevel(row) === 'high'; }
 
 // Wide layout: fixed CarrierName + Allow Bal on the left, then one 12-column block per 30-min
 // snapshot across the shift. Rows are aligned by carrier so every block lines up on the same row.
@@ -13038,11 +13039,12 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
   const clients = buildOrder(b => b.rows);
   const tritel  = buildOrder(b => b.tritel);
 
-  const blockCells = (r, txtStyle, numStyle, allowHi) => SNAP_BLOCK_COLS.map(c => {
+  const blockCells = (r, txtStyle, numStyle, allowHi, allowCritical) => SNAP_BLOCK_COLS.map(c => {
     if (!r) return (c.t === 's' || c.t === 'yn') ? xlsTextCell('', txtStyle) : xlsNumberCell(null, numStyle);
     if (c.t === 's')  return xlsTextCell(r[c.f] ?? '', txtStyle);
     if (c.t === 'yn') return xlsTextCell(snapYesNo(r[c.f]), txtStyle);
     if (c.t === 'u')  return xlsNumberCell(r[c.f], allowHi && snapUsed(r[c.f]) ? 'useHi' : numStyle);
+    if (c.f === 'amnt_receivable' && allowCritical && snapReceivableCritical(r)) return xlsNumberCell(r[c.f], 'criticalBal');
     return xlsNumberCell(r[c.f], numStyle);
   }).join('');
   const totalCells = b => {
@@ -13066,13 +13068,13 @@ function snapshotWorksheetXml(shift, snaps, showDate) {
     blocks.map(() => SNAP_BLOCK_COLS.map(c => xlsTextCell(c.h, 'hdr')).join('')).join('') + '</Row>';
   const clientRows = clients.order.map(c =>
     '<Row>' + xlsTextCell(c.name) + xlsTextCell(clients.notes[c.key] ?? '') +
-    blocks.map(b => blockCells(b.byCarrier[c.key], '', 'num', true)).join('') + '</Row>'
+    blocks.map(b => blockCells(b.byCarrier[c.key], '', 'num', true, true)).join('') + '</Row>'
   ).join('');
   const totalRow = '<Row>' + xlsTextCell('Total', 'total') + xlsTextCell('', 'total') +
     blocks.map(b => totalCells(b)).join('') + '</Row>';
   const tritelRows = tritel.order.map(c =>
     '<Row>' + xlsTextCell(c.name, 'tri') + xlsTextCell(tritel.notes[c.key] ?? '', 'tri') +
-    blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false)).join('') + '</Row>'
+    blocks.map(b => blockCells(b.triByCarrier[c.key], 'tri', 'triNum', false, false)).join('') + '</Row>'
   ).join('');
 
   // Per-block <Column> defs, emitted in column order: hidden detail columns collapsed, visible data
@@ -13126,6 +13128,7 @@ window.exportSnapshotSheet = async () => {
   <Style ss:ID="total"><Font ss:Bold="1"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="totalNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="useHi"><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFFF00" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="criticalBal"><Font ss:Bold="1" ss:Color="#9C0006"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
   <Style ss:ID="tri"><Font ss:Bold="1"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="triNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Size="14" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
@@ -14525,6 +14528,13 @@ function smsBalanceDateAdd(date,days) {const d=new Date(`${date}T00:00:00`);d.se
 function smsBalanceSheetSlots(shift) { return shiftSlots(shift); }
 function smsBalanceSlotDate(reportDate,shift,slot) {if(shift==='7AM-7PM')return reportDate;const hour=Number(String(slot).split(':')[0]);return hour>=19?reportDate:smsBalanceDateAdd(reportDate,1);}
 function smsBalanceColumnName(index) {let n=index+1,out='';while(n){const r=(n-1)%26;out=String.fromCharCode(65+r)+out;n=Math.floor((n-1)/26);}return out;}
+// Red balance cells include every state requested for the export timeline:
+// configured Critical, zero / blocked, and active overdraft. Re-evaluating each
+// snapshot means the red run stops when a payment or balance recovery clears it.
+function smsBalanceExportBalanceCritical(row) {
+  if(!row)return false;
+  return ['critical','blocked','overdraft'].includes(smsBalanceStatus(row).code);
+}
 function buildSmsBalanceSheetData(source,shift,reportDate,snapshots) {
   source=smsBalanceSource(source);const slots=smsBalanceSheetSlots(shift);const snapMap=new Map(snapshots.map(s=>[`${s.session_date}|${s.time_slot}`,s]));
   const blocks=slots.map(slot=>{const snap=snapMap.get(`${smsBalanceSlotDate(reportDate,shift,slot)}|${slot}`);const rows=(snap?.data||[]).filter(row=>row.source===source);return{slot,snap,rows,map:new Map(rows.map(row=>[smsBalanceRouteKey(row),row]))};});
@@ -14657,6 +14667,11 @@ window.exportSmsBalanceWorkbook = async () => {
             }
           }
           [base+5,base+6,usageColumn,totalColumn].forEach(column=>{sheet.getCell(rowNumber,column).numFmt='0.00';});
+          if(smsBalanceExportBalanceCritical(cur)){
+            const balanceCell=sheet.getCell(rowNumber,base+balanceOffset);
+            balanceCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};
+            balanceCell.font={bold:true,color:{argb:'FF9C0006'}};
+          }
           if(Math.round(Math.abs(smsBalanceNumber(cur.usage_30min))*1e6)!==0){
             const usageCell=sheet.getCell(rowNumber,usageColumn);
             usageCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
