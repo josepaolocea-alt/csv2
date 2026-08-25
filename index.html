@@ -18399,7 +18399,7 @@ function statsDailyExportDataset(tab = statsDailyTab) {
   };
 }
 
-window.exportStatsDailyTab = format => {
+window.exportStatsDailyTab = async format => {
   // Read the visibly active tab at click time so export can never fall back to
   // Today/Paste when Dashboard or Last 2 Weeks is on screen.
   const activeTab = document.querySelector('.st-daily-tab.active')?.id?.replace('st-daily-tab-', '') || statsDailyTab;
@@ -18407,15 +18407,47 @@ window.exportStatsDailyTab = format => {
   if (!data.rows.length) { toast('No Daily Traffic rows to export', 'err'); return; }
   const base = `daily_traffic_${data.suffix}`;
   if (format === 'xlsx') {
-    if (!window.XLSX) { toast('Excel export is still loading — try again in a moment', 'err'); return; }
-    const sheet = XLSX.utils.aoa_to_sheet([data.headers, ...data.rows]);
-    sheet['!autofilter'] = { ref:XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:data.rows.length, c:data.headers.length - 1 } }) };
-    sheet['!cols'] = data.headers.map((header, index) => ({
-      wch:Math.min(32, data.rows.reduce((width, row) => Math.max(width, String(row[index] ?? '').length + 2), String(header).length + 2))
-    }));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, sheet, data.sheet);
-    XLSX.writeFile(workbook, `${base}.xlsx`);
+    if (!window.ExcelJS) { toast('Styled Excel export is still loading — try again in a moment', 'err'); return; }
+    setLoading(true, 'Building styled Daily Traffic workbook…');
+    try {
+      const workbook = new window.ExcelJS.Workbook();
+      workbook.creator = 'BalanceMonitor'; workbook.created = new Date();
+      const sheet = workbook.addWorksheet(data.sheet, { views:[{ state:'frozen', ySplit:1, showGridLines:false }] });
+      sheet.addRow(data.headers);
+      sheet.addRows(data.rows);
+      const thinBorder = { style:'thin', color:{ argb:'FFD8DEE9' } };
+      const header = sheet.getRow(1);
+      header.height = 24;
+      header.eachCell({ includeEmpty:true }, cell => {
+        cell.font = { bold:true, color:{ argb:'FFFFFFFF' }, size:10 };
+        cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF274A83' } };
+        cell.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+        cell.border = { bottom:thinBorder };
+      });
+      data.headers.forEach((columnHeader, index) => {
+        sheet.getColumn(index + 1).width = Math.min(32, data.rows.reduce(
+          (width, row) => Math.max(width, String(row[index] ?? '').length + 2),
+          String(columnHeader).length + 2
+        ));
+      });
+      for (let rowNumber = 2; rowNumber <= data.rows.length + 1; rowNumber++) {
+        sheet.getRow(rowNumber).eachCell({ includeEmpty:true }, cell => {
+          cell.alignment = { vertical:'middle' };
+          cell.border = { bottom:thinBorder };
+        });
+      }
+      sheet.autoFilter = { from:{ row:1, column:1 }, to:{ row:data.rows.length + 1, column:data.headers.length } };
+      const buffer = await workbook.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = `${base}.xlsx`; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch(e) {
+      toast('Daily Traffic Excel export failed: ' + (e.message || e), 'err', 7000);
+      return;
+    } finally {
+      setLoading(false);
+    }
   } else {
     const csv = [data.headers, ...data.rows].map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type:'text/csv;charset=utf-8' }));
