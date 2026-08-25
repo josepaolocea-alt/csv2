@@ -6349,6 +6349,8 @@ window.switchModule = module => {
   // Users & Roles is admin-only. SMS Balance is visible to the monitoring team;
   // its Client / Phoenix / Credentials tabs are available to admin and semi-admin.
   if (module === 'users' && !isAdmin()) module = 'balance';
+  if (module !== 'users') unsubscribeAllUsers();
+  unsubscribeLogs();
   if (module === 'users') {
     document.body.classList.remove('sms-mode');
     document.body.classList.remove('stats-mode');
@@ -6416,6 +6418,8 @@ window.switchView = name => {
     toast('Client Manager CSV imports are restricted to admins.', 'err');
     name = 'summary';
   }
+  unsubscribeAllUsers();
+  if (name !== 'logs') unsubscribeLogs();
   closeViewMenu();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
@@ -6432,7 +6436,7 @@ window.switchView = name => {
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); ensureSpamHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
-  if (name==='logs')          { renderLogs(); }
+  if (name==='logs')          { subscribeLogs(); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
   if (name==='spam-history')  { ensureSpamFlagHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
@@ -9812,6 +9816,77 @@ async function updatePresence() {
   } catch(e) {}
 }
 
+// Elect one tab per signed-in account to send the shared presence and role
+// heartbeat. Previously every tab wrote every minute while every tab also
+// listened for those writes, multiplying Firestore reads across open tabs.
+const HEARTBEAT_WRITE_MS = 3 * 60 * 1000;
+const HEARTBEAT_LEASE_MS = 75 * 1000;
+const HEARTBEAT_LEASE_RENEW_MS = 30 * 1000;
+const heartbeatTabId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+let heartbeatLeaseKey = '';
+let heartbeatLeaseTimer = null;
+let heartbeatLastWrite = 0;
+let heartbeatIsLeader = false;
+
+function heartbeatKeyForCurrentUser() {
+  return currentUserUid ? `bm_heartbeat_leader_${currentUserUid}` : '';
+}
+function readHeartbeatLease(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); }
+  catch(e) { return null; }
+}
+function claimHeartbeatLease() {
+  const key = heartbeatKeyForCurrentUser();
+  if (!key) return false;
+  heartbeatLeaseKey = key;
+  const now = Date.now();
+  try {
+    const lease = readHeartbeatLease(key);
+    if (lease?.tabId !== heartbeatTabId && Number(lease?.expiresAt) > now) return false;
+    localStorage.setItem(key, JSON.stringify({ tabId:heartbeatTabId, expiresAt:now + HEARTBEAT_LEASE_MS }));
+    return readHeartbeatLease(key)?.tabId === heartbeatTabId;
+  } catch(e) {
+    // If storage is blocked, retain presence with the slower per-tab interval.
+    return true;
+  }
+}
+function releaseHeartbeatLease() {
+  if (!heartbeatLeaseKey) return;
+  try {
+    if (readHeartbeatLease(heartbeatLeaseKey)?.tabId === heartbeatTabId) localStorage.removeItem(heartbeatLeaseKey);
+  } catch(e) {}
+}
+async function writeAppHeartbeat(force = false) {
+  const now = Date.now();
+  if (!force && now - heartbeatLastWrite < HEARTBEAT_WRITE_MS) return;
+  heartbeatLastWrite = now;
+  await Promise.allSettled([updatePresence(), upsertMyUserRole()]);
+}
+function heartbeatCoordinatorTick(forceWrite = false) {
+  if (!fbOk || !currentUserUid) return;
+  heartbeatIsLeader = claimHeartbeatLease();
+  if (heartbeatIsLeader) writeAppHeartbeat(forceWrite);
+}
+function stopHeartbeatCoordinator() {
+  if (heartbeatLeaseTimer) clearInterval(heartbeatLeaseTimer);
+  heartbeatLeaseTimer = null;
+  releaseHeartbeatLease();
+  heartbeatLeaseKey = '';
+  heartbeatIsLeader = false;
+  heartbeatLastWrite = 0;
+}
+function startHeartbeatCoordinator() {
+  stopHeartbeatCoordinator();
+  if (!fbOk || !currentUserUid) return;
+  heartbeatCoordinatorTick(true);
+  heartbeatLeaseTimer = setInterval(() => heartbeatCoordinatorTick(false), HEARTBEAT_LEASE_RENEW_MS);
+}
+window.addEventListener('storage', event => {
+  if (event.key === heartbeatLeaseKey && !event.newValue && currentUserUid) heartbeatCoordinatorTick(true);
+});
+window.addEventListener('pagehide', stopHeartbeatCoordinator);
+window.addEventListener('pageshow', () => { if (currentUserUid && !heartbeatLeaseTimer) startHeartbeatCoordinator(); });
+
 function subscribePresence() {
   if (!fbOk) return;
   try {
@@ -9873,12 +9948,18 @@ function subscribeMyRole() {
 function subscribeAllUsers() {
   if (!fbOk || !isAdmin()) return;
   try {
-    if (usersUnsub) usersUnsub();
+    if (usersUnsub) return;
     usersUnsub = onSnapshot(collection(db,'user_roles'), snap => {
       usersData = snap.docs.map(d => ({ id:d.id, ...d.data() }));
       if (document.getElementById('view-users')?.classList.contains('active')) usersRender();
     });
   } catch(e) {}
+}
+
+function unsubscribeAllUsers() {
+  if (!usersUnsub) return;
+  try { usersUnsub(); } catch(e) {}
+  usersUnsub = null;
 }
 
 function usersEffectiveRole(u){
@@ -10121,16 +10202,27 @@ async function writeSnapshotLog(snap, rowCount){
   } catch(e){ console.warn('snapshot log write failed:', e); }
 }
 
+const SNAPSHOT_LOG_LIVE_LIMIT = 100;
+let logsUnsub = null;
 function subscribeLogs(){
-  if (!fbOk) return;
+  if (!fbOk || logsUnsub) return;
   try {
-    const q = query(collection(db,'snapshot_logs'), orderBy('processed_at','desc'));
-    onSnapshot(q, snap => {
+    const q = query(collection(db,'snapshot_logs'), orderBy('processed_at','desc'), limit(SNAPSHOT_LOG_LIVE_LIMIT));
+    logsUnsub = onSnapshot(q, snap => {
       logsData = snap.docs.map(d => ({ id:d.id, ...d.data(), processed_at:d.data().processed_at?.toDate() }));
       [...logsSelected].forEach(id => { if (!logsData.some(l=>l.id===id)) logsSelected.delete(id); });
       if (document.getElementById('view-logs').classList.contains('active')) renderLogs();
+    }, error => {
+      console.warn('subscribeLogs:', error);
+      logsUnsub = null;
     });
   } catch(e){ console.warn('subscribeLogs:', e); }
+}
+
+function unsubscribeLogs(){
+  if (!logsUnsub) return;
+  try { logsUnsub(); } catch(e) {}
+  logsUnsub = null;
 }
 
 function renderLogs(){
@@ -10173,7 +10265,7 @@ function renderLogs(){
     </tr>`;
   }).join('');
   const lateCount = logsData.filter(l => { const x=logLateness(l); return x.min!=null && x.min>15; }).length;
-  countEl.textContent = `${logsData.length} log(s)` + (lateCount ? ` · ${lateCount} posted late` : '');
+  countEl.textContent = `Latest ${logsData.length} log(s)` + (lateCount ? ` · ${lateCount} posted late` : '');
   updateLogsSelUI();
 }
 
@@ -10222,7 +10314,7 @@ window.openDeleteAllLogsConfirm = () => {
   if (!logsData.length){ toast('No logs to delete.','err'); return; }
   pendingLogDelete = { mode:'all' };
   document.getElementById('logs-confirm-text').innerHTML =
-    `<strong>Delete ALL ${logsData.length} snapshot log entries?</strong><br><br>` +
+    `<strong>Delete ALL snapshot log entries?</strong><br><br>` +
     `Only the log records are removed — snapshot data and New Critical comparisons are not affected.<br><br>` +
     `<span style="color:#880000">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
@@ -10237,12 +10329,17 @@ window.confirmDeleteLogs = async () => {
   let ids = [];
   if (mode === 'one')           ids = [pendingLogDelete.id];
   else if (mode === 'selected') ids = [...logsSelected];
-  else if (mode === 'all')      ids = logsData.map(l => l.id);
   document.getElementById('logs-confirm-overlay').classList.remove('open');
   pendingLogDelete = null;
-  if (!ids.length) return;
   setLoading(true, 'Deleting logs…');
   try {
+    // The live Logs view intentionally keeps only the latest records. Fetch the
+    // complete collection only for this explicit destructive admin action.
+    if (mode === 'all') {
+      const allLogs = await getDocs(collection(db, 'snapshot_logs'));
+      ids = allLogs.docs.map(entry => entry.id);
+    }
+    if (!ids.length) { toast('No logs to delete.', 'err'); return; }
     let batch = writeBatch(db), count = 0;
     for (const id of ids){
       batch.delete(doc(db,'snapshot_logs',id));
@@ -10805,7 +10902,7 @@ async function loadSnaps() {
   } catch(e){console.warn('loadSnaps:',e);}
 }
 async function cleanupOldSnapshots() {
-  if (!fbOk || !S.retentionDays) return; // 0 = keep forever
+  if (!fbOk || !S.retentionDays || !canDeleteSnapshots()) return; // 0 = keep forever
   try {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - S.retentionDays);
@@ -10825,7 +10922,7 @@ async function cleanupOldSnapshots() {
 }
 
 async function cleanupCsvImports() {
-  if (!fbOk) return;
+  if (!fbOk || !isAdmin()) return;
   const KEEP = 50; // keep well above the 10 shown in the upload history panel
   try {
     const q = query(collection(db, 'csv_imports'), orderBy('imported_at', 'desc'));
@@ -19815,10 +19912,8 @@ async function init(){
   setInterval(populateSlots, 60000);
   setInterval(() => { checkSlotReminder(); updateReminderPreview(); }, 30000); // balance-check reminder, offset after each slot
   checkSlotReminder(); updateReminderPreview();
-  setInterval(updatePresence, 60000); // heartbeat every minute
-  updatePresence();
+  startHeartbeatCoordinator();
   subscribePresence();
-  subscribeLogs();
   subscribeImportHistory();
   subscribeCritHistoryRealtime();
   subscribeCritSuppressedRealtime();
@@ -19827,10 +19922,7 @@ async function init(){
   subscribeNoThreshHistoryRealtime();
   // User roles: register/refresh my own record (drives the online list + lets the
   // admin assign a role), watch my role live, and — for the admin — the whole list.
-  upsertMyUserRole();
-  setInterval(upsertMyUserRole, 60000);
   subscribeMyRole();
-  subscribeAllUsers();
   // Stats and SMS Balance monitoring are available to every signed-in user.
   // The Client / Phoenix / Credentials stores are available to admin and semi-admin.
   initStats();
@@ -19862,9 +19954,17 @@ if (auth) {
       if (userLabel)  userLabel.textContent = user.email;
       if (signOutBtn) signOutBtn.style.display = '';
       if (!_appInitialized) { _appInitialized = true; init(); }
-      else loadStatsClassificationColumns().then(() => statsRender());
+      else {
+        startHeartbeatCoordinator();
+        subscribeMyRole();
+        if (document.body.classList.contains('users-mode')) subscribeAllUsers();
+        loadStatsClassificationColumns().then(() => statsRender());
+      }
       if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
+      stopHeartbeatCoordinator();
+      unsubscribeLogs();
+      unsubscribeAllUsers();
       currentUserEmail = '';
       currentUserUid = '';
       statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
@@ -19872,7 +19972,6 @@ if (auth) {
       applyStatsClassificationColumnVisibility();
       currentRole = 'viewer';
       if (myRoleUnsub) { try { myRoleUnsub(); } catch(e) {} myRoleUnsub = null; }
-      if (usersUnsub)  { try { usersUnsub();  } catch(e) {} usersUnsub  = null; }
       if (userLabel)  userLabel.textContent = '';
       if (signOutBtn) signOutBtn.style.display = 'none';
       showLoginOverlay();
