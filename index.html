@@ -1462,7 +1462,7 @@
     #st-tbl-hourly td.st-hr-cell.good     { background: var(--green-soft);  color: var(--green); }
     #st-tbl-hourly td.st-hr-cell.watch    { color: var(--text-3); }
     #st-tbl-hourly td.st-hr-cell.empty    { color: var(--text-3); }
-    /* Combined multi-metric cells (ASR & ACD / Attempt, ASR & ACD) */
+    /* Combined multi-metric cells (ASR & ACD / Attempt, ASR, ACD & Raw Dur) */
     #st-tbl-hourly td.st-hr-cell .st-hr-line { display: block; line-height: 1.4; }
     #st-tbl-hourly td.st-hr-cell .st-hr-sub  { font-size: 11px; color: var(--text-2); }
     #st-tbl-hourly td.st-hr-cell .st-hr-k    { color: var(--text-2); font-weight: 500; margin-right: 5px; }
@@ -4395,13 +4395,14 @@
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
           <div class="fbar">
             <input id="st-hr-search" class="win-inp" placeholder="Search client…" oninput="onStatsHourlySearchInput()" style="width:160px">
-            <select id="st-hr-metric" class="win-sel" onchange="setStatsHourlyMetric(this.value)" title="Metric shown in each hourly cell" style="width:150px">
+            <select id="st-hr-metric" class="win-sel" onchange="setStatsHourlyMetric(this.value)" title="Metric shown in each hourly cell" style="width:205px">
               <option value="asr">ASR %</option>
               <option value="acd">ACD (min)</option>
               <option value="attempts">Attempts</option>
               <option value="completed">Completed</option>
+              <option value="raw_dur">Raw Dur</option>
               <option value="asr_acd">ASR &amp; ACD</option>
-              <option value="att_asr_acd" selected>Attempt, ASR &amp; ACD</option>
+              <option value="att_asr_acd" selected>Attempt, ASR, ACD &amp; Raw Dur</option>
             </select>
             <button class="tbtn" id="st-hr-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
             <span class="sms-muted" id="st-hr-count" style="margin-left:auto"></span>
@@ -17219,7 +17220,7 @@ let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'asr', statsSortDir = 1;
 let statsSummarySort = null;
 let statsHideDID = false;      // hide account codes containing "-DID"
-let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | asr_acd | att_asr_acd
+let statsHourlyMetric = 'att_asr_acd'; // metric shown per hour in the Hourly pivot: asr | acd | attempts | completed | raw_dur | asr_acd | att_asr_acd
 let statsHourlyFocusKey = null;   // when set, the Hourly view is pinned to this one gkey (Account Code | Destination)
 let statsHourlyFocusLabel = '';   // friendly label for the focus banner
 let statsStoppedShowDID = false;  // Stopped tab hides -DID accounts by default
@@ -19353,6 +19354,7 @@ function statsHourlyCell(g, bold) {
   if (metric === 'acd')       return `<td class="st-hr-cell ${g.acdcls}"${b}>${stN2(g.acd)}</td>`;
   if (metric === 'attempts')  return `<td class="st-hr-cell"${b}>${stN0(g.attempts)}</td>`;
   if (metric === 'completed') return `<td class="st-hr-cell"${b}>${stN0(g.completed)}</td>`;
+  if (metric === 'raw_dur')   return `<td class="st-hr-cell"${b}>${stN2(g.raw_dur)}</td>`;
   if (metric === 'asr_acd')   return `<td class="st-hr-cell ${g.cls}"${b}>`
       + `<span class="st-hr-line"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
       + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span></td>`;
@@ -19361,7 +19363,8 @@ function statsHourlyCell(g, bold) {
       + `<span class="st-hr-line st-hr-pair">`
       +   `<span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(g.asr)}</span>`
       +   `<span class="st-hr-seg"><span class="st-hr-k">ACD</span>${stN2(g.acd)}</span>`
-      + `</span></td>`;
+      + `</span>`
+      + `<span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(g.raw_dur)}</span></td>`;
   return `<td class="st-hr-cell ${g.cls}"${b}>${stN2(g.asr)}</td>`;   // asr (default)
 }
 
