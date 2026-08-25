@@ -277,6 +277,29 @@
     .tbtn.primary:hover { background: var(--accent-strong); }
     .tbtn.danger { background: var(--red); color: #fff; border-color: transparent; font-weight: 600; }
     .tbtn.danger:hover { background: var(--red-deep); }
+    /* Compact premium action menus keep secondary history/settings destinations
+       reachable without consuming the full toolbar on smaller laptops. */
+    .app-action-menu { position: relative; display: inline-flex; flex-shrink: 0; }
+    .app-action-menu-trigger svg { width: 14px; height: 14px; }
+    .app-action-menu:has(.app-action-menu-panel .active) > .app-action-menu-trigger {
+      background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600;
+    }
+    .app-action-menu-panel {
+      position: fixed; z-index: 2650; display: none; gap: 3px;
+      min-width: 190px; max-width: min(260px, calc(100vw - 16px)); padding: 7px;
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+      border-radius: 12px;
+      box-shadow: 0 20px 54px rgba(15,27,48,.24), 0 4px 14px rgba(15,27,48,.12), inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    }
+    .app-action-menu-panel.open { display: grid; animation: premiumSelectIn .14s cubic-bezier(.22,1,.36,1); }
+    .app-action-menu-panel .tbtn {
+      width: 100%; min-height: 34px; justify-content: flex-start; border-color: transparent;
+      border-radius: 8px; background: transparent; padding: 7px 10px;
+    }
+    .app-action-menu-panel .tbtn:hover { background: var(--surface-2); border-color: transparent; }
+    .app-action-menu-panel .tbtn.active { background: var(--accent-soft); color: var(--accent); }
     /* "Cancel Edit" (SMS form) — amber outline so it stands out beside the
        blue "Save Changes" and reads as "discard", distinct from red delete. */
     #sms-cancel-edit-btn {
@@ -1184,6 +1207,9 @@
     body.stats-mode #snd-dismiss-btn,
     body.stats-mode #sync-label,
     body.stats-mode #sidebar-snap { display: none !important; }
+    body.stats-mode #voip-action-menu,
+    body.traffic-mode #voip-action-menu,
+    body.users-mode #voip-action-menu { display:none !important; }
     body.stats-mode #view-banner { display: none !important; }
     #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 6px; overflow: hidden; padding: 10px 8px 8px; }
     body.stats-mode #stats-sidebar-snap { display: flex; }
@@ -1316,9 +1342,10 @@
     .st-traffic-trend.unchanged { background: var(--surface-3); color: var(--text-2); }
     .st-traffic-trend.none { padding-left: 0; background: transparent; color: var(--text-3); font-weight: 500; }
     tr.st-stopped-active td { background: var(--red-soft); }
-    .st-stopped-status { display:inline-flex; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .st-stopped-status { display:inline-flex; flex-direction:column; align-items:center; gap:1px; padding:3px 8px; border-radius:9px; font-size:10px; font-weight:700; white-space:nowrap; line-height:1.15; }
     .st-stopped-status.active { background:var(--red-soft); color:var(--red); }
     .st-stopped-status.resumed { background:var(--green-soft); color:var(--green); }
+    .st-stopped-time { display:block; font-size:9px; font-weight:600; opacity:.82; }
     #stats-snap-list {
       flex: 1; overflow-y: auto; min-height: 40px;
       background: var(--surface);
@@ -1405,7 +1432,12 @@
     .st-hr-focus-clear:hover { color: var(--text); border-color: var(--accent); }
     .st-val-bad { color: var(--red); font-weight: 600; }
     /* Per-client remarks column */
-    td.st-remark-cell { text-align: center; cursor: pointer; user-select: none; width: 48px; }
+    td.st-remark-cell { text-align: center; user-select: none; width: 48px; }
+    .st-remark-btn {
+      display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0;
+      border:0; border-radius:6px; background:transparent; color:inherit; cursor:pointer;
+    }
+    .st-remark-btn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
     .st-remark-ico {
       display: inline-flex; align-items: center; justify-content: center;
       width: 20px; height: 20px; border-radius: 4px;
@@ -3033,6 +3065,11 @@
           <polyline points="1.5 9.5, 4.5 9.5, 6.5 4.5, 9.5 12.5, 11.5 8, 12.5 9.5, 14.5 9.5"/>
         </svg>
       </button>
+      <button class="micon" id="view-menu-sms" onclick="animateModuleIcon(this); switchModule('sms')" title="SMS">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
+        </svg>
+      </button>
       <button class="micon" id="view-menu-stats" onclick="animateModuleIcon(this); switchModule('stats')" title="Stats">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="3" y1="13.5" x2="3" y2="9.5"/>
@@ -3045,17 +3082,10 @@
           <path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-sms" onclick="animateModuleIcon(this); switchModule('sms')" title="Balance Monitor SMS">
+      <button class="micon" id="view-menu-users" onclick="animateModuleIcon(this); switchModule('users')" title="Admin" aria-label="Admin" style="display:none">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 4.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5z"/>
-        </svg>
-      </button>
-      <button class="micon" id="view-menu-users" onclick="animateModuleIcon(this); switchModule('users')" title="Users &amp; Roles" style="display:none">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="6" cy="5.2" r="2.3"/>
-          <path d="M1.8 13.2c0-2.4 1.9-4 4.2-4s4.2 1.6 4.2 4"/>
-          <circle cx="11.6" cy="5.8" r="1.7"/>
-          <path d="M10.6 9.5c2 .1 3.6 1.5 3.6 3.7"/>
+          <path d="M8 1.5 13 3.4v3.8c0 3.2-2 5.9-5 7.3-3-1.4-5-4.1-5-7.3V3.4z"/>
+          <path d="m5.7 8 1.5 1.5 3.3-3.3"/>
         </svg>
       </button>
     </div>
@@ -3098,10 +3128,19 @@
     <button class="tbtn"        id="tnav-client-manager" onclick="switchView('client-manager')">Client Manager</button>
     <button class="tbtn"        id="tnav-export"      onclick="switchView('export')">Export</button>
     <div class="tsep tsep-bal"></div>
-    <button class="tbtn" id="tnav-logs" onclick="switchView('logs')">Logs</button>
-    <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots">Critical History</button>
-    <button class="tbtn" id="tnav-spam-history" onclick="switchView('spam-history')" title="Every client flagged by Possible Spam — retained even after being marked Not Spam">Flagged Spam</button>
-    <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots">No Threshold</button>
+    <div class="app-action-menu" id="voip-action-menu">
+      <button type="button" class="tbtn app-action-menu-trigger" id="voip-action-menu-trigger" onclick="toggleAppActionMenu('voip',event)" aria-haspopup="true" aria-expanded="false" aria-controls="voip-action-menu-panel" data-premium-tooltip="Open VOIP logs, histories, and settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
+        More
+      </button>
+      <div class="app-action-menu-panel" id="voip-action-menu-panel" role="menu">
+        <button class="tbtn" id="tnav-logs" onclick="switchView('logs')" role="menuitem">Logs</button>
+        <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots" role="menuitem">Critical History</button>
+        <button class="tbtn" id="tnav-spam-history" onclick="switchView('spam-history')" title="Every client flagged by Possible Spam — retained even after being marked Not Spam" role="menuitem">Flagged Spam</button>
+        <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots" role="menuitem">No Threshold</button>
+        <button class="tbtn" id="tnav-settings" onclick="switchView('settings')" role="menuitem">Settings</button>
+      </div>
+    </div>
     <button class="tbtn stats-tab" id="stnav-stats-summary"  onclick="switchStatsView('summary')">Summary</button>
     <button class="tbtn stats-tab" id="stnav-stats-all"      onclick="switchStatsView('all')">All Clients</button>
     <button class="tbtn stats-tab" id="stnav-stats-hourly"   onclick="switchStatsView('hourly')">Hourly</button>
@@ -3116,10 +3155,8 @@
       <div class="col-dd" id="stats-column-picker-menu" role="group" aria-label="Visible Stats status-table columns"></div>
     </div>
     <button class="tbtn stats-tab" id="stnav-stats-settings" onclick="switchStatsView('settings')">Settings</button>
-    <div class="tsep tsep-bal"></div>
-    <button class="tbtn" id="tnav-settings" onclick="switchView('settings')">Settings</button>
     <button class="tbtn" id="snd-dismiss-btn" onclick="stopAlertSound()" title="Stop alarm sound">Dismiss Sound</button>
-    <span id="users-toolbar-label">Users &amp; Roles</span>
+    <span id="users-toolbar-label">Admin</span>
     <span id="sync-label">No data loaded</span>
   </div>
 
@@ -3563,6 +3600,7 @@
                 <th onclick="sortSpamHist('name')">Client</th>
                 <th onclick="sortSpamHist('count')" style="text-align:right">Times Flagged</th>
                 <th onclick="sortSpamHist('usage')" style="text-align:right">Last 30m Usage</th>
+                <th onclick="sortSpamHist('maxUsage')" style="text-align:right" title="Highest recorded 30-minute usage for this client">Highest 30m Usage</th>
                 <th onclick="sortSpamHist('ratio')" style="text-align:right">vs Normal</th>
                 <th onclick="sortSpamHist('tier')">Last Tier</th>
                 <th onclick="sortSpamHist('status')">Review Status</th>
@@ -3628,10 +3666,18 @@
                 <button class="tbtn" id="sms-bal-nav-all" onclick="switchSmsBalanceView('all')" data-premium-tooltip="Complete current client list, separated into Reseller and Wholesale.">All Clients</button>
                 <button class="tbtn" id="sms-bal-nav-manager" onclick="switchSmsBalanceView('manager')" data-premium-tooltip="Maintain required SMS balance thresholds by type or bulk overwrite them from CSV.">Client Manager</button>
                 <button class="tbtn" id="sms-bal-nav-export" onclick="switchSmsBalanceView('export')" data-premium-tooltip="Generate the four-sheet day and night SMS Balance workbook.">Export</button>
-                <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')" data-premium-tooltip="Review and delete SMS Balance snapshots by scheduled slot.">Logs</button>
-                <button class="tbtn" id="sms-bal-nav-critical-history" onclick="switchSmsBalanceView('critical-history')" data-premium-tooltip="Persistent history of clients that entered a critical SMS balance state.">Critical History</button>
-                <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')" data-premium-tooltip="Persistent history of clients seen without credit and critical thresholds.">No Threshold History</button>
-                <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')" data-premium-tooltip="Configure SMS Balance alerts, retention, and themed data controls.">SMS Settings</button>
+                <div class="app-action-menu" id="sms-action-menu">
+                  <button type="button" class="tbtn app-action-menu-trigger" id="sms-action-menu-trigger" onclick="toggleAppActionMenu('sms',event)" aria-haspopup="true" aria-expanded="false" aria-controls="sms-action-menu-panel" data-premium-tooltip="Open SMS logs, histories, and settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
+                    More
+                  </button>
+                  <div class="app-action-menu-panel" id="sms-action-menu-panel" role="menu">
+                    <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')" data-premium-tooltip="Review and delete SMS Balance snapshots by scheduled slot." role="menuitem">Logs</button>
+                    <button class="tbtn" id="sms-bal-nav-critical-history" onclick="switchSmsBalanceView('critical-history')" data-premium-tooltip="Persistent history of clients that entered a critical SMS balance state." role="menuitem">Critical History</button>
+                    <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')" data-premium-tooltip="Persistent history of clients seen without credit and critical thresholds." role="menuitem">No Threshold History</button>
+                    <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')" data-premium-tooltip="Configure SMS Balance alerts, retention, and themed data controls." role="menuitem">SMS Settings</button>
+                  </div>
+                </div>
                 <span class="sms-muted" id="sms-bal-sync-label" style="margin-left:auto">No SMS balance snapshot</span>
               </div>
               <div class="sms-bal-shell">
@@ -3827,10 +3873,10 @@
                       <div class="groupbox-title">SMS Danger Zone</div>
                       <div class="sms-bal-note">These actions affect only SMS Balance Monitor data. VOIP snapshots, Client, SMS Phoenix Platform, Credentials, and Flagged Spam are not touched.</div>
                       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
-                        <button class="tbtn danger" id="sms-bal-delete-today-btn" onclick="deleteTodaySmsBalanceSnapshots()">Delete Today's SMS Snapshots</button>
-                        <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()">Delete ALL SMS Snapshots</button>
-                        <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()">Clear SMS Critical History</button>
-                        <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()">Clear SMS No-Threshold List</button>
+                        <button class="tbtn danger" id="sms-bal-delete-today-btn" onclick="deleteTodaySmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-filter="today" data-count-label="SMS snapshot">Delete Today's SMS Snapshots</button>
+                        <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-label="SMS snapshot">Delete ALL SMS Snapshots</button>
+                        <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()" data-count-collection="sms_balance_history" data-count-label="SMS critical-history record">Clear SMS Critical History</button>
+                        <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()" data-count-collection="sms_balance_no_threshold" data-count-label="SMS no-threshold record">Clear SMS No-Threshold List</button>
                       </div>
                     </div>
                   </section>
@@ -4549,9 +4595,9 @@
   <div id="statusbar">
     <div class="sb-pane" id="sb-status">Ready</div>
     <div class="sb-pane" id="sb-sync">Balance Monitor VOIP: No snapshot posted</div>
+    <div class="sb-pane" id="sb-sms-last">Balance Monitor SMS: No snapshot posted</div>
     <div class="sb-pane" id="sb-stats-last">Stats: No snapshot posted</div>
     <div class="sb-pane" id="sb-daily-last">Daily Traffic: No snapshot posted</div>
-    <div class="sb-pane" id="sb-operators"></div>
     <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name"><span id="sb-opname">Set name…</span></div>
   </div>
 </div><!-- /#win -->
@@ -4771,29 +4817,29 @@
         <div class="settings-danger" id="voip-settings-danger-zone">
           <div style="margin-bottom:5px">Delete snapshots saved from 12:00 AM through 11:59 PM today for one source. This can affect New Critical comparisons.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm('snapshots')">Delete Today Snapshots for All Clients</button>
-            <button class="tbtn" style="color:#880000" onclick="openDeleteTodayConfirm('tritel')">Delete Today Snapshots for Tritel</button>
+            <button class="tbtn" id="voip-delete-today-snapshots-btn" style="color:#880000" onclick="openDeleteTodayConfirm('snapshots')" data-count-collection="snapshots" data-count-filter="today" data-count-label="VOIP snapshot">Delete Today Snapshots for All Clients</button>
+            <button class="tbtn" id="voip-delete-today-tritel-btn" style="color:#880000" onclick="openDeleteTodayConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-filter="today" data-count-label="Tritel snapshot">Delete Today Snapshots for Tritel</button>
           </div>
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')">Delete ALL Snapshots</button>
-            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('tritel')">Delete ALL Tritel Snapshots</button>
+            <button class="tbtn" id="voip-delete-all-snapshots-btn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')" data-count-collection="snapshots" data-count-label="VOIP snapshot">Delete ALL Snapshots</button>
+            <button class="tbtn" id="voip-delete-all-tritel-btn" style="color:#880000" onclick="openWipeAllConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-label="Tritel snapshot">Delete ALL Tritel Snapshots</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-critical-history-btn" style="color:#880000" onclick="openCritHistWipeConfirm()">Delete ALL Critical History</button>
+            <button class="tbtn" id="voip-delete-critical-history-btn" style="color:#880000" onclick="openCritHistWipeConfirm()" data-count-collection="critical_history" data-count-label="critical-history record">Delete ALL Critical History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Flagged Spam History</strong> tab. Possible Spam detection and its baseline are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-spam-history-btn" style="color:#880000" onclick="openSpamHistWipeConfirm()">Delete ALL Flagged Spam History</button>
+            <button class="tbtn" id="voip-delete-spam-history-btn" style="color:#880000" onclick="openSpamHistWipeConfirm()" data-count-collection="spam_history" data-count-label="flagged-spam client record">Delete ALL Flagged Spam History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>No-Threshold Clients</strong> tab — the separate log of every client seen in a snapshot with no threshold set. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-clear-no-threshold-btn" style="color:#880000" onclick="openNoThreshWipeConfirm()">Clear No-Threshold List</button>
+            <button class="tbtn" id="voip-clear-no-threshold-btn" style="color:#880000" onclick="openNoThreshWipeConfirm()" data-count-collection="no_threshold_history" data-count-label="no-threshold client record">Clear No-Threshold List</button>
           </div>
           <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected. You can optionally keep a date/time range so its samples are preserved as-is. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-reset-spam-baseline-btn" style="color:#880000" onclick="openSpamResetConfirm()">Reset Spam Baseline</button>
+            <button class="tbtn" id="voip-reset-spam-baseline-btn" style="color:#880000" onclick="openSpamResetConfirm()" data-count-collection="usage_profiles" data-count-label="client usage profile">Reset Spam Baseline</button>
           </div>
         </div>
       </div>
@@ -4815,7 +4861,7 @@
         <div class="settings-danger" id="stats-clear-previous-day-setting">
           <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Prev Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
           <div class="danger-btns">
-            <button class="tbtn" id="stats-clear-previous-day-btn" style="color:#880000" onclick="clearStatsPreviousDaySnapshots()">Clear Previous-Day Stats Comparison</button>
+            <button class="tbtn" id="stats-clear-previous-day-btn" style="color:#880000" onclick="clearStatsPreviousDaySnapshots()" data-count-collection="stats_snapshots" data-count-filter="previous-stats-day" data-count-label="previous-day Stats snapshot">Clear Previous-Day Stats Comparison</button>
           </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
@@ -4823,7 +4869,7 @@
         <div class="settings-danger">
           <div style="margin-bottom:5px">Wipe the entire <strong>stats_snapshots</strong> Firestore collection — every stored day, not just today. Balance snapshots, New Critical comparison and spam baseline are not affected. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
-            <button class="tbtn" style="color:#880000" onclick="openWipeAllConfirm('stats')">Delete ALL Stats Snapshots</button>
+            <button class="tbtn" id="stats-delete-all-snapshots-btn" style="color:#880000" onclick="openWipeAllConfirm('stats')" data-count-collection="stats_snapshots" data-count-label="Stats snapshot">Delete ALL Stats Snapshots</button>
           </div>
         </div>
       </div>
@@ -4851,7 +4897,7 @@
         <div class="settings-danger" id="stats-daily-wipe-setting">
           <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data. <strong>Admin only.</strong></div>
           <div class="danger-btns">
-            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')">Delete ALL Daily Traffic History</button>
+            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete ALL Daily Traffic History</button>
           </div>
         </div>
       </div>
@@ -5438,7 +5484,7 @@ window.addEventListener('unhandledrejection', function(e) {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getFirestore, collection, addDoc, getDocs, getDoc, setDoc, doc, deleteDoc,
-  query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit, deleteField
+  query, orderBy, where, onSnapshot, Timestamp, writeBatch, limit, deleteField, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
@@ -5770,6 +5816,43 @@ function closeViewMenu() {
   document.getElementById('view-menu')?.classList.remove('open');
 }
 
+function closeAppActionMenus(exceptName = '') {
+  document.querySelectorAll('.app-action-menu-panel.open').forEach(panel => {
+    if (exceptName && panel.id === `${exceptName}-action-menu-panel`) return;
+    panel.classList.remove('open');
+    panel.closest('.app-action-menu')?.querySelector('.app-action-menu-trigger')?.setAttribute('aria-expanded','false');
+  });
+}
+
+window.toggleAppActionMenu = (name, event) => {
+  event?.stopPropagation();
+  const panel = document.getElementById(`${name}-action-menu-panel`);
+  const trigger = document.getElementById(`${name}-action-menu-trigger`);
+  if (!panel || !trigger) return;
+  const opening = !panel.classList.contains('open');
+  closeAppActionMenus(name);
+  panel.classList.toggle('open', opening);
+  trigger.setAttribute('aria-expanded', String(opening));
+  if (!opening) return;
+  requestAnimationFrame(() => {
+    const rect = trigger.getBoundingClientRect();
+    const width = panel.offsetWidth || 210;
+    const height = panel.offsetHeight || 180;
+    panel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)) + 'px';
+    const below = rect.bottom + 6;
+    panel.style.top = (below + height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - height - 6)) + 'px';
+    panel.querySelector('.tbtn.active, .tbtn')?.focus({preventScroll:true});
+  });
+};
+document.addEventListener('click', event => {
+  if (!event.target.closest?.('.app-action-menu')) closeAppActionMenus();
+});
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAppActionMenus(); });
+window.addEventListener('resize', () => closeAppActionMenus());
+document.addEventListener('scroll', event => {
+  if (!event.target.closest?.('.app-action-menu-panel')) closeAppActionMenus();
+}, true);
+
 function updateViewMenuState() {
   const smsMode   = document.body.classList.contains('sms-mode');
   const stMode    = document.body.classList.contains('stats-mode');
@@ -5781,10 +5864,10 @@ function updateViewMenuState() {
   document.getElementById('view-menu-traffic')?.classList.toggle('active', trafficMode);
   document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
-  if (title) title.textContent = smsMode ? 'BalanceMonitor SMS'
+  if (title) title.textContent = smsMode ? 'SMS'
     : stMode ? 'BalanceMonitor - Stats'
     : trafficMode ? 'BalanceMonitor - Traffic'
-    : usersMode ? 'BalanceMonitor - Users' : 'BalanceMonitor VOIP';
+    : usersMode ? 'Admin' : 'BalanceMonitor VOIP';
 }
 
 window.toggleViewMenu = e => {
@@ -6373,7 +6456,7 @@ window.switchModule = module => {
     updateViewMenuState();
     subscribeAllUsers();
     usersRender();
-    setSbStatus('Viewing: Users & Roles');
+    setSbStatus('Viewing: Admin');
     return;
   }
   if (module === 'sms') {
@@ -6387,7 +6470,7 @@ window.switchModule = module => {
     updateViewMenuState();
     updateSmsTabUi();
     renderActiveSmsView();
-    setSbStatus('Viewing: Balance Monitor SMS');
+    setSbStatus('Viewing: SMS');
     return;
   }
   if (module === 'stats') {
@@ -6413,7 +6496,7 @@ window.switchModule = module => {
     updateViewMenuState();
     syncStatsDailyImportDate();
     renderStatsDailyTraffic();
-    setSbStatus('Traffic: Daily Traffic');
+    setSbStatus('Viewing: Daily Traffic');
     return;
   }
   document.body.classList.remove('sms-mode');
@@ -6432,6 +6515,7 @@ window.switchView = name => {
   unsubscribeAllUsers();
   if (name !== 'logs') unsubscribeLogs();
   closeViewMenu();
+  closeAppActionMenus();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
   document.body.classList.remove('traffic-mode', 'stats-daily-mode', 'stats-daily-today-tab');
@@ -6449,7 +6533,7 @@ window.switchView = name => {
   if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { subscribeLogs(); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
-  if (name==='spam-history')  { ensureSpamFlagHistory(); renderSpamHistory(); }
+  if (name==='spam-history')  { ensureSpamFlagHistory(); ensureSpamHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
 };
 
@@ -7845,6 +7929,7 @@ function ensureSpamHistory() {
       subscribeUsageProfileData();
       scanSpamSuspects(); // seed the alerter (silent first pass) now the baseline is ready
       if (document.getElementById('view-alerts')?.classList.contains('active')) renderAlerts();
+      if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
     })
     .catch(() => { _spamKicked = false; });
 }
@@ -7955,6 +8040,8 @@ function spamFlagHistoryMapFromDocs(docs) {
       d:String(event.d || ''), s:String(event.s || ''),
       usage:amountNumber(event.usage), signal:amountNumber(event.signal),
       median:amountNumber(event.median), z:amountNumber(event.z),
+      profile_max:event.profile_max == null ? null : amountNumber(event.profile_max),
+      profile_max_date:String(event.profile_max_date || ''), profile_max_slot:String(event.profile_max_slot || ''),
       ratio:event.ratio == null ? NaN : Number(event.ratio),
       tier:event.tier === 'high' ? 'high' : 'watch', not_spam:!!event.not_spam,
       ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null),
@@ -8029,6 +8116,8 @@ async function persistSpamFlagHistoryDocs(names) {
           events:record.events.map(event => ({
             d:event.d, s:event.s, usage:event.usage, signal:event.signal,
             median:event.median, z:event.z,
+            profile_max:Number.isFinite(event.profile_max) ? event.profile_max : null,
+            profile_max_date:event.profile_max_date || '', profile_max_slot:event.profile_max_slot || '',
             ratio:Number.isFinite(event.ratio) ? event.ratio : null,
             tier:event.tier, not_spam:!!event.not_spam,
             ts:toTimestamp(event.ts), reviewed_at:event.reviewed_at ? toTimestamp(event.reviewed_at) : null,
@@ -8065,6 +8154,8 @@ async function recordSpamFlagsNow(date, slot, ts, suspects) {
     record.events.push({
       d:date, s:slot, usage:amountNumber(suspect.usage), signal:amountNumber(suspect.signal),
       median:amountNumber(suspect.median), z:amountNumber(suspect.z), ratio:Number(suspect.ratio),
+      profile_max:Number.isFinite(suspect.profileMax) ? suspect.profileMax : null,
+      profile_max_date:suspect.profileMaxDate || '', profile_max_slot:suspect.profileMaxSlot || '',
       tier:suspect.tier === 'high' ? 'high' : 'watch', not_spam:false,
       ts:ts instanceof Date ? ts : new Date(), reviewed_at:null,
     });
@@ -8114,8 +8205,12 @@ function spamHistRows() {
   (_spamFlagHistory || new Map()).forEach((record,name) => {
     if (!record?.events?.length) return;
     const first = record.events[0], last = record.events[record.events.length - 1];
+    const profileUsages = ((_profileSamples && _profileSamples.get(name)) || []).map(sample => amountNumber(sample?.u));
+    const recordedHighs = record.events.flatMap(event => [amountNumber(event.usage), amountNumber(event.profile_max)]);
+    const maxUsage = [...profileUsages, ...recordedHighs].filter(value => Number.isFinite(value) && value > 0)
+      .reduce((highest, value) => Math.max(highest, value), 0);
     rows.push({
-      name, count:record.events.length, usage:last.usage, ratio:last.ratio,
+      name, count:record.events.length, usage:last.usage, maxUsage, ratio:last.ratio,
       tier:last.tier, notSpam:!!last.not_spam,
       firstD:first.d, firstS:first.s, lastD:last.d, lastS:last.s,
       _first:spamHistKey(first.d,first.s), _last:spamHistKey(last.d,last.s),
@@ -8140,7 +8235,7 @@ function renderSpamHistory() {
   rows.sort((a,b) => {
     const values = {
       name:[a.name.toLowerCase(),b.name.toLowerCase()], count:[a.count,b.count],
-      usage:[a.usage,b.usage], ratio:[a.ratio,b.ratio], tier:[a.tier,b.tier],
+      usage:[a.usage,b.usage], maxUsage:[a.maxUsage,b.maxUsage], ratio:[a.ratio,b.ratio], tier:[a.tier,b.tier],
       status:[a.notSpam ? 1 : 0,b.notSpam ? 1 : 0], first:[a._first,b._first], last:[a._last,b._last],
     }[spamHistSortCol] || [a._first,b._first];
     if (values[0] < values[1]) return -direction;
@@ -8154,13 +8249,13 @@ function renderSpamHistory() {
   tbody.innerHTML = rows.map(row => `
     <tr ondblclick="openClientPopup('${escAttr(row.name)}')" style="cursor:pointer" title="Double-click for client details">
       <td><strong>${esc(row.name)}</strong></td><td class="num">${row.count}</td>
-      <td class="num">${fmt(row.usage)}</td><td class="num">${Number.isFinite(row.ratio) ? `${row.ratio.toFixed(1)}×` : '—'}</td>
+      <td class="num">${fmt(row.usage)}</td><td class="num">${row.maxUsage > 0 ? fmt(row.maxUsage) : '—'}</td><td class="num">${Number.isFinite(row.ratio) ? `${row.ratio.toFixed(1)}×` : '—'}</td>
       <td><span class="stbadge ${row.tier === 'high' ? 'critical' : 'low'}">${row.tier === 'high' ? 'High' : 'Watch'}</span></td>
       <td><span class="stbadge ${row.notSpam ? 'good' : 'watch'}">${row.notSpam ? 'Marked Not Spam' : 'Flagged'}</span></td>
       <td style="white-space:nowrap">${esc(row.firstD)}${row.firstS ? ` · ${esc(fmt12(row.firstS))}` : ''}</td>
       <td style="white-space:nowrap">${esc(row.lastD)}${row.lastS ? ` · ${esc(fmt12(row.lastS))}` : ''}</td>
       ${spamHistAdminActions(row)}
-    </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="10" style="text-align:center;padding:16px;color:#666">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
 }
 
 function spamHistAdminActions(row) {
@@ -8216,9 +8311,9 @@ window.exportSpamHistory = () => {
   if (spamHistSearch) rows = rows.filter(row => row.name.toLowerCase().includes(spamHistSearch));
   if (!rows.length) { toast('Nothing to export.', 'err'); return; }
   const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-  const lines = [['Client','Times Flagged','Last 30m Usage','vs Normal','Last Tier','Review Status','First Flagged','Last Flagged'].map(csvCell).join(',')];
+  const lines = [['Client','Times Flagged','Last 30m Usage','Highest 30m Usage','vs Normal','Last Tier','Review Status','First Flagged','Last Flagged'].map(csvCell).join(',')];
   rows.forEach(row => lines.push([
-    row.name,row.count,row.usage,Number.isFinite(row.ratio) ? row.ratio : '',row.tier,
+    row.name,row.count,row.usage,row.maxUsage || '',Number.isFinite(row.ratio) ? row.ratio : '',row.tier,
     row.notSpam ? 'Marked Not Spam' : 'Flagged',`${row.firstD} ${row.firstS}`,`${row.lastD} ${row.lastS}`,
   ].map(csvCell).join(',')));
   const link = document.createElement('a');
@@ -10177,6 +10272,68 @@ function applyModuleAccess(){
     window.switchSmsTab('balance');
   }
 }
+
+/* Settings danger-button counts are fetched lazily so ordinary app startup does
+   not scan or download destructive collections. The premium tooltip updates in
+   place while the pointer remains on the button. */
+function localSettingsDataCount(collectionName, filterName = '') {
+  const todayOnly = list => (list || []).filter(item => !filterName || item?.session_date === todayStr()).length;
+  const counts = {
+    snapshots: () => todayOnly(todaySnaps),
+    tritel_snapshots: () => todayOnly(tritelSnaps),
+    critical_history: () => _critHits instanceof Map ? _critHits.size : 0,
+    spam_history: () => _spamFlagHistory instanceof Map ? _spamFlagHistory.size : 0,
+    no_threshold_history: () => _noThreshSeen instanceof Map ? _noThreshSeen.size : 0,
+    usage_profiles: () => _profileSamples instanceof Map ? _profileSamples.size : 0,
+    sms_balance_snapshots: () => todayOnly(smsBalanceTodaySnaps),
+    sms_balance_history: () => (smsBalanceHistory || []).length,
+    sms_balance_no_threshold: () => (smsBalanceNoThreshold || []).length,
+    stats_snapshots: () => filterName === 'previous-stats-day' ? (statsPreviousDaySnaps || []).length : (statsTodaySnaps || []).length,
+    stats_daily_traffic: () => (statsDailyHistory || []).length,
+  };
+  return counts[collectionName]?.() ?? 0;
+}
+
+function settingsCountTooltipText(button, count, exact = true) {
+  const unit = button.dataset.countLabel || 'record';
+  return `${exact ? 'Contains' : 'Known in this browser'}: ${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'}.`;
+}
+
+async function refreshSettingsCountTooltip(button) {
+  if (!button || button.dataset.countLoading === 'true') return;
+  const last = Number(button.dataset.countAt || 0);
+  if (last && Date.now() - last < 5000) return;
+  button.dataset.countLoading = 'true';
+  button.dataset.premiumTooltip = 'Checking how many records are stored…';
+  const collectionName = button.dataset.countCollection;
+  const filterName = button.dataset.countFilter || '';
+  try {
+    if (filterName === 'previous-stats-day') {
+      const count = localSettingsDataCount(collectionName, filterName);
+      button.dataset.premiumTooltip = settingsCountTooltipText(button, count, true);
+    } else if (fbOk) {
+      let target = collection(db, collectionName);
+      if (filterName === 'today') target = query(target, where('session_date', '==', todayStr()));
+      const result = await getCountFromServer(target);
+      button.dataset.premiumTooltip = settingsCountTooltipText(button, result.data().count, true);
+    } else {
+      button.dataset.premiumTooltip = settingsCountTooltipText(button, localSettingsDataCount(collectionName, filterName), false);
+    }
+  } catch (error) {
+    button.dataset.premiumTooltip = settingsCountTooltipText(button, localSettingsDataCount(collectionName, filterName), false);
+  } finally {
+    button.dataset.countAt = String(Date.now());
+    delete button.dataset.countLoading;
+  }
+}
+
+document.querySelectorAll('button[data-count-collection]').forEach(button => {
+  button.dataset.premiumTooltip = 'Hover to check how many records this action affects.';
+});
+document.addEventListener('pointerover', event => {
+  const button = event.target.closest?.('button[data-count-collection]');
+  if (button && !button.contains(event.relatedTarget)) refreshSettingsCountTooltip(button);
+}, true);
 
 function fmtDur(min){
   if (min < 60) return `${min} min`;
@@ -13825,12 +13982,14 @@ function renderSmsBalanceModule() {
   window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
   const sync=document.getElementById('sms-bal-sync-label');
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
+  updateSmsBalanceStatusBar();
   window.switchSmsBalanceView(smsBalanceView, false);
 }
 window.switchSmsBalanceView = (view, persist=true) => {
   if(!SMS_BALANCE_VIEWS.has(view))view='summary';
   if(view==='manager'&&!canEditClients())view='all';
   smsBalanceView=view;if(persist)localStorage.setItem('bm_sms_balance_view',view);
+  closeAppActionMenus();
   document.querySelectorAll('.sms-bal-subnav .tbtn').forEach(btn=>btn.classList.remove('active'));
   document.getElementById(`sms-bal-nav-${view}`)?.classList.add('active');
   document.querySelectorAll('.sms-bal-view').forEach(panel=>panel.classList.remove('active'));
@@ -13839,6 +13998,16 @@ window.switchSmsBalanceView = (view, persist=true) => {
   if(view==='manager')window.renderSmsBalanceManager(); if(view==='logs')renderSmsBalanceLogs();
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
 };
+
+function updateSmsBalanceStatusBar() {
+  const pane = document.getElementById('sb-sms-last');
+  if (!pane) return;
+  const snap = smsBalanceLatest;
+  pane.textContent = snap?.time_slot
+    ? `Last Balance Monitor SMS snapshot: ${fmt12(snap.time_slot)} · ${snap.session_date || todayStr()} · ${(snap.data || []).length} clients`
+    : 'Balance Monitor SMS: No snapshot posted';
+  pane.title = 'The latest posted Balance Monitor SMS snapshot';
+}
 window.clearSmsBalancePaste = () => { ['sms-bal-reseller-ta','sms-bal-wholesale-ta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); };
 function resetSmsBalanceDiscoveryFilters() {
   smsBalanceAllSource='';smsBalanceManagerSource='';
@@ -17565,7 +17734,7 @@ window.stCopyCell = (ev, btn) => {
    A note attached to an Account Code + Destination combo. Stored in its own
    'stats_remarks' collection so it is never wiped when stats snapshots are
    cleared, and shown again whenever the same combo reappears in the table.
-   Hover the note icon to read the remark; double-click the cell to edit. */
+   Hover the note icon to read the remark; click the icon to edit or view it. */
 function statsRemarkDocId(key) {
   // encodeURIComponent yields a Firestore-safe id (no '/'), and is reversible.
   return encodeURIComponent(String(key ?? '')).slice(0, 1400);
@@ -17579,11 +17748,13 @@ function stRemarkIcon(has) {
     + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">`
     + `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>`;
 }
-// Remarks column cell — visual indicator only. The whole row is the double-click
-// / hover target (wired in processStatsRows), so a remark is reachable from any cell.
 function stRemarkCell(r) {
   const has = !!statsRemarkText(r.gkey || '');
-  return `<td class="st-remark-cell${has ? ' has' : ''}">${stRemarkIcon(has)}</td>`;
+  const key = stEsc(r.gkey || '');
+  const label = stEsc((r.customer_name || '') + (r.destination && r.destination !== '(no dest)' ? ' — ' + r.destination : ''));
+  return `<td class="st-remark-cell${has ? ' has' : ''}"><button type="button" class="st-remark-btn" data-rk="${key}" data-label="${label}" `
+    + `aria-label="${has ? 'Open client remarks' : 'Add client remarks'}" `
+    + `onclick="event.stopPropagation();editStatsRemark(this)" ondblclick="event.stopPropagation()" onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()">${stRemarkIcon(has)}</button></td>`;
 }
 window.stRemarkTipShow = (e, el) => {
   const tip = document.getElementById('st-remark-tip');
@@ -18652,7 +18823,7 @@ window.switchStatsDailyTab = tab => {
   if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
   else if (statsDailyTab === 'today') renderStatsDailyTraffic();
-  setSbStatus(statsDailyTab === 'settings' ? 'Traffic: Settings' : `Traffic: ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
+  setSbStatus(statsDailyTab === 'settings' ? 'Viewing: Daily Traffic Settings' : `Viewing: Daily Traffic — ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
 };
 
 function statsDailyDecreaseStreak(days, dayIndex, key) {
@@ -19214,7 +19385,7 @@ window.switchStatsView = name => {
   document.getElementById('stnav-stats-' + name)?.classList.add('active');
   const columnPicker = document.getElementById('stats-column-picker');
   if (columnPicker) columnPicker.hidden = !STATS_CLASSIFICATION_VIEWS.includes(name);
-  setSbStatus('Stats: ' + name.replace(/\b\w/g, c => c.toUpperCase()));
+  setSbStatus('Viewing: Stats — ' + name.replace(/\b\w/g, c => c.toUpperCase()));
   statsRender();
 };
 
@@ -19381,13 +19552,13 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${statsTrafficTrendCell(r, routeTrend, currentSnap)}</td>
          <td>${statsTrafficTrendCell(r, pastHourTrend, currentSnap, 'past-hour')}</td>
          ${stRemarkCell(r)}`;
-    // The whole row is the remark target: double-click anywhere to edit, hover
-    // anywhere to read. data-rk/data-label are read by editStatsRemark / the tooltip.
+    // Double-click the row to open its exact client + destination in Hourly.
+    // Remarks remain available from the dedicated rightmost icon.
     const rk = stEsc(r.gkey || '');
     const label = stEsc((r.customer_name || '') + (r.destination && r.destination !== '(no dest)' ? ' — ' + r.destination : ''));
     const hasR = !!statsRemarkText(r.gkey || '');
     return `<tr class="${rowCls}${hasR ? ' st-has-remark' : ''}" data-rk="${rk}" data-label="${label}"`
-      + ` ondblclick="editStatsRemark(this)" onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()">${cells}</tr>`;
+      + ` ondblclick="statsDrillToHourly(event,this)" data-premium-tooltip="Double-click to view this client and destination in Hourly">${cells}</tr>`;
   }).join('');
 }
 
@@ -19422,8 +19593,8 @@ function renderStatsStopped() {
     const label = stEsc((row.customer_name || '') + (row.destination && row.destination !== '(no dest)' ? ' — ' + row.destination : ''));
     const status = row.currentlyStopped
       ? '<span class="st-stopped-status active">Still stopped</span>'
-      : `<span class="st-stopped-status resumed" title="Traffic returned at ${stEsc(fmt12(row.resumedSlot))}">Traffic resumed · ${stEsc(fmt12(row.resumedSlot))}</span>`;
-    return `<tr class="${row.currentlyStopped ? 'st-stopped-active' : ''}" data-rk="${rk}" data-label="${label}">`
+      : `<span class="st-stopped-status resumed" title="Traffic returned at ${stEsc(fmt12(row.resumedSlot))}"><span>Traffic resumed</span><span class="st-stopped-time">${stEsc(fmt12(row.resumedSlot))}</span></span>`;
+    return `<tr class="${row.currentlyStopped ? 'st-stopped-active' : ''}" data-rk="${rk}" data-label="${label}" ondblclick="statsDrillToHourly(event,this)" data-premium-tooltip="Double-click to view this client and destination in Hourly">`
       + `<td class="st-cell-client">${stEsc(row.customer_name)}${stCopyBtn(row.customer_name)}${stDrillBtn()}</td>`
       + `<td class="st-cell-acct">${stEsc(row.acct_list)}${stCopyBtn(row.acct_list)}${stDrillBtn()}</td>`
       + `<td>${stEsc(row.destination)}</td><td>${stEsc(fmt12(row.lastTrafficSlot))}</td>`
