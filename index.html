@@ -636,8 +636,24 @@
       display: grid !important; grid-template-columns: minmax(0, 1fr) auto;
       align-items: start !important; gap: 6px; min-width: 0;
     }
-    #alert-tabs .alert-tab-list { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; }
-    #alert-tabs .tab { flex: 0 0 auto; white-space: nowrap; }
+    #alert-tabs .alert-tab-list { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
+    /* Match the VOIP All Clients filter pills without changing the alert-tab
+       IDs/classes that drive Critical, Warning, and red pulse indicators. */
+    #alert-tabs .tab {
+      flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 30px;
+      padding: 5px 12px; white-space: nowrap; font-size: 10.5px; font-weight: 620;
+      color: var(--text-2); background: var(--surface); cursor: pointer;
+      border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(22,34,58,.045);
+    }
+    #alert-tabs .tab:hover {
+      color: var(--text); background: var(--surface-2); border-color: var(--border-strong);
+      border-radius: 8px; transform: translateY(-1px); box-shadow: 0 5px 13px rgba(22,34,58,.09);
+    }
+    #alert-tabs .tab.active {
+      color: var(--accent); background: var(--accent-soft); border-color: transparent;
+      border-bottom-color: transparent; border-radius: 8px; font-weight: 650;
+    }
     #alert-tabs .alert-tab-actions { margin-left: 0; padding-left: 0; }
     #alert-tabs .alert-tab-actions .tbtn.icon-only { width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; }
     #alert-tabs .alert-tab-actions .tbtn.icon-only svg { width: 18px; height: 18px; flex: 0 0 18px; }
@@ -660,7 +676,7 @@
     .tbtn.icon-only svg { width: 14px; height: 14px; pointer-events: none; }
 
     /* ── SMS Module tabs (#view-sms) — bolder segmented control so the
-       Client / SMS Phoenix Platform switch is easy to spot. Scoped to the
+       V3 / Phoenix Platform switch is easy to spot. Scoped to the
        SMS module so alert tabs and other tab bars keep the subtle style. ── */
     #view-sms > .groupbox > .tab-bar {
       display: inline-flex; align-self: flex-start;
@@ -721,11 +737,11 @@
     }
 
     /* ── New Critical tab & row styles ── */
-    #tab-new-critical { color: var(--orange); font-weight: 600; }
-    #tab-new-critical.active { color: var(--orange); border-bottom-color: var(--orange); }
-    #tab-new-critical.has-new {
+    #alert-tabs #tab-new-critical { color: var(--orange); font-weight: 600; }
+    #alert-tabs #tab-new-critical.active { color: var(--orange); border-color: var(--orange); }
+    #alert-tabs #tab-new-critical.has-new {
       background: var(--orange-soft); color: var(--orange);
-      border-radius: var(--r-sm) var(--r-sm) 0 0;
+      border-color: color-mix(in srgb, var(--orange) 55%, transparent); border-radius: 8px;
       animation: newCritPulse 1.6s ease-in-out infinite;
     }
     @keyframes newCritPulse {
@@ -736,9 +752,9 @@
     tr.row-removed-crit td { background: var(--red-soft) !important; }
     tr.row-removed-crit:hover td { background: var(--row-hover) !important; }
     /* ── Alert tab emphasis — shares the calm alertPulse defined above (#1) ── */
-    .tab.tab-blink-red {
+    #alert-tabs .tab.tab-blink-red {
       background: var(--red); color: #fff !important; font-weight: 600;
-      border-radius: var(--r-sm) var(--r-sm) 0 0;
+      border-color: transparent; border-radius: 8px;
       animation: alertPulse 1.6s ease-in-out infinite;
     }
     /* Shift summary */
@@ -1340,17 +1356,15 @@
       min-height: 32px; margin-bottom: 2px;
     }
     .st-view-heading .groupbox-title { min-width: 0; margin-bottom: 0; }
-    .st-view-actions { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
-    .st-view-action {
-      width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0;
+    .st-view-actions { display: inline-flex; align-items: center; flex: 0 0 auto; }
+    .st-view-actions .app-action-menu-trigger {
+      width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0;
       align-items: center; justify-content: center;
     }
-    .st-view-action svg {
-      display: block; width: 23px !important; height: 23px !important; flex: 0 0 23px;
-      stroke-width: 2.2; pointer-events: none;
+    .st-view-actions .app-action-menu-trigger svg {
+      display: block; width: 18px; height: 18px; flex: 0 0 18px; pointer-events: none;
     }
-    .st-view-action-download { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
-    .st-view-action-download:hover { color: var(--on-accent); background: var(--accent-strong); border-color: var(--accent-strong); }
+    .stats-action-menu-panel { min-width: 220px; }
     #stats-view-guide-overlay {
       display: none; position: fixed; inset: 0; z-index: 2750; align-items: center; justify-content: center;
       padding: 18px; background: rgba(8,14,26,.48); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
@@ -3720,8 +3734,8 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="tab-bar">
             <div class="tab active" id="sms-tab-balance" onclick="switchSmsTab('balance')">SMS Balance</div>
-            <div class="tab" id="sms-tab-client" onclick="switchSmsTab('client')">Client</div>
-            <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">SMS Phoenix Platform</div>
+            <div class="tab" id="sms-tab-client" onclick="switchSmsTab('client')">V3</div>
+            <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">Phoenix Platform</div>
             <div class="tab" id="sms-tab-credentials" onclick="switchSmsTab('credentials')">Credentials</div>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
@@ -3944,7 +3958,7 @@
                     </div>
                     <div class="sms-bal-panel sms-bal-danger">
                       <div class="groupbox-title">SMS Danger Zone</div>
-                      <div class="sms-bal-note">These actions affect only SMS Balance Monitor data. VOIP snapshots, Client, SMS Phoenix Platform, Credentials, and Flagged Spam are not touched.</div>
+                      <div class="sms-bal-note">These actions affect only SMS Balance Monitor data. VOIP snapshots, V3, Phoenix Platform, Credentials, and Flagged Spam are not touched.</div>
                       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
                         <button class="tbtn danger" id="sms-bal-delete-today-btn" onclick="deleteTodaySmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-filter="today" data-count-label="SMS snapshot">Delete Today's SMS Snapshots</button>
                         <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-label="SMS snapshot">Delete ALL SMS Snapshots</button>
@@ -4380,8 +4394,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title" id="st-all-title">All Clients</div>
             <div class="st-view-actions" aria-label="All Clients table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('all')" aria-label="Open All Clients guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the All Clients Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('all')" aria-label="Download current All Clients view" data-premium-tooltip="Download the current filtered All Clients table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-all-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-all-action-menu-trigger" onclick="toggleAppActionMenu('stats-all',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-all-action-menu-panel" aria-label="Open All Clients table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-all-action-menu-panel" role="menu" aria-label="All Clients table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('all');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('all');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="fbar">
@@ -4429,8 +4448,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Critical Clients — <span id="st-critical-count">0</span></div>
             <div class="st-view-actions" aria-label="Critical table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('critical')" aria-label="Open Critical guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Critical Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('critical')" aria-label="Download current Critical view" data-premium-tooltip="Download the current Critical table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-critical-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-critical-action-menu-trigger" onclick="toggleAppActionMenu('stats-critical',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-critical-action-menu-panel" aria-label="Open Critical table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-critical-action-menu-panel" role="menu" aria-label="Critical table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('critical');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('critical');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
@@ -4451,8 +4475,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Low Clients — <span id="st-low-count">0</span></div>
             <div class="st-view-actions" aria-label="Low table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('low')" aria-label="Open Low guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Low Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('low')" aria-label="Download current Low view" data-premium-tooltip="Download the current Low table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-low-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-low-action-menu-trigger" onclick="toggleAppActionMenu('stats-low',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-low-action-menu-panel" aria-label="Open Low table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-low-action-menu-panel" role="menu" aria-label="Low table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('low');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('low');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
@@ -4473,8 +4502,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Watch Clients — <span id="st-watch-count">0</span></div>
             <div class="st-view-actions" aria-label="Watch table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('watch')" aria-label="Open Watch guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Watch Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('watch')" aria-label="Download current Watch view" data-premium-tooltip="Download the current Watch table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-watch-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-watch-action-menu-trigger" onclick="toggleAppActionMenu('stats-watch',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-watch-action-menu-panel" aria-label="Open Watch table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-watch-action-menu-panel" role="menu" aria-label="Watch table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('watch');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('watch');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
@@ -4495,8 +4529,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Ok Clients — <span id="st-ok-count">0</span></div>
             <div class="st-view-actions" aria-label="Ok table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('ok')" aria-label="Open Ok guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Ok Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('ok')" aria-label="Download current Ok view" data-premium-tooltip="Download the current Ok table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-ok-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-ok-action-menu-trigger" onclick="toggleAppActionMenu('stats-ok',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-ok-action-menu-panel" aria-label="Open Ok table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-ok-action-menu-panel" role="menu" aria-label="Ok table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('ok');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('ok');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
@@ -4517,8 +4556,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Good Clients — <span id="st-good-count">0</span></div>
             <div class="st-view-actions" aria-label="Good table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('good')" aria-label="Open Good guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Good Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('good')" aria-label="Download current Good view" data-premium-tooltip="Download the current Good table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-good-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-good-action-menu-trigger" onclick="toggleAppActionMenu('stats-good',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-good-action-menu-panel" aria-label="Open Good table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-good-action-menu-panel" role="menu" aria-label="Good table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('good');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('good');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
@@ -4539,8 +4583,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Stopped Traffic Log — <span id="st-stopped-count">0</span></div>
             <div class="st-view-actions" aria-label="Stopped table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('stopped')" aria-label="Open Stopped guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Stopped Traffic view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('stopped')" aria-label="Download current Stopped view" data-premium-tooltip="Download the current Stopped Traffic table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-stopped-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-stopped-action-menu-trigger" onclick="toggleAppActionMenu('stats-stopped',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-stopped-action-menu-panel" aria-label="Open Stopped table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-stopped-action-menu-panel" role="menu" aria-label="Stopped table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('stopped');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('stopped');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
@@ -4567,8 +4616,13 @@
           <div class="st-view-heading">
             <div class="groupbox-title">Hourly — per client · today only</div>
             <div class="st-view-actions" aria-label="Hourly table actions">
-              <button class="tbtn st-view-action" onclick="openStatsViewGuide('hourly')" aria-label="Open Hourly guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Hourly Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
-              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('hourly')" aria-label="Download current Hourly view" data-premium-tooltip="Download the current filtered Hourly table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+              <div class="app-action-menu" id="stats-hourly-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger" id="stats-hourly-action-menu-trigger" onclick="toggleAppActionMenu('stats-hourly',event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-hourly-action-menu-panel" aria-label="Open Hourly table actions" data-premium-tooltip="Open guide and export actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg></button>
+                <div class="app-action-menu-panel stats-action-menu-panel" id="stats-hourly-action-menu-panel" role="menu" aria-label="Hourly table actions">
+                  <button class="tbtn" onclick="openStatsViewGuide('hourly');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>User guide</span></button>
+                  <button class="tbtn alert-action-export" onclick="exportStatsCurrentView('hourly');closeAppActionMenus()" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Export current view</span></button>
+                </div>
+              </div>
             </div>
           </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
@@ -5675,8 +5729,8 @@ let smsOtpTimer = null, smsOtpLastCounter = null, smsOtpActive = false;
 let smsCredentialOtpPopup = null, smsCredentialOtpPopupTimer = null;
 let smsActiveTab = localStorage.getItem('bm_sms_active_tab') || 'balance';
 const SMS_TAB_CONFIG = {
-  client:  { label:'Client',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
-  phoenix: { label:'SMS Phoenix Platform', storageKey:'bm_sms_phoenix_clients', firestoreDoc:'phoenix_platform_clients', filePrefix:'sms_phoenix_platform' }
+  client:  { label:'V3',               storageKey:'bm_sms_clients',         firestoreDoc:'clients',                  filePrefix:'sms_clients' },
+  phoenix: { label:'Phoenix Platform', storageKey:'bm_sms_phoenix_clients', firestoreDoc:'phoenix_platform_clients', filePrefix:'sms_phoenix_platform' }
 };
 const SMS_ALL_TABS = new Set(['balance', ...Object.keys(SMS_TAB_CONFIG), 'credentials']);
 const smsDataByTab = { client: [], phoenix: [] };
@@ -16480,7 +16534,7 @@ function updateSmsTabUi() {
 }
 
 window.switchSmsTab = tab => {
-  if (!canManageSmsRegisters() && tab !== 'balance') { toast('Client, Phoenix, and Credentials require admin or semi-admin access.', 'err'); return; }
+  if (!canManageSmsRegisters() && tab !== 'balance') { toast('V3, Phoenix Platform, and Credentials require admin or semi-admin access.', 'err'); return; }
   if (!SMS_ALL_TABS.has(tab) || tab === smsActiveTab) return;
   if (smsActiveTab === 'credentials' && tab !== 'credentials') stopSmsOtpTimer();
   if (SMS_TAB_CONFIG[smsActiveTab]) syncActiveSmsClients();
