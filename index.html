@@ -1342,10 +1342,13 @@
     .st-view-heading .groupbox-title { min-width: 0; margin-bottom: 0; }
     .st-view-actions { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
     .st-view-action {
-      width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0;
+      width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0;
       align-items: center; justify-content: center;
     }
-    .st-view-action svg { width: 16px; height: 16px; pointer-events: none; }
+    .st-view-action svg {
+      display: block; width: 23px !important; height: 23px !important; flex: 0 0 23px;
+      stroke-width: 2.2; pointer-events: none;
+    }
     .st-view-action-download { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
     .st-view-action-download:hover { color: var(--on-accent); background: var(--accent-strong); border-color: var(--accent-strong); }
     #stats-view-guide-overlay {
@@ -3807,7 +3810,7 @@
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
                       <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Clients that were not critical in the previous snapshot but are critical now.">New Critical <span id="sms-bal-alert-count-new"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client at Critical, zero/blocked balance, or running on overdraft without adding them to Critical History.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
@@ -13416,6 +13419,17 @@ function smsBalancePreviousContext() {
   return { snapshot:smsBalancePriorSnap, ready:smsBalancePriorLoaded };
 }
 function smsBalancePreviousSnapshot() { return smsBalancePreviousContext().snapshot; }
+function smsBalanceIsFreshBaselineView() {
+  if (!smsBalanceLatest || !smsBalanceFreshBaselineKey) return false;
+  return `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}` === smsBalanceFreshBaselineKey;
+}
+function smsBalanceFreshBaselineNewCriticalRows(rows=smsBalanceRows()) {
+  return rows.filter(row => {
+    const status = row?._status || smsBalanceStatus(row);
+    const meta = row?._meta || smsBalanceMetaFor(row);
+    return meta?.is_active !== false && ['critical','blocked','overdraft'].includes(status.code);
+  });
+}
 function smsBalanceDecoratedSnapshotRows(snap) {
   return (snap?.data || []).filter(row => row?.client).map(row => {
     const status = smsBalanceStatus(row), meta = smsBalanceMetaFor(row);
@@ -13640,6 +13654,7 @@ function renderSmsBalanceSummary() {
 function smsBalanceAlertSets() {
   const rows = smsBalanceRows();
   const transitions = smsBalanceTransitionRows();
+  const freshBaseline = smsBalanceIsFreshBaselineView();
   const previousContext=smsBalancePreviousContext();
   const newNoThreshold=(previousContext.ready?smsBalanceNewHistoryEntries(smsBalanceLatest||{data:[]},previousContext.snapshot).noThreshold:[])
     .map(entry=>({...entry.row,_status:entry.status,_meta:smsBalanceMetaFor(entry.row)}));
@@ -13651,7 +13666,7 @@ function smsBalanceAlertSets() {
     nothreshold:smsBalanceNoThresholdRows(),
     newnothreshold:newNoThreshold,
     usage:rows.filter(row => smsBalanceNumber(row.usage_30min) > 0),
-    new:transitions.added,
+    new:freshBaseline?smsBalanceFreshBaselineNewCriticalRows(rows):transitions.added,
     removed:transitions.removed,
     inactiveusage:rows.filter(row => row._meta?.is_active === false && smsBalanceNumber(row.usage_30min) !== 0)
   };
@@ -14285,7 +14300,7 @@ window.processSmsBalanceSnapshot = async () => {
   const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[]}:smsBalanceNewHistoryEntries(snap,previous);
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
-  const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row));
+  const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row)&&smsBalanceMetaFor(row)?.is_active!==false);
   smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();resetSmsBalanceDiscoveryFilters();
   if(seedsFreshBaseline){
     setSmsBalanceSeedAfterClear(false);
@@ -14293,12 +14308,14 @@ window.processSmsBalanceSnapshot = async () => {
   }else if(smsBalanceFreshBaselineKey){
     setSmsBalanceFreshBaselineKey('');
   }
+  const shouldFocusNewCritical=seedsFreshBaseline
+    ? smsBalanceFreshBaselineNewCriticalRows(smsBalanceRows()).length>0
+    : hasCurrentCritical;
   advanceSmsBalanceSlotAfterPost(slot);window.clearSmsBalancePaste();renderSmsBalanceModule();
-  // Match Balance Monitor VOIP: after posting, open Alerts > New Critical when
-  // the current snapshot has Critical/Blocked clients, even if every one is an
-  // overnight carry-over. The spoken alert remains exclusive to genuine new
-  // transitions so existing Critical clients do not replay the announcement.
-  if(hasCurrentCritical&&!seedsFreshBaseline)focusSmsBalanceNewCriticalView();
+  // A fresh post-clear baseline opens New Critical with all active Critical,
+  // zero/blocked, and overdraft clients. History/audio still use only genuine
+  // transitions, so the baseline remains absent from Critical History.
+  if(shouldFocusNewCritical)focusSmsBalanceNewCriticalView();
   if(freshCriticalCount&&SBS.soundAlert)playSmsNewCriticalAudio();
   let blockedRoutes=0;
   try{blockedRoutes=await autoBlockSmsBalanceRoutes(data,snap);}catch(e){toast('Snapshot saved, but Phoenix auto-block sync failed: '+e.message,'err',7000);}
