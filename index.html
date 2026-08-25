@@ -2685,6 +2685,11 @@
     tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 72%, var(--surface)); }
     tbody tr { transition: background-color .12s ease, box-shadow .12s ease; }
     tbody tr:hover td { background: var(--row-hover) !important; }
+    /* Stopped Traffic is priority-sorted, so zebra striping suggests a grouping
+       that does not exist. Keep one base row color; active stops stay red. */
+    #st-tbl-stopped tbody tr td { background: var(--surface) !important; }
+    #st-tbl-stopped tbody tr.st-stopped-active td { background: var(--red-soft) !important; }
+    #st-tbl-stopped tbody tr:hover td { background: var(--row-hover) !important; }
 
     /* Premium tabs */
     .tab-bar, .st-daily-tabs { gap: 4px; }
