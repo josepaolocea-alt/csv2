@@ -2205,6 +2205,13 @@
     }
     .stats-column-picker .col-item input { flex: 0 0 auto; }
     .st-column-hidden { display: none !important; }
+    .st-daily-column-picker { position: relative; display: inline-flex; }
+    .st-daily-column-picker[hidden] { display: none !important; }
+    .st-daily-column-picker .col-dd {
+      position: fixed; right: auto; min-width: 258px; z-index: 2200;
+      max-height: min(440px, calc(100vh - 90px)); overflow-y: auto;
+    }
+    .st-daily-column-picker .col-item input { flex: 0 0 auto; }
 
     /* ── Loading / Dialog ── */
     #loading { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .45); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
@@ -4437,6 +4444,10 @@
             <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-settings" role="tab" aria-selected="false" onclick="switchStatsDailyTab('settings')">Settings</button>
             <div class="st-daily-export-actions" aria-label="Export current Daily Traffic tab">
+              <div class="st-daily-column-picker" id="st-daily-column-picker" hidden>
+                <button type="button" class="tbtn st-daily-export-btn" id="st-daily-column-picker-btn" onclick="toggleStatsDailyColumnPicker(event)" aria-haspopup="true" aria-expanded="false" aria-controls="st-daily-column-picker-menu" title="Choose columns for Daily Traffic Dashboard exports">Columns</button>
+                <div class="col-dd" id="st-daily-column-picker-menu" role="group" aria-label="Visible Daily Traffic Dashboard export columns"></div>
+              </div>
               <button type="button" class="tbtn st-daily-export-btn" onclick="exportStatsDailyTab('csv')" title="Export the current Daily Traffic tab to CSV">&#8595; CSV</button>
               <button type="button" class="tbtn primary st-daily-export-btn" onclick="exportStatsDailyTab('xlsx')" title="Export the current Daily Traffic tab to Excel">&#8595; Excel</button>
             </div>
@@ -18353,6 +18364,144 @@ function statsDailyTodayRowsForExport() {
   return rows;
 }
 
+const STATS_DAILY_DASHBOARD_EXPORT_COLUMNS = [
+  { key:'section', label:'Dashboard Section' },
+  { key:'rank', label:'Rank' },
+  { key:'client_date', label:'Client / Date' },
+  { key:'account_code', label:'Account Code' },
+  { key:'latest_total_raw_dur', label:'Latest / Total Raw Dur' },
+  { key:'yesterday_previous_total', label:'Yesterday / Previous Total' },
+  { key:'two_week_average', label:'2-week Average Raw Dur' },
+  { key:'raw_dur_change', label:'Raw Dur Change / Lost' },
+  { key:'change_pct', label:'Change %' },
+  { key:'baseline_days', label:'Baseline Days' },
+  { key:'trend', label:'Trend' },
+];
+const STATS_DAILY_DASHBOARD_EXPORT_DEFAULTS = [
+  'section', 'rank', 'client_date', 'account_code',
+  'latest_total_raw_dur', 'yesterday_previous_total', 'change_pct', 'trend',
+];
+const STATS_DAILY_DASHBOARD_COLUMNS_VERSION = 1;
+let statsDailyVisibleDashboardColumns = new Set(STATS_DAILY_DASHBOARD_EXPORT_DEFAULTS);
+let statsDailyColumnPreferenceSaveTimer = null;
+
+function normalizeStatsDailyDashboardColumns(value) {
+  const known = new Set(STATS_DAILY_DASHBOARD_EXPORT_COLUMNS.map(column => column.key));
+  const selected = Array.isArray(value) ? value.filter(key => known.has(key)) : [];
+  return new Set(selected.length ? selected : STATS_DAILY_DASHBOARD_EXPORT_DEFAULTS);
+}
+function statsDailyDashboardColumnsStorageKey() {
+  return voipUserStorageKey('bm_stats_daily_dashboard_columns');
+}
+function renderStatsDailyDashboardColumnPicker() {
+  const menu = document.getElementById('st-daily-column-picker-menu');
+  const button = document.getElementById('st-daily-column-picker-btn');
+  if (!menu || !button) return;
+  button.textContent = `Columns (${statsDailyVisibleDashboardColumns.size}/${STATS_DAILY_DASHBOARD_EXPORT_COLUMNS.length})`;
+  menu.innerHTML = `<div class="stats-column-picker-head"><span>Dashboard export columns</span>`
+    + `<button type="button" onclick="resetStatsDailyDashboardColumns(event)">Defaults</button></div>`
+    + STATS_DAILY_DASHBOARD_EXPORT_COLUMNS.map(column =>
+      `<label class="col-item"><input type="checkbox" ${statsDailyVisibleDashboardColumns.has(column.key) ? 'checked' : ''}`
+      + ` onchange="setStatsDailyDashboardColumn('${column.key}', this.checked)"> ${stEsc(column.label)}</label>`
+    ).join('');
+}
+function saveStatsDailyDashboardColumns() {
+  const selected = STATS_DAILY_DASHBOARD_EXPORT_COLUMNS
+    .map(column => column.key)
+    .filter(key => statsDailyVisibleDashboardColumns.has(key));
+  try {
+    localStorage.setItem(statsDailyDashboardColumnsStorageKey(), JSON.stringify({
+      version:STATS_DAILY_DASHBOARD_COLUMNS_VERSION,
+      columns:selected,
+    }));
+  } catch(e) {}
+  if (statsDailyColumnPreferenceSaveTimer) clearTimeout(statsDailyColumnPreferenceSaveTimer);
+  if (!fbOk || !currentUserUid) return;
+  const uid = currentUserUid;
+  statsDailyColumnPreferenceSaveTimer = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, 'user_preferences', uid), {
+        stats_daily_dashboard_columns:selected,
+        stats_daily_dashboard_columns_version:STATS_DAILY_DASHBOARD_COLUMNS_VERSION,
+        updated_at:Timestamp.now(),
+      }, { merge:true });
+    } catch(e) {
+      console.warn('save Daily Traffic Dashboard column preferences:', e);
+      toast('Dashboard columns saved on this device, but account sync failed.', 'err', 6000);
+    }
+  }, 250);
+}
+async function loadStatsDailyDashboardColumns() {
+  let selected = null;
+  try {
+    const local = localStorage.getItem(statsDailyDashboardColumnsStorageKey());
+    if (local) {
+      const parsed = JSON.parse(local);
+      selected = Array.isArray(parsed) ? parsed : parsed?.columns;
+    }
+  } catch(e) {}
+  if (fbOk && currentUserUid) {
+    try {
+      const snapshot = await getDoc(doc(db, 'user_preferences', currentUserUid));
+      if (snapshot.exists() && Array.isArray(snapshot.data()?.stats_daily_dashboard_columns)) {
+        selected = snapshot.data().stats_daily_dashboard_columns;
+      }
+    } catch(e) { console.warn('load Daily Traffic Dashboard column preferences:', e); }
+  }
+  statsDailyVisibleDashboardColumns = normalizeStatsDailyDashboardColumns(selected);
+  try {
+    localStorage.setItem(statsDailyDashboardColumnsStorageKey(), JSON.stringify({
+      version:STATS_DAILY_DASHBOARD_COLUMNS_VERSION,
+      columns:[...statsDailyVisibleDashboardColumns],
+    }));
+  } catch(e) {}
+  renderStatsDailyDashboardColumnPicker();
+}
+window.setStatsDailyDashboardColumn = (key, checked) => {
+  if (!STATS_DAILY_DASHBOARD_EXPORT_COLUMNS.some(column => column.key === key)) return;
+  if (checked) statsDailyVisibleDashboardColumns.add(key);
+  else if (statsDailyVisibleDashboardColumns.size === 1) {
+    renderStatsDailyDashboardColumnPicker();
+    toast('Keep at least one Dashboard export column visible.', 'err', 3500);
+    return;
+  } else statsDailyVisibleDashboardColumns.delete(key);
+  renderStatsDailyDashboardColumnPicker();
+  saveStatsDailyDashboardColumns();
+};
+window.resetStatsDailyDashboardColumns = event => {
+  event?.stopPropagation();
+  statsDailyVisibleDashboardColumns = new Set(STATS_DAILY_DASHBOARD_EXPORT_DEFAULTS);
+  renderStatsDailyDashboardColumnPicker();
+  saveStatsDailyDashboardColumns();
+};
+window.toggleStatsDailyColumnPicker = event => {
+  event?.stopPropagation();
+  const menu = document.getElementById('st-daily-column-picker-menu');
+  const button = document.getElementById('st-daily-column-picker-btn');
+  if (!menu || !button) return;
+  const open = !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  button.setAttribute('aria-expanded', String(open));
+  if (open) {
+    const rect = button.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 258;
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8)) + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+  }
+};
+function closeStatsDailyColumnPicker() {
+  document.getElementById('st-daily-column-picker-menu')?.classList.remove('open');
+  document.getElementById('st-daily-column-picker-btn')?.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', event => {
+  const picker = document.getElementById('st-daily-column-picker');
+  if (picker && !picker.contains(event.target)) closeStatsDailyColumnPicker();
+});
+
+function statsDailyRoundedChangePct(value) {
+  return value === null || value === undefined || value === '' ? '' : Number(Number(value).toFixed(2));
+}
+
 function statsDailyExportDataset(tab = statsDailyTab) {
   if (tab === 'dashboard') {
     const snapshot = statsDailyTwoWeekSnapshot();
@@ -18366,17 +18515,24 @@ function statsDailyExportDataset(tab = statsDailyTab) {
       label, index + 1, row.customer_name, row.account_codes,
       row.latest_raw_dur, row.yesterday_raw_dur ?? '', row.baseline_raw_dur ?? '',
       row.status === 'stopped' ? Math.abs(row.change ?? 0) : (row.change ?? ''),
-      row.change_pct ?? '', row.baseline_days, row.status,
+      statsDailyRoundedChangePct(row.change_pct), row.baseline_days, row.status,
     ]));
-    statsDailyDashboardTotalDates(snapshot).forEach((row, index) => rows.push([
+    // Export totals oldest-to-newest so the first saved date is an explicit
+    // baseline (blank previous value) and every comparison points to the row
+    // immediately above it in the generated workbook.
+    statsDailyDashboardTotalDates(snapshot).slice().reverse().forEach((row, index) => rows.push([
       'Total Raw Duration', index + 1, row.date, '',
       row.raw_dur, row.previous_raw_dur ?? '', '', row.change ?? '',
-      row.change_pct ?? '', '', row.status,
+      statsDailyRoundedChangePct(row.change_pct), '', row.status,
     ]));
+    const selectedIndexes = STATS_DAILY_DASHBOARD_EXPORT_COLUMNS
+      .map((column, index) => statsDailyVisibleDashboardColumns.has(column.key) ? index : -1)
+      .filter(index => index >= 0);
     return {
       sheet:'Dashboard', suffix:`dashboard_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Dashboard Section','Rank','Client / Date','Account Code','Latest / Total Raw Dur','Yesterday / Previous Total','2-week Average Raw Dur','Raw Dur Change / Lost','Change %','Baseline Days','Trend'],
-      rows,
+      headers:selectedIndexes.map(index => STATS_DAILY_DASHBOARD_EXPORT_COLUMNS[index].label),
+      rows:rows.map(row => selectedIndexes.map(index => row[index])),
+      rowMeta:rows.map(row => ({ section:row[0], status:String(row[10] || '').toLowerCase() })),
     };
   }
   if (tab === 'history') {
@@ -18397,6 +18553,18 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     headers:['Client','Account Code','Destination','Date','Previous Date','Raw Dur','Previous Raw Dur','Raw Dur Change','Change %','Status','Decrease Streak','Completed','ASR %'],
     rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.date,row.previous_date,row.raw_dur,row.previous_raw_dur,row.change,row.change_pct ?? '',row.status,row.decrease_streak,row.completed,row.asr]),
   };
+}
+
+function statsDailyExportRowFill(data, values, rowIndex) {
+  const section = String(data.rowMeta?.[rowIndex]?.section || (data.sheet === 'Dashboard' ? values?.[0] : '') || '');
+  const statusIndex = data.headers.indexOf('Status');
+  const status = String(data.rowMeta?.[rowIndex]?.status || (statusIndex >= 0 ? values?.[statusIndex] : '') || '').toLowerCase();
+  if (section === 'Top 10 Decreases' || status === 'decrease') return 'FFFBE9E7';
+  if (section === 'Top 10 Stopped Traffic' || status === 'stopped') return 'FFF9EEDC';
+  if (section === 'Top 10 Increases' || status === 'increase') return 'FFE8F3EA';
+  if (section === 'Total Raw Duration') return 'FFEDF3F8';
+  if (status === 'new') return 'FFEAF0F8';
+  return '';
 }
 
 window.exportStatsDailyTab = async format => {
@@ -18431,10 +18599,14 @@ window.exportStatsDailyTab = async format => {
         ));
       });
       for (let rowNumber = 2; rowNumber <= data.rows.length + 1; rowNumber++) {
+        const rowFill = statsDailyExportRowFill(data, data.rows[rowNumber - 2], rowNumber - 2);
         sheet.getRow(rowNumber).eachCell({ includeEmpty:true }, cell => {
           cell.alignment = { vertical:'middle' };
           cell.border = { bottom:thinBorder };
+          if (rowFill) cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:rowFill } };
         });
+        const changePctColumn = data.headers.indexOf('Change %') + 1;
+        if (changePctColumn > 0) sheet.getCell(rowNumber, changePctColumn).numFmt = '0.00';
       }
       sheet.autoFilter = { from:{ row:1, column:1 }, to:{ row:data.rows.length + 1, column:data.headers.length } };
       const buffer = await workbook.xlsx.writeBuffer();
@@ -18460,6 +18632,9 @@ window.exportStatsDailyTab = async format => {
 
 function updateStatsDailyTabUI() {
   document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
+  const columnPicker = document.getElementById('st-daily-column-picker');
+  if (columnPicker) columnPicker.hidden = statsDailyTab !== 'dashboard';
+  if (statsDailyTab !== 'dashboard') closeStatsDailyColumnPicker();
   ['dashboard','today','history','settings'].forEach(tab => {
     const active = statsDailyTab === tab;
     const button = document.getElementById(`st-daily-tab-${tab}`);
@@ -19841,6 +20016,7 @@ async function cleanupOldStatsSnapshots() {
 
 async function initStats() {
   await loadStatsClassificationColumns();
+  await loadStatsDailyDashboardColumns();
   const dailyImportDate = document.getElementById('stats-daily-import-date');
   if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
   const dailyArchiveMonth = document.getElementById('stats-daily-archive-month');
@@ -19991,6 +20167,7 @@ if (auth) {
         subscribeMyRole();
         if (document.body.classList.contains('users-mode')) subscribeAllUsers();
         loadStatsClassificationColumns().then(() => statsRender());
+        loadStatsDailyDashboardColumns();
       }
       if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
@@ -20002,6 +20179,8 @@ if (auth) {
       statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
       renderStatsColumnPicker();
       applyStatsClassificationColumnVisibility();
+      statsDailyVisibleDashboardColumns = new Set(STATS_DAILY_DASHBOARD_EXPORT_DEFAULTS);
+      renderStatsDailyDashboardColumnPicker();
       currentRole = 'viewer';
       if (myRoleUnsub) { try { myRoleUnsub(); } catch(e) {} myRoleUnsub = null; }
       if (userLabel)  userLabel.textContent = '';
