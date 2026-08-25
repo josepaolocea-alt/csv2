@@ -2180,6 +2180,25 @@
     }
     .col-item:hover { background: var(--surface-2); }
 
+    /* Per-user column picker for the five Stats status tables. */
+    .stats-column-picker { display: none; position: relative; }
+    body.stats-mode:not(.stats-daily-mode) .stats-column-picker:not([hidden]) { display: inline-flex; }
+    .stats-column-picker .col-dd {
+      position: fixed; right: auto; min-width: 224px; z-index: 2200;
+      max-height: min(420px, calc(100vh - 90px)); overflow-y: auto;
+    }
+    .stats-column-picker-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 5px 8px 7px; margin-bottom: 3px; border-bottom: 1px solid var(--border);
+      color: var(--text-2); font-size: 10px; font-weight: 700;
+    }
+    .stats-column-picker-head button {
+      padding: 1px 5px; border: 0; background: transparent; color: var(--accent);
+      font: inherit; cursor: pointer;
+    }
+    .stats-column-picker .col-item input { flex: 0 0 auto; }
+    .st-column-hidden { display: none !important; }
+
     /* ── Loading / Dialog ── */
     #loading { display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .45); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
     #loading.on { display: flex; }
@@ -2273,7 +2292,7 @@
     .settings-danger .danger-btns .tbtn {
       flex: 0 0 auto; min-width: 190px; justify-content: center; white-space: nowrap;
     }
-    .settings-admin-only { display:contents; }
+    .settings-admin-only, .settings-admin-section { display:contents; }
     .settings-note {
       font-size: 11px; color: var(--text-2);
       background: var(--surface-2);
@@ -3072,6 +3091,10 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
+    <div class="stats-column-picker" id="stats-column-picker" hidden>
+      <button type="button" class="tbtn" id="stats-column-picker-btn" onclick="toggleStatsColumnPicker(event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-column-picker-menu" title="Choose columns for the Critical, Low, Watch, Ok and Good tables">Columns</button>
+      <div class="col-dd" id="stats-column-picker-menu" role="group" aria-label="Visible Stats status-table columns"></div>
+    </div>
     <button class="tbtn stats-tab" id="stnav-stats-settings" onclick="switchStatsView('settings')">Settings</button>
     <div class="tsep tsep-bal"></div>
     <button class="tbtn" id="tnav-settings" onclick="switchView('settings')">Settings</button>
@@ -4612,6 +4635,7 @@
             <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="testSlotReminder()">Test</button>
           </div>
         </div>
+        <div class="settings-admin-section" id="voip-settings-no-threshold-section">
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">No Threshold Balance Alerts</div>
         <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without Credit Limit or Critical Balance. Uses Amnt Receivable.</div>
@@ -4633,6 +4657,8 @@
             <input class="win-inp" id="set-band-crit" type="number" value="-151" style="width:70px" onchange="saveSettings()" title="Balance at or below this → row blinks red">
           </div>
         </div>
+        </div>
+        <div class="settings-admin-section" id="voip-settings-spam-section">
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Spam Detection (30m Usage)</div>
         <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client only when its 30-min usage jumps well above its own <em>recent</em> usual, measured in the client's own noise (robust std-devs), so a naturally spiky or steadily-growing client doesn't false-flag. Wide-gap catch-up readings are excluded.</div>
@@ -4684,6 +4710,8 @@
           <input class="win-inp" id="set-spam-gap" type="number" step="5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Snapshots are meant to be 30 min apart. If the scheduled-slot gap to the previous snapshot exceeds this many minutes (i.e. a slot was skipped or it's the first post after a long break), that reading accumulated more than one interval: it is neither flagged as spam nor added to the baseline, and posting it prompts a confirmation. A normal consecutive 30-min reading still counts. 0 disables the guard.">
           <span style="font-size:10px;color:#666;margin-left:4px">min (0 = off)</span>
         </div>
+        </div>
+        <div class="settings-admin-section" id="voip-settings-access-section">
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px">Access</div>
         <div class="settings-note">
@@ -4691,6 +4719,7 @@
           Add or remove users in the Firebase Console → Authentication → Users.
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        </div>
         </div>
         <div id="voip-settings-danger-title" style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
         <div class="settings-danger" id="voip-settings-danger-zone">
@@ -4736,6 +4765,12 @@
       <div class="settings-grid">
         <div class="settings-note">
           Settings for the <strong>Stats Monitor</strong>. Balance-monitor snapshots, alerts and spam baseline are managed separately in the main Settings.
+        </div>
+        <div class="settings-danger" id="stats-clear-previous-day-setting">
+          <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Previous Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
+          <div class="danger-btns">
+            <button class="tbtn" id="stats-clear-previous-day-btn" style="color:#880000" onclick="clearStatsPreviousDaySnapshots()">Clear Previous-Day Stats Comparison</button>
+          </div>
         </div>
         <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
         <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
@@ -5626,15 +5661,15 @@ window.saveSettings = () => {
     S.mediumMax     = +document.getElementById('set-medium').value || -100;
     S.nearPct       = +document.getElementById('set-tgt').value    || 5;
     S.retentionDays = +document.getElementById('set-retention').value;
+    S.useBands      = document.getElementById('set-usebands').checked;
+    S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
+    S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
+    S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
   }
   S.shift         = document.getElementById('set-shift').value;
   S.soundAlert    = document.getElementById('set-sound').checked;
   S.voipVoiceAlert = document.getElementById('set-voip-voice').checked;
   S.browserNotif  = document.getElementById('set-notif').checked;
-  S.useBands      = document.getElementById('set-usebands').checked;
-  S.bandMedium    = +document.getElementById('set-band-medium').value || -50;
-  S.bandHigh      = +document.getElementById('set-band-high').value   || -101;
-  S.bandCritical  = +document.getElementById('set-band-crit').value   || -151;
   applyNightMode();
   updateReminderPreview();
   localStorage.setItem('bm_s98', JSON.stringify(sharedVoipSettingsPayload()));
@@ -7189,6 +7224,7 @@ function syncSpamSettingsUI() {
   set('set-spam-preset',  detectSpamPreset());
 }
 window.saveSpamSettings = () => {
+  if (!isAdmin()) { syncSpamSettingsUI(); return; }
   const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
   SPAM_CFG.recentDays = Math.max(0, Math.round(num('set-spam-recent', SPAM_CFG_DEFAULTS.recentDays)));
   SPAM_CFG.minSamples = Math.max(1, Math.round(num('set-spam-min',     SPAM_CFG_DEFAULTS.minSamples)));
@@ -7206,6 +7242,7 @@ window.saveSpamSettings = () => {
 };
 // Apply a named preset: push its values into the fields, then reuse the normal save.
 window.applySpamPreset = (name) => {
+  if (!isAdmin()) { syncSpamSettingsUI(); return; }
   const p = SPAM_PRESETS[name];
   if (!p) return;                     // "Custom" chosen → keep the current manual values
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
@@ -9997,6 +10034,10 @@ function applyModuleAccess(){
   disable('set-medium', !admin);
   disable('set-tgt', !admin);
   disable('set-retention', !admin);
+  show('voip-settings-no-threshold-section', admin);
+  show('voip-settings-spam-section', admin);
+  show('voip-settings-access-section', admin);
+  show('stats-clear-previous-day-setting', admin);
   VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
@@ -10654,10 +10695,15 @@ window.confirmWipeAll = async () => {
     }
     if (kind === 'stats') {
       statsTodaySnaps = [];
+      statsPreviousDaySnaps = [];
+      statsPreviousDayDate = '';
       statsViewingSlot = null;
       try { localStorage.removeItem('bm_stats_last'); } catch(e) {}
       // Some of today's stats may have been preserved by the keep range — reload them.
-      if (keepOn) await loadStatsSnaps();
+      if (keepOn) {
+        await loadStatsSnaps();
+        await loadStatsPreviousDaySnaps();
+      }
       statsRender();
     } else if (kind === 'stats-daily') {
       statsDailyHistory = [];
@@ -17153,6 +17199,145 @@ let statsHourlyFocusLabel = '';   // friendly label for the focus banner
 let statsRemarks = new Map();   // gkey -> { key, text, updated_by, updated_at }
 let statsRemarkEditKey = null;  // group key currently open in the remark editor
 
+const STATS_CLASSIFICATION_VIEWS = ['critical','low','watch','ok','good'];
+const STATS_CLASSIFICATION_COLUMNS = [
+  { key:'client', label:'Client' },
+  { key:'account_code', label:'Account Code' },
+  { key:'destination', label:'Destination' },
+  { key:'attempts', label:'Attempts' },
+  { key:'completed', label:'Completed' },
+  { key:'asr', label:'ASR %' },
+  { key:'acd', label:'ACD' },
+  { key:'revenue', label:'Revenue' },
+  { key:'flags', label:'Status / Flags' },
+  { key:'previous_day', label:'Traffic vs Previous Day' },
+  { key:'remarks', label:'Remarks' },
+];
+let statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
+let statsColumnPreferenceSaveTimer = null;
+
+function normalizeStatsClassificationColumns(value) {
+  const known = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
+  const selected = Array.isArray(value) ? value.filter(key => known.has(key)) : [];
+  return selected.length ? new Set(selected) : new Set(known);
+}
+function statsClassificationColumnsStorageKey() {
+  return voipUserStorageKey('bm_stats_classification_columns');
+}
+function renderStatsColumnPicker() {
+  const menu = document.getElementById('stats-column-picker-menu');
+  const button = document.getElementById('stats-column-picker-btn');
+  if (!menu || !button) return;
+  const visibleCount = statsVisibleClassificationColumns.size;
+  button.textContent = `Columns (${visibleCount}/${STATS_CLASSIFICATION_COLUMNS.length})`;
+  menu.innerHTML = `<div class="stats-column-picker-head"><span>Status table columns</span>`
+    + `<button type="button" onclick="showAllStatsClassificationColumns(event)">Show all</button></div>`
+    + STATS_CLASSIFICATION_COLUMNS.map(column =>
+      `<label class="col-item"><input type="checkbox" ${statsVisibleClassificationColumns.has(column.key) ? 'checked' : ''}`
+      + ` onchange="setStatsClassificationColumn('${column.key}', this.checked)"> ${stEsc(column.label)}</label>`
+    ).join('');
+}
+function applyStatsClassificationColumnVisibility() {
+  const visibleCount = statsVisibleClassificationColumns.size;
+  STATS_CLASSIFICATION_VIEWS.forEach(view => {
+    document.querySelectorAll(`#view-stats-${view} table tr`).forEach(row => {
+      const cells = [...row.children].filter(cell => cell.matches('th,td'));
+      if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
+        cells[0].classList.remove('st-column-hidden');
+        cells[0].colSpan = Math.max(1, visibleCount);
+        return;
+      }
+      cells.forEach((cell, index) => {
+        const column = STATS_CLASSIFICATION_COLUMNS[index];
+        cell.classList.toggle('st-column-hidden', !!column && !statsVisibleClassificationColumns.has(column.key));
+      });
+    });
+  });
+}
+function saveStatsClassificationColumns() {
+  const selected = STATS_CLASSIFICATION_COLUMNS
+    .map(column => column.key)
+    .filter(key => statsVisibleClassificationColumns.has(key));
+  try { localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify(selected)); } catch(e) {}
+  if (statsColumnPreferenceSaveTimer) clearTimeout(statsColumnPreferenceSaveTimer);
+  if (!fbOk || !currentUserUid) return;
+  const uid = currentUserUid;
+  statsColumnPreferenceSaveTimer = setTimeout(async () => {
+    try {
+      await setDoc(doc(db, 'user_preferences', uid), {
+        stats_classification_columns:selected,
+        updated_at:Timestamp.now(),
+      }, { merge:true });
+    } catch(e) {
+      console.warn('save Stats column preferences:', e);
+      toast('Columns saved on this device, but account sync failed.', 'err', 6000);
+    }
+  }, 250);
+}
+async function loadStatsClassificationColumns() {
+  let selected = null;
+  try {
+    const local = localStorage.getItem(statsClassificationColumnsStorageKey());
+    if (local) selected = JSON.parse(local);
+  } catch(e) {}
+  if (fbOk && currentUserUid) {
+    try {
+      const snapshot = await getDoc(doc(db, 'user_preferences', currentUserUid));
+      if (snapshot.exists() && Array.isArray(snapshot.data()?.stats_classification_columns)) {
+        selected = snapshot.data().stats_classification_columns;
+      }
+    } catch(e) { console.warn('load Stats column preferences:', e); }
+  }
+  statsVisibleClassificationColumns = normalizeStatsClassificationColumns(selected);
+  try {
+    localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify([...statsVisibleClassificationColumns]));
+  } catch(e) {}
+  renderStatsColumnPicker();
+  applyStatsClassificationColumnVisibility();
+}
+window.setStatsClassificationColumn = (key, checked) => {
+  if (!STATS_CLASSIFICATION_COLUMNS.some(column => column.key === key)) return;
+  if (checked) statsVisibleClassificationColumns.add(key);
+  else if (statsVisibleClassificationColumns.size === 1) {
+    renderStatsColumnPicker();
+    toast('Keep at least one Stats column visible.', 'err', 3500);
+    return;
+  } else statsVisibleClassificationColumns.delete(key);
+  renderStatsColumnPicker();
+  applyStatsClassificationColumnVisibility();
+  saveStatsClassificationColumns();
+};
+window.showAllStatsClassificationColumns = event => {
+  event?.stopPropagation();
+  statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
+  renderStatsColumnPicker();
+  applyStatsClassificationColumnVisibility();
+  saveStatsClassificationColumns();
+};
+window.toggleStatsColumnPicker = event => {
+  event?.stopPropagation();
+  const menu = document.getElementById('stats-column-picker-menu');
+  const button = document.getElementById('stats-column-picker-btn');
+  if (!menu || !button) return;
+  const open = !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  button.setAttribute('aria-expanded', String(open));
+  if (open) {
+    const rect = button.getBoundingClientRect();
+    const menuWidth = menu.offsetWidth || 224;
+    menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8)) + 'px';
+    menu.style.top = (rect.bottom + 4) + 'px';
+  }
+};
+function closeStatsColumnPicker() {
+  document.getElementById('stats-column-picker-menu')?.classList.remove('open');
+  document.getElementById('stats-column-picker-btn')?.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', event => {
+  const picker = document.getElementById('stats-column-picker');
+  if (picker && !picker.contains(event.target)) closeStatsColumnPicker();
+});
+
 const ST_CRIT_ATTEMPTS = 500;     // Critical needs more than this many attempts
 const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts or fewer
 
@@ -17178,7 +17363,7 @@ const stCopyBtn = txt => {
 const stDrillBtn = () =>
   `<button type="button" class="st-drill-btn" title="View this client + destination in the Hourly tab" `
   + `aria-label="View hourly breakdown" onclick="statsDrillToHourly(event, this)">`
-  + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>`
+  + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/><path d="M12 3v1M21 12h-1M12 21v-1M3 12h1"/></svg>`
   + `</button>`;
 
 function stCopyToClipboard(text) {
@@ -18564,6 +18749,7 @@ window.switchStatsMode = mode => {
 
 window.switchStatsView = name => {
   stRemarkTipHide();   // dismiss any lingering remark hover tooltip (mouseleave won't fire once the row is swapped out)
+  closeStatsColumnPicker();
   statsPrimaryMode = 'current';
   document.body.classList.remove('stats-daily-mode');
   updateStatsModeButtons();
@@ -18572,6 +18758,8 @@ window.switchStatsView = name => {
   document.querySelectorAll('.tbtn[id^="stnav-"]').forEach(b => b.classList.remove('active'));
   document.getElementById('view-stats-' + name)?.classList.add('active');
   document.getElementById('stnav-stats-' + name)?.classList.add('active');
+  const columnPicker = document.getElementById('stats-column-picker');
+  if (columnPicker) columnPicker.hidden = !STATS_CLASSIFICATION_VIEWS.includes(name);
   setSbStatus('Stats: ' + name.replace(/\b\w/g, c => c.toUpperCase()));
   statsRender();
 };
@@ -18790,6 +18978,7 @@ function renderStatsTables() {
   });
   const critTab = document.getElementById('stnav-stats-critical');
   if (critTab) critTab.classList.toggle('st-tab-alert', byCls('critical').length > 0);
+  applyStatsClassificationColumnVisibility();
 }
 window.renderStatsTables = renderStatsTables;
 
@@ -19241,6 +19430,41 @@ async function loadStatsPreviousDaySnaps() {
   } catch(e) { console.warn('loadStatsPreviousDaySnaps:', e); }
 }
 
+window.clearStatsPreviousDaySnapshots = async () => {
+  if (!isAdmin()) { toast('Only the admin can clear the previous-day Stats comparison.', 'err'); return; }
+  const targetDate = statsPreviousDayDate;
+  if (!targetDate) {
+    statsPreviousDaySnaps = [];
+    statsPreviousDayDate = '';
+    statsRender();
+    toast('No previous-day Stats comparison is currently loaded.', 'ok');
+    return;
+  }
+  const cachedCount = statsPreviousDaySnaps.length;
+  if (!confirm(`Delete all Stats snapshots from ${targetDate}?\n\nThis removes the day currently used by Traffic vs Previous Day (${cachedCount} cached snapshot${cachedCount === 1 ? '' : 's'}) and cannot be undone.`)) return;
+  setLoading(true, `Clearing previous-day Stats snapshots for ${targetDate}…`);
+  try {
+    let deletedCount = 0;
+    if (fbOk) {
+      const snapshot = await getDocs(query(collection(db, 'stats_snapshots'), where('session_date', '==', targetDate)));
+      if (snapshot.docs.length) {
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(entry => batch.delete(doc(db, 'stats_snapshots', entry.id)));
+        await batch.commit();
+        deletedCount = snapshot.docs.length;
+      }
+    }
+    statsPreviousDaySnaps = [];
+    statsPreviousDayDate = '';
+    statsRender();
+    toast(`Cleared previous-day Stats comparison for ${targetDate}${deletedCount ? ` · deleted ${deletedCount} snapshot${deletedCount === 1 ? '' : 's'}` : ' · no stored snapshots remained'}`, 'ok', 7000);
+  } catch(e) {
+    toast('Could not clear previous-day Stats snapshots: ' + e.message, 'err', 7000);
+  } finally {
+    setLoading(false);
+  }
+};
+
 async function loadStatsDailyHistory() {
   loadStatsDailyLocal();
 }
@@ -19284,6 +19508,7 @@ async function cleanupOldStatsSnapshots() {
 }
 
 async function initStats() {
+  await loadStatsClassificationColumns();
   const dailyImportDate = document.getElementById('stats-daily-import-date');
   if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
   const dailyArchiveMonth = document.getElementById('stats-daily-archive-month');
@@ -19434,10 +19659,14 @@ if (auth) {
       if (userLabel)  userLabel.textContent = user.email;
       if (signOutBtn) signOutBtn.style.display = '';
       if (!_appInitialized) { _appInitialized = true; init(); }
+      else loadStatsClassificationColumns().then(() => statsRender());
       if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
       currentUserEmail = '';
       currentUserUid = '';
+      statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
+      renderStatsColumnPicker();
+      applyStatsClassificationColumnVisibility();
       currentRole = 'viewer';
       if (myRoleUnsub) { try { myRoleUnsub(); } catch(e) {} myRoleUnsub = null; }
       if (usersUnsub)  { try { usersUnsub();  } catch(e) {} usersUnsub  = null; }
