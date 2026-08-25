@@ -1172,11 +1172,13 @@
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-watch { background: var(--surface-3); color: var(--text); border-color: var(--border-strong); font-weight: 700; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok { background: var(--yellow-soft); color: var(--yellow-deep); border-color: color-mix(in srgb, var(--yellow-deep) 38%, var(--border)); font-weight: 700; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-good { background: var(--green-soft); color: var(--green); border-color: color-mix(in srgb, var(--green) 42%, var(--border)); font-weight: 700; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-stopped { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 42%, var(--border)); font-weight: 700; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-critical.active { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-low.active { background: var(--orange) !important; color: #fff !important; border-color: var(--orange) !important; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-watch.active { background: var(--text-2) !important; color: var(--surface) !important; border-color: var(--text-2) !important; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok.active { background: var(--yellow-deep) !important; color: #fff !important; border-color: var(--yellow-deep) !important; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-good.active { background: var(--green) !important; color: #fff !important; border-color: var(--green) !important; }
+    body.stats-mode:not(.stats-daily-mode) #stnav-stats-stopped.active { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #tnav-settings,
     body.stats-mode #snd-dismiss-btn,
@@ -1313,6 +1315,10 @@
     .st-traffic-trend.new { background: var(--accent-soft); color: var(--accent); }
     .st-traffic-trend.unchanged { background: var(--surface-3); color: var(--text-2); }
     .st-traffic-trend.none { padding-left: 0; background: transparent; color: var(--text-3); font-weight: 500; }
+    tr.st-stopped-active td { background: var(--red-soft); }
+    .st-stopped-status { display:inline-flex; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:700; white-space:nowrap; }
+    .st-stopped-status.active { background:var(--red-soft); color:var(--red); }
+    .st-stopped-status.resumed { background:var(--green-soft); color:var(--green); }
     #stats-snap-list {
       flex: 1; overflow-y: auto; min-height: 40px;
       background: var(--surface);
@@ -1367,9 +1373,9 @@
     .st-copy-btn .ico-check { display: none; }
     .st-copy-btn.copied .ico-copy  { display: none; }
     .st-copy-btn.copied .ico-check { display: block; }
-    /* Drill-to-Hourly button in the Client cell — jumps to the Hourly tab
-       focused on this client + destination. Sits just left of the copy icon. */
-    td.st-cell-client { padding-right: 40px; }
+    /* Drill-to-Hourly button in the Client and Account Code cells — jumps to
+       the Hourly tab focused on this client + destination. */
+    td.st-cell-client, td.st-cell-acct { padding-right: 40px; }
     .st-drill-btn {
       position: absolute; top: 2px; right: 20px;
       display: inline-flex; align-items: center; justify-content: center;
@@ -1379,7 +1385,8 @@
       cursor: pointer; opacity: .5;
       transition: opacity .12s ease-out, color .12s ease-out;
     }
-    td.st-cell-client:hover .st-drill-btn { opacity: 1; }
+    td.st-cell-client:hover .st-drill-btn,
+    td.st-cell-acct:hover .st-drill-btn { opacity: 1; }
     .st-drill-btn:hover { color: var(--accent); }
     .st-drill-btn svg { width: 12px; height: 12px; display: block; }
     /* Hourly focus banner — shows which client the Hourly view is pinned to */
@@ -3091,6 +3098,7 @@
     <button class="tbtn stats-tab" id="stnav-stats-watch"    onclick="switchStatsView('watch')">Watch <span id="sttab-cnt-watch"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-stopped"  onclick="switchStatsView('stopped')">Stopped <span id="sttab-cnt-stopped"></span></button>
     <div class="stats-column-picker" id="stats-column-picker" hidden>
       <button type="button" class="tbtn" id="stats-column-picker-btn" onclick="toggleStatsColumnPicker(event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-column-picker-menu" title="Choose columns for the Critical, Low, Watch, Ok and Good tables">Columns</button>
       <div class="col-dd" id="stats-column-picker-menu" role="group" aria-label="Visible Stats status-table columns"></div>
@@ -4269,7 +4277,7 @@
                   <th onclick="sortStats('cls')">Classification</th>
                   <th>ACD Band</th>
                   <th>Status / Flags</th>
-                  <th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th>
+                  <th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th>
                   <th>Remarks</th>
                 </tr></thead>
                 <tbody id="st-tbody-all"></tbody>
@@ -4288,7 +4296,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th><th title="Exact Account Code + Destination compared with the immediately preceding saved Stats snapshot">Traffic vs Past Hr</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-critical"></tbody>
             </table></div>
           </div>
@@ -4304,7 +4312,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th><th title="Exact Account Code + Destination compared with the immediately preceding saved Stats snapshot">Traffic vs Past Hr</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-low"></tbody>
             </table></div>
           </div>
@@ -4320,7 +4328,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th><th title="Exact Account Code + Destination compared with the immediately preceding saved Stats snapshot">Traffic vs Past Hr</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-watch"></tbody>
             </table></div>
           </div>
@@ -4336,7 +4344,7 @@
               <thead><tr>
                 <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th><th title="Exact Account Code + Destination compared with the immediately preceding saved Stats snapshot">Traffic vs Past Hr</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-ok"></tbody>
             </table></div>
           </div>
@@ -4352,8 +4360,25 @@
               <thead><tr>
                 <th>Client</th><th>Account Code</th><th>Destination</th><th style="text-align:right">Attempts</th>
                 <th style="text-align:right">Completed</th><th style="text-align:right">ASR %</th>
-                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Previous Day</th><th>Remarks</th>
+                <th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th><th>Status / Flags</th><th title="Exact Account Code + Destination compared with the same time slot on the most recent prior saved day">Traffic vs Prev Day</th><th title="Exact Account Code + Destination compared with the immediately preceding saved Stats snapshot">Traffic vs Past Hr</th><th>Remarks</th>
               </tr></thead><tbody id="st-tbody-good"></tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-stats-stopped">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Stopped Traffic Log — <span id="st-stopped-count">0</span></div>
+          <div style="font-size:10px;color:#555;padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
+          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+            <div class="lv-wrap"><table id="st-tbl-stopped">
+              <thead><tr>
+                <th>Client</th><th>Account Code</th><th>Destination</th><th>Last Traffic</th>
+                <th style="text-align:right">Attempts</th><th style="text-align:right">Completed</th>
+                <th style="text-align:right">ASR %</th><th style="text-align:right">ACD</th><th style="text-align:right">Revenue</th>
+                <th>Stopped Since</th><th style="text-align:right">Hours Stopped</th><th>Current Status</th>
+              </tr></thead><tbody id="st-tbody-stopped"></tbody>
             </table></div>
           </div>
         </div>
@@ -4767,7 +4792,7 @@
           Settings for the <strong>Stats Monitor</strong>. Balance-monitor snapshots, alerts and spam baseline are managed separately in the main Settings.
         </div>
         <div class="settings-danger" id="stats-clear-previous-day-setting">
-          <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Previous Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
+          <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Prev Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
           <div class="danger-btns">
             <button class="tbtn" id="stats-clear-previous-day-btn" style="color:#880000" onclick="clearStatsPreviousDaySnapshots()">Clear Previous-Day Stats Comparison</button>
           </div>
@@ -17210,9 +17235,11 @@ const STATS_CLASSIFICATION_COLUMNS = [
   { key:'acd', label:'ACD' },
   { key:'revenue', label:'Revenue' },
   { key:'flags', label:'Status / Flags' },
-  { key:'previous_day', label:'Traffic vs Previous Day' },
+  { key:'previous_day', label:'Traffic vs Prev Day' },
+  { key:'past_hour', label:'Traffic vs Past Hr' },
   { key:'remarks', label:'Remarks' },
 ];
+const STATS_CLASSIFICATION_COLUMNS_VERSION = 2;
 let statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
 let statsColumnPreferenceSaveTimer = null;
 
@@ -17258,7 +17285,12 @@ function saveStatsClassificationColumns() {
   const selected = STATS_CLASSIFICATION_COLUMNS
     .map(column => column.key)
     .filter(key => statsVisibleClassificationColumns.has(key));
-  try { localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify(selected)); } catch(e) {}
+  try {
+    localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify({
+      version:STATS_CLASSIFICATION_COLUMNS_VERSION,
+      columns:selected,
+    }));
+  } catch(e) {}
   if (statsColumnPreferenceSaveTimer) clearTimeout(statsColumnPreferenceSaveTimer);
   if (!fbOk || !currentUserUid) return;
   const uid = currentUserUid;
@@ -17266,6 +17298,7 @@ function saveStatsClassificationColumns() {
     try {
       await setDoc(doc(db, 'user_preferences', uid), {
         stats_classification_columns:selected,
+        stats_classification_columns_version:STATS_CLASSIFICATION_COLUMNS_VERSION,
         updated_at:Timestamp.now(),
       }, { merge:true });
     } catch(e) {
@@ -17276,21 +17309,38 @@ function saveStatsClassificationColumns() {
 }
 async function loadStatsClassificationColumns() {
   let selected = null;
+  let preferenceVersion = 0;
   try {
     const local = localStorage.getItem(statsClassificationColumnsStorageKey());
-    if (local) selected = JSON.parse(local);
+    if (local) {
+      const parsed = JSON.parse(local);
+      if (Array.isArray(parsed)) selected = parsed; // legacy version 1
+      else if (parsed && Array.isArray(parsed.columns)) {
+        selected = parsed.columns;
+        preferenceVersion = Number(parsed.version) || 0;
+      }
+    }
   } catch(e) {}
   if (fbOk && currentUserUid) {
     try {
       const snapshot = await getDoc(doc(db, 'user_preferences', currentUserUid));
       if (snapshot.exists() && Array.isArray(snapshot.data()?.stats_classification_columns)) {
         selected = snapshot.data().stats_classification_columns;
+        preferenceVersion = Number(snapshot.data()?.stats_classification_columns_version) || 0;
       }
     } catch(e) { console.warn('load Stats column preferences:', e); }
   }
+  // Existing users saved preferences before Traffic vs Past Hr existed. Show
+  // the new column once by default; version 2 then preserves an explicit hide.
+  if (Array.isArray(selected) && preferenceVersion < STATS_CLASSIFICATION_COLUMNS_VERSION && !selected.includes('past_hour')) {
+    selected = [...selected, 'past_hour'];
+  }
   statsVisibleClassificationColumns = normalizeStatsClassificationColumns(selected);
   try {
-    localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify([...statsVisibleClassificationColumns]));
+    localStorage.setItem(statsClassificationColumnsStorageKey(), JSON.stringify({
+      version:STATS_CLASSIFICATION_COLUMNS_VERSION,
+      columns:[...statsVisibleClassificationColumns],
+    }));
   } catch(e) {}
   renderStatsColumnPicker();
   applyStatsClassificationColumnVisibility();
@@ -18353,15 +18403,35 @@ function statsPreviousRouteTrendMap(timeSlot) {
   return { previousSnap, routes:previousSnap ? groupStatsSnapshot(previousSnap) : new Map() };
 }
 
-function statsTrafficTrendCell(row, comparison, currentSnap) {
+// Compare against the immediately preceding saved snapshot from today. If an
+// hour was not posted, this intentionally uses the last snapshot that exists.
+function statsPastHourTrendMap(currentSnap) {
+  const snaps = statsSortedSnaps();
+  const currentIndex = snaps.findIndex(snap => snap === currentSnap
+    || (String(snap.session_date || '') === String(currentSnap?.session_date || '')
+      && String(snap.time_slot || '') === String(currentSnap?.time_slot || '')));
+  const previousSnap = currentIndex > 0 ? snaps[currentIndex - 1] : null;
+  return { previousSnap, routes:previousSnap ? groupStatsSnapshot(previousSnap) : new Map() };
+}
+
+function statsTrafficTrendCell(row, comparison, currentSnap, comparisonType = 'previous-day') {
+  const pastHour = comparisonType === 'past-hour';
   if (!comparison?.previousSnap) {
-    const detail = statsPreviousDayDate
-      ? `No ${String(currentSnap?.time_slot || '')} snapshot was saved on ${statsPreviousDayDate}`
-      : 'No earlier Stats day is available';
-    return `<span class="st-traffic-trend none" title="${stEsc(detail)}">— No prior slot</span>`;
+    const detail = pastHour
+      ? 'No earlier Stats snapshot from today is available'
+      : (statsPreviousDayDate
+        ? `No ${String(currentSnap?.time_slot || '')} snapshot was saved on ${statsPreviousDayDate}`
+        : 'No earlier Stats day is available');
+    const emptyLabel = pastHour ? '— No past hr' : '— No prior slot';
+    return `<span class="st-traffic-trend none" title="${stEsc(detail)}">${emptyLabel}</span>`;
   }
   const previous = comparison.routes.get(row.gkey);
-  if (!previous) return '<span class="st-traffic-trend new" title="This Account Code + Destination was not present in the matching prior-day time slot">★ New route</span>';
+  if (!previous) {
+    const detail = pastHour
+      ? 'This Account Code + Destination was not present in the immediately preceding saved Stats snapshot'
+      : 'This Account Code + Destination was not present in the matching prior-day time slot';
+    return `<span class="st-traffic-trend new" title="${detail}">★ New route</span>`;
+  }
   const attempts = Number(row.attempts) || 0;
   const previousAttempts = Number(previous.attempts) || 0;
   const change = attempts - previousAttempts;
@@ -18724,6 +18794,74 @@ function statsCurrentRows() {
   return rows;
 }
 
+// Build an in-memory stopped-traffic log from today's snapshots only. A route
+// earns one Hours Stopped count for every later saved snapshot in which it is
+// absent. Entries remain in the derived log after traffic resumes and disappear
+// automatically when the underlying Stats snapshots are cleared.
+function statsStoppedTrafficRows(snaps = statsSortedSnaps()) {
+  const ordered = [...(snaps || [])].sort((a,b) => String(a.time_slot).localeCompare(String(b.time_slot)));
+  if (ordered.length < 2) return [];
+  const states = new Map();
+  const log = new Map();
+  groupStatsSnapshot(ordered[0]).forEach((row, key) => {
+    states.set(key, { lastSeen:row, lastTrafficSlot:String(ordered[0].time_slot || ''), missing:false });
+  });
+  for (let index = 1; index < ordered.length; index++) {
+    const snapshot = ordered[index];
+    const slot = String(snapshot.time_slot || '');
+    const current = groupStatsSnapshot(snapshot);
+    states.forEach((state, key) => {
+      const now = current.get(key);
+      if (now) {
+        state.lastSeen = now;
+        state.lastTrafficSlot = slot;
+        state.missing = false;
+        const entry = log.get(key);
+        if (entry?.currentlyStopped) {
+          entry.currentlyStopped = false;
+          entry.resumedSlot = slot;
+        }
+        return;
+      }
+      let entry = log.get(key);
+      const startsNewStop = !state.missing;
+      if (!entry) {
+        entry = { gkey:key, hoursStopped:0, stopEvents:0, currentlyStopped:true, resumedSlot:'' };
+        log.set(key, entry);
+      }
+      if (startsNewStop) {
+        const last = state.lastSeen;
+        Object.assign(entry, {
+          customer_name:last.customer_name,
+          account_code:last.account_code,
+          acct_list:last.acct_list,
+          destination:last.destination,
+          attempts:last.attempts,
+          completed:last.completed,
+          asr:last.asr,
+          acd:last.acd,
+          revenue:last.revenue,
+          lastTrafficSlot:state.lastTrafficSlot,
+          stoppedSince:slot,
+          stopEvents:(entry.stopEvents || 0) + 1,
+        });
+      }
+      entry.hoursStopped = (entry.hoursStopped || 0) + 1;
+      entry.lastMissingSlot = slot;
+      entry.currentlyStopped = true;
+      entry.resumedSlot = '';
+      state.missing = true;
+    });
+    current.forEach((row, key) => {
+      if (!states.has(key)) states.set(key, { lastSeen:row, lastTrafficSlot:slot, missing:false });
+    });
+  }
+  return [...log.values()].sort((a,b) =>
+    Number(b.currentlyStopped) - Number(a.currentlyStopped)
+    || b.hoursStopped - a.hoursStopped
+    || String(a.customer_name || '').localeCompare(String(b.customer_name || '')));
+}
+
 function statsFlags(r) {
   const h = [];
   if (r.isNew) h.push('<span class="stbadge newc">NEW</span>');
@@ -18891,18 +19029,19 @@ function processStatsRows(rows, tbodyId, full) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
   if (!rows.length) {
-    const span = full ? 13 : 11;
+    const span = full ? 13 : 12;
     tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
     return;
   }
   const currentSnap = statsCurrentSnap();
   const routeTrend = statsPreviousRouteTrendMap(currentSnap?.time_slot);
+  const pastHourTrend = statsPastHourTrendMap(currentSnap);
   tb.innerHTML = rows.map(r => {
     const rowCls = r.persistent ? 'st-row-persist'
       : (r.cls === 'critical' ? 'st-row-critical' : (r.cls === 'low' ? 'st-row-low' : ''));
     const cells = full
       ? `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}${stDrillBtn()}</td>
-         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}${stDrillBtn()}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
@@ -18915,7 +19054,7 @@ function processStatsRows(rows, tbodyId, full) {
          <td>${statsTrafficTrendCell(r, routeTrend, currentSnap)}</td>
          ${stRemarkCell(r)}`
       : `<td class="st-cell-client">${stEsc(r.customer_name)}${stCopyBtn(r.customer_name)}${stDrillBtn()}</td>
-         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}</td>
+         <td class="st-cell-acct">${stEsc(r.acct_list)}${stCopyBtn(r.acct_list)}${stDrillBtn()}</td>
          <td>${stEsc(r.destination)}</td>
          <td style="text-align:right">${stN0(r.attempts)}</td>
          <td style="text-align:right">${stN0(r.completed)}</td>
@@ -18924,6 +19063,7 @@ function processStatsRows(rows, tbodyId, full) {
          <td style="text-align:right">${stN2(r.revenue)}</td>
          <td>${statsFlags(r)}</td>
          <td>${statsTrafficTrendCell(r, routeTrend, currentSnap)}</td>
+         <td>${statsTrafficTrendCell(r, pastHourTrend, currentSnap, 'past-hour')}</td>
          ${stRemarkCell(r)}`;
     // The whole row is the remark target: double-click anywhere to edit, hover
     // anywhere to read. data-rk/data-label are read by editStatsRemark / the tooltip.
@@ -18934,6 +19074,36 @@ function processStatsRows(rows, tbodyId, full) {
       + ` ondblclick="editStatsRemark(this)" onmousemove="stRemarkTipShow(event,this)" onmouseleave="stRemarkTipHide()">${cells}</tr>`;
   }).join('');
 }
+
+function renderStatsStopped() {
+  const rows = statsStoppedTrafficRows();
+  const tbody = document.getElementById('st-tbody-stopped');
+  const count = document.getElementById('st-stopped-count');
+  const tabCount = document.getElementById('sttab-cnt-stopped');
+  if (count) count.textContent = rows.length;
+  if (tabCount) tabCount.textContent = rows.length ? `(${rows.length})` : '(none)';
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:10px;color:#888;text-align:center">No stopped traffic detected in today\'s Stats snapshots.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(row => {
+    const rk = stEsc(row.gkey || '');
+    const label = stEsc((row.customer_name || '') + (row.destination && row.destination !== '(no dest)' ? ' — ' + row.destination : ''));
+    const status = row.currentlyStopped
+      ? '<span class="st-stopped-status active">Still stopped</span>'
+      : `<span class="st-stopped-status resumed" title="Traffic returned at ${stEsc(fmt12(row.resumedSlot))}">Traffic resumed</span>`;
+    return `<tr class="${row.currentlyStopped ? 'st-stopped-active' : ''}" data-rk="${rk}" data-label="${label}">`
+      + `<td class="st-cell-client">${stEsc(row.customer_name)}${stCopyBtn(row.customer_name)}${stDrillBtn()}</td>`
+      + `<td class="st-cell-acct">${stEsc(row.acct_list)}${stCopyBtn(row.acct_list)}${stDrillBtn()}</td>`
+      + `<td>${stEsc(row.destination)}</td><td>${stEsc(fmt12(row.lastTrafficSlot))}</td>`
+      + `<td style="text-align:right">${stN0(row.attempts)}</td><td style="text-align:right">${stN0(row.completed)}</td>`
+      + `<td style="text-align:right">${stVal(row.asr)}</td><td style="text-align:right">${stVal(row.acd)}</td>`
+      + `<td style="text-align:right">${stN2(row.revenue)}</td><td>${stEsc(fmt12(row.stoppedSince))}</td>`
+      + `<td style="text-align:right;font-weight:700">${stN0(row.hoursStopped)}</td><td>${status}</td></tr>`;
+  }).join('');
+}
+window.renderStatsStopped = renderStatsStopped;
 
 function statsRowHasFlag(r, f) {
   switch (f) {
@@ -19238,6 +19408,7 @@ function statsRender() {
   renderStatsSidebar();
   renderStatsSummary();
   renderStatsTables();
+  renderStatsStopped();
   renderStatsHourly();
   renderStatsDailyTraffic();
   updateStatsStatusBar();
@@ -19441,7 +19612,7 @@ window.clearStatsPreviousDaySnapshots = async () => {
     return;
   }
   const cachedCount = statsPreviousDaySnaps.length;
-  if (!confirm(`Delete all Stats snapshots from ${targetDate}?\n\nThis removes the day currently used by Traffic vs Previous Day (${cachedCount} cached snapshot${cachedCount === 1 ? '' : 's'}) and cannot be undone.`)) return;
+  if (!confirm(`Delete all Stats snapshots from ${targetDate}?\n\nThis removes the day currently used by Traffic vs Prev Day (${cachedCount} cached snapshot${cachedCount === 1 ? '' : 's'}) and cannot be undone.`)) return;
   setLoading(true, `Clearing previous-day Stats snapshots for ${targetDate}…`);
   try {
     let deletedCount = 0;
