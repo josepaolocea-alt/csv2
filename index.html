@@ -1427,6 +1427,13 @@
     tr.st-row-critical td { background: var(--red-soft) !important; }
     tr.st-row-persist td  { background: var(--red-soft) !important; }
     tr.st-row-low td      { background: var(--orange-soft) !important; }
+    tr.st-row-total td {
+      background: color-mix(in srgb, var(--accent-soft) 58%, var(--surface)) !important;
+      border-top: 2px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+      color: var(--text); font-weight: 700;
+    }
+    tr.st-row-total td:first-child { color: var(--accent-strong); }
+    .st-total-sub { display:block; margin-top:2px; color:var(--text-3); font-size:9px; font-weight:600; }
     td.st-cell-client { font-size: 10px; color: var(--text-3); }
     td.st-cell-acct   { font-weight: 600; color: var(--accent); }
     /* Hover-to-copy icon in Client / Account Code cells */
@@ -17698,6 +17705,7 @@ const STATS_VIEW_GUIDES = {
     summary:'Shows every client and destination in the currently selected Stats snapshot, with its calculated quality classification and comparison signals.',
     items:[
       'Use Search and the Flags filter to narrow the table; the download contains only the rows currently shown.',
+      'When the pasted report includes a Total row, its aggregate is preserved at the bottom of the unfiltered table but is never counted as a client.',
       'Traffic vs Prev Day compares the exact Account Code + Destination with the same time slot on the most recent prior saved day.',
       'Double-click a row to open that exact client and destination in Hourly. Use the rightmost remarks icon to read or update persistent notes.',
       'Critical, Low, Watch, Ok, and Good are based on the combined Attempts, Completed calls, ASR, and ACD for each route.'
@@ -18180,17 +18188,29 @@ function parseStatsText(text) {
   const dataLines = headerIdx >= 0 ? lines.slice(headerIdx + 1) : lines;
   const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : 0; };
   const rows = [];
+  let pastedTotal = null;
   for (const line of dataLines) {
     const c = splitLine(line).map(x => x.trim());
     if (c.length < 7) continue;
     const acct = c[0] || '';
-    if (!acct || /^total$/i.test(acct) || /^total$/i.test(c[1] || '')) continue;
+    if (!acct) continue;
+    if (/^total$/i.test(acct) || /^total$/i.test(c[1] || '')) {
+      pastedTotal = {
+        is_total:true, account_code:'Total', customer_name:'Total', destination:'',
+        attempts:num(c[3]), completed:num(c[4]), asr:num(c[5]), acd:num(c[6]),
+        raw_dur:num(c[7]), rnd_dur:num(c[8]), revenue:num(c[9])
+      };
+      continue;
+    }
     rows.push({
       account_code: acct, customer_name: c[1] || acct, destination: c[2] || '',
       attempts: num(c[3]), completed: num(c[4]), asr: num(c[5]), acd: num(c[6]),
       raw_dur: num(c[7]), rnd_dur: num(c[8]), revenue: num(c[9])
     });
   }
+  // Keep the aggregate separate from client rows so it can be displayed and
+  // saved without entering classifications, hourly pivots, or comparisons.
+  Object.defineProperty(rows, 'total', { value:pastedTotal, enumerable:false, configurable:true });
   return rows;
 }
 
@@ -19459,6 +19479,7 @@ const stAcdBadge = c => `<span class="stbadge ${c}">ACD ${ST_CLS_LABEL[c]||c}</s
 function groupStatsSnapshot(snap) {
   const m = new Map();
   (snap?.data || []).forEach((r, idx) => {
+    if (r?.is_total || /^total$/i.test(String(r?.account_code || r?.customer_name || '').trim())) return;
     // One entry per (account code, destination). Same account with multiple
     // destinations stays split so per-destination stats are visible and the
     // timeline tracks each destination independently across snapshots.
@@ -19910,6 +19931,24 @@ function processStatsRows(rows, tbodyId, full) {
   }).join('');
 }
 
+function appendStatsPastedTotalRow(total) {
+  const tbody = document.getElementById('st-tbody-all');
+  if (!tbody || !total?.is_total) return;
+  const detail = `Raw Dur ${stN2(total.raw_dur)} · Rnd Dur ${stN2(total.rnd_dur)}`;
+  tbody.insertAdjacentHTML('beforeend', `<tr class="st-row-total" data-stats-total="true" title="Aggregate Total row from the pasted report">
+    <td>Total<span class="st-total-sub">Pasted aggregate</span></td>
+    <td>—</td><td>—</td>
+    <td style="text-align:right">${stN0(total.attempts)}</td>
+    <td style="text-align:right">${stN0(total.completed)}</td>
+    <td style="text-align:right">${stVal(total.asr)}</td>
+    <td style="text-align:right">${stVal(total.acd)}</td>
+    <td style="text-align:right">${stN2(total.revenue)}</td>
+    <td>—</td><td>—</td>
+    <td>Pasted Total<span class="st-total-sub">${stEsc(detail)}</span></td>
+    <td>—</td><td>—</td>
+  </tr>`);
+}
+
 function renderStatsStopped() {
   const allRows = statsStoppedTrafficRows();
   const rows = statsStoppedShowDID
@@ -19984,8 +20023,9 @@ function renderStatsTables() {
   if (flagF !== 'all') allRows = allRows.filter(r => statsRowHasFlag(r, flagF));
   processStatsRows(allRows, 'st-tbody-all', true);
   const filtered = search || flagF !== 'all';
+  if (!filtered) appendStatsPastedTotalRow(statsCurrentSnap()?.total);
   const cnt = document.getElementById('st-all-count');
-  if (cnt) cnt.textContent = `${allRows.length} client(s)` + (filtered ? ' (filtered)' : '');
+  if (cnt) cnt.textContent = `${allRows.length} client(s)` + (filtered ? ' (filtered)' : (statsCurrentSnap()?.total ? ' + pasted Total' : ''));
 
   const byCls = c => statsSortRows(rows.filter(r => r.cls === c));
   [['critical','st-tbody-critical','st-critical-count'],
@@ -20277,10 +20317,11 @@ window.processStatsSnapshot = async () => {
   if (!requirePastedData('stats-snap-ta', 'Stats snapshot data')) return;
   const rows = parseStatsText(ta.value);
   if (!rows.length) { toast('No valid stats rows found — check the pasted data.', 'err', 6000); return; }
+  const pastedTotal = rows.total || null;
   const slot = document.getElementById('stats-slot-sel').value;
   const existing = statsTodaySnaps.find(s => s.time_slot === slot);
   if (existing && !confirm(`The ${fmt12(slot)} slot already has a stats snapshot today (${existing.data?.length||0} rows). Overwrite it?`)) return;
-  const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows };
+  const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows, total:pastedTotal };
   statsTodaySnaps = [...statsTodaySnaps.filter(s => s.time_slot !== slot), snap];
   statsViewingSlot = null;
   ta.value = '';
@@ -20293,11 +20334,11 @@ window.processStatsSnapshot = async () => {
       const id = snapshotDocId(snap.session_date, snap.time_slot);
       await setDoc(doc(db, 'stats_snapshots', id), { ...snap, timestamp:Timestamp.fromDate(snap.timestamp) });
       snap.id = id;
-      toast(`✓ Stats snapshot saved — ${rows.length} rows`, 'ok');
+      toast(`✓ Stats snapshot saved — ${rows.length} client rows${pastedTotal ? ' + Total' : ''}`, 'ok');
     } catch(e) { toast('Firestore error (data kept locally): ' + e.message, 'err', 6000); }
     finally { setLoading(false); }
   } else {
-    toast(`✓ Stats snapshot saved locally — ${rows.length} rows`, 'ok');
+    toast(`✓ Stats snapshot saved locally — ${rows.length} client rows${pastedTotal ? ' + Total' : ''}`, 'ok');
   }
 };
 
