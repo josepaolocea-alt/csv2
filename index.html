@@ -300,6 +300,13 @@
     }
     .app-action-menu-panel .tbtn:hover { background: var(--surface-2); border-color: transparent; }
     .app-action-menu-panel .tbtn.active { background: var(--accent-soft); color: var(--accent); }
+    .alert-action-menu-trigger { width: 32px; min-width: 32px; height: 32px; padding: 0; justify-content: center; }
+    .alert-action-menu-trigger svg { width: 18px; height: 18px; }
+    .alert-action-menu-panel { min-width: 220px; }
+    .alert-action-menu-panel .tbtn { gap: 10px; }
+    .alert-action-menu-panel .tbtn svg { width: 17px; height: 17px; flex: 0 0 17px; }
+    .alert-action-menu-panel .alert-action-export { color: var(--accent); background: var(--accent-soft); }
+    .alert-action-menu-panel .alert-action-export:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
     /* "Cancel Edit" (SMS form) — amber outline so it stands out beside the
        blue "Save Changes" and reads as "discard", distinct from red delete. */
     #sms-cancel-edit-btn {
@@ -1294,7 +1301,7 @@
       padding: 8px 10px; color: var(--text-2); font-size: 11px; line-height: 1.4;
     }
     .st-daily-dashboard-grid {
-      display: grid; grid-template-columns: repeat(3, minmax(260px, 1fr));
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px; padding: 0 8px 8px; overflow: auto;
     }
     .st-daily-rank-card {
@@ -1309,7 +1316,7 @@
     .st-daily-rank-card.decrease .st-daily-rank-title,
     .st-daily-rank-card.stopped .st-daily-rank-title { color: var(--red); }
     .st-daily-rank-card.increase .st-daily-rank-title { color: var(--green); }
-    .st-daily-rank-card.total { grid-column: 1 / -1; }
+    .st-daily-rank-card.total { grid-column: auto; }
     .st-daily-rank-card.total .st-daily-rank-title { color: var(--accent-strong); }
     .st-daily-rank-card.total tbody tr { cursor: default; }
     .st-daily-rank-card.total .st-daily-status { justify-content: center; min-width: 72px; }
@@ -1326,6 +1333,47 @@
     .st-daily-rank-client { min-width: 130px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
     .st-daily-rank-account { display: block; margin-top: 1px; color: var(--text-3); font-size: 9px; font-weight: 400; }
     .st-daily-rank-destination { display: block; margin-top: 1px; color: var(--text-2); font-size: 9px; font-weight: 600; }
+    /* Per-view Stats actions sit inside each table card header so the guide and
+       current-view download stay reachable without consuming filter space. */
+    .st-view-heading {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      min-height: 32px; margin-bottom: 2px;
+    }
+    .st-view-heading .groupbox-title { min-width: 0; margin-bottom: 0; }
+    .st-view-actions { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+    .st-view-action {
+      width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0;
+      align-items: center; justify-content: center;
+    }
+    .st-view-action svg { width: 16px; height: 16px; pointer-events: none; }
+    .st-view-action-download { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+    .st-view-action-download:hover { color: var(--on-accent); background: var(--accent-strong); border-color: var(--accent-strong); }
+    #stats-view-guide-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2750; align-items: center; justify-content: center;
+      padding: 18px; background: rgba(8,14,26,.48); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    }
+    #stats-view-guide-overlay.open { display: flex; }
+    #stats-view-guide-dialog {
+      width: min(560px, calc(100vw - 24px)); max-height: min(650px, calc(100vh - 32px)); overflow: hidden;
+      border-color: color-mix(in srgb, var(--accent) 22%, var(--border)); border-radius: 16px;
+      box-shadow: 0 28px 90px rgba(8,16,31,.34), 0 8px 24px rgba(8,16,31,.16);
+    }
+    .stats-view-guide-head { justify-content: space-between; height: 44px; padding: 0 12px 0 16px; }
+    .stats-view-guide-close {
+      display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-2); cursor: pointer;
+    }
+    .stats-view-guide-body { padding: 16px; overflow: auto; max-height: calc(100vh - 110px); }
+    .stats-view-guide-summary { margin-bottom: 12px; color: var(--text-2); font-size: 11px; line-height: 1.55; }
+    .stats-view-guide-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .stats-view-guide-list li {
+      position: relative; padding: 9px 10px 9px 30px; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface-2); color: var(--text-2); font-size: 11px; line-height: 1.45;
+    }
+    .stats-view-guide-list li::before {
+      content: ''; position: absolute; left: 11px; top: 13px; width: 7px; height: 7px;
+      border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft);
+    }
     .st-daily-history-toolbar { flex-wrap: wrap; }
     #st-daily-history-table { min-width: 1380px; font-size: 11px; font-variant-numeric: tabular-nums; }
     #st-daily-history-table th { text-align: right; }
@@ -2076,13 +2124,14 @@
     .toast.undo-toast button { flex-shrink: 0; }
     @media (max-width: 980px) {
       .st-daily-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
-      .st-daily-dashboard-grid { grid-template-columns: 1fr; }
+      .st-daily-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .sms-form-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
       .sms-otp-grid { grid-template-columns: 1fr 1fr; }
       .sms-otp-existing { grid-template-columns: 1fr; }
       .sms-otp-existing-help { grid-column: 1; }
     }
     @media (max-width:720px) {
+      .st-daily-dashboard-grid { grid-template-columns: 1fr; }
       #sms-credentials-register-panel { flex-direction:column; }
       #sms-credentials-form, #sms-credentials-form:not(.collapsed) {
         flex-basis:auto; width:auto; max-height:60vh;
@@ -3324,15 +3373,22 @@
               <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
             </div>
             <div class="alert-tab-actions" id="alert-actions">
-              <button class="tbtn icon-only" id="btn-alert-guide-toggle" onclick="toggleVoipAlertGuide()" title="Show VOIP alert guide" aria-label="Show VOIP alert guide" aria-controls="voip-alert-guide" aria-expanded="false" data-premium-tooltip="Show the VOIP alert guide.">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg>
-              </button>
-              <button class="tbtn icon-only" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-              </button>
-              <button class="tbtn primary icon-only" id="btn-alert-export-view" onclick="exportCurrentAlertView()" title="Export all rows in the selected Alerts view to CSV" aria-label="Export current alert view to CSV">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
-              </button>
+              <div class="app-action-menu" id="voip-alert-action-menu">
+                <button type="button" class="tbtn icon-only app-action-menu-trigger alert-action-menu-trigger" id="voip-alert-action-menu-trigger" onclick="toggleAppActionMenu('voip-alert',event)" aria-haspopup="true" aria-expanded="false" aria-controls="voip-alert-action-menu-panel" aria-label="Open VOIP alert actions" data-premium-tooltip="Open VOIP alert actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg>
+                </button>
+                <div class="app-action-menu-panel alert-action-menu-panel" id="voip-alert-action-menu-panel" role="menu" aria-label="VOIP alert actions">
+                  <button class="tbtn" id="btn-alert-guide-toggle" onclick="toggleVoipAlertGuide();closeAppActionMenus()" title="Show VOIP alert guide" aria-label="Show VOIP alert guide" aria-controls="voip-alert-guide" aria-expanded="false" data-premium-tooltip="Show the VOIP alert guide." role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>Alert guide</span>
+                  </button>
+                  <button class="tbtn" id="btn-alert-show-inactive" onclick="toggleAlertShowInactive();closeAppActionMenus()" title="Show inactive clients" aria-label="Show inactive clients" role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Show inactive clients</span>
+                  </button>
+                  <button class="tbtn alert-action-export" id="btn-alert-export-view" onclick="exportCurrentAlertView();closeAppActionMenus()" title="Export all rows in the selected Alerts view to CSV" aria-label="Export current alert view to CSV" role="menuitem">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Download current view</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <section class="voip-alert-guide" id="voip-alert-guide" aria-labelledby="voip-alert-guide-title" hidden>
@@ -3749,15 +3805,22 @@
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
                       <div class="alert-tab-actions" id="sms-bal-alert-actions">
-                        <button class="tbtn icon-only" id="sms-bal-alert-guide-toggle" onclick="toggleSmsBalanceStatusGuide()" title="Show SMS balance status guide" aria-label="Show SMS balance status guide" aria-controls="sms-bal-status-guide" aria-expanded="false" data-premium-tooltip="Show the SMS balance status guide.">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg>
-                        </button>
-                        <button class="tbtn icon-only" id="sms-bal-alert-show-inactive" onclick="toggleSmsBalanceAlertShowInactive()" title="Show inactive clients" aria-label="Show inactive clients" data-premium-tooltip="Show inactive clients in the current SMS Alerts view.">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-                        </button>
-                        <button class="tbtn primary icon-only" id="sms-bal-alert-export-view" onclick="exportSmsBalanceAlertView()" title="Download the current SMS Alerts view as CSV" aria-label="Download current SMS Alerts view as CSV" data-premium-tooltip="Download exactly the active SMS Alerts subtab and filters as CSV.">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
-                        </button>
+                        <div class="app-action-menu" id="sms-alert-action-menu">
+                          <button type="button" class="tbtn icon-only app-action-menu-trigger alert-action-menu-trigger" id="sms-alert-action-menu-trigger" onclick="toggleAppActionMenu('sms-alert',event)" aria-haspopup="true" aria-expanded="false" aria-controls="sms-alert-action-menu-panel" aria-label="Open SMS Balance alert actions" data-premium-tooltip="Open SMS Balance alert actions">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/></svg>
+                          </button>
+                          <div class="app-action-menu-panel alert-action-menu-panel" id="sms-alert-action-menu-panel" role="menu" aria-label="SMS Balance alert actions">
+                            <button class="tbtn" id="sms-bal-alert-guide-toggle" onclick="toggleSmsBalanceStatusGuide();closeAppActionMenus()" title="Show SMS balance status guide" aria-label="Show SMS balance status guide" aria-controls="sms-bal-status-guide" aria-expanded="false" data-premium-tooltip="Show the SMS balance status guide." role="menuitem">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg><span>Alert guide</span>
+                            </button>
+                            <button class="tbtn" id="sms-bal-alert-show-inactive" onclick="toggleSmsBalanceAlertShowInactive();closeAppActionMenus()" title="Show inactive clients" aria-label="Show inactive clients" data-premium-tooltip="Show inactive clients in the current SMS Alerts view." role="menuitem">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Show inactive clients</span>
+                            </button>
+                            <button class="tbtn alert-action-export" id="sms-bal-alert-export-view" onclick="exportSmsBalanceAlertView();closeAppActionMenus()" title="Download the current SMS Alerts view as CSV" aria-label="Download current SMS Alerts view as CSV" data-premium-tooltip="Download exactly the active SMS Alerts subtab and filters as CSV." role="menuitem">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg><span>Download current view</span>
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <section class="sms-bal-status-guide" id="sms-bal-status-guide" aria-labelledby="sms-bal-status-guide-title" hidden>
@@ -4304,7 +4367,13 @@
       <!-- ═══ STATS — ALL / CRITICAL / LOW / OK / GOOD ══ -->
       <div class="view" id="view-stats-all">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title" id="st-all-title">All Clients</div>
+          <div class="st-view-heading">
+            <div class="groupbox-title" id="st-all-title">All Clients</div>
+            <div class="st-view-actions" aria-label="All Clients table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('all')" aria-label="Open All Clients guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the All Clients Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('all')" aria-label="Download current All Clients view" data-premium-tooltip="Download the current filtered All Clients table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div class="fbar">
             <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
             <select id="st-flag-filter" class="win-sel" onchange="renderStatsTables()" title="Filter by Status / Flags" style="width:150px">
@@ -4347,7 +4416,13 @@
 
       <div class="view" id="view-stats-critical">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Critical Clients — <span id="st-critical-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Critical Clients — <span id="st-critical-count">0</span></div>
+            <div class="st-view-actions" aria-label="Critical table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('critical')" aria-label="Open Critical guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Critical Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('critical')" aria-label="Download current Critical view" data-premium-tooltip="Download the current Critical table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -4363,7 +4438,13 @@
 
       <div class="view" id="view-stats-low">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Low Clients — <span id="st-low-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Low Clients — <span id="st-low-count">0</span></div>
+            <div class="st-view-actions" aria-label="Low table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('low')" aria-label="Open Low guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Low Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('low')" aria-label="Download current Low view" data-premium-tooltip="Download the current Low table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -4379,7 +4460,13 @@
 
       <div class="view" id="view-stats-watch">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Watch Clients — <span id="st-watch-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Watch Clients — <span id="st-watch-count">0</span></div>
+            <div class="st-view-actions" aria-label="Watch table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('watch')" aria-label="Open Watch guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Watch Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('watch')" aria-label="Download current Watch view" data-premium-tooltip="Download the current Watch table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -4395,7 +4482,13 @@
 
       <div class="view" id="view-stats-ok">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Ok Clients — <span id="st-ok-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Ok Clients — <span id="st-ok-count">0</span></div>
+            <div class="st-view-actions" aria-label="Ok table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('ok')" aria-label="Open Ok guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Ok Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('ok')" aria-label="Download current Ok view" data-premium-tooltip="Download the current Ok table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -4411,7 +4504,13 @@
 
       <div class="view" id="view-stats-good">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Good Clients — <span id="st-good-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Good Clients — <span id="st-good-count">0</span></div>
+            <div class="st-view-actions" aria-label="Good table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('good')" aria-label="Open Good guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Good Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('good')" aria-label="Download current Good view" data-premium-tooltip="Download the current Good table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
@@ -4427,7 +4526,13 @@
 
       <div class="view" id="view-stats-stopped">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Stopped Traffic Log — <span id="st-stopped-count">0</span></div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Stopped Traffic Log — <span id="st-stopped-count">0</span></div>
+            <div class="st-view-actions" aria-label="Stopped table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('stopped')" aria-label="Open Stopped guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Stopped Traffic view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('stopped')" aria-label="Download current Stopped view" data-premium-tooltip="Download the current Stopped Traffic table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
           <div class="fbar">
             <button class="tbtn" id="st-stopped-toggle-did" onclick="toggleStatsStoppedDID()" title="Show stopped account codes containing -DID">Show -DID</button>
@@ -4449,7 +4554,13 @@
       <!-- ═══ STATS — HOURLY (per-client pivot, today only) ══ -->
       <div class="view" id="view-stats-hourly">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Hourly — per client · today only</div>
+          <div class="st-view-heading">
+            <div class="groupbox-title">Hourly — per client · today only</div>
+            <div class="st-view-actions" aria-label="Hourly table actions">
+              <button class="tbtn st-view-action" onclick="openStatsViewGuide('hourly')" aria-label="Open Hourly guide" aria-haspopup="dialog" data-premium-tooltip="Guide to the Hourly Stats view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7h.01"/></svg></button>
+              <button class="tbtn st-view-action st-view-action-download" onclick="exportStatsCurrentView('hourly')" aria-label="Download current Hourly view" data-premium-tooltip="Download the current filtered Hourly table as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></button>
+            </div>
+          </div>
           <div style="font-size:10px;color:#555;padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
           <div class="fbar">
             <input id="st-hr-search" class="win-inp" placeholder="Search client…" oninput="onStatsHourlySearchInput()" style="width:160px">
@@ -5163,6 +5274,20 @@
 <!-- Floating tooltip that shows a client's remark on hover -->
 <div id="st-remark-tip"></div>
 
+<!-- Stats tab-specific guide -->
+<div id="stats-view-guide-overlay" aria-hidden="true" onclick="if(event.target===this) closeStatsViewGuide()">
+  <div class="win-dialog" id="stats-view-guide-dialog" role="dialog" aria-modal="true" aria-labelledby="stats-view-guide-title">
+    <div class="dlg-tb stats-view-guide-head">
+      <span id="stats-view-guide-title">Stats guide</span>
+      <button type="button" class="stats-view-guide-close" onclick="closeStatsViewGuide()" aria-label="Close Stats guide" title="Close">×</button>
+    </div>
+    <div class="stats-view-guide-body">
+      <div class="stats-view-guide-summary" id="stats-view-guide-summary"></div>
+      <ul class="stats-view-guide-list" id="stats-view-guide-list"></ul>
+    </div>
+  </div>
+</div>
+
 <!-- Client Remarks editor -->
 <div id="st-remark-dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center">
   <div class="win-dialog" style="min-width:340px;max-width:460px">
@@ -5553,6 +5678,25 @@ const smsSubscribedTabs = new Set();
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalancePriorSnap = null, smsBalancePriorLoaded = false, smsBalancePriorUnsubscribe = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [];
+// A full snapshot wipe intentionally makes the next post a fresh transition
+// baseline. Existing Critical / No-Threshold clients remain visible in their
+// current tabs, but are not replayed into persistent history as newly detected.
+let smsBalanceSeedAfterClear = localStorage.getItem('bm_sms_balance_seed_after_clear') === '1';
+let smsBalanceFreshBaselineKey = localStorage.getItem('bm_sms_balance_fresh_baseline_key') || '';
+function setSmsBalanceSeedAfterClear(on) {
+  smsBalanceSeedAfterClear = !!on;
+  try {
+    if (smsBalanceSeedAfterClear) localStorage.setItem('bm_sms_balance_seed_after_clear', '1');
+    else localStorage.removeItem('bm_sms_balance_seed_after_clear');
+  } catch(e) {}
+}
+function setSmsBalanceFreshBaselineKey(key = '') {
+  smsBalanceFreshBaselineKey = String(key || '');
+  try {
+    if (smsBalanceFreshBaselineKey) localStorage.setItem('bm_sms_balance_fresh_baseline_key', smsBalanceFreshBaselineKey);
+    else localStorage.removeItem('bm_sms_balance_fresh_baseline_key');
+  } catch(e) {}
+}
 let smsBalanceView = localStorage.getItem('bm_sms_balance_view') || 'summary';
 let smsBalanceAlertFilter = localStorage.getItem('bm_sms_balance_alert_filter') || 'all';
 let smsBalanceAlertShowInactive = false;
@@ -13243,8 +13387,10 @@ function smsBalanceNoThresholdRows() {
 }
 function smsBalancePreviousContext() {
   const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
+  if (smsBalanceSeedAfterClear) return { snapshot:null, ready:true };
   if (!ordered.length || !smsBalanceLatest) return { snapshot:null, ready:smsBalancePriorLoaded };
   const latestKey = `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}`;
+  if (latestKey === smsBalanceFreshBaselineKey) return { snapshot:smsBalanceLatest, ready:true };
   const index = ordered.findIndex(s => `${s.session_date}|${s.time_slot}` === latestKey);
   if (index > 0) return { snapshot:ordered[index - 1], ready:true };
   return { snapshot:smsBalancePriorSnap, ready:smsBalancePriorLoaded };
@@ -14103,8 +14249,8 @@ window.processSmsBalanceSnapshot = async () => {
   // Match VOIP behavior: the first snapshot today compares with the latest
   // snapshot from the most recent prior day. This prevents clients that stayed
   // Critical or without thresholds overnight from being announced as new again.
-  if(!previousToday&&!smsBalancePriorLoaded)await loadSmsBalancePriorSnapshot();
-  const previous=previousToday||smsBalancePriorSnap;
+  if(!smsBalanceSeedAfterClear&&!previousToday&&!smsBalancePriorLoaded)await loadSmsBalancePriorSnapshot();
+  const previous=smsBalanceSeedAfterClear?null:(previousToday||smsBalancePriorSnap);
   const gapMinutes=previous?snapGapMinutes({session_date:todayStr(),time_slot:slot},previous):0;
   if(smsBalanceWideGap(gapMinutes)&&!await confirmSmsBalanceAction({
     title:'Non-Consecutive SMS Snapshot',label:'Post Snapshot',
@@ -14114,17 +14260,25 @@ window.processSmsBalanceSnapshot = async () => {
   const split=source=>data.filter(row=>row.source===source);
   const now=new Date();
   const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
-  const historyEntries=smsBalanceNewHistoryEntries(snap,previous);
+  const postedKey=`${snap.session_date}|${snap.time_slot}`;
+  const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
+  const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[]}:smsBalanceNewHistoryEntries(snap,previous);
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
   const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row));
   smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();resetSmsBalanceDiscoveryFilters();
+  if(seedsFreshBaseline){
+    setSmsBalanceSeedAfterClear(false);
+    setSmsBalanceFreshBaselineKey(postedKey);
+  }else if(smsBalanceFreshBaselineKey){
+    setSmsBalanceFreshBaselineKey('');
+  }
   advanceSmsBalanceSlotAfterPost(slot);window.clearSmsBalancePaste();renderSmsBalanceModule();
   // Match Balance Monitor VOIP: after posting, open Alerts > New Critical when
   // the current snapshot has Critical/Blocked clients, even if every one is an
   // overnight carry-over. The spoken alert remains exclusive to genuine new
   // transitions so existing Critical clients do not replay the announcement.
-  if(hasCurrentCritical)focusSmsBalanceNewCriticalView();
+  if(hasCurrentCritical&&!seedsFreshBaseline)focusSmsBalanceNewCriticalView();
   if(freshCriticalCount&&SBS.soundAlert)playSmsNewCriticalAudio();
   let blockedRoutes=0;
   try{blockedRoutes=await autoBlockSmsBalanceRoutes(data,snap);}catch(e){toast('Snapshot saved, but Phoenix auto-block sync failed: '+e.message,'err',7000);}
@@ -14169,7 +14323,12 @@ window.deleteTodaySmsBalanceSnapshots = async () => {
   const date=todayStr();
   if(!await confirmSmsBalanceAction({title:'Delete Today SMS Snapshots',label:'Delete Today',html:`Permanently delete all SMS Balance snapshots for <strong>${esc(date)}</strong>?<br><br>New Critical and 30-minute usage comparisons may lose their earlier reference slots.`}))return;
   setLoading(true,'Deleting SMS snapshots…');
-  try{await deleteSmsBalanceSnapshotsMatching(snapshot=>snapshot.session_date===date);toast("Today's SMS balance snapshots deleted",'ok');}
+  try{
+    await deleteSmsBalanceSnapshotsMatching(snapshot=>snapshot.session_date===date);
+    setSmsBalanceFreshBaselineKey('');
+    setSmsBalanceSeedAfterClear(true);
+    toast("Today's SMS balance snapshots deleted — the next post will establish a fresh history baseline",'ok',7000);
+  }
   catch(e){toast('Delete failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
@@ -14208,7 +14367,13 @@ window.deleteAllSmsBalanceSnapshots = async () => {
   setLoading(true,'Deleting all SMS snapshots…');
   try{
     await deleteSmsBalanceSnapshotsMatching(snapshot=>!keepOn||!smsBalanceSnapshotInRange(snapshot,keepFrom,keepTo));
-    toast(keepOn?`SMS snapshots outside ${keepFrom.replace('T',' ')} – ${keepTo.replace('T',' ')} deleted; selected range preserved.`:'All SMS balance snapshots deleted','ok',7000);
+    if(!keepOn){
+      smsBalancePriorSnap=null;
+      smsBalancePriorLoaded=true;
+      setSmsBalanceFreshBaselineKey('');
+      setSmsBalanceSeedAfterClear(true);
+    }
+    toast(keepOn?`SMS snapshots outside ${keepFrom.replace('T',' ')} – ${keepTo.replace('T',' ')} deleted; selected range preserved.`:'All SMS balance snapshots deleted — the next post will establish a fresh history baseline','ok',7000);
   }
   catch(e){toast('Delete failed: '+e.message,'err');}
   finally{setLoading(false);}
@@ -17513,6 +17678,89 @@ let statsRemarks = new Map();   // gkey -> { key, text, updated_by, updated_at }
 let statsRemarkEditKey = null;  // group key currently open in the remark editor
 
 const STATS_CLASSIFICATION_VIEWS = ['critical','low','watch','ok','good'];
+const STATS_ACTION_VIEWS = new Set(['all','hourly','critical','low','watch','ok','good','stopped']);
+const STATS_VIEW_GUIDES = {
+  all: {
+    title:'All Clients guide',
+    summary:'Shows every client and destination in the currently selected Stats snapshot, with its calculated quality classification and comparison signals.',
+    items:[
+      'Use Search and the Flags filter to narrow the table; the download contains only the rows currently shown.',
+      'Traffic vs Prev Day compares the exact Account Code + Destination with the same time slot on the most recent prior saved day.',
+      'Double-click a row to open that exact client and destination in Hourly. Use the rightmost remarks icon to read or update persistent notes.',
+      'Critical, Low, Watch, Ok, and Good are based on the combined Attempts, Completed calls, ASR, and ACD for each route.'
+    ]
+  },
+  hourly: {
+    title:'Hourly guide',
+    summary:'Builds a today-only client-by-snapshot matrix so changes across each posted Stats hour are visible at a glance.',
+    items:[
+      'Each time column is one saved Stats snapshot; Day is the combined total for all posted snapshots today.',
+      'Choose the metric displayed in every cell, including ASR, ACD, Attempts, Completed, Raw Duration, or the combined view.',
+      'Search and Hide -DID affect both the table and the downloaded workbook. A drill-down pin limits the view to one exact route.',
+      'Cell colors use the same quality thresholds as the classification tabs.'
+    ]
+  },
+  critical: {
+    title:'Critical Clients guide',
+    summary:'Lists routes with zero ASR and zero ACD while carrying more than the configured high-attempt threshold.',
+    items:[
+      'Default rule: ASR = 0, ACD = 0, and Attempts greater than 500.',
+      'Traffic comparisons help distinguish a new outage from an already degraded route.',
+      'Double-click a row for its Hourly breakdown; use Remarks for persistent operational context.',
+      'The download follows the current sort order and visible column selection.'
+    ]
+  },
+  low: {
+    title:'Low Clients guide',
+    summary:'Highlights established-volume routes whose ASR is below the acceptable range.',
+    items:[
+      'Rule: ASR below 10 with more than 30 Attempts, excluding routes that meet the stricter Critical rule.',
+      'Use previous-day and past-hour signals to see whether the route is recovering or declining.',
+      'Double-click a row to inspect the route hour by hour.',
+      'The download follows the current sort order and visible column selection.'
+    ]
+  },
+  watch: {
+    title:'Watch Clients guide',
+    summary:'Separates low-ASR routes whose sample size is still small and may simply be new or lightly used.',
+    items:[
+      'Rule: ASR below 10 with 30 or fewer Attempts, excluding Critical routes.',
+      'Watch routes deserve observation but do not yet have enough attempts to be placed in Low.',
+      'Traffic comparisons and Hourly drill-down show whether volume is building normally.',
+      'The download follows the current sort order and visible column selection.'
+    ]
+  },
+  ok: {
+    title:'Ok Clients guide',
+    summary:'Shows routes performing in the middle ASR band across all call-attempt volumes.',
+    items:[
+      'Rule: ASR from 10 up to, but not including, 21.',
+      'ACD Band is calculated separately, so a route can have Ok ASR while its call duration needs attention.',
+      'Use comparisons and Hourly drill-down to confirm stability.',
+      'The download follows the current sort order and visible column selection.'
+    ]
+  },
+  good: {
+    title:'Good Clients guide',
+    summary:'Shows routes meeting the strongest ASR band regardless of their call-attempt volume.',
+    items:[
+      'Rule: ASR of 21 or higher.',
+      'Review Traffic vs Prev Day and Traffic vs Past Hr for unusual drops even while the route remains Good.',
+      'Double-click a row for its Hourly breakdown and use Remarks for persistent notes.',
+      'The download follows the current sort order and visible column selection.'
+    ]
+  },
+  stopped: {
+    title:'Stopped Traffic guide',
+    summary:'Tracks routes that appeared earlier today and then disappeared from one or more later saved Stats snapshots.',
+    items:[
+      'Hours Stopped increases once for every later saved snapshot in which the previously seen route is missing.',
+      'Still stopped is highlighted red. Traffic resumed shows the snapshot time when that route returned.',
+      'Show -DID includes stopped account codes normally hidden by the default view.',
+      'The download contains exactly the currently shown stopped rows and their present status.'
+    ]
+  }
+};
 const STATS_CLASSIFICATION_COLUMNS = [
   { key:'client', label:'Client' },
   { key:'account_code', label:'Account Code' },
@@ -19387,6 +19635,82 @@ window.switchStatsView = name => {
   if (columnPicker) columnPicker.hidden = !STATS_CLASSIFICATION_VIEWS.includes(name);
   setSbStatus('Viewing: Stats — ' + name.replace(/\b\w/g, c => c.toUpperCase()));
   statsRender();
+};
+
+window.openStatsViewGuide = view => {
+  const guide = STATS_VIEW_GUIDES[view];
+  const overlay = document.getElementById('stats-view-guide-overlay');
+  if (!guide || !overlay) return;
+  const title = document.getElementById('stats-view-guide-title');
+  const summary = document.getElementById('stats-view-guide-summary');
+  const list = document.getElementById('stats-view-guide-list');
+  if (title) title.textContent = guide.title;
+  if (summary) summary.textContent = guide.summary;
+  if (list) list.innerHTML = guide.items.map(item => `<li>${stEsc(item)}</li>`).join('');
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden','false');
+  requestAnimationFrame(() => overlay.querySelector('.stats-view-guide-close')?.focus({preventScroll:true}));
+};
+
+window.closeStatsViewGuide = () => {
+  const overlay = document.getElementById('stats-view-guide-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden','true');
+};
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && document.getElementById('stats-view-guide-overlay')?.classList.contains('open')) {
+    closeStatsViewGuide();
+  }
+});
+
+function statsExportCellText(cell) {
+  return String(cell?.innerText ?? cell?.textContent ?? '').replace(/\s+/g,' ').trim();
+}
+
+window.exportStatsCurrentView = view => {
+  if (!STATS_ACTION_VIEWS.has(view)) return;
+  const root = document.getElementById(`view-stats-${view}`);
+  const table = root?.querySelector('table');
+  const headerRow = table?.tHead?.rows?.[0];
+  const body = table?.tBodies?.[0];
+  if (!table || !headerRow || !body) { toast('This Stats view is not ready to download.', 'err'); return; }
+
+  const visibleColumns = [...headerRow.cells]
+    .map((cell,index) => ({cell,index}))
+    .filter(({cell}) => !cell.classList.contains('st-column-hidden') && getComputedStyle(cell).display !== 'none');
+  const headers = visibleColumns.map(({cell}) => statsExportCellText(cell).replace(/\s*[▲▼]\s*$/,''));
+  const emptyPattern = /No (?:clients|stats snapshots|stopped traffic)|No routes/i;
+  const sourceRows = [...body.rows].filter(row => !emptyPattern.test(statsExportCellText(row)));
+  if (!sourceRows.length) { toast(`No rows in the current ${STATS_VIEW_GUIDES[view]?.title || 'Stats view'} to download.`, 'err'); return; }
+
+  const rows = sourceRows.map(row => visibleColumns.map(({index}, exportIndex) => {
+    if (/^Remarks$/i.test(headers[exportIndex])) return statsRemarkText(row.dataset.rk || '');
+    return statsExportCellText(row.cells[index]);
+  }));
+  const labels = { all:'All Clients', hourly:'Hourly', critical:'Critical', low:'Low', watch:'Watch', ok:'Ok', good:'Good', stopped:'Stopped Traffic' };
+  const label = labels[view] || 'Stats';
+  const baseName = `stats_${view}_${todayStr()}`;
+
+  if (window.XLSX?.utils?.aoa_to_sheet && window.XLSX?.writeFile) {
+    const xlsx = window.XLSX;
+    const sheet = xlsx.utils.aoa_to_sheet([headers, ...rows]);
+    if (sheet['!ref']) sheet['!autofilter'] = { ref:sheet['!ref'] };
+    sheet['!cols'] = headers.map((header,index) => ({ wch:Math.min(42, Math.max(11, header.length + 2, ...rows.slice(0,100).map(row => String(row[index] || '').length + 2))) }));
+    const book = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(book, sheet, label.slice(0,31));
+    xlsx.writeFile(book, `${baseName}.xlsx`);
+    toast(`${label} current view downloaded as Excel`, 'ok');
+    return;
+  }
+
+  const csv = [headers, ...rows].map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'}));
+  const link = document.createElement('a');
+  link.href = url; link.download = `${baseName}.csv`; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  toast(`${label} current view downloaded as CSV`, 'ok');
 };
 
 window.viewStatsSlot = slot => {
