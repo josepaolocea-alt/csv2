@@ -3826,7 +3826,7 @@
                       <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client currently Critical or blocked, without adding them to Critical History. Clients that still have overdraft available remain in overdraft monitoring and are excluded.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing positive 30-minute usage. Payments and other negative balance adjustments are excluded. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
                       <div class="alert-tab-actions" id="sms-bal-alert-actions">
                         <div class="app-action-menu" id="sms-alert-action-menu">
@@ -13729,7 +13729,7 @@ function smsBalanceAlertSets() {
     usage:rows.filter(row => smsBalanceNumber(row.usage_30min) > 0),
     new:freshBaseline?smsBalanceFreshBaselineNewCriticalRows(rows):transitions.added,
     removed:transitions.removed,
-    inactiveusage:rows.filter(row => row._meta?.is_active === false && smsBalanceNumber(row.usage_30min) !== 0)
+    inactiveusage:rows.filter(row => row._meta?.is_active === false && smsBalanceNumber(row.usage_30min) > 0)
   };
 }
 function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
