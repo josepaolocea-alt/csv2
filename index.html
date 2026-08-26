@@ -1262,16 +1262,23 @@
     body.vos-mode #sidebar { display:none !important; }
     .traffic-source-panel { flex:1; min-height:0; flex-direction:column; }
     #traffic-source-voip { display:flex; }
-    #traffic-source-vos { display:flex; padding:8px; gap:8px; overflow:hidden; }
+    #traffic-source-vos {
+      display:grid; grid-template-columns:210px minmax(0,1fr); grid-template-rows:minmax(0,1fr);
+      padding:8px; gap:8px; overflow:hidden;
+    }
+    .vos-side-rail {
+      grid-column:1; grid-row:1; min-width:0; min-height:0; display:flex; flex-direction:column; gap:8px;
+      padding:8px; overflow:auto; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-md);
+    }
     .vos-primary-tabs {
-      display:inline-flex; align-self:flex-start; flex:0 0 auto;
-      gap:2px; margin-bottom:0; padding:4px;
+      display:flex; flex-direction:column; align-self:stretch; flex:0 0 auto;
+      gap:3px; margin-bottom:0; padding:4px;
       background:var(--surface-2); border:1px solid var(--border); border-radius:11px;
       box-shadow:inset 0 1px 2px rgba(22,34,58,.05);
     }
     .vos-primary-tabs .st-daily-tab {
       display:inline-flex; align-items:center; justify-content:center;
-      min-height:32px; padding:6px 14px; color:var(--text-2); background:transparent;
+      width:100%; min-height:36px; padding:7px 10px; color:var(--text-2); background:transparent;
       border:0; border-radius:8px; font-size:11.5px; font-weight:650;
     }
     .vos-primary-tabs .st-daily-tab:hover { color:var(--text); background:var(--surface); }
@@ -1279,19 +1286,31 @@
       color:var(--on-accent); background:var(--accent); border:0;
       box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 24%,transparent);
     }
-    .vos-primary-panel { flex:1; min-height:0; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); }
+    .vos-side-upload { display:none; flex-direction:column; gap:7px; }
+    .vos-side-upload.active { display:flex; }
+    .vos-side-upload .daily-import-strip {
+      display:flex; flex-direction:column; align-items:stretch; gap:8px; margin:0; padding:10px;
+      background:var(--surface); box-shadow:none;
+    }
+    .vos-side-upload .daily-import-icon { display:none; }
+    .vos-side-upload .vos-import-copy { flex:0 0 auto; }
+    .vos-side-upload .daily-import-actions { width:100%; flex-direction:column; align-items:stretch; }
+    .vos-side-upload .daily-import-actions > * { width:100%; max-width:none; }
+    .vos-side-upload .daily-import-status { margin:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+    .vos-primary-panel { grid-column:2; grid-row:1; min-width:0; min-height:0; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); }
     .vos-coming-soon { margin:auto; width:min(560px,calc(100% - 32px)); padding:28px; border:1px dashed var(--border-strong); border-radius:var(--r-lg); background:var(--surface-2); text-align:center; }
     .vos-stats-workspace { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
     .vos-stats-workspace .daily-workspace-nav { flex-wrap:wrap; }
     .vos-stats-workspace .daily-tab-segment { flex-wrap:wrap; }
-    .vos-stats-import { margin:0 8px 8px; }
+    .vos-stats-import { margin:0; }
     .vos-stats-panel { flex:1; min-height:0; display:none; flex-direction:column; overflow:hidden; }
     .vos-stats-panel.active { display:flex; }
     .vos-stats-summary { overflow:auto; padding:0 8px 8px; }
     .vos-stats-summary .stat-row { margin:0 0 8px; }
     .vos-stats-timeline { display:flex; gap:5px; overflow-x:auto; padding:8px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
     .vos-stats-timeline .timeline-cell { min-width:62px; }
-    .vos-stats-table-shell { flex:1; min-height:0; margin:0 8px 8px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .vos-stats-table-shell { flex:1; min-height:0; display:flex; flex-direction:column; margin:0 8px 8px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .vos-stats-table-shell > .lv-wrap { flex:1; min-height:0; max-height:none; overflow:auto; border:0; border-radius:0; }
     .vos-stats-table { min-width:1240px; }
     .vos-stats-table th, .vos-stats-table td { white-space:nowrap; }
     .vos-stats-table th.num, .vos-stats-table td.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
@@ -1314,6 +1333,12 @@
     #vos-traffic-table td.num, #vos-traffic-table th.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
     #vos-traffic-table tbody tr.vos-total-row td { position:sticky; bottom:0; z-index:1; background:var(--surface-3); border-top:2px solid var(--border-strong); font-weight:700; }
     @media (max-width:1000px) { .vos-summary { grid-template-columns:repeat(2,minmax(130px,1fr)); } .vos-import-card { align-items:flex-start; flex-wrap:wrap; } }
+    @media (max-width:760px) {
+      #traffic-source-vos { grid-template-columns:1fr; grid-template-rows:auto minmax(0,1fr); }
+      .vos-side-rail { grid-column:1; grid-row:1; overflow:visible; }
+      .vos-primary-tabs { flex-direction:row; }
+      .vos-primary-panel { grid-column:1; grid-row:2; }
+    }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
       background: var(--surface); color: var(--text);
@@ -1487,6 +1512,13 @@
     .st-daily-rank-card.total .st-daily-status { justify-content: center; min-width: 72px; }
     .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
+    #vos-daily-panel-dashboard .st-daily-rank-card table { table-layout:fixed; }
+    #vos-daily-panel-dashboard .st-daily-rank-card th:first-child,
+    #vos-daily-panel-dashboard .st-daily-rank-card td:first-child { width:46%; text-align:left; }
+    #vos-daily-panel-dashboard .st-daily-rank-card th:not(:first-child),
+    #vos-daily-panel-dashboard .st-daily-rank-card td:not(:first-child) { text-align:right; }
+    #vos-daily-panel-dashboard .st-daily-rank-card.total th:last-child,
+    #vos-daily-panel-dashboard .st-daily-rank-card.total td:last-child { text-align:center; }
     .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
     .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 230px; }
     .st-daily-rank-card th {
@@ -2355,7 +2387,12 @@
     /* ── CSV Wizard ── */
     /* The Client Manager tab holds a single narrow flow, so it reads as one
        centred column instead of stretching to the full window width. */
-    .cm-shell { width: 100%; max-width: 860px; margin: 0 auto; }
+    .cm-shell { width: 100%; max-width: 1180px; margin: 0 auto; }
+    .cm-configured-table { max-height:320px; min-height:160px; }
+    .cm-configured-table table { min-width:820px; }
+    .cm-configured-status { display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; font-size:9px; font-weight:700; }
+    .cm-configured-status.active { color:var(--green); background:var(--green-soft); }
+    .cm-configured-status.inactive { color:var(--text-3); background:var(--surface-3); }
     /* The Summary tabs carry wide data tables, so they take the full window
        rather than a centred column — the side gutters were dead space. */
     .dash-shell { width: 100%; }
@@ -3675,6 +3712,19 @@
           <div class="groupbox">
             <div class="cm-head">
               <div>
+                <div class="groupbox-title">Configured VOIP Clients <span id="cm-configured-count" class="sms-muted"></span></div>
+                <div class="cm-sub">Every saved client is shown here, including inactive clients and clients awaiting a balance snapshot.</div>
+              </div>
+              <input class="win-search" id="cm-configured-search" type="search" placeholder="Search client or manager…" oninput="renderConfiguredVoipClients()">
+            </div>
+            <div class="lv-wrap cm-configured-table">
+              <table><thead><tr><th>Client</th><th>Account Manager</th><th>Status</th><th style="text-align:right">Credit Limit</th><th style="text-align:right">Critical Balance</th><th>Billing Cycle</th><th>Notes</th></tr></thead><tbody id="cm-configured-tbody"></tbody></table>
+            </div>
+          </div>
+
+          <div class="groupbox">
+            <div class="cm-head">
+              <div>
                 <div class="groupbox-title">CSV Upload — Client Info Manager</div>
                 <div class="cm-sub">Import client records from a CSV and review every change before it is saved.</div>
               </div>
@@ -4960,9 +5010,9 @@
           </div>
 
           <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
-            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button></div>
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All</button></div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
-              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
+              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th><th>Actions</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
             <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
           </div>
@@ -4974,10 +5024,45 @@
       <div class="view" id="view-vos-traffic">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="traffic-source-panel" id="traffic-source-vos">
-            <div class="st-daily-tabs vos-primary-tabs" role="tablist" aria-label="VOS sections">
-              <button type="button" class="st-daily-tab" id="vos-primary-tab-stats" role="tab" aria-selected="false" onclick="switchVosPrimaryTab('stats')">Stats</button>
-              <button type="button" class="st-daily-tab active" id="vos-primary-tab-daily" role="tab" aria-selected="true" onclick="switchVosPrimaryTab('daily')">Daily Traffic</button>
-            </div>
+            <aside class="vos-side-rail" aria-label="VOS navigation and upload tools">
+              <div class="st-daily-tabs vos-primary-tabs" role="tablist" aria-label="VOS sections">
+                <button type="button" class="st-daily-tab" id="vos-primary-tab-stats" role="tab" aria-selected="false" onclick="switchVosPrimaryTab('stats')">Stats</button>
+                <button type="button" class="st-daily-tab active" id="vos-primary-tab-daily" role="tab" aria-selected="true" onclick="switchVosPrimaryTab('daily')">Daily Traffic</button>
+              </div>
+
+              <div class="vos-side-upload" id="vos-side-upload-stats">
+                <div class="vos-import-card daily-import-strip vos-stats-import">
+                  <div class="daily-import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></div>
+                  <div class="vos-import-copy">
+                    <div class="vos-import-title">Upload an hourly VOS report</div>
+                    <div class="vos-import-help">Excel or CSV · Mapping Gateway is the Client, Area Name is the Destination, and duplicate pairs are merged before saving.</div>
+                  </div>
+                  <div class="daily-import-actions">
+                    <select id="vos-stats-slot" class="win-sel" aria-label="VOS Stats hour"></select>
+                    <input type="file" id="vos-stats-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosStatsFile(this.files[0]);this.value=''">
+                    <button type="button" class="tbtn primary" onclick="document.getElementById('vos-stats-file').click()">Upload File</button>
+                    <button type="button" class="tbtn" onclick="undoLastVosStatsSnapshot()" title="Remove the latest hourly VOS snapshot">Undo Last</button>
+                  </div>
+                  <span class="vos-file-status daily-import-status" id="vos-stats-file-status">No hourly VOS file uploaded.</span>
+                </div>
+              </div>
+
+              <div class="vos-side-upload" id="vos-side-upload-daily">
+                <div class="vos-import-card daily-import-strip">
+                  <div class="daily-import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></div>
+                  <div class="vos-import-copy">
+                    <div class="vos-import-title">Upload a dated VOS report</div>
+                    <div class="vos-import-help">Excel or CSV · saved dates drive the dashboard and two-week history.</div>
+                  </div>
+                  <div class="daily-import-actions">
+                    <input id="vos-traffic-date" class="win-inp" type="date" data-premium-date aria-label="VOS Traffic Date" required aria-required="true">
+                    <input type="file" id="vos-traffic-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosTrafficFile(this.files[0]);this.value=''">
+                    <button type="button" class="tbtn primary" onclick="document.getElementById('vos-traffic-file').click()">Upload File</button>
+                  </div>
+                  <span class="vos-file-status daily-import-status" id="vos-file-status">No VOS file uploaded.</span>
+                </div>
+              </div>
+            </aside>
 
             <div class="vos-primary-panel" id="vos-primary-panel-stats" role="tabpanel" aria-labelledby="vos-primary-tab-stats" style="display:none">
               <div class="vos-stats-workspace">
@@ -5006,21 +5091,6 @@
                     <button type="button" class="tbtn st-daily-export-btn" onclick="exportVosStatsView('csv')">&#8595; CSV</button>
                     <button type="button" class="tbtn primary st-daily-export-btn" onclick="exportVosStatsView('xlsx')">&#8595; Excel</button>
                   </div>
-                </div>
-
-                <div class="vos-import-card daily-import-strip vos-stats-import">
-                  <div class="daily-import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></div>
-                  <div class="vos-import-copy">
-                    <div class="vos-import-title">Upload an hourly VOS report</div>
-                    <div class="vos-import-help">Excel or CSV · Mapping Gateway is the Client, Area Name is the Destination, and duplicate pairs are merged before the hourly snapshot is saved.</div>
-                  </div>
-                  <div class="daily-import-actions">
-                    <select id="vos-stats-slot" class="win-sel" aria-label="VOS Stats hour"></select>
-                    <input type="file" id="vos-stats-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosStatsFile(this.files[0]);this.value=''">
-                    <button type="button" class="tbtn primary" onclick="document.getElementById('vos-stats-file').click()">Upload File</button>
-                    <button type="button" class="tbtn" onclick="undoLastVosStatsSnapshot()" title="Remove the latest hourly VOS snapshot">Undo Last</button>
-                  </div>
-                  <span class="vos-file-status daily-import-status" id="vos-stats-file-status">No hourly VOS file uploaded.</span>
                 </div>
 
                 <div class="vos-stats-panel active vos-stats-summary" id="vos-stats-panel-summary" role="tabpanel" aria-labelledby="vos-stats-tab-summary">
@@ -5103,19 +5173,6 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-today" role="tabpanel" aria-labelledby="vos-daily-tab-today" style="display:flex">
-                <div class="vos-import-card daily-import-strip">
-                  <div class="daily-import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></div>
-                  <div class="vos-import-copy">
-                    <div class="vos-import-title">Upload a dated VOS Daily Traffic report</div>
-                    <div class="vos-import-help">Excel or CSV · duplicate Mapping Gateway + Area Name rows are merged. Saved dates drive the dashboard and two-week history.</div>
-                  </div>
-                  <div class="daily-import-actions">
-                    <input id="vos-traffic-date" class="win-inp" type="date" data-premium-date aria-label="VOS Traffic Date" required aria-required="true">
-                    <input type="file" id="vos-traffic-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosTrafficFile(this.files[0]);this.value=''">
-                    <button type="button" class="tbtn primary" onclick="document.getElementById('vos-traffic-file').click()">Upload File</button>
-                  </div>
-                  <span class="vos-file-status daily-import-status" id="vos-file-status">No VOS file uploaded.</span>
-                </div>
                 <div class="daily-filterbar vos" aria-label="VOS Daily Traffic filters">
                   <select id="vos-traffic-report-date" class="win-sel" onchange="selectVosTrafficDate(this.value)" title="VOS report date"></select>
                   <select id="vos-traffic-status-filter" class="win-sel" onchange="renderVosTraffic()" title="Filter traffic status">
@@ -5149,10 +5206,10 @@
               <div class="st-daily-panel" id="vos-daily-panel-dashboard" role="tabpanel" aria-labelledby="vos-daily-tab-dashboard" style="display:none">
                 <div class="st-daily-dashboard-meta" id="vos-daily-dashboard-meta">Add dated VOS reports to build the two-week dashboard.</div>
                 <div class="st-daily-dashboard-grid">
-                  <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th>Latest</th><th>Previous</th><th>Change</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
-                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th>Latest</th><th>Previous</th><th>Lost</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
-                  <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th>Latest</th><th>Previous</th><th>Change</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
-                  <section class="st-daily-rank-card total"><div class="st-daily-rank-title"><span>Total Call Time</span><span class="st-daily-rank-count" id="vos-dashboard-total-count">0 dates</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Date</th><th>Total seconds</th><th>Change</th><th>Trend</th></tr></thead><tbody id="vos-dashboard-total"></tbody></table></div></section>
+                  <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
+                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
+                  <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
+                  <section class="st-daily-rank-card total"><div class="st-daily-rank-title"><span>Total Call Time</span><span class="st-daily-rank-count" id="vos-dashboard-total-count">0 dates</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Date</th><th class="num">Total minutes</th><th class="num">Change (min)</th><th>Trend</th></tr></thead><tbody id="vos-dashboard-total"></tbody></table></div></section>
                 </div>
               </div>
 
@@ -5163,8 +5220,8 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-logs" role="tabpanel" aria-labelledby="vos-daily-tab-logs" style="display:none">
-                <div class="fbar"><span class="sms-muted">Persistent local audit trail of VOS Daily Traffic imports.</span></div>
-                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
+                <div class="fbar"><span class="sms-muted">Persistent local audit trail of VOS Daily Traffic imports.</span><button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()">Delete All</button></div>
+                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
                 <div class="sms-muted" id="vos-daily-logs-count">No VOS Daily Traffic logs yet.</div>
               </div>
 
@@ -5181,7 +5238,6 @@
                     </div>
                     <div class="stats-daily-archive-note">Admin only. Archived reports remain in this browser's local storage.</div>
                   </div>
-                  <div class="settings-danger"><div style="margin-bottom:5px">Delete all locally saved VOS Daily Traffic reports.</div><button type="button" class="tbtn" style="color:#880000" onclick="clearVosDailyHistory()">Delete ALL VOS Daily Traffic History</button></div>
                 </div>
               </div>
             </div>
@@ -5494,12 +5550,6 @@
             <button type="button" class="tbtn" id="stats-daily-archive-btn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
           </div>
           <div class="stats-daily-archive-note" id="stats-daily-archive-note">Admin only. Semi-admins and viewers may review this setting but cannot archive.</div>
-        </div>
-        <div class="settings-danger" id="stats-daily-wipe-setting">
-          <div style="margin-bottom:5px">Wipe the persistent <strong>stats_daily_traffic</strong> history used for daily increase/decrease/stopped/new comparisons. Normal Stats cleanup never deletes this data. <strong>Admin only.</strong></div>
-          <div class="danger-btns">
-            <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete ALL Daily Traffic History</button>
-          </div>
         </div>
       </div>
     </div>
@@ -7191,7 +7241,7 @@ window.switchView = name => {
   setSbStatus('Viewing: '+name.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase()));
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); ensureSpamHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
-  if (name==='client-manager'){ window.renderWizard(); renderImpHist(); }
+  if (name==='client-manager'){ renderConfiguredVoipClients(); window.renderWizard(); renderImpHist(); }
   if (name==='logs')          { subscribeLogs(); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
   if (name==='spam-history')  { ensureSpamFlagHistory(); ensureSpamHistory(); renderSpamHistory(); }
@@ -9469,6 +9519,15 @@ window.confirmWipeCritHistory = async () => {
         if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
       }
       if (count > 0) await batch.commit();
+      if (kind === 'stats-daily') {
+        const audit = await getDocs(query(collection(db,'snapshot_logs'),where('module','==','daily-traffic')));
+        let auditBatch=writeBatch(db), auditCount=0;
+        for (const entry of audit.docs) {
+          auditBatch.delete(doc(db,'snapshot_logs',entry.id));
+          if (++auditCount >= BATCH_MAX) { await auditBatch.commit(); auditBatch=writeBatch(db); auditCount=0; }
+        }
+        if (auditCount > 0) await auditBatch.commit();
+      }
       try { await deleteDoc(critSuppRef()); } catch (e) { /* non-fatal */ }
     }
     _critHits = new Map();
@@ -10977,6 +11036,7 @@ function applyModuleAccess(){
   show('stats-clear-previous-day-setting', admin);
   VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
+  disable('vos-daily-clear-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
@@ -11688,7 +11748,7 @@ function reopenSettingsAfterWipe(kind) {
   setTimeout(() => {
     if (kind === 'stats-daily') {
       window.switchModule('traffic');
-      window.switchStatsDailyTab('settings');
+      window.switchStatsDailyTab('logs');
     } else if (kind === 'stats') {
       window.switchModule('stats');
       window.switchStatsView('settings');
@@ -11756,10 +11816,12 @@ window.confirmWipeAll = async () => {
       statsRender();
     } else if (kind === 'stats-daily') {
       statsDailyHistory = [];
+      logsData = logsData.filter(log => log.module !== 'daily-traffic');
       statsDailySelectedDate = '';
       statsDailyImportDateAutoTrack = true;
       try { localStorage.removeItem('bm_stats_daily_history'); } catch(e) {}
       renderStatsDailyTraffic();
+      renderStatsDailyLogs();
       syncStatsDailyImportDate(true);
     } else if (kind === 'tritel') {
       tritelSnaps = [];
@@ -11933,6 +11995,7 @@ function clientEditUiOpen() {
 // tabs, not only the All Clients table.
 function refreshClientDataViews() {
   refreshAll();
+  if (document.getElementById('view-client-manager')?.classList.contains('active')) renderConfiguredVoipClients();
   if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
   if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
   if (document.getElementById('view-no-threshold')?.classList.contains('active')) renderNoThreshHistory();
@@ -12650,6 +12713,24 @@ function hasUsageData(row) {
 function clientMetaFor(name) {
   return clientsMeta[name] || Object.values(clientsMeta).find(m => m?.carrier_name === name) || {};
 }
+
+function renderConfiguredVoipClients() {
+  const body=document.getElementById('cm-configured-tbody'), count=document.getElementById('cm-configured-count');
+  if(!body)return;
+  const queryText=String(document.getElementById('cm-configured-search')?.value||'').trim().toLowerCase();
+  const liveNames=new Set(allClientRows().map(row=>String(row.carrier_name||'').trim().toLowerCase()).filter(Boolean));
+  const configured=Object.values(clientsMeta).map(meta=>({...meta,carrier_name:String(meta?.carrier_name||'').trim()}))
+    .filter(meta=>meta.carrier_name)
+    .filter(meta=>!queryText||[meta.carrier_name,meta.account_manager,meta.billing_cycle,meta.notes].some(value=>String(value||'').toLowerCase().includes(queryText)))
+    .sort((a,b)=>a.carrier_name.localeCompare(b.carrier_name));
+  body.innerHTML=configured.length?configured.map(meta=>{
+    const inactive=isClientInactive(meta), live=liveNames.has(meta.carrier_name.toLowerCase());
+    const credit=meta.credit_limit===''||meta.credit_limit==null?NaN:Number(meta.credit_limit), critical=meta.critical_balance===''||meta.critical_balance==null?NaN:Number(meta.critical_balance);
+    return `<tr ondblclick="openClientPopup('${escAttr(meta.carrier_name)}')" style="cursor:pointer" title="Double-click to view or edit this client"><td><strong>${esc(meta.carrier_name)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(meta.account_manager||'—')}</td><td><span class="cm-configured-status ${inactive?'inactive':'active'}">${inactive?'Inactive':'Active'}</span></td><td class="num">${Number.isFinite(credit)?fmt(credit):'—'}</td><td class="num">${Number.isFinite(critical)?fmt(critical):'—'}</td><td>${esc(meta.billing_cycle||'—')}</td><td>${esc(meta.notes||'')}</td></tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-3)">No configured VOIP clients match this search.</td></tr>';
+  if(count)count.textContent=`(${configured.length} of ${Object.keys(clientsMeta).length})`;
+}
+window.renderConfiguredVoipClients=renderConfiguredVoipClients;
 
 function isClientInactive(meta) {
   const v = meta.is_active;
@@ -14784,10 +14865,27 @@ function renderStatsDailyLogs(){
   const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
   const fallback=statsDailyHistory.map(day=>({module:'daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.posted_at,operator:day.posted_by||'',user_email:day.user_email||'',rows:(day.clients||[]).length,_snapshotFallback:true}));
   const rows=mergeSnapshotAuditRows('daily-traffic',fallback);
-  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at);return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(4,'No Daily Traffic audit logs yet.');
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';const action=isAdmin()&&date?`<button class="tbtn" onclick="deleteStatsDailyReport('${escAttr(date)}')">Delete</button>`:'<span class="sms-muted">Admin only</span>';return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(5,'No Daily Traffic audit logs yet.');
   if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
 }
 window.renderStatsDailyLogs=renderStatsDailyLogs;
+window.deleteStatsDailyReport=async sessionDate=>{
+  if(!isAdmin()){toast('Only admins can delete Daily Traffic reports.','err');return;}
+  const approved=await confirmPremiumAction({title:'Delete Daily Traffic Report',html:`Delete the report and import log for <strong>${esc(sessionDate)}</strong>?<br><br>This date will be removed from comparisons and cannot be undone.`,label:'Delete'});
+  if(!approved)return;
+  setLoading(true,'Deleting Daily Traffic report…');
+  try{
+    if(fbOk){
+      const matchingLogs=await getDocs(query(collection(db,'snapshot_logs'),where('session_date','==',sessionDate)));
+      let batch=writeBatch(db);batch.delete(doc(db,'stats_daily_traffic',sessionDate));
+      matchingLogs.docs.filter(entry=>entry.data()?.module==='daily-traffic').forEach(entry=>batch.delete(doc(db,'snapshot_logs',entry.id)));
+      await batch.commit();
+    }
+    statsDailyHistory=statsDailyHistory.filter(day=>day.session_date!==sessionDate);logsData=logsData.filter(log=>!(log.module==='daily-traffic'&&log.session_date===sessionDate));
+    statsDailySelectedDate=statsDailySortedHistory().slice(-1)[0]?.session_date||'';saveStatsDailyLocal();syncStatsDailyImportDate(true);renderStatsDailyTraffic();renderStatsDailyLogs();renderStatsTables();
+    toast(`Deleted Daily Traffic report for ${sessionDate}.`,'ok');
+  }catch(e){toast('Daily Traffic delete failed: '+e.message,'err',8000);}finally{setLoading(false);}
+};
 function renderSmsBalanceHistory() {
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
   const rows=smsBalanceHistory.filter(r=>!q||[r.client,r.source,r.last_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_hit||'').localeCompare(String(a.last_hit||'')));
@@ -18902,17 +19000,21 @@ window.sortVosTraffic = column => { if(vosTrafficSortCol===column)vosTrafficSort
 window.switchVosPrimaryTab = tab => {
   vosPrimaryTab = tab === 'stats' ? 'stats' : 'daily';
   ['stats','daily'].forEach(name => { const active=name===vosPrimaryTab; const button=document.getElementById(`vos-primary-tab-${name}`), panel=document.getElementById(`vos-primary-panel-${name}`); button?.classList.toggle('active',active); button?.setAttribute('aria-selected',String(active)); if(panel)panel.style.display=active?'flex':'none'; });
+  document.getElementById('vos-side-upload-stats')?.classList.toggle('active',vosPrimaryTab==='stats');
+  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily'&&vosDailyTab==='today');
   if(vosPrimaryTab==='daily') switchVosDailyTab(vosDailyTab); else switchVosStatsTab(vosStatsTab);
 };
 window.switchVosDailyTab = tab => {
   vosDailyTab=['today','dashboard','history','logs','settings'].includes(tab)?tab:'today';
   ['today','dashboard','history','logs','settings'].forEach(name=>{const active=name===vosDailyTab;const button=document.getElementById(`vos-daily-tab-${name}`),panel=document.getElementById(`vos-daily-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));if(panel)panel.style.display=active?'flex':'none';});
+  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily'&&vosDailyTab==='today');
   const exports=document.getElementById('vos-daily-export-actions'); if(exports)exports.style.display=['logs','settings'].includes(vosDailyTab)?'none':'flex';
   if(vosDailyTab==='today')renderVosTraffic();else if(vosDailyTab==='dashboard')renderVosDailyDashboard();else if(vosDailyTab==='history')renderVosDailyHistory();else if(vosDailyTab==='logs')renderVosDailyLogs();
   setSbStatus(`Viewing: VOS — Daily Traffic — ${vosDailyTab.replace(/\b\w/g,c=>c.toUpperCase())}`);
 };
 function vosSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
-function vosDashboardRow(row){return `<tr><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(row.total_call_time_seconds)}</td><td class="num">${stN2(row.previous_total_call_time_seconds)}</td><td class="num">${row.change_seconds>0?'+':''}${stN2(row.change_seconds)}</td></tr>`;}
+function vosMinutes(seconds){return vosNumber(seconds)/60;}
+function vosDashboardRow(row){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds);return `<tr><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num">${change>0?'+':''}${stN2(change)}</td></tr>`;}
 function renderVosDailyDashboard(){
   const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');
   const needsComparison=!!comparison.currentDay&&!comparison.previousDay;
@@ -18920,8 +19022,8 @@ function renderVosDailyDashboard(){
   const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:comparison.rows.filter(r=>r.status==='stopped').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
   ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);if(body)body.innerHTML=groups[name].map(vosDashboardRow).join('')||empty;vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}`);});
   const days=vosSortedHistory(), totals=days.map((day,index)=>{const total=day.rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0),previous=index?days[index-1].rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0):0;return{date:day.session_date,total,change:index?total-previous:0};}).reverse();
-  const totalBody=document.getElementById('vos-dashboard-total'); if(totalBody)totalBody.innerHTML=totals.map(row=>`<tr><td>${stEsc(row.date)}</td><td class="num">${stN2(row.total)}</td><td class="num">${row.change>0?'+':''}${stN2(row.change)}</td><td style="text-align:center"><span class="st-daily-status ${row.change>0?'increase':row.change<0?'decrease':'unchanged'}">${row.change>0?'Increase':row.change<0?'Decrease':'—'}</span></td></tr>`).join('')||empty;
-  vosSetText('vos-dashboard-total-count',`${totals.length} date${totals.length===1?'':'s'}`);vosSetText('vos-daily-dashboard-meta',needsComparison?`${comparison.currentDay.session_date} is the only saved date. Its Total Call Time is shown below; add a second dated report to populate increase, decrease, and stopped comparisons.`:comparison.currentDay?`${comparison.currentDay.session_date} compared with ${comparison.previousDay.session_date} · ranked by Total Call Time seconds.`:'Add dated VOS reports to build the two-week dashboard.');
+  const totalBody=document.getElementById('vos-dashboard-total'); if(totalBody)totalBody.innerHTML=totals.map(row=>{const totalMinutes=vosMinutes(row.total),changeMinutes=vosMinutes(row.change);return `<tr><td>${stEsc(row.date)}</td><td class="num">${stN2(totalMinutes)}</td><td class="num">${changeMinutes>0?'+':''}${stN2(changeMinutes)}</td><td style="text-align:center"><span class="st-daily-status ${row.change>0?'increase':row.change<0?'decrease':'unchanged'}">${row.change>0?'Increase':row.change<0?'Decrease':'—'}</span></td></tr>`;}).join('')||empty;
+  vosSetText('vos-dashboard-total-count',`${totals.length} date${totals.length===1?'':'s'}`);vosSetText('vos-daily-dashboard-meta',needsComparison?`${comparison.currentDay.session_date} is the only saved date. Its Total Call Time is shown in minutes below; add a second dated report to populate route comparisons.`:comparison.currentDay?`${comparison.currentDay.session_date} compared with ${comparison.previousDay.session_date} · ranked by Total Call Time, displayed in minutes.`:'Add dated VOS reports to build the two-week dashboard.');
 }
 window.renderVosDailyDashboard=renderVosDailyDashboard;
 function renderVosDailyHistory(){
@@ -18932,8 +19034,16 @@ function renderVosDailyHistory(){
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
 window.renderVosDailyHistory=renderVosDailyHistory;
-function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');}
+function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—',action=isAdmin()?`<button class="tbtn" onclick="deleteVosDailyReport('${escAttr(day.session_date)}')">Delete</button>`:'<span class="sms-muted">Admin only</span>';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td><td>${action}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');}
 window.renderVosDailyLogs=renderVosDailyLogs;
+window.deleteVosDailyReport=async sessionDate=>{
+  if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic reports.','err');return;}
+  const approved=await confirmPremiumAction({title:'Delete VOS Daily Traffic Report',html:`Delete the local report and import log for <strong>${stEsc(sessionDate)}</strong>?<br><br>This date will be removed from dashboard comparisons and cannot be undone.`,label:'Delete'});
+  if(!approved)return;
+  vosDailyHistory=vosDailyHistory.filter(day=>day.session_date!==sessionDate);vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';saveVosTrafficLocal();
+  const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+  renderVosTraffic();renderVosDailyLogs();toast(`Deleted VOS Daily Traffic report for ${sessionDate}.`,'ok');
+};
 window.archiveVosDailyMonth=async()=>{
   if(!canArchiveDailyTraffic()){toast('Only admins can archive VOS Daily Traffic months.','err');return;}
   const month=document.getElementById('vos-daily-archive-month')?.value||'',bounds=vosDailyMonthBounds(month);
@@ -18960,6 +19070,7 @@ window.archiveVosDailyMonth=async()=>{
   }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
 };
 window.clearVosDailyHistory=async()=>{
+  if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic history.','err');return;}
   const approved=await confirmPremiumAction({
     title:'Delete VOS Daily Traffic History',
     html:'Delete <strong>all locally saved VOS Daily Traffic reports</strong>?<br><br>This removes every active VOS report from this browser and cannot be undone.',
@@ -18969,7 +19080,7 @@ window.clearVosDailyHistory=async()=>{
   vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';
   try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}
   const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
-  renderVosTraffic();toast('VOS Daily Traffic history deleted.','ok');
+  renderVosTraffic();renderVosDailyLogs();toast('VOS Daily Traffic history deleted.','ok');
 };
 window.importVosTrafficFile = async file => {
   if(!file)return;
@@ -18986,7 +19097,7 @@ window.importVosTrafficFile = async file => {
 };
 function vosExportDataset(){
   if(vosDailyTab==='history'){const days=vosSortedHistory(),dates=days.map(day=>day.session_date).reverse(),maps=new Map(days.map(day=>[day.session_date,new Map(day.rows.map(row=>[vosRowKey(row),row]))])),identities=new Map();days.forEach(day=>day.rows.forEach(row=>identities.set(vosRowKey(row),row)));return{sheet:'Last 2 Weeks',headers:['Mapping Gateway','Area Name',...dates],rows:[...identities.entries()].map(([key,row])=>[row.mapping_gateway,row.area_name,...dates.map(date=>maps.get(date)?.get(key)?.total_call_time_seconds??'')])};}
-  if(vosDailyTab==='dashboard'){const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');return{sheet:'Dashboard',headers:['Mapping Gateway','Area Name','Status','Latest Total Call Time (sec)','Previous Total Call Time (sec)','Change (sec)','Change %'],rows:comparison.rows.map(row=>[row.mapping_gateway,row.area_name,row.status,row.total_call_time_seconds,row.previous_total_call_time_seconds,row.change_seconds,row.change_pct])};}
+  if(vosDailyTab==='dashboard'){const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');return{sheet:'Dashboard',headers:['Mapping Gateway','Area Name','Status','Latest Total Call Time (min)','Previous Total Call Time (min)','Change (min)','Change %'],rows:comparison.rows.map(row=>[row.mapping_gateway,row.area_name,row.status,vosMinutes(row.total_call_time_seconds),vosMinutes(row.previous_total_call_time_seconds),vosMinutes(row.change_seconds),row.change_pct])};}
   const rows=vosVisibleRows();return{sheet:'Today',headers:['Mapping Gateway','Area Name','Date','Previous Date','Total Calls','Fail','Success','Answered','Average Call Duration Sum (sec)','Total Call Time (sec)','Previous Time (sec)','Change (sec)','Change %','Status','ASR %','ACD (sec)'],rows:rows.map(row=>[row.mapping_gateway,row.area_name,row.session_date,row.previous_date,row.total_calls,row.fail,row.success,row.answered,row.avg_call_duration_sum_seconds,row.total_call_time_seconds,row.previous_total_call_time_seconds,row.change_seconds,row.change_pct,row.status,row.asr,row.acd])};
 }
 window.exportVosDailyTab=format=>{const data=vosExportDataset();if(!data.rows.length){toast('No VOS rows to export.','err');return;}const safe=`vos_daily_${vosDailyTab}_${vosSelectedDate||todayStr()}`;if(format==='xlsx'&&window.XLSX){const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([data.headers,...data.rows]);XLSX.utils.book_append_sheet(book,sheet,data.sheet.slice(0,31));XLSX.writeFile(book,`${safe}.xlsx`);}else{const csv=[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n'),url=URL.createObjectURL(new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${safe}.csv`;link.click();URL.revokeObjectURL(url);}toast(`Exported ${data.rows.length} VOS row(s)`,'ok');};
