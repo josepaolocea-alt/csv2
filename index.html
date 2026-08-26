@@ -3391,7 +3391,7 @@
               <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
               <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
               <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
-              <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose current 30-min usage jumped to a multiple of their own usual usage (e.g. doubled) — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
+              <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose sustained 30-min usage is statistically unusual and exceeds their previously observed maximum — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
               <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
               <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
               <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
@@ -3427,7 +3427,7 @@
               <div class="voip-alert-guide-item"><span class="badge none">Safe</span>No configured warning or critical threshold is currently reached.</div>
               <div class="voip-alert-guide-item"><span class="badge medium">No threshold</span>No explicit Credit Limit or Critical Balance is set; enabled fallback balance bands may still classify the client.</div>
               <div class="voip-alert-guide-item"><span class="badge light">Usage &gt;50</span>30-minute usage is at least 50. Medium starts at 100 and High starts at 150.</div>
-              <div class="voip-alert-guide-item"><span class="badge high">Possible Spam</span>Current 30-minute usage is unusually high compared with that client’s own recent baseline.</div>
+              <div class="voip-alert-guide-item"><span class="badge high">Possible Spam</span>Sustained 30-minute usage is unusually high for that client and above its prior profile maximum.</div>
               <div class="voip-alert-guide-item"><span class="badge high">New Critical</span>Critical now, but not critical in the comparison snapshot.</div>
               <div class="voip-alert-guide-item"><span class="badge removed">Removed</span>Critical in the comparison snapshot, but no longer critical now.</div>
               <div class="voip-alert-guide-item"><span class="badge light">Inactive + Usage</span>Configured Inactive while still reporting non-zero 30-minute usage.</div>
@@ -3757,6 +3757,7 @@
                     <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')" data-premium-tooltip="Review and delete SMS Balance snapshots by scheduled slot." role="menuitem">Logs</button>
                     <button class="tbtn" id="sms-bal-nav-critical-history" onclick="switchSmsBalanceView('critical-history')" data-premium-tooltip="Persistent history of clients that entered a critical SMS balance state." role="menuitem">Critical History</button>
                     <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')" data-premium-tooltip="Persistent history of clients seen without credit and critical thresholds." role="menuitem">No Threshold History</button>
+                    <button class="tbtn" id="sms-bal-nav-inactive-usage-history" onclick="switchSmsBalanceView('inactive-usage-history')" data-premium-tooltip="Persistent history of inactive clients that reported positive 30-minute usage." role="menuitem">Inactive w/ Usage History</button>
                     <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')" data-premium-tooltip="Configure SMS Balance alerts, retention, and themed data controls." role="menuitem">SMS Settings</button>
                   </div>
                 </div>
@@ -3948,6 +3949,11 @@
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Seen</th><th>Last Seen</th><th class="num">Times Seen</th><th class="num">Latest Balance</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-nothreshold-tbody"></tbody></table></div>
                   </section>
 
+                  <section class="sms-bal-view" id="sms-bal-view-inactive-usage-history">
+                    <div class="fbar"><input class="win-search" id="sms-bal-inactive-usage-history-search" type="search" placeholder="Search inactive usage history…" oninput="renderSmsBalanceInactiveUsageHistory()"><button class="tbtn" onclick="exportSmsBalanceInactiveUsageHistoryCsv()">Export</button></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Manager</th><th>First Seen</th><th>Last Seen</th><th class="num">Times Seen</th><th class="num">Latest 30m Usage</th><th class="num">Last Balance</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-inactive-usage-history-tbody"></tbody></table></div>
+                  </section>
+
                   <section class="sms-bal-view" id="sms-bal-view-settings">
                     <div class="sms-bal-panel">
                       <div class="groupbox-title">SMS Balance Settings</div>
@@ -3966,6 +3972,7 @@
                         <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-label="SMS snapshot">Delete ALL SMS Snapshots</button>
                         <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()" data-count-collection="sms_balance_history" data-count-label="SMS critical-history record">Clear SMS Critical History</button>
                         <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()" data-count-collection="sms_balance_no_threshold" data-count-label="SMS no-threshold record">Clear SMS No-Threshold List</button>
+                        <button class="tbtn danger" id="sms-bal-clear-inactive-usage-history-btn" onclick="clearSmsBalanceInactiveUsageHistory()" data-count-collection="sms_balance_inactive_usage" data-count-label="SMS inactive-usage history record">Clear Inactive Usage History</button>
                       </div>
                     </div>
                   </section>
@@ -4127,7 +4134,7 @@
                     <div class="sms-field"><label>New API Password</label><input class="win-inp sms-cred-mono" id="sms-cred-new-api-password" autocomplete="new-password"></div>
                     <div class="sms-field sms-cred-key-field"><label>Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-login-link')" title="Open login link in your default browser">Open ↗</button></div></div>
                     <div class="sms-field"><label>New Login Link</label><div class="sms-cred-link-input"><input class="win-inp" id="sms-cred-new-login-link"><button type="button" class="tbtn" onclick="openSmsCredentialLink('sms-cred-new-login-link')" title="Open new login link in your default browser">Open ↗</button></div></div>
-                    <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="YYYY-MM-DD HH:mm" readonly title="Automatically set when this credential is added or edited"></div>
+                    <div class="sms-field"><label>Date Updated</label><input class="win-inp" id="sms-cred-date-updated" placeholder="Aug 26, 2026" title="Enter the date that should be shown for this credential"></div>
                     <div class="sms-field"><label>Platform</label><input class="win-inp" id="sms-cred-platform"></div>
                     <div class="sms-field full-row"><label>Notes</label><textarea class="sms-textarea" id="sms-cred-notes" rows="3" placeholder="Credential notes, reminders, or other details"></textarea></div>
                     <div class="sms-field sms-cred-key-field">
@@ -5762,7 +5769,7 @@ const smsSubscribedTabs = new Set();
 
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalancePriorSnap = null, smsBalancePriorLoaded = false, smsBalancePriorUnsubscribe = null;
-let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [];
+let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [], smsBalanceInactiveUsageHistory = [];
 // A full snapshot wipe intentionally makes the next post a fresh transition
 // baseline. Existing Critical / No-Threshold clients remain visible in their
 // current tabs, but are not replayed into persistent history as newly detected.
@@ -5798,10 +5805,10 @@ if (!['','reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceMa
 let smsBalanceSelectedMetaKey = '';
 let smsBalanceDetailMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
-const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','settings']);
+const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','inactive-usage-history','settings']);
 const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
 const SMS_BALANCE_LOCAL = {
-  snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold'
+  snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold', inactiveUsage:'bm_sms_balance_inactive_usage_history'
 };
 let SBS = { nearPct:10, retentionDays:30, soundAlert:true, requireClientThresholds:false };
 
@@ -6903,6 +6910,15 @@ function requirePastedData(id, label) {
   return validateRequiredFields([
     { id, label, empty:() => !String(element?.value || '').trim() }
   ], 'Paste data before processing.');
+}
+
+function showPasteValidationAlert(message, id) {
+  if (id) setRequiredFieldState(id, true);
+  window.alert(message);
+  const element = id ? document.getElementById(id) : null;
+  element?.scrollIntoView?.({ behavior:'smooth', block:'center' });
+  element?.focus?.();
+  return false;
 }
 
 document.addEventListener('input', event => {
@@ -8131,11 +8147,16 @@ function spamCheck(row) {
   if (!p || !p.ready) return null;
   const signal = sustainedUsage(row?.carrier_name, u);
   if (signal < SPAM_CFG.hardFloor) return null;               // sustained level still below the ignore-below gate
+  // A reading within this client's already-observed range is not a new anomaly.
+  // Keep the robust median/MAD test for genuine new highs, but never label a value
+  // Possible Spam merely because its median is low when the profile has safely
+  // handled a larger reading before (for example, 69.19 with a profile max 80.47).
+  const maxRef = usageProfileMaxRef(row?.carrier_name, date, slot);
+  if (maxRef.profileMax !== null && signal <= maxRef.profileMax) return null;
   const z = p.sigma > 0 ? (signal - p.median) / p.sigma : 0;  // jump measured in the client's own noise units
   if (z >= SPAM_CFG.kWatch) {
     const tier  = z >= SPAM_CFG.kHigh ? 'high' : 'watch';     // High vs Watch
     const ratio = p.median > 0 ? signal / p.median : Infinity;
-    const maxRef = usageProfileMaxRef(row?.carrier_name, date, slot);
     return { usage: u, signal, median: p.median, sigma: p.sigma, z, ratio, n: p.n, tier,
              profileMax: maxRef.profileMax, profileMaxDate: maxRef.profileMaxDate, profileMaxSlot: maxRef.profileMaxSlot };
   }
@@ -9630,6 +9651,39 @@ function findFirstDataLine(lines, delim) {
   return idx >= 0 ? idx : 0;
 }
 
+/* Validate the pasted report before parsing it. The exported VOIP report has ten
+   columns. Its header is optional, but the All Clients feed must include the
+   report's Total row so a partial clipboard selection cannot be posted by mistake.
+   Tritel accepts either the same ten-column row format or one balance amount. */
+function validateVoipSnapshotPaste(text, source='all') {
+  const raw = String(text || '').trim();
+  const label = source === 'tritel' ? 'Tritel' : 'All Clients';
+  if (!raw) return { valid:false, message:`Paste ${label} snapshot data before processing.` };
+  if (source === 'tritel' && parseTritelAmountOnly(raw) !== null) return { valid:true };
+
+  const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const delim = lines.some(line => line.includes('\t')) ? '\t' : ',';
+  const headerIndex = findSnapshotHeaderLine(lines);
+  const dataStart = headerIndex >= 0 ? headerIndex + 1 : findFirstDataLine(lines, delim);
+  const dataLines = lines.slice(dataStart);
+  if (!dataLines.length) return { valid:false, message:`${label} has a header but no data rows. Paste the report data and try again.` };
+
+  const wrongLine = dataLines.findIndex(line => splitDelimitedLine(line, delim).length !== 10);
+  if (wrongLine >= 0) {
+    const found = splitDelimitedLine(dataLines[wrongLine], delim).length;
+    return { valid:false, message:`${label} data must have exactly 10 columns per row. Row ${wrongLine + 1} has ${found}.` };
+  }
+  const firstCells = dataLines.map(line => String(splitDelimitedLine(line, delim)[0] || '').trim());
+  const isTotal = value => /^(total|totals|grand total)$/i.test(value);
+  if (source !== 'tritel' && !firstCells.some(isTotal)) {
+    return { valid:false, message:'All Clients data is incomplete: the required Total row is missing. Copy the complete report and try again.' };
+  }
+  if (!firstCells.some(value => value && !isTotal(value))) {
+    return { valid:false, message:`${label} does not contain a client data row.` };
+  }
+  return { valid:true };
+}
+
 function parseText(text) {
   text=text.trim(); if(!text) return null;
   const lines=text.split(/\r?\n/);
@@ -9769,8 +9823,13 @@ function parseTritelAmountOnly(text){
 
 window.processSnapshot = async() => {
   if(!canPostBalance()){ toast('Posting snapshots is restricted for this account.','err'); return; }
-  if(!requirePastedData('snap-ta', snapSource === 'tritel' ? 'Tritel snapshot data' : 'All Clients snapshot data')) return;
+  if(!requirePastedData('snap-ta', snapSource === 'tritel' ? 'Tritel snapshot data' : 'All Clients snapshot data')) {
+    showPasteValidationAlert(`Paste ${snapSource === 'tritel' ? 'Tritel' : 'All Clients'} snapshot data before processing.`, 'snap-ta');
+    return;
+  }
   const raw = document.getElementById('snap-ta').value;
+  const validation = validateVoipSnapshotPaste(raw, snapSource);
+  if(!validation.valid){ showPasteValidationAlert(validation.message, 'snap-ta'); return; }
   // In Tritel mode a bare Amnt Receivable value is accepted and auto-labeled "Tritel".
   const tritelAmt = snapSource==='tritel' ? parseTritelAmountOnly(raw) : null;
   const rows = tritelAmt!==null ? [{ carrier_name:'Tritel', amnt_receivable: tritelAmt }] : parseText(raw);
@@ -10531,6 +10590,7 @@ function localSettingsDataCount(collectionName, filterName = '') {
     sms_balance_snapshots: () => todayOnly(smsBalanceTodaySnaps),
     sms_balance_history: () => (smsBalanceHistory || []).length,
     sms_balance_no_threshold: () => (smsBalanceNoThreshold || []).length,
+    sms_balance_inactive_usage: () => (smsBalanceInactiveUsageHistory || []).length,
     stats_snapshots: () => filterName === 'previous-stats-day' ? (statsPreviousDaySnaps || []).length : (statsTodaySnaps || []).length,
     stats_daily_traffic: () => (statsDailyHistory || []).length,
   };
@@ -13406,6 +13466,30 @@ function parseSmsBalanceText(text, source) {
   });
   return rows;
 }
+
+/* Phoenix Reseller and Wholesale exports both contain seven columns. Their
+   headers are optional; validating the shape up front prevents a partial paste
+   from silently producing an incomplete snapshot. */
+function validateSmsBalancePaste(text, source) {
+  const label = source === 'wholesale' ? 'Wholesale' : 'Reseller';
+  const lines = String(text || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  if (!lines.length) return { valid:false, message:`Paste ${label} SMS balance data before processing.` };
+  const delim = lines.some(line => line.includes('\t')) ? '\t' : ',';
+  const first = splitDelimitedLine(lines[0], delim).map(value => value.trim());
+  const mappedHeaders = first.map(smsBalanceHeaderField);
+  const hasHeader = mappedHeaders.includes('client') && mappedHeaders.includes('balance');
+  if (hasHeader && first.length !== 7) {
+    return { valid:false, message:`${label} SMS balance header must have exactly 7 columns; ${first.length} were found.` };
+  }
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  if (!dataLines.length) return { valid:false, message:`${label} SMS balance report has a header but no data rows.` };
+  const wrongLine = dataLines.findIndex(line => splitDelimitedLine(line, delim).length !== 7);
+  if (wrongLine >= 0) {
+    const found = splitDelimitedLine(dataLines[wrongLine], delim).length;
+    return { valid:false, message:`${label} SMS balance data must have exactly 7 columns per row. Row ${wrongLine + 1} has ${found}.` };
+  }
+  return { valid:true };
+}
 function smsBalanceMetaFor(row) { return smsBalanceMeta[smsBalanceMetaKey(row)] || {}; }
 function smsBalanceThreshold(meta, field) {
   const v = meta?.[field];
@@ -13641,6 +13725,7 @@ function loadSmsBalanceLocal() {
   try { smsBalanceMeta = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.meta) || '{}') || {}; } catch(e) { smsBalanceMeta = {}; }
   try { smsBalanceHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.history) || '[]') || []; } catch(e) { smsBalanceHistory = []; }
   try { smsBalanceNoThreshold = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.noThreshold) || '[]') || []; } catch(e) { smsBalanceNoThreshold = []; }
+  try { smsBalanceInactiveUsageHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.inactiveUsage) || '[]') || []; } catch(e) { smsBalanceInactiveUsageHistory = []; }
   try { SBS = { ...SBS, ...JSON.parse(localStorage.getItem('bm_sms_balance_settings') || '{}') }; } catch(e) {}
   smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
 }
@@ -13650,6 +13735,7 @@ function saveSmsBalanceLocal() {
     localStorage.setItem(SMS_BALANCE_LOCAL.meta, JSON.stringify(smsBalanceMeta));
     localStorage.setItem(SMS_BALANCE_LOCAL.history, JSON.stringify(smsBalanceHistory));
     localStorage.setItem(SMS_BALANCE_LOCAL.noThreshold, JSON.stringify(smsBalanceNoThreshold));
+    localStorage.setItem(SMS_BALANCE_LOCAL.inactiveUsage, JSON.stringify(smsBalanceInactiveUsageHistory));
   } catch(e) {}
 }
 function populateSmsBalanceSlots() {
@@ -14297,9 +14383,16 @@ function renderSmsBalanceNoThreshold() {
   const rows=smsBalanceNoThreshold.slice().sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
   body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td>${rowDelCell('deleteSmsBalanceNoThresholdEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(7,'Every current client has a notification threshold.');
 }
+function renderSmsBalanceInactiveUsageHistory() {
+  const body=document.getElementById('sms-bal-inactive-usage-history-tbody');if(!body)return;
+  const q=String(document.getElementById('sms-bal-inactive-usage-history-search')?.value||'').toLowerCase();
+  const rows=smsBalanceInactiveUsageHistory.filter(r=>!q||[r.client,r.source,r.account_manager].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
+  body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.account_manager||'—')}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_usage)}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td>${rowDelCell('deleteSmsBalanceInactiveUsageHistoryEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(9,'No inactive clients have reported positive 30-minute usage.');
+}
+window.renderSmsBalanceInactiveUsageHistory=renderSmsBalanceInactiveUsageHistory;
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
-  window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold();
+  window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold(); renderSmsBalanceInactiveUsageHistory();
   const sync=document.getElementById('sms-bal-sync-label');
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
   updateSmsBalanceStatusBar();
@@ -14319,6 +14412,7 @@ window.switchSmsBalanceView = (view, persist=true) => {
   if(view==='logs'){subscribeLogs();renderSmsBalanceLogs();}
   else if(document.body.classList.contains('sms-mode'))unsubscribeLogs();
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
+  if(view==='inactive-usage-history')renderSmsBalanceInactiveUsageHistory();
 };
 
 function updateSmsBalanceStatusBar() {
@@ -14370,6 +14464,17 @@ function smsBalanceHistoryStateMap(snap) {
   (snap.data||[]).forEach(row=>{const key=smsBalanceMetaKey(row),status=smsBalanceStatus(row),prior=worst.get(key);if(!prior||smsBalanceStatusRank(status.code)>smsBalanceStatusRank(prior.status.code))worst.set(key,{row,status});});
   return worst;
 }
+function smsBalanceInactiveUsageEntries(snap) {
+  const byClient=new Map();
+  (snap?.data||[]).forEach(raw=>{
+    const row=smsBalanceNormalizeRow(raw,raw.source),meta=smsBalanceMetaFor(row),usage=smsBalanceNumber(row.usage_30min);
+    if(meta?.is_active!==false||usage<=0)return;
+    const key=smsBalanceMetaKey(row),prior=byClient.get(key);
+    if(prior){prior.row.usage_30min+=usage;prior.row.balance=row.balance;prior.row.overdraft=row.overdraft;return;}
+    byClient.set(key,{key,row:{...row,usage_30min:usage},meta});
+  });
+  return [...byClient.values()];
+}
 function smsBalanceNewHistoryEntries(snap,previous=null) {
   const current=smsBalanceHistoryStateMap(snap),before=smsBalanceHistoryStateMap(previous||{data:[]});
   const critical=[],noThreshold=[];
@@ -14382,12 +14487,13 @@ function smsBalanceNewHistoryEntries(snap,previous=null) {
     if(criticalNow&&!criticalBefore)critical.push({key,...entry});
     if(noThresholdNow&&!noThresholdBefore)noThreshold.push({key,...entry});
   });
-  return {critical,noThreshold};
+  return {critical,noThreshold,inactiveUsage:smsBalanceInactiveUsageEntries(snap)};
 }
 async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   entries=entries||smsBalanceNewHistoryEntries(snap,previous);
   const histMap=new Map(smsBalanceHistory.map(r=>[r.meta_key,r]));
   const noMap=new Map(smsBalanceNoThreshold.map(r=>[r.meta_key,r]));
+  const inactiveUsageMap=new Map(smsBalanceInactiveUsageHistory.map(r=>[r.meta_key,r]));
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const remote=[];
   entries.critical.forEach(({key,row,status})=>{
@@ -14396,7 +14502,10 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   entries.noThreshold.forEach(({key,row})=>{
     const prior=noMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance};noMap.set(key,record);remote.push(['sms_balance_no_threshold',record]);
   });
-  smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];saveSmsBalanceLocal();
+  (entries.inactiveUsage||[]).forEach(({key,row,meta})=>{
+    const prior=inactiveUsageMap.get(key);const record={meta_key:key,source:row.source,client:row.client,account_manager:meta?.account_manager||prior?.account_manager||'',first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_usage:row.usage_30min,last_balance:row.balance,last_overdraft:row.overdraft};inactiveUsageMap.set(key,record);remote.push(['sms_balance_inactive_usage',record]);
+  });
+  smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];smsBalanceInactiveUsageHistory=[...inactiveUsageMap.values()];saveSmsBalanceLocal();
   if(fbOk)await Promise.all(remote.map(([collectionName,record])=>setDoc(doc(db,collectionName,smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));
 }
 function focusSmsBalanceNewCriticalView() {
@@ -14405,9 +14514,17 @@ function focusSmsBalanceNewCriticalView() {
 }
 window.processSmsBalanceSnapshot = async () => {
   if(!canPostBalance()){toast('Posting SMS balance snapshots is restricted for this account.','err');return;}
-  if(!requirePastedData('sms-bal-reseller-ta','Reseller SMS balance data')||!requirePastedData('sms-bal-wholesale-ta','Wholesale SMS balance data'))return;
-  const reseller=parseSmsBalanceText(document.getElementById('sms-bal-reseller-ta').value,'reseller');
-  const wholesale=parseSmsBalanceText(document.getElementById('sms-bal-wholesale-ta').value,'wholesale');
+  const resellerText=document.getElementById('sms-bal-reseller-ta')?.value||'';
+  const wholesaleText=document.getElementById('sms-bal-wholesale-ta')?.value||'';
+  const hasReseller=requirePastedData('sms-bal-reseller-ta','Reseller SMS balance data');
+  const hasWholesale=requirePastedData('sms-bal-wholesale-ta','Wholesale SMS balance data');
+  if(!hasReseller||!hasWholesale){showPasteValidationAlert('Paste both Reseller and Wholesale SMS balance data before processing.',!hasReseller?'sms-bal-reseller-ta':'sms-bal-wholesale-ta');return;}
+  const resellerValidation=validateSmsBalancePaste(resellerText,'reseller');
+  if(!resellerValidation.valid){showPasteValidationAlert(resellerValidation.message,'sms-bal-reseller-ta');return;}
+  const wholesaleValidation=validateSmsBalancePaste(wholesaleText,'wholesale');
+  if(!wholesaleValidation.valid){showPasteValidationAlert(wholesaleValidation.message,'sms-bal-wholesale-ta');return;}
+  const reseller=parseSmsBalanceText(resellerText,'reseller');
+  const wholesale=parseSmsBalanceText(wholesaleText,'wholesale');
   if(!reseller.length||!wholesale.length){toast(`Could not parse both reports — Reseller ${reseller.length} row(s), Wholesale ${wholesale.length} row(s).`,'err',7000);return;}
   const slot=document.getElementById('sms-bal-slot')?.value||nextSlot();
   let existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
@@ -14438,7 +14555,7 @@ window.processSmsBalanceSnapshot = async () => {
   const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||'',user_email:currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
   const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
-  const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[]}:smsBalanceNewHistoryEntries(snap,previous);
+  const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[],inactiveUsage:[]}:smsBalanceNewHistoryEntries(snap,previous);
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
   const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row)&&smsBalanceMetaFor(row)?.is_active!==false);
@@ -14570,6 +14687,13 @@ window.clearSmsBalanceNoThreshold = async () => {
   try{await wipeSmsBalanceCollection('sms_balance_no_threshold');toast('SMS No-Threshold History cleared — waiting for new entries','ok');}
   catch(error){smsBalanceNoThreshold=backup;saveSmsBalanceLocal();renderSmsBalanceNoThreshold();toast('Could not clear SMS No-Threshold History: '+error.message,'err',7000);}
 };
+window.clearSmsBalanceInactiveUsageHistory = async () => {
+  if(!isAdmin()){toast('Only admins can clear inactive usage history.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Clear Inactive Usage History',label:'Clear History',html:'Clear every client in the persistent <strong>Inactive w/ Usage History</strong>?<br><br>SMS snapshots and the current Inactive w/ Usage alert are not affected. Future positive-usage snapshots will create new history entries.'}))return;
+  const backup=smsBalanceInactiveUsageHistory.slice();smsBalanceInactiveUsageHistory=[];saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();
+  try{await wipeSmsBalanceCollection('sms_balance_inactive_usage');toast('Inactive w/ Usage History cleared — waiting for new entries','ok');}
+  catch(error){smsBalanceInactiveUsageHistory=backup;saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();toast('Could not clear Inactive w/ Usage History: '+error.message,'err',7000);}
+};
 window.deleteSmsBalanceHistoryEntry = async key => {
   if(!isAdmin()){toast('Only admins can delete SMS critical history.','err');return;}
   const row=smsBalanceHistory.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
@@ -14585,6 +14709,14 @@ window.deleteSmsBalanceNoThresholdEntry = async key => {
   const backup=smsBalanceNoThreshold.slice();smsBalanceNoThreshold=smsBalanceNoThreshold.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();
   try{if(fbOk)await deleteDoc(doc(db,'sms_balance_no_threshold',smsBalanceDocId(key)));toast(`Removed ${row.client} from SMS No-Threshold History`,'ok');}
   catch(error){smsBalanceNoThreshold=backup;saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();toast('Could not remove SMS No-Threshold History entry: '+error.message,'err',7000);}
+};
+window.deleteSmsBalanceInactiveUsageHistoryEntry = async key => {
+  if(!isAdmin()){toast('Only admins can delete inactive usage history.','err');return;}
+  const row=smsBalanceInactiveUsageHistory.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
+  if(!await confirmSmsBalanceAction({title:'Remove Inactive Usage History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from Inactive w/ Usage History?<br><br>SMS snapshots and all other history entries are not affected.`}))return;
+  const backup=smsBalanceInactiveUsageHistory.slice();smsBalanceInactiveUsageHistory=smsBalanceInactiveUsageHistory.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();
+  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_inactive_usage',smsBalanceDocId(key)));toast(`Removed ${row.client} from Inactive w/ Usage History`,'ok');}
+  catch(error){smsBalanceInactiveUsageHistory=backup;saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();toast('Could not remove Inactive w/ Usage History entry: '+error.message,'err',7000);}
 };
 function smsBalanceCsvDownload(headers,rows,name) {const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
 window.exportSmsBalanceAlertView = () => {
@@ -14608,6 +14740,7 @@ window.exportSmsBalanceManagerCurrentView = () => {
   toast(`Downloaded ${list.length} Client Manager row(s).`,'ok');
 };
 window.exportSmsBalanceHistoryCsv = () => {if(!smsBalanceHistory.length){toast('No SMS history to export.','err');return;}smsBalanceCsvDownload(['Client','Type','First Hit','Last Hit','Times Hit','Last Balance','OD Remaining','Last Status'],smsBalanceHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.first_hit,r.last_hit,r.count,r.last_balance,r.od_remaining,r.last_status]),`sms_balance_critical_history_${todayStr()}.csv`);};
+window.exportSmsBalanceInactiveUsageHistoryCsv = () => {if(!smsBalanceInactiveUsageHistory.length){toast('No inactive usage history to export.','err');return;}smsBalanceCsvDownload(['Client','Type','Account Manager','First Seen','Last Seen','Times Seen','Latest 30m Usage','Last Balance'],smsBalanceInactiveUsageHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.account_manager,r.first_seen,r.last_seen,r.count,r.last_usage,r.last_balance]),`sms_balance_inactive_usage_history_${todayStr()}.csv`);};
 function smsBalanceDateAdd(date,days) {const d=new Date(`${date}T00:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function smsBalanceSheetSlots(shift) { return shiftSlots(shift); }
 function smsBalanceSlotDate(reportDate,shift,slot) {if(shift==='7AM-7PM')return reportDate;const hour=Number(String(slot).split(':')[0]);return hour>=19?reportDate:smsBalanceDateAdd(reportDate,1);}
@@ -14818,6 +14951,11 @@ function subscribeSmsBalanceData() {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
       smsBalanceNoThreshold=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();
     },e=>console.warn('SMS balance no threshold:',e));
+  } catch(e){console.warn(e);}
+  try {
+    onSnapshot(collection(db,'sms_balance_inactive_usage'),async s=>{
+      smsBalanceInactiveUsageHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();
+    },e=>console.warn('SMS balance inactive usage history:',e));
   } catch(e){console.warn(e);}
 }
 async function cleanupOldSmsBalanceSnapshots() {
@@ -16004,7 +16142,6 @@ window.editSmsCredential = id => {
   smsCredentialEditingId = id;
   SMS_CREDENTIAL_FIELDS.forEach(field => setSmsCredentialInput(field, row[field]));
   setSmsCredentialQrStatus('Paste, upload, or drop a QR image to replace the OTP settings in this form.');
-  setSmsCredentialInput('date_updated', smsCredentialNowText());
   const otpSecret = document.getElementById('sms-cred-otp-secret');
   if (otpSecret) otpSecret.type = 'password';
   const otpShow = document.getElementById('sms-cred-otp-show-btn');
@@ -16022,7 +16159,6 @@ window.editSmsCredential = id => {
 
 window.saveSmsCredential = () => {
   if (!canManageSmsRegisters()) { toast('Saving credentials requires admin or semi-admin access.', 'err'); return; }
-  setSmsCredentialInput('date_updated', smsCredentialNowText());
   const row = readSmsCredentialForm();
   if (!row.client) { toast('Client / Vendor is required.', 'err'); return; }
   if (row.otp_secret) {
