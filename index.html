@@ -1281,6 +1281,25 @@
     }
     .vos-primary-panel { flex:1; min-height:0; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); }
     .vos-coming-soon { margin:auto; width:min(560px,calc(100% - 32px)); padding:28px; border:1px dashed var(--border-strong); border-radius:var(--r-lg); background:var(--surface-2); text-align:center; }
+    .vos-stats-workspace { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+    .vos-stats-workspace .daily-workspace-nav { flex-wrap:wrap; }
+    .vos-stats-workspace .daily-tab-segment { flex-wrap:wrap; }
+    .vos-stats-import { margin:0 8px 8px; }
+    .vos-stats-panel { flex:1; min-height:0; display:none; flex-direction:column; overflow:hidden; }
+    .vos-stats-panel.active { display:flex; }
+    .vos-stats-summary { overflow:auto; padding:0 8px 8px; }
+    .vos-stats-summary .stat-row { margin:0 0 8px; }
+    .vos-stats-timeline { display:flex; gap:5px; overflow-x:auto; padding:8px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
+    .vos-stats-timeline .timeline-cell { min-width:62px; }
+    .vos-stats-table-shell { flex:1; min-height:0; margin:0 8px 8px; border:1px solid var(--border); border-radius:var(--r-md); overflow:hidden; }
+    .vos-stats-table { min-width:1240px; }
+    .vos-stats-table th, .vos-stats-table td { white-space:nowrap; }
+    .vos-stats-table th.num, .vos-stats-table td.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+    .vos-stats-hourly-table { min-width:900px; }
+    .vos-stats-hourly-table .st-hr-cell { min-width:118px; }
+    .vos-stats-meta { padding:0 10px 7px; color:var(--text-3); font-size:10px; line-height:1.45; }
+    .vos-stats-settings { padding:0 8px 8px; overflow:auto; }
+    .vos-stats-settings .groupbox { max-width:760px; }
     .vos-import-card { display:flex; align-items:center; gap:8px; padding:10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
     .vos-import-copy { min-width:0; flex:1; }
     .vos-import-title { font-size:12px; font-weight:700; color:var(--text); }
@@ -4961,9 +4980,103 @@
             </div>
 
             <div class="vos-primary-panel" id="vos-primary-panel-stats" role="tabpanel" aria-labelledby="vos-primary-tab-stats" style="display:none">
-              <div class="vos-coming-soon">
-                <div class="vos-import-title">VOS Stats</div>
-                <div class="vos-import-help">The Stats workspace is ready for its column mapping and monitoring rules. Daily Traffic is available now.</div>
+              <div class="vos-stats-workspace">
+                <div class="daily-workspace-intro">
+                  <div>
+                    <div class="daily-workspace-eyebrow">VOS Stats</div>
+                    <div class="daily-workspace-title">Hourly Gateway Performance</div>
+                    <div class="daily-workspace-subtitle">Upload each hourly VOS report, merge duplicate gateway + destination rows, and monitor ASR, ACD, call volume, and stopped traffic.</div>
+                  </div>
+                </div>
+                <div class="daily-workspace-nav">
+                  <div class="daily-tab-segment" role="tablist" aria-label="VOS Stats views">
+                    <button type="button" class="st-daily-tab active" id="vos-stats-tab-summary" role="tab" aria-selected="true" onclick="switchVosStatsTab('summary')">Summary</button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-all" role="tab" aria-selected="false" onclick="switchVosStatsTab('all')">All Clients</button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-hourly" role="tab" aria-selected="false" onclick="switchVosStatsTab('hourly')">Hourly</button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-critical" role="tab" aria-selected="false" onclick="switchVosStatsTab('critical')">Critical <span id="vos-stats-count-critical"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-low" role="tab" aria-selected="false" onclick="switchVosStatsTab('low')">Low <span id="vos-stats-count-low"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-watch" role="tab" aria-selected="false" onclick="switchVosStatsTab('watch')">Watch <span id="vos-stats-count-watch"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-ok" role="tab" aria-selected="false" onclick="switchVosStatsTab('ok')">Ok <span id="vos-stats-count-ok"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-good" role="tab" aria-selected="false" onclick="switchVosStatsTab('good')">Good <span id="vos-stats-count-good"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-stopped" role="tab" aria-selected="false" onclick="switchVosStatsTab('stopped')">Stopped <span id="vos-stats-count-stopped"></span></button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-logs" role="tab" aria-selected="false" onclick="switchVosStatsTab('logs')">Logs</button>
+                    <button type="button" class="st-daily-tab" id="vos-stats-tab-settings" role="tab" aria-selected="false" onclick="switchVosStatsTab('settings')">Settings</button>
+                  </div>
+                  <div class="st-daily-export-actions" id="vos-stats-export-actions" aria-label="Export current VOS Stats view">
+                    <button type="button" class="tbtn st-daily-export-btn" onclick="exportVosStatsView('csv')">&#8595; CSV</button>
+                    <button type="button" class="tbtn primary st-daily-export-btn" onclick="exportVosStatsView('xlsx')">&#8595; Excel</button>
+                  </div>
+                </div>
+
+                <div class="vos-import-card daily-import-strip vos-stats-import">
+                  <div class="daily-import-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></div>
+                  <div class="vos-import-copy">
+                    <div class="vos-import-title">Upload an hourly VOS report</div>
+                    <div class="vos-import-help">Excel or CSV · Mapping Gateway is the Client, Area Name is the Destination, and duplicate pairs are merged before the hourly snapshot is saved.</div>
+                  </div>
+                  <div class="daily-import-actions">
+                    <select id="vos-stats-slot" class="win-sel" aria-label="VOS Stats hour"></select>
+                    <input type="file" id="vos-stats-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosStatsFile(this.files[0]);this.value=''">
+                    <button type="button" class="tbtn primary" onclick="document.getElementById('vos-stats-file').click()">Upload File</button>
+                    <button type="button" class="tbtn" onclick="undoLastVosStatsSnapshot()" title="Remove the latest hourly VOS snapshot">Undo Last</button>
+                  </div>
+                  <span class="vos-file-status daily-import-status" id="vos-stats-file-status">No hourly VOS file uploaded.</span>
+                </div>
+
+                <div class="vos-stats-panel active vos-stats-summary" id="vos-stats-panel-summary" role="tabpanel" aria-labelledby="vos-stats-tab-summary">
+                  <div class="stat-row">
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-routes">—</div><div class="sl">Total routes</div></div>
+                    <div class="stat-box s-high"><div class="sv" id="vos-stats-summary-critical">—</div><div class="sl">Critical</div></div>
+                    <div class="stat-box s-medium"><div class="sv" id="vos-stats-summary-low">—</div><div class="sl">Low</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-watch">—</div><div class="sl">Watch</div></div>
+                    <div class="stat-box s-light"><div class="sv" id="vos-stats-summary-ok">—</div><div class="sl">Ok</div></div>
+                    <div class="stat-box s-green"><div class="sv" id="vos-stats-summary-good">—</div><div class="sl">Good</div></div>
+                  </div>
+                  <div class="stat-row">
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-attempts">—</div><div class="sl">Total Attempts</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-answered">—</div><div class="sl">Total Answered</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-asr">—</div><div class="sl">Overall ASR %</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-acd">—</div><div class="sl">Overall ACD (sec)</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-duration">—</div><div class="sl">Total Call Time (sec)</div></div>
+                    <div class="stat-box s-high"><div class="sv" id="vos-stats-summary-stopped">—</div><div class="sl">Stopped routes</div></div>
+                  </div>
+                  <div class="groupbox-title">1-hour Snapshot Timeline — <span id="vos-stats-summary-slot">no snapshot</span></div>
+                  <div class="vos-stats-timeline" id="vos-stats-timeline" aria-label="VOS one-hour snapshot timeline"></div>
+                  <div class="legend" style="margin-top:8px">
+                    <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt;10 with &gt;30 attempts</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — ASR &lt;10 with ≤30 attempts</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#888800"></div>Ok — ASR 10–20</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
+                  </div>
+                </div>
+
+                <div class="vos-stats-panel" id="vos-stats-panel-all" role="tabpanel" aria-labelledby="vos-stats-tab-all">
+                  <div class="daily-filterbar vos" aria-label="VOS Stats filters">
+                    <select id="vos-stats-snapshot-slot" class="win-sel" onchange="selectVosStatsSlot(this.value)" title="Saved hourly snapshot"></select>
+                    <select id="vos-stats-class-filter" class="win-sel" onchange="renderVosStats()" title="Filter classification"><option value="">All Classifications</option><option value="critical">Critical</option><option value="low">Low</option><option value="watch">Watch</option><option value="ok">Ok</option><option value="good">Good</option></select>
+                    <input id="vos-stats-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosStats()">
+                    <span class="daily-filter-count" id="vos-stats-row-count">0 grouped rows</span>
+                  </div>
+                  <div class="vos-stats-meta">ASR = Answered ÷ Attempts × 100. ACD = Total Call Time in seconds ÷ Answered.</div>
+                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-all"></tbody></table></div></div>
+                </div>
+
+                <div class="vos-stats-panel" id="vos-stats-panel-hourly" role="tabpanel" aria-labelledby="vos-stats-tab-hourly">
+                  <div class="fbar"><input id="vos-stats-hourly-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosStatsHourly()" style="min-width:280px"><span class="sms-muted" id="vos-stats-hourly-count" style="margin-left:auto"></span></div>
+                  <div class="vos-stats-meta">One column per saved hour today. Each cell shows Attempts, ASR, ACD, and Total Call Time; Day recalculates metrics from combined totals.</div>
+                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-hourly-table" id="vos-stats-hourly-table"><thead id="vos-stats-hourly-head"></thead><tbody id="vos-stats-hourly-body"></tbody></table></div></div>
+                </div>
+
+                <div class="vos-stats-panel" id="vos-stats-panel-critical" role="tabpanel" aria-labelledby="vos-stats-tab-critical"><div class="vos-stats-meta">0 ASR and 0 ACD with more than 500 attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-critical"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-low" role="tabpanel" aria-labelledby="vos-stats-tab-low"><div class="vos-stats-meta">ASR below 10 with more than 30 attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-low"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Attempts</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (sec)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
+
+                <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
+                <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin and semi-admin only.</div><button type="button" class="tbtn" style="color:#880000" onclick="clearVosStatsHistory()">Delete ALL VOS Stats History</button></div></div></div>
               </div>
             </div>
 
@@ -10962,7 +11075,7 @@ function logLateness(log){
 }
 
 const SNAPSHOT_LOG_MODULE_LABELS = {
-  voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'daily-traffic':'Daily Traffic'
+  voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'vos-stats':'VOS Stats', 'daily-traffic':'Daily Traffic'
 };
 function snapshotLogModule(log) { return String(log?.module || 'voip'); }
 function snapshotLogModuleLabel(log) { const module=snapshotLogModule(log);return SNAPSHOT_LOG_MODULE_LABELS[module]||module; }
@@ -18306,6 +18419,10 @@ let vosSelectedDate = '';
 let vosPrimaryTab = 'daily';
 let vosDailyTab = 'today';
 let vosTrafficSortCol = 'mapping_gateway', vosTrafficSortDir = 1;
+let vosStatsSnapshots = [];
+let vosStatsSelectedSlot = '';
+let vosStatsTab = 'summary';
+let vosStatsLastFilename = '';
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'attempts', statsSortDir = -1;
 let statsSummarySort = null;
@@ -18785,7 +18902,7 @@ window.sortVosTraffic = column => { if(vosTrafficSortCol===column)vosTrafficSort
 window.switchVosPrimaryTab = tab => {
   vosPrimaryTab = tab === 'stats' ? 'stats' : 'daily';
   ['stats','daily'].forEach(name => { const active=name===vosPrimaryTab; const button=document.getElementById(`vos-primary-tab-${name}`), panel=document.getElementById(`vos-primary-panel-${name}`); button?.classList.toggle('active',active); button?.setAttribute('aria-selected',String(active)); if(panel)panel.style.display=active?'flex':'none'; });
-  if(vosPrimaryTab==='daily') switchVosDailyTab(vosDailyTab); else setSbStatus('Viewing: VOS — Stats');
+  if(vosPrimaryTab==='daily') switchVosDailyTab(vosDailyTab); else switchVosStatsTab(vosStatsTab);
 };
 window.switchVosDailyTab = tab => {
   vosDailyTab=['today','dashboard','history','logs','settings'].includes(tab)?tab:'today';
@@ -18874,6 +18991,147 @@ function vosExportDataset(){
 }
 window.exportVosDailyTab=format=>{const data=vosExportDataset();if(!data.rows.length){toast('No VOS rows to export.','err');return;}const safe=`vos_daily_${vosDailyTab}_${vosSelectedDate||todayStr()}`;if(format==='xlsx'&&window.XLSX){const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([data.headers,...data.rows]);XLSX.utils.book_append_sheet(book,sheet,data.sheet.slice(0,31));XLSX.writeFile(book,`${safe}.xlsx`);}else{const csv=[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n'),url=URL.createObjectURL(new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${safe}.csv`;link.click();URL.revokeObjectURL(url);}toast(`Exported ${data.rows.length} VOS row(s)`,'ok');};
 window.exportVosTrafficCsv=()=>window.exportVosDailyTab('csv');
+
+/* ── VOS hourly Stats ─────────────────────────────────────────────────────
+   Uses the same classifications and hourly concepts as the existing Stats
+   module, but keeps its snapshots and UI separate. Source rows are already
+   merged by parseVosTrafficMatrix (Mapping Gateway + Area Name). */
+const VOS_STATS_LOCAL_KEY = 'bm_vos_stats_v1';
+const VOS_STATS_CLOUD_COLLECTION = 'vos_stats_snapshots';
+const VOS_STATS_CLOUD_LIMIT = 168;
+const VOS_STATS_TABS = ['summary','all','hourly','critical','low','watch','ok','good','stopped','logs','settings'];
+const VOS_STATS_CLASSES = ['critical','low','watch','ok','good'];
+const vosStatsKey = row => `${String(row.mapping_gateway || '').toUpperCase()}\u0000${String(row.area_name || '').toUpperCase()}`;
+function vosStatsClassify(row) {
+  const attempts=vosNumber(row.total_calls), asr=vosNumber(row.asr), acd=vosNumber(row.acd);
+  if(asr===0&&acd===0&&attempts>ST_CRIT_ATTEMPTS)return 'critical';
+  if(asr>=21)return 'good';
+  if(asr>=10)return 'ok';
+  if(attempts<=ST_LOW_MIN_ATTEMPTS)return 'watch';
+  return 'low';
+}
+function vosStatsNormalizeRow(row) {
+  const totalCalls=vosNumber(row.total_calls), answered=vosNumber(row.answered), totalSeconds=vosDurationSeconds(row.total_call_time_seconds ?? row.total_call_time);
+  const normalized={...row,mapping_gateway:String(row.mapping_gateway||'').trim(),area_name:String(row.area_name||'').trim(),source_rows:Math.max(1,vosNumber(row.source_rows)||1),total_calls:totalCalls,fail:vosNumber(row.fail),success:vosNumber(row.success),answered,
+    avg_call_duration_sum_seconds:vosDurationSeconds(row.avg_call_duration_sum_seconds ?? row.average_call_duration),total_call_time_seconds:totalSeconds,
+    asr:totalCalls>0?answered/totalCalls*100:0,acd:answered>0?totalSeconds/answered:0};
+  normalized.cls=vosStatsClassify(normalized); return normalized;
+}
+function vosStatsSortedSnaps(allDates=false) {
+  const rows=vosStatsSnapshots.slice().filter(s=>s.session_date&&s.time_slot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));
+  return allDates?rows:rows.filter(s=>s.session_date===todayStr());
+}
+function vosStatsCurrentSnap() {
+  const snaps=vosStatsSortedSnaps(); if(!snaps.length)return null;
+  return snaps.find(s=>s.time_slot===vosStatsSelectedSlot)||snaps[snaps.length-1];
+}
+function vosStatsPreviousSnap(current=vosStatsCurrentSnap()) {
+  const snaps=vosStatsSortedSnaps(),index=current?snaps.findIndex(s=>s.time_slot===current.time_slot):-1;
+  return index>0?snaps[index-1]:null;
+}
+function saveVosStatsLocal() {
+  try{localStorage.setItem(VOS_STATS_LOCAL_KEY,JSON.stringify({version:1,selectedSlot:vosStatsSelectedSlot,snapshots:vosStatsSnapshots}));return true;}catch(e){console.warn('VOS Stats local save:',e);return false;}
+}
+const vosStatsSnapshotDocId=(date,slot)=>`${String(date||'').replace(/[^0-9]/g,'')}_${String(slot||'').replace(/[^0-9]/g,'')}`;
+function vosStatsCloudSnapshot(entry) {
+  const data=entry.data?entry.data():entry,processed=data.processed_at?.toDate?.();
+  return {id:entry.id||data.id||vosStatsSnapshotDocId(data.session_date,data.time_slot),...data,processed_at:processed?processed.toISOString():data.processed_at,rows:(Array.isArray(data.rows)?data.rows:[]).map(vosStatsNormalizeRow)};
+}
+async function loadVosStatsCloud() {
+  if(!fbOk)return;
+  try{const snapshot=await getDocs(query(collection(db,VOS_STATS_CLOUD_COLLECTION),orderBy('session_date','desc'),limit(VOS_STATS_CLOUD_LIMIT)));if(snapshot.docs.length){vosStatsSnapshots=snapshot.docs.map(vosStatsCloudSnapshot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));saveVosStatsLocal();}}
+  catch(e){console.warn('load VOS Stats snapshots:',e);}
+}
+function subscribeVosStatsCloud() {
+  if(!fbOk)return;
+  try{onSnapshot(query(collection(db,VOS_STATS_CLOUD_COLLECTION),orderBy('session_date','desc'),limit(VOS_STATS_CLOUD_LIMIT)),snapshot=>{vosStatsSnapshots=snapshot.docs.map(vosStatsCloudSnapshot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));const today=vosStatsSortedSnaps(),selected=today.find(s=>s.time_slot===vosStatsSelectedSlot)||today[today.length-1];vosStatsSelectedSlot=selected?.time_slot||'';saveVosStatsLocal();renderVosStats();},error=>console.warn('VOS Stats subscription:',error));}
+  catch(e){console.warn('subscribe VOS Stats:',e);}
+}
+function loadVosStatsLocal() {
+  try{const saved=JSON.parse(localStorage.getItem(VOS_STATS_LOCAL_KEY)||'null');if(saved&&Array.isArray(saved.snapshots)){vosStatsSnapshots=saved.snapshots.map(s=>({...s,rows:(Array.isArray(s.rows)?s.rows:[]).map(vosStatsNormalizeRow)}));vosStatsSelectedSlot=String(saved.selectedSlot||'');}}
+  catch(e){console.warn('VOS Stats local restore:',e);vosStatsSnapshots=[];vosStatsSelectedSlot='';}
+}
+function populateVosStatsSlots() {
+  const slots=statsSlots(),saved=vosStatsSortedSnaps(),latest=saved[saved.length-1]?.time_slot||'';
+  const latestIndex=slots.indexOf(latest),suggested=slots[Math.min(23,Math.max(0,latestIndex+1))]||slots[0];
+  const upload=document.getElementById('vos-stats-slot'); if(upload){const keep=upload.value;upload.innerHTML=slots.map(slot=>`<option value="${slot}">${fmt12(slot)}</option>`).join('');upload.value=keep&&slots.includes(keep)?keep:suggested;}
+  if(!vosStatsSelectedSlot||!saved.some(s=>s.time_slot===vosStatsSelectedSlot))vosStatsSelectedSlot=latest;
+  const select=document.getElementById('vos-stats-snapshot-slot');if(select){select.innerHTML=saved.length?saved.slice().reverse().map(s=>`<option value="${stEsc(s.time_slot)}"${s.time_slot===vosStatsSelectedSlot?' selected':''}>${stEsc(fmt12(s.time_slot))} · ${stN0(s.rows.length)} routes</option>`).join(''):'<option value="">No saved hours</option>';}
+}
+function vosStatsRowsWithComparison() {
+  const current=vosStatsCurrentSnap(),previous=vosStatsPreviousSnap(current),previousMap=new Map((previous?.rows||[]).map(row=>[vosStatsKey(row),row]));
+  return (current?.rows||[]).map(vosStatsNormalizeRow).map(row=>{const before=previousMap.get(vosStatsKey(row));return {...row,previous_attempts:before?before.total_calls:null,attempt_change:before?row.total_calls-before.total_calls:null};});
+}
+function vosStatsStoppedRows() {
+  const current=vosStatsCurrentSnap(),previous=vosStatsPreviousSnap(current);if(!previous)return [];
+  const currentKeys=new Set((current.rows||[]).map(vosStatsKey));return (previous.rows||[]).map(vosStatsNormalizeRow).filter(row=>!currentKeys.has(vosStatsKey(row))).map(row=>({...row,last_seen:previous.time_slot}));
+}
+function vosStatsAggregate(rows) {
+  const total=(rows||[]).reduce((sum,row)=>{sum.total_calls+=vosNumber(row.total_calls);sum.fail+=vosNumber(row.fail);sum.success+=vosNumber(row.success);sum.answered+=vosNumber(row.answered);sum.avg_call_duration_sum_seconds+=vosNumber(row.avg_call_duration_sum_seconds);sum.total_call_time_seconds+=vosNumber(row.total_call_time_seconds);return sum;},{total_calls:0,fail:0,success:0,answered:0,avg_call_duration_sum_seconds:0,total_call_time_seconds:0});
+  total.asr=total.total_calls>0?total.answered/total.total_calls*100:0;total.acd=total.answered>0?total.total_call_time_seconds/total.answered:0;total.cls=vosStatsClassify(total);return total;
+}
+function vosStatsSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
+function vosStatsBadge(cls){return `<span class="stbadge ${cls}">${stEsc(String(cls||'').toUpperCase())}</span>`;}
+function vosStatsTableRow(row) {
+  const delta=row.attempt_change===null||row.attempt_change===undefined?'—':`${row.attempt_change>0?'+':''}${stN0(row.attempt_change)}`;
+  return `<tr class="st-row-${row.cls}"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td class="num">${delta}</td></tr>`;
+}
+function renderVosStatsSummary() {
+  const snap=vosStatsCurrentSnap(),rows=vosStatsRowsWithComparison(),total=vosStatsAggregate(rows),counts=rows.reduce((out,row)=>(out[row.cls]=(out[row.cls]||0)+1,out),{}),stopped=vosStatsStoppedRows();
+  vosStatsSetText('vos-stats-summary-routes',snap?stN0(rows.length):'—');VOS_STATS_CLASSES.forEach(cls=>{vosStatsSetText(`vos-stats-summary-${cls}`,snap?stN0(counts[cls]||0):'—');vosStatsSetText(`vos-stats-count-${cls}`,counts[cls]?`(${counts[cls]})`:'');});
+  vosStatsSetText('vos-stats-summary-attempts',snap?stN0(total.total_calls):'—');vosStatsSetText('vos-stats-summary-answered',snap?stN0(total.answered):'—');vosStatsSetText('vos-stats-summary-asr',snap?`${stN2(total.asr)}%`:'—');vosStatsSetText('vos-stats-summary-acd',snap?stN2(total.acd):'—');vosStatsSetText('vos-stats-summary-duration',snap?stN2(total.total_call_time_seconds):'—');vosStatsSetText('vos-stats-summary-stopped',snap?stN0(stopped.length):'—');vosStatsSetText('vos-stats-count-stopped',stopped.length?`(${stopped.length})`:'');vosStatsSetText('vos-stats-summary-slot',snap?fmt12(snap.time_slot):'no snapshot');
+  const timeline=document.getElementById('vos-stats-timeline');if(timeline){const bySlot=new Map(vosStatsSortedSnaps().map(s=>[s.time_slot,s]));timeline.innerHTML=statsSlots().map(slot=>{const saved=bySlot.get(slot),bad=saved?(saved.rows||[]).map(vosStatsNormalizeRow).filter(r=>r.cls==='critical'||r.cls==='low').length:0;return `<button type="button" class="tslot${saved?' has-data':''}${saved&&snap?.time_slot===slot?' viewing':''}" ${saved?`onclick="viewVosStatsSlot('${slot}')"`:'disabled'}><span class="stime">${stEsc(fmt12(slot))}</span><span class="scnt">${saved?bad:'—'}</span></button>`;}).join('');}
+}
+function renderVosStatsTables() {
+  const all=vosStatsRowsWithComparison(),search=String(document.getElementById('vos-stats-search')?.value||'').trim().toLowerCase(),filter=String(document.getElementById('vos-stats-class-filter')?.value||'');
+  const filtered=all.filter(row=>(!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search))&&(!filter||row.cls===filter)).sort((a,b)=>(ST_CLS_RANK?.[a.cls]??9)-(ST_CLS_RANK?.[b.cls]??9)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
+  vosStatsSetText('vos-stats-row-count',`${filtered.length} of ${all.length} grouped row(s)`);const allBody=document.getElementById('vos-stats-tbody-all');if(allBody)allBody.innerHTML=filtered.map(vosStatsTableRow).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats rows match the current view.</td></tr>';
+  VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
+  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
+}
+function vosStatsHourlyCell(row) {if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"><span class="st-hr-line st-hr-att"><span class="st-hr-k">Att</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Time</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
+function vosStatsHourlyMatrix() {
+  const snaps=vosStatsSortedSnaps(),identities=new Map(),byKey=new Map();snaps.forEach(s=>(s.rows||[]).map(vosStatsNormalizeRow).forEach(row=>{const key=vosStatsKey(row);identities.set(key,row);if(!byKey.has(key))byKey.set(key,{});byKey.get(key)[s.time_slot]=row;}));
+  return {slots:snaps.map(s=>s.time_slot),rows:[...identities.entries()].map(([key,identity])=>{const byHour=byKey.get(key),total=vosStatsAggregate(Object.values(byHour));return {key,identity,byHour,total};})};
+}
+function renderVosStatsHourly() {
+  const head=document.getElementById('vos-stats-hourly-head'),body=document.getElementById('vos-stats-hourly-body');if(!head||!body)return;const matrix=vosStatsHourlyMatrix(),search=String(document.getElementById('vos-stats-hourly-search')?.value||'').trim().toLowerCase(),rows=matrix.rows.filter(row=>!search||`${row.identity.mapping_gateway} ${row.identity.area_name}`.toLowerCase().includes(search)).sort((a,b)=>a.identity.mapping_gateway.localeCompare(b.identity.mapping_gateway)||a.identity.area_name.localeCompare(b.identity.area_name));
+  head.innerHTML=`<tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th>${matrix.slots.map(slot=>`<th>${stEsc(fmt12(slot))}</th>`).join('')}<th>Day</th></tr>`;body.innerHTML=rows.map(row=>`<tr><td class="st-hr-client"><div class="st-hr-name">${stEsc(row.identity.mapping_gateway)}</div></td><td>${stEsc(row.identity.area_name)}</td>${matrix.slots.map(slot=>vosStatsHourlyCell(row.byHour[slot])).join('')}${vosStatsHourlyCell(row.total)}</tr>`).join('')||`<tr><td colspan="${matrix.slots.length+3}" style="text-align:center;color:var(--text-3);padding:18px">No hourly VOS Stats rows.</td></tr>`;vosStatsSetText('vos-stats-hourly-count',`${rows.length} route${rows.length===1?'':'s'} · ${matrix.slots.length} saved hour${matrix.slots.length===1?'':'s'}`);
+}
+function renderVosStatsLogs() {const body=document.getElementById('vos-stats-logs-body'),snaps=vosStatsSortedSnaps(true).slice().reverse();if(body)body.innerHTML=snaps.map(s=>`<tr><td>${stEsc(s.session_date)}</td><td>${stEsc(fmt12(s.time_slot))}</td><td>${stEsc(s.processed_at?new Date(s.processed_at).toLocaleString():'—')}</td><td>${stEsc(s.filename||'VOS report')}</td><td>${stEsc(s.sheet_name||'—')}</td><td class="num">${stN0(s.rows?.length||0)}</td><td class="num">${stN0((s.rows||[]).reduce((sum,row)=>sum+vosNumber(row.source_rows),0))}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats imports yet.</td></tr>';}
+async function deleteVosStatsCloudHistory() {
+  if(!fbOk)return 0;const snapshot=await getDocs(collection(db,VOS_STATS_CLOUD_COLLECTION));let batch=writeBatch(db),pending=0,deleted=0;
+  for(const entry of snapshot.docs){batch.delete(doc(db,VOS_STATS_CLOUD_COLLECTION,entry.id));pending++;deleted++;if(pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}
+  if(pending)await batch.commit();return deleted;
+}
+function renderVosStats() {populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}}
+window.renderVosStats=renderVosStats;window.renderVosStatsHourly=renderVosStatsHourly;
+window.switchVosStatsTab=tab=>{vosStatsTab=VOS_STATS_TABS.includes(tab)?tab:'summary';VOS_STATS_TABS.forEach(name=>{const active=name===vosStatsTab,button=document.getElementById(`vos-stats-tab-${name}`),panel=document.getElementById(`vos-stats-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));panel?.classList.toggle('active',active);});const exports=document.getElementById('vos-stats-export-actions');if(exports)exports.style.display=['logs','settings'].includes(vosStatsTab)?'none':'flex';renderVosStats();setSbStatus(`Viewing: VOS — Stats — ${vosStatsTab.replace(/\b\w/g,c=>c.toUpperCase())}`);};
+window.selectVosStatsSlot=slot=>{vosStatsSelectedSlot=String(slot||'');const status=document.getElementById('vos-stats-file-status');if(status)delete status.dataset.current;saveVosStatsLocal();renderVosStats();};window.viewVosStatsSlot=slot=>{window.selectVosStatsSlot(slot);window.switchVosStatsTab('all');};
+window.importVosStatsFile=async file=>{
+  if(!file)return;if(!canPostStats()){toast('Posting VOS Stats snapshots is restricted for this account.','err');return;}if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
+  const slot=String(document.getElementById('vos-stats-slot')?.value||'');if(!statsSlots().includes(slot)){toast('Select a valid VOS Stats hour.','err');return;}const existing=vosStatsSortedSnaps().find(s=>s.time_slot===slot);
+  if(existing){const approved=await confirmPremiumAction({title:'Replace VOS Stats Hour',html:`Replace the saved <strong>${stEsc(fmt12(slot))}</strong> VOS Stats snapshot with <strong>${stEsc(file.name||'this file')}</strong>?`,label:'Replace'});if(!approved)return;}
+  setLoading(true,'Reading hourly VOS Stats file…');try{
+    const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate.map(vosStatsNormalizeRow);sheetName=name;break;}}catch(e){}}
+    if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');const snapshot={session_date:todayStr(),time_slot:slot,filename:file.name||'VOS report',sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed};snapshot.id=vosStatsSnapshotDocId(snapshot.session_date,slot);
+    vosStatsSnapshots=[...vosStatsSnapshots.filter(s=>!(s.session_date===snapshot.session_date&&s.time_slot===slot)),snapshot].sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`)).slice(-VOS_STATS_CLOUD_LIMIT);vosStatsSelectedSlot=slot;vosStatsLastFilename=snapshot.filename;
+    const status=document.getElementById('vos-stats-file-status');if(status){status.dataset.current='1';status.textContent=`${snapshot.filename} · ${sheetName} · ${fmt12(slot)} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}const persisted=saveVosStatsLocal();renderVosStats();
+    let synced=false;if(fbOk){await setDoc(doc(db,VOS_STATS_CLOUD_COLLECTION,snapshot.id),{...snapshot,processed_at:Timestamp.fromDate(new Date(snapshot.processed_at))});await writeSnapshotLog({...snapshot,timestamp:new Date(snapshot.processed_at)},parsed.length,'vos-stats',{filename:snapshot.filename,sheet_name:sheetName,source_rows:parsed.reduce((sum,row)=>sum+vosNumber(row.source_rows),0)});synced=true;}
+    toast(`VOS Stats saved for ${fmt12(slot)}: ${parsed.length} grouped row(s)${synced?' · synchronized':persisted?' · saved in this browser':' · browser storage is full'}`,synced||persisted?'ok':'err',8000);
+  }catch(e){toast('VOS Stats file could not be processed: '+e.message,'err',9000);}finally{setLoading(false);}
+};
+window.undoLastVosStatsSnapshot=async()=>{
+  if(!canPostStats()){toast('Removing VOS Stats snapshots is restricted for this account.','err');return;}const snaps=vosStatsSortedSnaps();if(!snaps.length){toast('No VOS Stats snapshots to undo.','err');return;}const last=snaps[snaps.length-1],approved=await confirmPremiumAction({title:'Remove VOS Stats Hour',html:`Remove the <strong>${stEsc(fmt12(last.time_slot))}</strong> VOS Stats snapshot?`,label:'Remove'});if(!approved)return;
+  setLoading(true,'Removing VOS Stats snapshot…');try{if(fbOk)await deleteDoc(doc(db,VOS_STATS_CLOUD_COLLECTION,last.id||vosStatsSnapshotDocId(last.session_date,last.time_slot)));vosStatsSnapshots=vosStatsSnapshots.filter(s=>!(s.session_date===last.session_date&&s.time_slot===last.time_slot));vosStatsSelectedSlot=vosStatsSortedSnaps().slice(-1)[0]?.time_slot||'';saveVosStatsLocal();const status=document.getElementById('vos-stats-file-status');if(status){delete status.dataset.current;status.textContent='No hourly VOS file uploaded.';}renderVosStats();toast(`Removed the ${fmt12(last.time_slot)} VOS Stats snapshot.`,'ok');}catch(e){toast('VOS Stats snapshot could not be removed: '+e.message,'err',8000);}finally{setLoading(false);}
+};
+window.clearVosStatsHistory=async()=>{
+  if(!canPostStats()){toast('Deleting VOS Stats history is restricted for this account.','err');return;}const approved=await confirmPremiumAction({title:'Delete VOS Stats History',html:'Delete <strong>all saved VOS hourly snapshots</strong> for every operator?<br><br>This cannot be undone.',label:'Delete All'});if(!approved)return;
+  setLoading(true,'Deleting VOS Stats history…');try{const cloudDeleted=await deleteVosStatsCloudHistory();vosStatsSnapshots=[];vosStatsSelectedSlot='';try{localStorage.removeItem(VOS_STATS_LOCAL_KEY);}catch(e){}const status=document.getElementById('vos-stats-file-status');if(status){delete status.dataset.current;status.textContent='No hourly VOS file uploaded.';}renderVosStats();toast(`VOS Stats history deleted${cloudDeleted?` · ${cloudDeleted} shared snapshot${cloudDeleted===1?'':'s'}`:' from this browser'}.`,'ok');}catch(e){toast('VOS Stats history could not be deleted: '+e.message,'err',8000);}finally{setLoading(false);}
+};
+function vosStatsExportDataset(){const baseHeaders=['Mapping Gateway','Area Name','Attempts','Fail','Success','Answered','ASR %','ACD (sec)','Average Call Duration Sum (sec)','Total Call Time (sec)','Classification','Attempts vs Past Hour'],baseRows=vosStatsRowsWithComparison();if(vosStatsTab==='hourly'){const matrix=vosStatsHourlyMatrix(),headers=['Mapping Gateway','Area Name',...matrix.slots.flatMap(slot=>[`${slot} Attempts`,`${slot} ASR %`,`${slot} ACD (sec)`,`${slot} Total Call Time (sec)`]),'Day Attempts','Day ASR %','Day ACD (sec)','Day Total Call Time (sec)'];return{sheet:'Hourly',headers,rows:matrix.rows.map(item=>[item.identity.mapping_gateway,item.identity.area_name,...matrix.slots.flatMap(slot=>{const row=item.byHour[slot];return row?[row.total_calls,row.asr,row.acd,row.total_call_time_seconds]:['','','',''];}),item.total.total_calls,item.total.asr,item.total.acd,item.total.total_call_time_seconds])};}if(vosStatsTab==='stopped'){return{sheet:'Stopped',headers:['Mapping Gateway','Area Name','Last Seen','Attempts','Answered','ASR %','ACD (sec)','Total Call Time (sec)'],rows:vosStatsStoppedRows().map(r=>[r.mapping_gateway,r.area_name,r.last_seen,r.total_calls,r.answered,r.asr,r.acd,r.total_call_time_seconds])};}const rows=VOS_STATS_CLASSES.includes(vosStatsTab)?baseRows.filter(r=>r.cls===vosStatsTab):baseRows;return{sheet:vosStatsTab==='summary'?'Summary':'All Clients',headers:baseHeaders,rows:rows.map(r=>[r.mapping_gateway,r.area_name,r.total_calls,r.fail,r.success,r.answered,r.asr,r.acd,r.avg_call_duration_sum_seconds,r.total_call_time_seconds,r.cls,r.attempt_change??''])};}
+window.exportVosStatsView=format=>{const data=vosStatsExportDataset();if(!data.rows.length){toast('No VOS Stats rows to export.','err');return;}const safe=`vos_stats_${vosStatsTab}_${todayStr()}_${vosStatsSelectedSlot||'latest'}`.replace(/:/g,'');if(format==='xlsx'&&window.XLSX){const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([data.headers,...data.rows]);XLSX.utils.book_append_sheet(book,sheet,data.sheet.slice(0,31));XLSX.writeFile(book,`${safe}.xlsx`);}else{const csv=[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n'),url=URL.createObjectURL(new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${safe}.csv`;link.click();URL.revokeObjectURL(url);}toast(`Exported ${data.rows.length} VOS Stats row(s)`,'ok');};
+loadVosStatsLocal();
 
 // Small hover-to-copy button for Client / Account Code table cells.
 const stCopyBtn = txt => {
@@ -21524,11 +21782,13 @@ async function initStats() {
   await loadStatsSnaps();
   await loadStatsPreviousDaySnaps();
   await loadStatsDailyHistory();
+  await loadVosStatsCloud();
   syncStatsDailyImportDate(true);
   populateStatsSlots();   // now that today's stats snapshots are loaded, re-anchor the box to "last posted + 1"
   cleanupOldStatsSnapshots();
   subscribeStatsRemarks();
   subscribeStatsDailyHistory();
+  subscribeVosStatsCloud();
   statsRender();
   if (fbOk) {
     try {
