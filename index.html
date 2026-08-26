@@ -19031,13 +19031,13 @@ window.switchVosPrimaryTab = tab => {
   vosPrimaryTab = tab === 'stats' ? 'stats' : 'daily';
   ['stats','daily'].forEach(name => { const active=name===vosPrimaryTab; const button=document.getElementById(`vos-primary-tab-${name}`), panel=document.getElementById(`vos-primary-panel-${name}`); button?.classList.toggle('active',active); button?.setAttribute('aria-selected',String(active)); if(panel)panel.style.display=active?'flex':'none'; });
   document.getElementById('vos-side-upload-stats')?.classList.toggle('active',vosPrimaryTab==='stats');
-  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily'&&vosDailyTab==='today');
+  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily');
   if(vosPrimaryTab==='daily') switchVosDailyTab(vosDailyTab); else switchVosStatsTab(vosStatsTab);
 };
 window.switchVosDailyTab = tab => {
   vosDailyTab=['today','dashboard','history','logs','settings'].includes(tab)?tab:'today';
   ['today','dashboard','history','logs','settings'].forEach(name=>{const active=name===vosDailyTab;const button=document.getElementById(`vos-daily-tab-${name}`),panel=document.getElementById(`vos-daily-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));if(panel)panel.style.display=active?'flex':'none';});
-  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily'&&vosDailyTab==='today');
+  document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily');
   const exports=document.getElementById('vos-daily-export-actions'); if(exports)exports.style.display=['logs','settings'].includes(vosDailyTab)?'none':'flex';
   if(vosDailyTab==='today')renderVosTraffic();else if(vosDailyTab==='dashboard')renderVosDailyDashboard();else if(vosDailyTab==='history')renderVosDailyHistory();else if(vosDailyTab==='logs')renderVosDailyLogs();
   setSbStatus(`Viewing: VOS — Daily Traffic — ${vosDailyTab.replace(/\b\w/g,c=>c.toUpperCase())}`);
