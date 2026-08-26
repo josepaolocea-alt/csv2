@@ -3224,6 +3224,7 @@
     <button class="tbtn stats-tab" id="stnav-stats-ok"       onclick="switchStatsView('ok')">Ok <span id="sttab-cnt-ok"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-good"     onclick="switchStatsView('good')">Good <span id="sttab-cnt-good"></span></button>
     <button class="tbtn stats-tab" id="stnav-stats-stopped"  onclick="switchStatsView('stopped')">Stopped <span id="sttab-cnt-stopped"></span></button>
+    <button class="tbtn stats-tab" id="stnav-stats-logs"     onclick="switchStatsView('logs')">Logs</button>
     <div class="stats-column-picker" id="stats-column-picker" hidden>
       <button type="button" class="tbtn" id="stats-column-picker-btn" onclick="toggleStatsColumnPicker(event)" aria-haspopup="true" aria-expanded="false" aria-controls="stats-column-picker-menu" title="Choose columns for the Critical, Low, Watch, Ok and Good tables">Columns</button>
       <div class="col-dd" id="stats-column-picker-menu" role="group" aria-label="Visible Stats status-table columns"></div>
@@ -3619,6 +3620,7 @@
                 <th>Snapshot Slot</th>
                 <th>Posted At</th>
                 <th>Late By</th>
+                <th>Module</th>
                 <th style="text-align:right">Clients</th>
                 <th>Posted By</th>
                 <th id="logs-th-action">Action</th>
@@ -3933,7 +3935,7 @@
 
                   <section class="sms-bal-view" id="sms-bal-view-logs">
                     <div class="fbar"><span class="sms-muted">Audit trail of SMS balance snapshots posted by slot.</span><button class="tbtn" onclick="renderSmsBalanceLogs()">Refresh</button></div>
-                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Operator</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Action</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Posted By</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Snapshot</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-critical-history">
@@ -4655,6 +4657,16 @@
         </div>
       </div>
 
+      <!-- STATS — SNAPSHOT LOGS -->
+      <div class="view" id="view-stats-logs">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Stats Snapshot Logs</div>
+          <div class="fbar"><span class="sms-muted">Persistent audit trail of hourly Stats snapshots, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsSnapshotLogs()">Refresh</button></div>
+          <div class="lv-wrap"><table><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-logs-tbody"></tbody></table></div>
+          <div class="sms-muted" id="stats-logs-count">No Stats logs yet.</div>
+        </div>
+      </div>
+
       <!-- STATS — DAILY TRAFFIC CHANGE MONITOR -->
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
@@ -4663,6 +4675,7 @@
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-dashboard" role="tab" aria-selected="false" onclick="switchStatsDailyTab('dashboard')">Dashboard</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-history" role="tab" aria-selected="false" onclick="switchStatsDailyTab('history')">Last 2 Weeks</button>
+            <button type="button" class="st-daily-tab" id="st-daily-tab-logs" role="tab" aria-selected="false" onclick="switchStatsDailyTab('logs')">Logs</button>
             <button type="button" class="st-daily-tab" id="st-daily-tab-settings" role="tab" aria-selected="false" onclick="switchStatsDailyTab('settings')">Settings</button>
             <div class="st-daily-export-actions" aria-label="Export current Daily Traffic tab">
               <div class="st-daily-column-picker" id="st-daily-column-picker" hidden>
@@ -4759,6 +4772,14 @@
                 <tbody id="st-daily-history-body"></tbody>
               </table></div>
             </div>
+          </div>
+
+          <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button></div>
+            <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
+            </div>
+            <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
           </div>
         </div>
       </div>
@@ -10022,7 +10043,7 @@ async function processTritelSnapshot(rows, timeSlot) {
   const prevMap = {};
   (prev?.data || []).forEach(r => { const k = isTritelRow(r) ? TRITEL_LABEL : r.carrier_name; if (k) prevMap[k] = r; });
   const data = rows.map(r => ({ ...r, ...computeUsage(r, prevMap[r.carrier_name] || null) }));
-  const snap = { session_date: todayStr(), time_slot: timeSlot, data, updated_at: new Date() };
+  const snap = { session_date: todayStr(), time_slot: timeSlot, data, updated_at: new Date(), operator:operatorName||'', user_email:currentUserEmail||'' };
   // Upsert: replace any existing entry for this slot.
   tritelSnaps = [...tritelSnaps.filter(t => t.time_slot !== timeSlot), snap];
   persistTritelLocal();
@@ -10036,6 +10057,7 @@ async function processTritelSnapshot(rows, timeSlot) {
     try {
       await setDoc(doc(db, 'tritel_snapshots', tritelDocId(snap.session_date, snap.time_slot)),
         { ...snap, updated_at: Timestamp.fromDate(snap.updated_at) });
+      await writeSnapshotLog({...snap,id:tritelDocId(snap.session_date,snap.time_slot),timestamp:snap.updated_at},data.length,'tritel');
       toast(`✓ Tritel saved — ${data.length} row(s) @ ${fmt12(timeSlot)}`, 'ok');
     } catch(e) { toast('Tritel save failed (kept locally): ' + e.message, 'err', 6000); }
     finally { setLoading(false); }
@@ -10577,22 +10599,52 @@ function logLateness(log){
   return            { min, label:`${fmtDur(min)} late`,        color:'#cc0000' };
 }
 
-async function writeSnapshotLog(snap, rowCount){
+const SNAPSHOT_LOG_MODULE_LABELS = {
+  voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'daily-traffic':'Daily Traffic'
+};
+function snapshotLogModule(log) { return String(log?.module || 'voip'); }
+function snapshotLogModuleLabel(log) { const module=snapshotLogModule(log);return SNAPSHOT_LOG_MODULE_LABELS[module]||module; }
+function snapshotLogPostedBy(log) {
+  const email=String(log?.user_email||'').trim(),operator=String(log?.operator||log?.posted_by||'').trim();
+  if(email&&operator&&email.toLowerCase()!==operator.toLowerCase())return `${email} · ${operator}`;
+  return email||operator||'—';
+}
+function snapshotLogDate(value) {
+  const date=value instanceof Date?value:value?.toDate?.()||(value?new Date(value):null);
+  return date instanceof Date&&Number.isFinite(date.getTime())?date:null;
+}
+function snapshotLogsFor(module) { return logsData.filter(log=>snapshotLogModule(log)===module); }
+function mergeSnapshotAuditRows(module,fallbackRows=[]) {
+  const audit=snapshotLogsFor(module),auditedKeys=new Set(audit.map(log=>`${log.session_date||''}|${log.time_slot||''}`));
+  return [...audit,...fallbackRows.filter(log=>!auditedKeys.has(`${log.session_date||''}|${log.time_slot||''}`))]
+    .sort((a,b)=>(snapshotLogDate(b.processed_at)?.getTime()||0)-(snapshotLogDate(a.processed_at)?.getTime()||0));
+}
+async function writeSnapshotLog(snap, rowCount, module='voip', details={}){
   if (!fbOk) return;
   try {
+    const processed=snapshotLogDate(snap?.timestamp||snap?.posted_at||snap?.updated_at)||new Date();
     await addDoc(collection(db,'snapshot_logs'), {
       session_date: snap.session_date,
-      time_slot:    snap.time_slot,
-      processed_at: Timestamp.fromDate(snap.timestamp),
+      time_slot:    snap.time_slot || '',
+      processed_at: Timestamp.fromDate(processed),
       rows:         rowCount,
+      module,
+      snapshot_id:  snap.id || '',
       operator:     operatorName || '',
-      user_email:   currentUserEmail || ''
+      user_email:   currentUserEmail || '',
+      ...details
     });
   } catch(e){ console.warn('snapshot log write failed:', e); }
 }
 
 const SNAPSHOT_LOG_LIVE_LIMIT = 100;
 let logsUnsub = null;
+function renderActiveSnapshotLogViews(){
+  if(document.getElementById('view-logs')?.classList.contains('active'))renderLogs();
+  if(document.getElementById('sms-bal-view-logs')?.classList.contains('active'))renderSmsBalanceLogs();
+  if(document.getElementById('view-stats-logs')?.classList.contains('active'))renderStatsSnapshotLogs();
+  if(document.getElementById('st-daily-panel-logs')?.hidden===false)renderStatsDailyLogs();
+}
 function subscribeLogs(){
   if (!fbOk || logsUnsub) return;
   try {
@@ -10600,7 +10652,7 @@ function subscribeLogs(){
     logsUnsub = onSnapshot(q, snap => {
       logsData = snap.docs.map(d => ({ id:d.id, ...d.data(), processed_at:d.data().processed_at?.toDate() }));
       [...logsSelected].forEach(id => { if (!logsData.some(l=>l.id===id)) logsSelected.delete(id); });
-      if (document.getElementById('view-logs').classList.contains('active')) renderLogs();
+      renderActiveSnapshotLogViews();
     }, error => {
       console.warn('subscribeLogs:', error);
       logsUnsub = null;
@@ -10625,12 +10677,12 @@ function renderLogs(){
   document.getElementById('logs-th-action').style.display     = admin ? '' : 'none';
 
   if (!fbOk){
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:16px;text-align:center;color:#888">Logs require Firestore — unavailable in demo mode.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:#888">Logs require Firestore — unavailable in demo mode.</td></tr>`;
     countEl.textContent = '';
     return;
   }
   if (!logsData.length){
-    tbody.innerHTML = `<tr><td colspan="8" style="padding:16px;text-align:center;color:#888">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:#888">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
     countEl.textContent = 'No logs yet.';
     updateLogsSelUI();
     return;
@@ -10648,8 +10700,9 @@ function renderLogs(){
       <td>${esc(log.time_slot ? fmt12(log.time_slot) : '—')}</td>
       <td>${esc(postedStr)}</td>
       <td style="color:${late.color};font-weight:700">${esc(late.label)}</td>
+      <td>${esc(snapshotLogModuleLabel(log))}</td>
       <td class="num">${log.rows ?? '—'}</td>
-      <td>${esc(log.operator || log.user_email || '—')}</td>
+      <td>${esc(snapshotLogPostedBy(log))}</td>
       ${actionCell}
     </tr>`;
   }).join('');
@@ -14205,9 +14258,34 @@ window.importSmsBalanceClientsCsv = async file => {
 };
 function renderSmsBalanceLogs() {
   const body=document.getElementById('sms-bal-logs-tbody');if(!body)return;
-  const rows=smsBalanceTodaySnaps.slice().reverse();
-  body.innerHTML=rows.length?rows.map(s=>{const posted=s.timestamp instanceof Date?s.timestamp:new Date(s.timestamp);const late=logLateness({processed_at:posted,time_slot:s.time_slot,session_date:s.session_date});const action=canDeleteSnapshots()?`<button class="tbtn" onclick="deleteSmsBalanceSnapshot('${escAttr(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))}')">Delete</button>`:'<span class="sms-muted">View only</span>';return `<tr><td>${esc(s.session_date)}</td><td>${esc(fmt12(s.time_slot))}</td><td>${esc(posted.toLocaleString())}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(s.operator||'')}</td><td class="num">${(s.reseller||[]).length}</td><td class="num">${(s.wholesale||[]).length}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(8,'No SMS balance logs today.');
+  const fallback=smsBalanceTodaySnaps.map(s=>({
+    ...s,module:'sms-balance',processed_at:s.timestamp,operator:s.operator||'',user_email:s.user_email||'',
+    rows:(s.data||[]).length,reseller_rows:(s.reseller||[]).length,wholesale_rows:(s.wholesale||[]).length,_snapshotFallback:true
+  }));
+  const rows=mergeSnapshotAuditRows('sms-balance',fallback);
+  body.innerHTML=rows.length?rows.map(log=>{
+    const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});
+    const live=smsBalanceTodaySnaps.find(s=>s.session_date===log.session_date&&s.time_slot===log.time_slot);
+    const action=live&&canDeleteSnapshots()?`<button class="tbtn" onclick="deleteSmsBalanceSnapshot('${escAttr(live.id||smsBalanceSnapshotId(live.session_date,live.time_slot))}')">Delete Snapshot</button>`:'<span class="sms-muted">Audit only</span>';
+    return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.reseller_rows??live?.reseller?.length??'—'}</td><td class="num">${log.wholesale_rows??live?.wholesale?.length??'—'}</td><td>${action}</td></tr>`;
+  }).join(''):smsBalanceEmptyRow(8,'No SMS Balance audit logs yet. New posts are recorded independently from snapshots.');
 }
+function renderStatsSnapshotLogs(){
+  const body=document.getElementById('stats-logs-tbody'),count=document.getElementById('stats-logs-count');if(!body)return;
+  const fallback=statsTodaySnaps.map(s=>({...s,module:'stats',processed_at:s.timestamp,operator:s.operator||'',user_email:s.user_email||'',rows:(s.data||[]).length,_snapshotFallback:true}));
+  const rows=mergeSnapshotAuditRows('stats',fallback);
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(6,'No Stats snapshot audit logs yet.');
+  if(count)count.textContent=rows.length?`${rows.length} Stats log(s)`:'No Stats logs yet.';
+}
+window.renderStatsSnapshotLogs=renderStatsSnapshotLogs;
+function renderStatsDailyLogs(){
+  const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
+  const fallback=statsDailyHistory.map(day=>({module:'daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.posted_at,operator:day.posted_by||'',user_email:day.user_email||'',rows:(day.clients||[]).length,_snapshotFallback:true}));
+  const rows=mergeSnapshotAuditRows('daily-traffic',fallback);
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at);return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(4,'No Daily Traffic audit logs yet.');
+  if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
+}
+window.renderStatsDailyLogs=renderStatsDailyLogs;
 function renderSmsBalanceHistory() {
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
   const rows=smsBalanceHistory.filter(r=>!q||[r.client,r.source,r.last_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_hit||'').localeCompare(String(a.last_hit||'')));
@@ -14237,7 +14315,9 @@ window.switchSmsBalanceView = (view, persist=true) => {
   document.querySelectorAll('.sms-bal-view').forEach(panel=>panel.classList.remove('active'));
   document.getElementById(`sms-bal-view-${view}`)?.classList.add('active');
   if(view==='alerts')window.renderSmsBalanceAlerts(); if(view==='all')window.renderSmsBalanceAll();
-  if(view==='manager')window.renderSmsBalanceManager(); if(view==='logs')renderSmsBalanceLogs();
+  if(view==='manager')window.renderSmsBalanceManager();
+  if(view==='logs'){subscribeLogs();renderSmsBalanceLogs();}
+  else if(document.body.classList.contains('sms-mode'))unsubscribeLogs();
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
 };
 
@@ -14355,7 +14435,7 @@ window.processSmsBalanceSnapshot = async () => {
   const data=computeSmsBalanceUsage([...reseller,...wholesale],previous);
   const split=source=>data.filter(row=>row.source===source);
   const now=new Date();
-  const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
+  const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||'',user_email:currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
   const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
   const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[]}:smsBalanceNewHistoryEntries(snap,previous);
@@ -14381,7 +14461,7 @@ window.processSmsBalanceSnapshot = async () => {
   let blockedRoutes=0;
   try{blockedRoutes=await autoBlockSmsBalanceRoutes(data,snap);}catch(e){toast('Snapshot saved, but Phoenix auto-block sync failed: '+e.message,'err',7000);}
   try{await recordSmsBalanceHistories(snap,previous,historyEntries);}catch(e){console.warn('SMS balance history sync:',e);}
-  if(fbOk){try{await setDoc(doc(db,'sms_balance_snapshots',snap.id),{...snap,timestamp:Timestamp.fromDate(now)});}catch(e){toast('SMS snapshot kept locally; Firebase save failed: '+e.message,'err',7000);}}
+  if(fbOk){try{await setDoc(doc(db,'sms_balance_snapshots',snap.id),{...snap,timestamp:Timestamp.fromDate(now)});await writeSnapshotLog(snap,data.length,'sms-balance',{reseller_rows:snap.reseller.length,wholesale_rows:snap.wholesale.length});}catch(e){toast('SMS snapshot kept locally; Firebase save failed: '+e.message,'err',7000);}}
   renderSmsBalanceModule();toast(`SMS snapshot saved — ${reseller.length} Reseller, ${wholesale.length} Wholesale${blockedRoutes?` · ${blockedRoutes} Phoenix route(s) auto-blocked`:''}`,'ok',7000);
 };
 async function deleteSmsBalanceSnapshotById(id) {
@@ -18391,6 +18471,7 @@ function normalizeStatsDailyDay(day) {
     session_date:String(day?.session_date || ''),
     posted_at:day?.posted_at?.toDate?.() || (day?.posted_at ? new Date(day.posted_at) : null),
     posted_by:String(day?.posted_by || ''),
+    user_email:String(day?.user_email || ''),
     clients:Array.isArray(day?.clients) ? day.clients.map(client => ({
       key:(client?.destination
         ? [client?.account_codes, client?.customer_name, client?.destination].map(value => String(value || '').trim().toLowerCase()).join('\u001f')
@@ -19176,8 +19257,10 @@ function updateStatsDailyTabUI() {
   document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
   const columnPicker = document.getElementById('st-daily-column-picker');
   if (columnPicker) columnPicker.hidden = statsDailyTab !== 'dashboard';
+  const exportActions=document.querySelector('.st-daily-export-actions');
+  if(exportActions)exportActions.style.display=['logs','settings'].includes(statsDailyTab)?'none':'flex';
   if (statsDailyTab !== 'dashboard') closeStatsDailyColumnPicker();
-  ['dashboard','today','history','settings'].forEach(tab => {
+  ['dashboard','today','history','logs','settings'].forEach(tab => {
     const active = statsDailyTab === tab;
     const button = document.getElementById(`st-daily-tab-${tab}`);
     const panel = document.getElementById(`st-daily-panel-${tab}`);
@@ -19189,11 +19272,13 @@ function updateStatsDailyTabUI() {
 }
 
 window.switchStatsDailyTab = tab => {
-  statsDailyTab = ['dashboard','today','history','settings'].includes(tab) ? tab : 'today';
+  statsDailyTab = ['dashboard','today','history','logs','settings'].includes(tab) ? tab : 'today';
   updateStatsDailyTabUI();
   if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
   else if (statsDailyTab === 'today') renderStatsDailyTraffic();
+  else if(statsDailyTab==='logs'){subscribeLogs();renderStatsDailyLogs();}
+  if(statsDailyTab!=='logs'&&document.body.classList.contains('traffic-mode'))unsubscribeLogs();
   setSbStatus(statsDailyTab === 'settings' ? 'Viewing: Daily Traffic Settings' : `Viewing: Daily Traffic — ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
 };
 
@@ -19493,15 +19578,17 @@ window.processStatsDailyTraffic = async () => {
   try {
     const postedAt = new Date();
     for (const day of daysToSave) {
-      const record = normalizeStatsDailyDay({ ...day, id:day.session_date, posted_at:postedAt, posted_by:operatorName || '' });
+      const record = normalizeStatsDailyDay({ ...day, id:day.session_date, posted_at:postedAt, posted_by:operatorName || '', user_email:currentUserEmail||'' });
       statsDailyHistory = [...statsDailyHistory.filter(saved => saved.session_date !== day.session_date), record];
       if (fbOk) {
         await setDoc(doc(db, 'stats_daily_traffic', day.session_date), {
           session_date:day.session_date,
           posted_at:Timestamp.fromDate(postedAt),
           posted_by:operatorName || '',
+          user_email:currentUserEmail || '',
           clients:day.clients,
         });
+        await writeSnapshotLog({id:day.session_date,session_date:day.session_date,posted_at:postedAt},day.clients.length,'daily-traffic');
       }
     }
     trimStatsDailyHistory();
@@ -19759,6 +19846,8 @@ window.switchStatsView = name => {
   if (columnPicker) columnPicker.hidden = !STATS_CLASSIFICATION_VIEWS.includes(name);
   setSbStatus('Viewing: Stats — ' + name.replace(/\b\w/g, c => c.toUpperCase()));
   statsRender();
+  if(name==='logs'){subscribeLogs();renderStatsSnapshotLogs();}
+  else if(document.body.classList.contains('stats-mode'))unsubscribeLogs();
 };
 
 window.openStatsViewGuide = view => {
@@ -20411,7 +20500,7 @@ window.processStatsSnapshot = async () => {
   const slot = document.getElementById('stats-slot-sel').value;
   const existing = statsTodaySnaps.find(s => s.time_slot === slot);
   if (existing && !confirm(`The ${fmt12(slot)} slot already has a stats snapshot today (${existing.data?.length||0} rows). Overwrite it?`)) return;
-  const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows, total:pastedTotal };
+  const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows, total:pastedTotal, operator:operatorName||'', user_email:currentUserEmail||'' };
   statsTodaySnaps = [...statsTodaySnaps.filter(s => s.time_slot !== slot), snap];
   statsViewingSlot = null;
   ta.value = '';
@@ -20424,6 +20513,7 @@ window.processStatsSnapshot = async () => {
       const id = snapshotDocId(snap.session_date, snap.time_slot);
       await setDoc(doc(db, 'stats_snapshots', id), { ...snap, timestamp:Timestamp.fromDate(snap.timestamp) });
       snap.id = id;
+      await writeSnapshotLog(snap,rows.length,'stats');
       toast(`✓ Stats snapshot saved — ${rows.length} client rows${pastedTotal ? ' + Total' : ''}`, 'ok');
     } catch(e) { toast('Firestore error (data kept locally): ' + e.message, 'err', 6000); }
     finally { setLoading(false); }
