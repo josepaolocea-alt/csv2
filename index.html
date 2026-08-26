@@ -1248,6 +1248,25 @@
     body.traffic-mode #stats-sidebar-current { display: none; }
     body.traffic-mode #stats-sidebar-daily { display: flex; }
     body.traffic-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
+    body.traffic-mode.traffic-vos-mode #sidebar { display: none !important; }
+    .traffic-source-tabs { display:flex; gap:5px; padding:7px 8px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+    .traffic-source-tab { border:1px solid var(--border); border-radius:999px; padding:5px 16px; background:var(--surface); color:var(--text-2); font:600 11px/1.2 var(--font); cursor:pointer; }
+    .traffic-source-tab:hover { border-color:var(--accent); color:var(--accent); }
+    .traffic-source-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .traffic-source-panel { flex:1; min-height:0; flex-direction:column; }
+    #traffic-source-voip { display:flex; }
+    #traffic-source-vos { display:none; padding:8px; gap:8px; overflow:hidden; }
+    .vos-import-card { display:flex; align-items:center; gap:8px; padding:10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
+    .vos-import-copy { min-width:0; flex:1; }
+    .vos-import-title { font-size:12px; font-weight:700; color:var(--text); }
+    .vos-import-help { margin-top:3px; color:var(--text-3); font-size:10px; line-height:1.45; }
+    .vos-file-status { color:var(--text-2); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px; }
+    .vos-summary { display:grid; grid-template-columns:repeat(5,minmax(110px,1fr)); gap:8px; }
+    .vos-table-shell { flex:1; min-height:0; display:flex; flex-direction:column; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); overflow:hidden; }
+    #vos-traffic-table th { white-space:nowrap; cursor:pointer; }
+    #vos-traffic-table td.num, #vos-traffic-table th.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+    #vos-traffic-table tbody tr.vos-total-row td { position:sticky; bottom:0; z-index:1; background:var(--surface-3); border-top:2px solid var(--border-strong); font-weight:700; }
+    @media (max-width:1000px) { .vos-summary { grid-template-columns:repeat(2,minmax(130px,1fr)); } .vos-import-card { align-items:flex-start; flex-wrap:wrap; } }
     #stats-snap-ta {
       flex: 1; min-height: 60px; resize: none; width: 100%;
       background: var(--surface); color: var(--text);
@@ -4677,6 +4696,11 @@
       <!-- STATS — DAILY TRAFFIC CHANGE MONITOR -->
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="traffic-source-tabs" role="tablist" aria-label="Traffic source">
+            <button type="button" class="traffic-source-tab active" id="traffic-source-tab-voip" role="tab" aria-selected="true" aria-controls="traffic-source-voip" onclick="switchTrafficSource('voip')">VOIP</button>
+            <button type="button" class="traffic-source-tab" id="traffic-source-tab-vos" role="tab" aria-selected="false" aria-controls="traffic-source-vos" onclick="switchTrafficSource('vos')">VOS</button>
+          </div>
+          <div class="traffic-source-panel" id="traffic-source-voip" role="tabpanel" aria-labelledby="traffic-source-tab-voip">
           <div class="groupbox-title">Daily Traffic — Raw Duration Change Monitor</div>
           <div class="st-daily-tabs" role="tablist" aria-label="Daily Traffic views">
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
@@ -4787,6 +4811,50 @@
               <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
             <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
+          </div>
+          </div>
+
+          <div class="traffic-source-panel" id="traffic-source-vos" role="tabpanel" aria-labelledby="traffic-source-tab-vos" hidden>
+            <div class="groupbox-title">VOS Traffic — Gateway + Destination Aggregation</div>
+            <div class="vos-import-card">
+              <div class="vos-import-copy">
+                <div class="vos-import-title">Upload a VOS traffic report</div>
+                <div class="vos-import-help">Excel or CSV · required columns: Mapping Gateway, Area Name, Total Calls, Fail, Success, Answered, Average Call Duration, and Total Call Time. Duplicate Mapping Gateway + Area Name rows are merged automatically.</div>
+              </div>
+              <input type="file" id="vos-traffic-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosTrafficFile(this.files[0]);this.value=''">
+              <button type="button" class="tbtn primary" onclick="document.getElementById('vos-traffic-file').click()">Upload File</button>
+              <span class="vos-file-status" id="vos-file-status">No VOS file uploaded.</span>
+            </div>
+            <div class="vos-summary">
+              <div class="st-daily-card"><div class="value" id="vos-summary-groups">0</div><div class="label">Gateway + destinations</div></div>
+              <div class="st-daily-card"><div class="value" id="vos-summary-calls">0</div><div class="label">Total calls</div></div>
+              <div class="st-daily-card"><div class="value" id="vos-summary-answered">0</div><div class="label">Answered</div></div>
+              <div class="st-daily-card"><div class="value" id="vos-summary-asr">0.00%</div><div class="label">Overall ASR</div></div>
+              <div class="st-daily-card"><div class="value" id="vos-summary-acd">0.00</div><div class="label">Overall ACD (min)</div></div>
+            </div>
+            <div class="vos-table-shell">
+              <div class="fbar">
+                <input id="vos-traffic-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosTraffic()" style="min-width:290px">
+                <span class="sms-muted" id="vos-traffic-count" style="margin-left:auto">0 grouped rows</span>
+                <button type="button" class="tbtn" onclick="exportVosTrafficCsv()">&#8595; CSV</button>
+              </div>
+              <div class="lv-wrap"><table id="vos-traffic-table">
+                <thead><tr>
+                  <th onclick="sortVosTraffic('mapping_gateway')">Mapping Gateway</th>
+                  <th onclick="sortVosTraffic('area_name')">Area Name</th>
+                  <th class="num" onclick="sortVosTraffic('source_rows')">Merged Rows</th>
+                  <th class="num" onclick="sortVosTraffic('total_calls')">Total Calls</th>
+                  <th class="num" onclick="sortVosTraffic('fail')">Fail</th>
+                  <th class="num" onclick="sortVosTraffic('success')">Success</th>
+                  <th class="num" onclick="sortVosTraffic('answered')">Answered</th>
+                  <th class="num" onclick="sortVosTraffic('avg_call_duration_sum_minutes')" title="Sum of the source Average Call Duration values, converted to minutes">Avg Call Duration Sum (min)</th>
+                  <th class="num" onclick="sortVosTraffic('total_call_time_minutes')">Total Call Time (min)</th>
+                  <th class="num" onclick="sortVosTraffic('asr')" title="Answered / Total Calls × 100">ASR %</th>
+                  <th class="num" onclick="sortVosTraffic('acd')" title="Total Call Time in minutes / Answered">ACD (min)</th>
+                </tr></thead>
+                <tbody id="vos-traffic-tbody"><tr><td colspan="11" style="padding:18px;text-align:center;color:var(--text-3)">Upload a VOS report to build the merged gateway + destination view.</td></tr></tbody>
+              </table></div>
+            </div>
           </div>
         </div>
       </div>
@@ -6021,7 +6089,7 @@ function mountSettingsViews() {
     if (content && view && view.parentElement !== content) content.appendChild(view);
   });
   const dailyPanel = document.getElementById('st-daily-panel-settings');
-  const dailyHost = document.querySelector('#view-stats-daily > .groupbox');
+  const dailyHost = document.getElementById('traffic-source-voip');
   if (dailyHost && dailyPanel && dailyPanel.parentElement !== dailyHost) dailyHost.appendChild(dailyPanel);
 }
 
@@ -6675,7 +6743,7 @@ window.animateModuleIcon = button => {
 
 window.switchModule = module => {
   closeViewMenu();
-  document.body.classList.remove('users-mode', 'traffic-mode');
+  document.body.classList.remove('users-mode', 'traffic-mode', 'traffic-vos-mode');
   // Users & Roles is admin-only. SMS Balance is visible to the monitoring team;
   // its Client / Phoenix / Credentials tabs are available to admin and semi-admin.
   if (module === 'users' && !isAdmin()) module = 'balance';
@@ -6740,7 +6808,9 @@ window.switchModule = module => {
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('view-stats-daily')?.classList.add('active');
+    trafficSource = 'voip';
     statsDailyTab = 'today';
+    updateTrafficSourceUI();
     updateStatsDailyTabUI();
     updateViewMenuState();
     syncStatsDailyImportDate();
@@ -6750,7 +6820,7 @@ window.switchModule = module => {
   }
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
-  document.body.classList.remove('traffic-mode', 'stats-daily-mode', 'stats-daily-today-tab');
+  document.body.classList.remove('traffic-mode', 'traffic-vos-mode', 'stats-daily-mode', 'stats-daily-today-tab');
   updateViewMenuState();
   window.switchView('summary');
 };
@@ -17989,6 +18059,10 @@ let statsDailySelectedDate = '';
 let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
 let statsDailyTab = 'today';
+let trafficSource = 'voip';
+let vosTrafficRows = [];
+let vosTrafficFilename = '';
+let vosTrafficSortCol = 'mapping_gateway', vosTrafficSortDir = 1;
 let statsViewingSlot = null;   // null = view latest
 let statsSortCol = 'attempts', statsSortDir = -1;
 let statsSummarySort = null;
@@ -18258,6 +18332,178 @@ const stEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&l
 const stN0  = v => Math.round(v || 0).toLocaleString();
 const stN2  = v => (v || 0).toFixed(2);
 const stVal = v => ((+v >= 0 && +v <= 0.9) ? `<span class="st-val-bad">${stN2(v)}</span>` : stN2(v));
+
+/* ── VOS Traffic file import ───────────────────────────────────────────────
+   VOS exports may contain many area-prefix rows for the same logical route.
+   Aggregate by Mapping Gateway + Area Name, sum every source metric, and then
+   calculate route-level ASR and ACD from the merged totals. */
+function vosHeaderKey(value) {
+  return String(value ?? '').replace(/^\uFEFF/, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, '');
+}
+function vosHeaderField(value) {
+  return ({
+    mappinggateway:'mapping_gateway', gatewaymapping:'mapping_gateway', mappingname:'mapping_gateway',
+    areaname:'area_name', area:'area_name', destination:'area_name',
+    totalcalls:'total_calls', calls:'total_calls', attempts:'total_calls',
+    fail:'fail', failed:'fail', failedcalls:'fail',
+    success:'success', successful:'success', successfulcalls:'success',
+    answered:'answered', answeredcalls:'answered',
+    averagecallduration:'average_call_duration', avgcallduration:'average_call_duration', avgduration:'average_call_duration',
+    totalcalltime:'total_call_time', calltime:'total_call_time', totalduration:'total_call_time'
+  })[vosHeaderKey(value)] || '';
+}
+function vosNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const cleaned = String(value ?? '').trim().replace(/,/g, '').replace(/%$/, '');
+  const number = Number(cleaned);
+  return Number.isFinite(number) ? number : 0;
+}
+function vosDurationSeconds(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const raw = String(value ?? '').trim();
+  if (!raw) return 0;
+  if (raw.includes(':')) {
+    const parts = raw.split(':').map(vosNumber);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+  }
+  return vosNumber(raw);
+}
+function parseVosTrafficMatrix(matrix) {
+  const rows = Array.isArray(matrix) ? matrix.filter(row => Array.isArray(row) && row.some(value => String(value ?? '').trim())) : [];
+  const required = ['mapping_gateway','area_name','total_calls','fail','success','answered','average_call_duration','total_call_time'];
+  let headerIndex = -1, fields = [];
+  for (let index = 0; index < rows.length; index++) {
+    const candidate = rows[index].map(vosHeaderField);
+    if (required.every(field => candidate.includes(field))) { headerIndex = index; fields = candidate; break; }
+  }
+  if (headerIndex < 0) throw new Error('Required VOS columns were not found: Mapping Gateway, Area Name, Total Calls, Fail, Success, Answered, Average Call Duration, Total Call Time.');
+  const column = Object.fromEntries(required.map(field => [field, fields.indexOf(field)]));
+  const grouped = new Map();
+  rows.slice(headerIndex + 1).forEach(values => {
+    const mapping = String(values[column.mapping_gateway] ?? '').trim();
+    const area = String(values[column.area_name] ?? '').trim();
+    if (!mapping || !area || /^(total|grand total)$/i.test(mapping) || /^(total|grand total)$/i.test(area)) return;
+    const key = `${mapping.toLocaleUpperCase()}\u0000${area.toLocaleUpperCase()}`;
+    let item = grouped.get(key);
+    if (!item) {
+      item = { mapping_gateway:mapping, area_name:area, source_rows:0, total_calls:0, fail:0, success:0,
+        answered:0, avg_call_duration_sum_seconds:0, total_call_time_seconds:0 };
+      grouped.set(key, item);
+    }
+    item.source_rows++;
+    item.total_calls += vosNumber(values[column.total_calls]);
+    item.fail += vosNumber(values[column.fail]);
+    item.success += vosNumber(values[column.success]);
+    item.answered += vosNumber(values[column.answered]);
+    item.avg_call_duration_sum_seconds += vosDurationSeconds(values[column.average_call_duration]);
+    item.total_call_time_seconds += vosDurationSeconds(values[column.total_call_time]);
+  });
+  return [...grouped.values()].map(item => ({
+    ...item,
+    avg_call_duration_sum_minutes:item.avg_call_duration_sum_seconds / 60,
+    total_call_time_minutes:item.total_call_time_seconds / 60,
+    asr:item.total_calls > 0 ? item.answered / item.total_calls * 100 : 0,
+    acd:item.answered > 0 ? item.total_call_time_seconds / 60 / item.answered : 0,
+  }));
+}
+function vosVisibleRows() {
+  const search = String(document.getElementById('vos-traffic-search')?.value || '').trim().toLowerCase();
+  const numeric = new Set(['source_rows','total_calls','fail','success','answered','avg_call_duration_sum_minutes','total_call_time_minutes','asr','acd']);
+  return vosTrafficRows.filter(row => !search || `${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).slice().sort((a,b) => {
+    const comparison = numeric.has(vosTrafficSortCol)
+      ? vosNumber(a[vosTrafficSortCol]) - vosNumber(b[vosTrafficSortCol])
+      : String(a[vosTrafficSortCol] || '').localeCompare(String(b[vosTrafficSortCol] || ''), undefined, { sensitivity:'base' });
+    return (comparison || String(a.area_name).localeCompare(String(b.area_name))) * vosTrafficSortDir;
+  });
+}
+function renderVosTraffic() {
+  const tbody = document.getElementById('vos-traffic-tbody');
+  if (!tbody) return;
+  const rows = vosVisibleRows();
+  const allTotals = vosTrafficRows.reduce((sum,row) => ({
+    total_calls:sum.total_calls + row.total_calls, answered:sum.answered + row.answered,
+    total_call_time_seconds:sum.total_call_time_seconds + row.total_call_time_seconds
+  }), {total_calls:0,answered:0,total_call_time_seconds:0});
+  const overallAsr = allTotals.total_calls > 0 ? allTotals.answered / allTotals.total_calls * 100 : 0;
+  const overallAcd = allTotals.answered > 0 ? allTotals.total_call_time_seconds / 60 / allTotals.answered : 0;
+  const set = (id,value) => { const element=document.getElementById(id); if(element) element.textContent=value; };
+  set('vos-summary-groups', stN0(vosTrafficRows.length));
+  set('vos-summary-calls', stN0(allTotals.total_calls));
+  set('vos-summary-answered', stN0(allTotals.answered));
+  set('vos-summary-asr', `${stN2(overallAsr)}%`);
+  set('vos-summary-acd', stN2(overallAcd));
+  set('vos-traffic-count', `${rows.length} of ${vosTrafficRows.length} grouped row(s)`);
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="padding:18px;text-align:center;color:var(--text-3)">${vosTrafficRows.length ? 'No VOS rows match this search.' : 'Upload a VOS report to build the merged gateway + destination view.'}</td></tr>`;
+    return;
+  }
+  const body = rows.map(row => `<tr>`
+    + `<td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td>`
+    + `<td class="num">${stN0(row.source_rows)}</td><td class="num">${stN0(row.total_calls)}</td>`
+    + `<td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td>`
+    + `<td class="num">${stN2(row.avg_call_duration_sum_minutes)}</td><td class="num">${stN2(row.total_call_time_minutes)}</td>`
+    + `<td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td></tr>`).join('');
+  const total = rows.reduce((sum,row) => ({ source_rows:sum.source_rows+row.source_rows, total_calls:sum.total_calls+row.total_calls,
+    fail:sum.fail+row.fail, success:sum.success+row.success, answered:sum.answered+row.answered,
+    avg:sum.avg+row.avg_call_duration_sum_minutes, seconds:sum.seconds+row.total_call_time_seconds }),
+    {source_rows:0,total_calls:0,fail:0,success:0,answered:0,avg:0,seconds:0});
+  const asr = total.total_calls > 0 ? total.answered / total.total_calls * 100 : 0;
+  const acd = total.answered > 0 ? total.seconds / 60 / total.answered : 0;
+  tbody.innerHTML = body + `<tr class="vos-total-row"><td>Total</td><td>${rows.length} grouped row(s)</td>`
+    + `<td class="num">${stN0(total.source_rows)}</td><td class="num">${stN0(total.total_calls)}</td><td class="num">${stN0(total.fail)}</td>`
+    + `<td class="num">${stN0(total.success)}</td><td class="num">${stN0(total.answered)}</td><td class="num">${stN2(total.avg)}</td>`
+    + `<td class="num">${stN2(total.seconds/60)}</td><td class="num">${stN2(asr)}%</td><td class="num">${stN2(acd)}</td></tr>`;
+}
+window.renderVosTraffic = renderVosTraffic;
+window.sortVosTraffic = column => {
+  const allowed = new Set(['mapping_gateway','area_name','source_rows','total_calls','fail','success','answered','avg_call_duration_sum_minutes','total_call_time_minutes','asr','acd']);
+  if (!allowed.has(column)) return;
+  if (vosTrafficSortCol === column) vosTrafficSortDir *= -1;
+  else { vosTrafficSortCol = column; vosTrafficSortDir = ['mapping_gateway','area_name'].includes(column) ? 1 : -1; }
+  renderVosTraffic();
+};
+window.importVosTrafficFile = async file => {
+  if (!file) return;
+  if (!window.XLSX) { window.alert('The Excel/CSV reader is still loading. Please try again.'); return; }
+  setLoading(true, 'Reading VOS traffic file…');
+  try {
+    const workbook = window.XLSX.read(await file.arrayBuffer(), {type:'array',cellDates:false});
+    let parsed = null, sheetName = '';
+    for (const name of workbook.SheetNames) {
+      const matrix = window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:true});
+      try {
+        const candidate = parseVosTrafficMatrix(matrix);
+        if (candidate.length) { parsed = candidate; sheetName = name; break; }
+      } catch(e) { /* try the next worksheet */ }
+    }
+    if (!parsed?.length) throw new Error('No populated worksheet contained all required VOS columns.');
+    vosTrafficRows = parsed;
+    vosTrafficFilename = file.name || 'VOS report';
+    vosTrafficSortCol = 'mapping_gateway'; vosTrafficSortDir = 1;
+    const search = document.getElementById('vos-traffic-search'); if (search) search.value = '';
+    const status = document.getElementById('vos-file-status');
+    if (status) { status.textContent = `${vosTrafficFilename} · ${sheetName} · ${vosTrafficRows.length} grouped row(s)`; status.title = status.textContent; }
+    renderVosTraffic();
+    toast(`VOS file processed: ${vosTrafficRows.length} gateway + destination row(s) after merging`, 'ok', 7000);
+  } catch(e) {
+    window.alert(`VOS file could not be processed.\n\n${e.message}`);
+    toast('VOS import failed: ' + e.message, 'err', 8000);
+  } finally { setLoading(false); }
+};
+window.exportVosTrafficCsv = () => {
+  const rows = vosVisibleRows();
+  if (!rows.length) { toast('No VOS rows to export.', 'err'); return; }
+  const output = [['Mapping Gateway','Area Name','Merged Rows','Total Calls','Fail','Success','Answered','Average Call Duration Sum (min)','Total Call Time (min)','ASR %','ACD (min)']];
+  rows.forEach(row => output.push([row.mapping_gateway,row.area_name,row.source_rows,row.total_calls,row.fail,row.success,row.answered,
+    row.avg_call_duration_sum_minutes.toFixed(2),row.total_call_time_minutes.toFixed(2),row.asr.toFixed(2),row.acd.toFixed(2)]));
+  const csv = output.map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], {type:'text/csv;charset=utf-8'}));
+  const link = document.createElement('a'); link.href=url;
+  link.download = `${(vosTrafficFilename || 'vos_traffic').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_')}_merged.csv`;
+  link.click(); URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} merged VOS row(s)`, 'ok');
+};
 
 // Small hover-to-copy button for Client / Account Code table cells.
 const stCopyBtn = txt => {
@@ -19387,6 +19633,36 @@ window.exportStatsDailyTab = async format => {
     URL.revokeObjectURL(url);
   }
   toast(`Exported ${data.rows.length} Daily Traffic row(s) to ${format === 'xlsx' ? 'Excel' : 'CSV'}`, 'ok');
+};
+
+function updateTrafficSourceUI() {
+  const isVos = trafficSource === 'vos';
+  const voipPanel = document.getElementById('traffic-source-voip');
+  const vosPanel = document.getElementById('traffic-source-vos');
+  if (voipPanel) { voipPanel.hidden = isVos; voipPanel.style.display = isVos ? 'none' : 'flex'; }
+  if (vosPanel) { vosPanel.hidden = !isVos; vosPanel.style.display = isVos ? 'flex' : 'none'; }
+  ['voip','vos'].forEach(source => {
+    const active = trafficSource === source;
+    const button = document.getElementById(`traffic-source-tab-${source}`);
+    button?.classList.toggle('active', active);
+    button?.setAttribute('aria-selected', active ? 'true' : 'false');
+    if (button) button.tabIndex = active ? 0 : -1;
+  });
+  document.body.classList.toggle('traffic-vos-mode', isVos);
+}
+window.switchTrafficSource = source => {
+  trafficSource = source === 'vos' ? 'vos' : 'voip';
+  updateTrafficSourceUI();
+  if (trafficSource === 'vos') {
+    renderVosTraffic();
+    setSbStatus('Viewing: Daily Traffic — VOS');
+  } else {
+    updateStatsDailyTabUI();
+    if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
+    else if (statsDailyTab === 'history') renderStatsDailyHistory();
+    else renderStatsDailyTraffic();
+    setSbStatus(`Viewing: Daily Traffic — VOIP ${statsDailyTab.replace(/\b\w/g, character => character.toUpperCase())}`);
+  }
 };
 
 function updateStatsDailyTabUI() {
