@@ -3915,6 +3915,340 @@
       .premium-login-actions .tbtn { width: 100%; }
     }
 
+    /* ════════════════════════════════════════════════
+       UNIFORM OPERATIONS COMPONENT SYSTEM
+       Project-native preserve-mode layer. It normalizes the existing controls
+       without changing module structure, labels, handlers, or workflow order.
+    ════════════════════════════════════════════════ */
+    :root {
+      --ui-control-h: 34px;
+      --ui-control-radius: 7px;
+      --ui-panel-radius: 10px;
+      --ui-control-gap: 8px;
+      --ui-section-gap: 12px;
+      --ui-view-pad: 16px;
+    }
+
+    /* One spacing rhythm across every primary module. */
+    .view {
+      gap: var(--ui-section-gap);
+      padding: var(--ui-view-pad);
+    }
+    .view > .groupbox,
+    .view > .dash-shell,
+    .view > .settings-page-shell {
+      width: 100%;
+      margin-inline: auto;
+    }
+    .groupbox {
+      margin-bottom: 0;
+      padding: 14px;
+      border-radius: var(--ui-panel-radius);
+    }
+    .groupbox-title {
+      margin-bottom: 10px;
+      line-height: 1.25;
+    }
+    .settings-page-shell {
+      max-width: 1080px;
+      gap: var(--ui-section-gap);
+    }
+    .settings-page-panel,
+    .sms-bal-panel,
+    .vos-primary-panel,
+    .daily-workspace,
+    .vos-side-rail,
+    .sms-bal-sidebar {
+      border-radius: var(--ui-panel-radius);
+      box-shadow: none;
+    }
+    .settings-page-panel,
+    .sms-bal-panel { padding: 14px; }
+    .settings-grid,
+    .sms-cred-form-grid,
+    .sms-bal-form { gap: 10px 12px; }
+    .settings-row { gap: 12px; min-height: var(--ui-control-h); }
+    .settings-check { gap: 8px; min-height: var(--ui-control-h); }
+    .settings-band { gap: 8px; margin-top: 8px; }
+    .settings-note, .settings-danger { padding: 10px 12px; border-radius: var(--ui-control-radius); }
+
+    /* One action-control size and shape, including local compact overrides. */
+    .tbtn,
+    .fltbtn,
+    .clients-toolbar .tbtn,
+    .clients-toolbar .fltbtn,
+    .daily-import-actions .tbtn,
+    .daily-workspace-nav .st-daily-export-btn,
+    .premium-date-footer .tbtn,
+    .sms-bal-subnav .tbtn,
+    .sms-bal-segmented .tbtn {
+      min-height: var(--ui-control-h);
+      padding: 0 11px;
+      border-radius: var(--ui-control-radius);
+      font-size: 11.5px;
+      line-height: 1;
+      box-shadow: none;
+    }
+    .tbtn:hover:not(:disabled),
+    .fltbtn:hover:not(:disabled),
+    .sms-bal-subnav .tbtn:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    .tbtn:active:not(:disabled), .fltbtn:active:not(:disabled) { transform: translateY(1px); }
+    .tbtn.icon-only,
+    #alert-tabs .alert-tab-actions .tbtn.icon-only,
+    .sms-bal-segmented .alert-tab-actions .tbtn.icon-only {
+      width: var(--ui-control-h);
+      min-width: var(--ui-control-h);
+      height: var(--ui-control-h);
+      min-height: var(--ui-control-h);
+      padding: 0;
+    }
+    .tbtn.icon-only svg,
+    #alert-tabs .alert-tab-actions .tbtn.icon-only svg,
+    .sms-bal-segmented .alert-tab-actions .tbtn.icon-only svg {
+      width: 16px;
+      height: 16px;
+      flex-basis: 16px;
+    }
+    .fltbtn {
+      color: var(--text-2);
+      background: var(--surface);
+      border-color: var(--border);
+    }
+    .fltbtn.active {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+    }
+
+    /* One field height, padding, and focus treatment across forms and filters. */
+    .win-inp,
+    .win-sel,
+    .win-search,
+    #slot-sel,
+    .premium-select-trigger,
+    .sms-combo-btn {
+      height: var(--ui-control-h);
+      min-height: var(--ui-control-h);
+      border-radius: var(--ui-control-radius);
+      font-size: 11.5px;
+      box-shadow: none;
+    }
+    .win-inp, .win-search, #slot-sel { padding-inline: 10px; }
+    .win-sel, .premium-select-trigger, .sms-combo-btn { padding-inline: 10px 30px; }
+    .sms-textarea,
+    .win-ta,
+    textarea.win-inp,
+    .sms-bal-sidebar textarea {
+      padding: 9px 10px;
+      border-radius: var(--ui-control-radius);
+      line-height: 1.45;
+    }
+
+    /* Every in-page tab now uses the same segmented-control grammar. */
+    .tab-bar,
+    .st-daily-tabs,
+    .sms-cred-subtabs,
+    .daily-tab-segment,
+    .sms-bal-subnav,
+    .sms-bal-segmented,
+    .vos-primary-tabs,
+    #view-sms > .groupbox > .tab-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 0;
+      background: var(--surface-2);
+      background-image: none;
+      border: 1px solid var(--border);
+      border-radius: var(--ui-panel-radius);
+      box-shadow: none;
+    }
+    .tab,
+    .st-daily-tab,
+    .sms-cred-subtab,
+    .daily-tab-segment .st-daily-tab,
+    .sms-bal-subnav .tbtn,
+    .sms-bal-segmented .tbtn,
+    #view-sms > .groupbox > .tab-bar .tab {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--ui-control-h);
+      padding: 0 11px;
+      color: var(--text-2);
+      background: transparent;
+      background-image: none;
+      border: 1px solid transparent;
+      border-radius: var(--ui-control-radius);
+      font-family: var(--font);
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1;
+      box-shadow: none;
+      transform: none;
+    }
+    .tab:hover,
+    .st-daily-tab:hover,
+    .sms-cred-subtab:hover,
+    .daily-tab-segment .st-daily-tab:hover,
+    .sms-bal-subnav .tbtn:hover,
+    .sms-bal-segmented .tbtn:hover,
+    #view-sms > .groupbox > .tab-bar .tab:hover {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border);
+      border-radius: var(--ui-control-radius);
+      box-shadow: none;
+      transform: none;
+    }
+    .tab.active,
+    .st-daily-tab.active,
+    .sms-cred-subtab.active,
+    .daily-tab-segment .st-daily-tab.active,
+    .sms-bal-subnav .tbtn.active,
+    .sms-bal-segmented .tbtn.active,
+    #view-sms > .groupbox > .tab-bar .tab.active,
+    .vos-primary-tabs .st-daily-tab.active {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      background-image: none;
+      border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+      border-bottom-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+      font-weight: 650;
+      box-shadow: none;
+    }
+    .tab-content { padding-top: var(--ui-section-gap); }
+    .st-daily-tabs { border-bottom-color: var(--border); }
+    .sms-cred-subtabs { width: max-content; }
+    .vos-primary-tabs { align-items: stretch; flex-direction: column; }
+    .vos-primary-tabs .st-daily-tab { width: 100%; }
+    #alert-tabs {
+      gap: var(--ui-control-gap);
+      margin-bottom: 0;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+    }
+    #alert-tabs .alert-tab-list { gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--ui-panel-radius); }
+    #alert-tabs .tab { min-height: var(--ui-control-h); padding: 0 11px; border-radius: var(--ui-control-radius); box-shadow: none; }
+    #alert-tabs .tab:hover { border-radius: var(--ui-control-radius); box-shadow: none; transform: none; }
+    #alert-tabs .tab.active { border-color: color-mix(in srgb, var(--accent) 34%, var(--border)); border-radius: var(--ui-control-radius); }
+
+    /* Keep meaningful alert tones while sharing the same geometry. */
+    .sms-bal-segmented .tbtn[data-tone="critical"].active { color: #fff; background: var(--red); border-color: var(--red); }
+    .sms-bal-segmented .tbtn[data-tone="warning"].active { color: #302500; background: var(--yellow); border-color: var(--yellow); }
+    .sms-bal-segmented .tbtn[data-tone="safe"].active { color: var(--on-accent); background: var(--green); border-color: var(--green); }
+    .sms-bal-subnav .tbtn.has-new-critical,
+    .sms-bal-subnav .tbtn.has-new-critical.active,
+    .sms-bal-segmented .tbtn.has-new-critical,
+    .sms-bal-segmented .tbtn.has-new-critical.active {
+      color: #fff;
+      background: var(--red);
+      background-image: none;
+      border-color: var(--red);
+      box-shadow: none;
+    }
+
+    /* Toolbars share the same gap and no longer compress actions by module. */
+    .fbar,
+    .clients-toolbar,
+    .sms-cred-topbar,
+    .sms-cred-topbar-actions,
+    .sms-bal-alert-toolbar,
+    .sms-bal-file-actions,
+    .daily-import-actions,
+    .bulk-actions,
+    #sms-bulk-panel .bulk-actions,
+    .snap-action-row,
+    .clients-filter-group,
+    .clients-action-group,
+    .clients-query-group {
+      gap: var(--ui-control-gap);
+    }
+    .fbar, .clients-toolbar { margin-bottom: 10px; }
+    .clients-toolbar {
+      padding: 8px;
+      border-radius: var(--ui-panel-radius);
+      box-shadow: none;
+    }
+    .snap-action-row { margin-top: 8px !important; }
+    .snap-action-row .tbtn {
+      min-height: var(--ui-control-h);
+      padding: 0 8px;
+      font-size: 11px;
+    }
+    #sms-bulk-panel .bulk-actions { margin-top: 10px; }
+    .sms-cred-form-body > .fbar { margin-bottom: 10px; padding: 8px; }
+    .daily-workspace-nav {
+      gap: var(--ui-control-gap);
+      padding: 8px 10px;
+    }
+    .daily-workspace-nav .st-daily-export-actions { gap: var(--ui-control-gap); }
+    .daily-filterbar {
+      gap: var(--ui-control-gap);
+      padding: 10px;
+    }
+    .daily-filterbar .win-inp, .daily-filterbar .win-sel { height: var(--ui-control-h); }
+    .daily-import-strip {
+      gap: 10px;
+      margin: 10px;
+      padding: 12px;
+      background: var(--surface-2);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+    .sms-bal-subnav, .sms-bal-segmented, .sms-bal-alert-toolbar, .sms-bal-file-actions { padding: 8px; }
+    #sms-balance-panel, .sms-bal-shell, .sms-bal-sidebar, .sms-bal-view.active { gap: var(--ui-section-gap); }
+    .sms-bal-shell { grid-template-columns: 240px minmax(0, 1fr); }
+    .sms-bal-sidebar { padding: 10px; }
+    .sms-bal-summary-highlights, .sms-bal-stat-grid { gap: var(--ui-control-gap); }
+    .sms-bal-table-wrap, .vos-stats-table-shell, .vos-stats-timeline { border-radius: var(--ui-panel-radius); box-shadow: none; }
+
+    /* Flat operational surfaces remove module-specific decorative effects. */
+    .daily-workspace-intro,
+    .daily-import-strip,
+    .sms-bal-subnav,
+    .sms-bal-status-guide,
+    .voip-alert-guide {
+      background-image: none;
+      box-shadow: none;
+    }
+    .daily-workspace-intro { padding: 12px 14px; }
+    .sms-bal-card, .sms-bal-summary-card, .sum-card, .sum-section { border-radius: var(--ui-control-radius); box-shadow: none; }
+
+    @media (max-width: 900px) {
+      :root { --ui-view-pad: 12px; --ui-section-gap: 10px; }
+      .daily-tab-segment, .sms-bal-subnav, .sms-bal-segmented { width: 100%; }
+      .daily-workspace-nav .st-daily-export-actions { margin-left: 0; }
+      .sms-bal-shell { grid-template-columns: 210px minmax(0, 1fr); }
+      #statusbar {
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        scrollbar-width: none;
+      }
+      #statusbar::-webkit-scrollbar { display: none; }
+      #statusbar .sb-pane { flex: 0 0 auto; min-width: max-content; white-space: nowrap; }
+    }
+    @media (max-width: 760px) {
+      :root { --ui-view-pad: 10px; --ui-control-gap: 6px; }
+      .tab-bar,
+      .st-daily-tabs,
+      .sms-cred-subtabs,
+      .daily-tab-segment,
+      .sms-bal-subnav,
+      .sms-bal-segmented { row-gap: 6px; }
+      .sms-cred-subtabs { width: 100%; }
+      .sms-bal-shell { grid-template-columns: 1fr; }
+      .settings-row { grid-template-columns: 1fr; gap: 6px; }
+    }
+
     @media print {
       body.night-mode,
       body.night-mode #win,
