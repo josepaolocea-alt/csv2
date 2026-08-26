@@ -3422,15 +3422,15 @@
       height: 54px;
       padding: 0 20px;
       gap: 11px;
-      color: #edf8f7;
-      background: #142a31;
-      border-bottom: 1px solid rgba(255,255,255,.08);
+      color: var(--text);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
     }
     #titlebar::after {
       content: 'Network operations control';
       position: absolute;
       right: 20px;
-      color: #98afb4;
+      color: var(--text-3);
       font: 500 10px/1 var(--mono);
       letter-spacing: .07em;
       text-transform: uppercase;
@@ -3439,16 +3439,31 @@
       width: 22px;
       height: 22px;
       padding: 4px;
-      color: #9dd2ce;
-      border: 1px solid rgba(157,210,206,.35);
+      color: var(--accent);
+      border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
       border-radius: 6px;
     }
     #titlebar .title {
-      color: #f3f8f8;
+      color: var(--text);
       font-size: 15px;
       font-weight: 650;
       letter-spacing: -.015em;
     }
+    #titlebar .tb-btn { color: var(--text-2); }
+    #titlebar .tb-btn:hover { color: var(--text); background: var(--surface-3); }
+    body.night-mode #titlebar {
+      color: #edf8f7;
+      background: #142a31;
+      border-bottom-color: rgba(255,255,255,.08);
+    }
+    body.night-mode #titlebar::after { color: #98afb4; }
+    body.night-mode #titlebar .ico {
+      color: #9dd2ce;
+      border-color: rgba(157,210,206,.35);
+    }
+    body.night-mode #titlebar .title { color: #f3f8f8; }
+    body.night-mode #titlebar .tb-btn { color: rgba(255,255,255,.76); }
+    body.night-mode #titlebar .tb-btn:hover { color: #fff; background: rgba(255,255,255,.14); }
     #menubar {
       height: 50px;
       padding: 7px 12px;
@@ -3554,14 +3569,14 @@
     #app-body { background: var(--bg); }
     #sidebar {
       width: 216px;
-      background: #182e35;
-      border-right: 0;
-      color: #dce7e8;
+      background: var(--surface-2);
+      border-right: 1px solid var(--border);
+      color: var(--text);
     }
-    body.night-mode #sidebar { background: #101f24; }
+    body.night-mode #sidebar { background: #101f24; border-right-color: #2a4147; color: #dce7e8; }
     #sidebar-snap { padding: 17px 14px 14px; gap: 18px; }
     #sidebar .snap-label, #sidebar .sidebar-section-label {
-      color: #94aeb3;
+      color: var(--text-3);
       font-size: 10px;
       font-weight: 650;
       letter-spacing: .11em;
@@ -3569,21 +3584,47 @@
     #sidebar #top-usage-list, #sidebar #stats-timeline-list, #sidebar #stats-daily-date-list,
     #sidebar #snap-ta, #sidebar #stats-snap-ta, #sidebar #stats-daily-ta,
     #sidebar .win-inp, #sidebar .win-sel, #sidebar #slot-sel {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+    #sidebar textarea::placeholder, #sidebar input::placeholder { color: var(--text-3); }
+    #sidebar .top-usage-empty, #sidebar .settings-note, #sidebar #tritel-status { color: var(--text-3) !important; }
+    #sidebar .tbtn, #sidebar .fltbtn {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: none;
+    }
+    #sidebar .tbtn:hover, #sidebar .fltbtn:hover { background: var(--surface-3); border-color: var(--border-strong); box-shadow: none; }
+    #sidebar .tbtn.primary, #sidebar .fltbtn.active { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
+    body.night-mode #sidebar .snap-label,
+    body.night-mode #sidebar .sidebar-section-label { color: #94aeb3; }
+    body.night-mode #sidebar #top-usage-list,
+    body.night-mode #sidebar #stats-timeline-list,
+    body.night-mode #sidebar #stats-daily-date-list,
+    body.night-mode #sidebar #snap-ta,
+    body.night-mode #sidebar #stats-snap-ta,
+    body.night-mode #sidebar #stats-daily-ta,
+    body.night-mode #sidebar .win-inp,
+    body.night-mode #sidebar .win-sel,
+    body.night-mode #sidebar #slot-sel {
       color: #eef6f6;
       background: #213a42;
       border-color: #33515a;
-      box-shadow: none;
     }
-    #sidebar textarea::placeholder, #sidebar input::placeholder { color: #87a0a6; }
-    #sidebar .top-usage-empty, #sidebar .settings-note, #sidebar #tritel-status { color: #91a7ac !important; background: transparent; }
-    #sidebar .tbtn, #sidebar .fltbtn {
-      color: #dce7e8;
-      background: #213a42;
-      border-color: #36545c;
-      box-shadow: none;
-    }
-    #sidebar .tbtn:hover, #sidebar .fltbtn:hover { background: #294851; border-color: #527078; box-shadow: none; }
-    #sidebar .tbtn.primary, #sidebar .fltbtn.active { color: #10282b; background: #8bc5c1; border-color: #8bc5c1; }
+    body.night-mode #sidebar textarea::placeholder,
+    body.night-mode #sidebar input::placeholder { color: #87a0a6; }
+    body.night-mode #sidebar .top-usage-empty,
+    body.night-mode #sidebar .settings-note,
+    body.night-mode #sidebar #tritel-status { color: #91a7ac !important; background: transparent; }
+    body.night-mode #sidebar .tbtn,
+    body.night-mode #sidebar .fltbtn { color: #dce7e8; background: #213a42; border-color: #36545c; }
+    body.night-mode #sidebar .tbtn:hover,
+    body.night-mode #sidebar .fltbtn:hover { background: #294851; border-color: #527078; }
+    body.night-mode #sidebar .tbtn.primary,
+    body.night-mode #sidebar .fltbtn.active { color: #10282b; background: #8bc5c1; border-color: #8bc5c1; }
     #content { background: var(--bg); }
     .view { padding: 18px; }
     .dash-shell { max-width: 1480px; width: 100%; margin: 0 auto; }
@@ -3957,7 +3998,7 @@
           <path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/>
         </svg>
       </button>
-      <button class="micon" id="view-menu-vos" data-label="VOS" onclick="animateModuleIcon(this); switchModule('vos')" title="VOS">
+      <button class="micon" id="view-menu-vos" onclick="animateModuleIcon(this); switchModule('vos')" title="VOS">
         <span class="micon-glyph" aria-hidden="true">VOS</span>
       </button>
       <button class="micon" id="view-menu-users" data-label="Admin" onclick="animateModuleIcon(this); switchModule('users')" title="Admin" aria-label="Admin" style="display:none">
