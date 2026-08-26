@@ -4844,9 +4844,9 @@
                   <th onclick="sortVosTraffic('area_name')">Area Name</th>
                   <th class="num" onclick="sortVosTraffic('source_rows')">Merged Rows</th>
                   <th class="num" onclick="sortVosTraffic('total_calls')">Total Calls</th>
-                  <th class="num" onclick="sortVosTraffic('fail')">Fail</th>
-                  <th class="num" onclick="sortVosTraffic('success')">Success</th>
-                  <th class="num" onclick="sortVosTraffic('answered')">Answered</th>
+                  <th class="num" onclick="sortVosTraffic('fail')" title="Adds the values outside and inside parentheses before merging">Fail</th>
+                  <th class="num" onclick="sortVosTraffic('success')" title="Adds the values outside and inside parentheses before merging">Success</th>
+                  <th class="num" onclick="sortVosTraffic('answered')" title="Adds the values outside and inside parentheses before merging">Answered</th>
                   <th class="num" onclick="sortVosTraffic('avg_call_duration_sum_minutes')" title="Sum of the source Average Call Duration values, converted to minutes">Avg Call Duration Sum (min)</th>
                   <th class="num" onclick="sortVosTraffic('total_call_time_minutes')">Total Call Time (min)</th>
                   <th class="num" onclick="sortVosTraffic('asr')" title="Answered / Total Calls × 100">ASR %</th>
@@ -18354,16 +18354,37 @@ function vosHeaderField(value) {
 }
 function vosNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
-  const cleaned = String(value ?? '').trim().replace(/,/g, '').replace(/%$/, '');
-  const number = Number(cleaned);
-  return Number.isFinite(number) ? number : 0;
+  let raw = String(value ?? '').trim();
+  if (!raw || /^[-—–]+$/.test(raw)) return 0;
+  const parenNegative = /^\(.*\)$/.test(raw);
+  raw = raw.replace(/[\u2212\u2012\u2013\u2014]/g, '-').replace(/[,'\u00A0\u202F\s]/g, '');
+  // Prefer the complete cleaned value so scientific notation remains valid.
+  const direct = Number(raw.replace(/%$/, ''));
+  if (Number.isFinite(direct)) return parenNegative && direct > 0 ? -direct : direct;
+  // VOS exports sometimes store counts as display text (for example "122 calls").
+  const match = raw.replace(/[^\d.eE+\-]/g, '').match(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/);
+  const number = match ? Number(match[0]) : 0;
+  if (!Number.isFinite(number)) return 0;
+  return parenNegative && number > 0 ? -number : number;
 }
-function vosDurationSeconds(value) {
+function vosSumOutsideInside(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const raw = String(value ?? '').trim();
   if (!raw) return 0;
+  const inside = [...raw.matchAll(/\(([^)]*)\)/g)].reduce((sum, match) => sum + vosNumber(match[1]), 0);
+  const outside = vosNumber(raw.replace(/\([^)]*\)/g, ' '));
+  return outside + inside;
+}
+function vosDurationSeconds(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    // Excel stores time-formatted cells as a fraction of one day. Whole/larger
+    // numeric values in VOS exports are already seconds.
+    return value > 0 && value < 1 ? value * 86400 : value;
+  }
+  const raw = String(value ?? '').trim();
+  if (!raw) return 0;
   if (raw.includes(':')) {
-    const parts = raw.split(':').map(vosNumber);
+    const parts = raw.replace(/^\[h\]/i, '').split(':').map(vosNumber);
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     if (parts.length === 2) return parts[0] * 60 + parts[1];
   }
@@ -18393,9 +18414,9 @@ function parseVosTrafficMatrix(matrix) {
     }
     item.source_rows++;
     item.total_calls += vosNumber(values[column.total_calls]);
-    item.fail += vosNumber(values[column.fail]);
-    item.success += vosNumber(values[column.success]);
-    item.answered += vosNumber(values[column.answered]);
+    item.fail += vosSumOutsideInside(values[column.fail]);
+    item.success += vosSumOutsideInside(values[column.success]);
+    item.answered += vosSumOutsideInside(values[column.answered]);
     item.avg_call_duration_sum_seconds += vosDurationSeconds(values[column.average_call_duration]);
     item.total_call_time_seconds += vosDurationSeconds(values[column.total_call_time]);
   });
@@ -18471,7 +18492,9 @@ window.importVosTrafficFile = async file => {
     const workbook = window.XLSX.read(await file.arrayBuffer(), {type:'array',cellDates:false});
     let parsed = null, sheetName = '';
     for (const name of workbook.SheetNames) {
-      const matrix = window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:true});
+      // Use formatted cell text so Excel durations arrive as HH:MM:SS instead
+      // of fractional-day serial numbers. vosNumber still handles formatted counts.
+      const matrix = window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:false});
       try {
         const candidate = parseVosTrafficMatrix(matrix);
         if (candidate.length) { parsed = candidate; sheetName = name; break; }
