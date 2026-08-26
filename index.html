@@ -3820,7 +3820,7 @@
                     <div class="sms-bal-segmented" id="sms-bal-alert-tabs" role="tablist" aria-label="SMS Balance alert filters">
                       <button class="tbtn active" id="sms-bal-alert-all" onclick="setSmsBalanceAlertFilter('all',this)" data-premium-tooltip="Every client in the latest Reseller and Wholesale snapshot.">All <span id="sms-bal-alert-count-all"></span></button>
                       <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted. Turns red while Critical clients exist.">Critical <span id="sms-bal-alert-count-critical"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit but not yet critical. Turns red and highlights rows at 90% or more of the Credit-to-Critical range.">Warning <span id="sms-bal-alert-count-warning"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit, plus clients running on overdraft. When overdraft is available, the Balance Bar recalculates toward overdraft exhaustion; removing overdraft restores the configured Credit-to-Critical range. Turns red at 90% or more.">Warning <span id="sms-bal-alert-count-warning"></span></button>
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
                       <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
@@ -13396,13 +13396,18 @@ function smsBalanceStatusRank(code) { return ({blocked:6,critical:5,overdraft:4,
 function smsBalanceStatusBadge(status) { return `<span class="sms-bal-badge ${status.code}">${esc(status.label)}</span>`; }
 function smsBalanceWarningProgress(rowOrStatus) {
   const status=rowOrStatus?._status||rowOrStatus;
-  const credit=status?.credit,critical=status?.critical,balance=status?.balance;
-  if(!Number.isFinite(credit)||!Number.isFinite(critical)||!Number.isFinite(balance)||credit<=critical)return null;
-  return Math.max(0,Math.min(100,(credit-balance)/(credit-critical)*100));
+  const credit=status?.credit,balance=status?.balance,overdraft=Math.max(0,smsBalanceNumber(status?.overdraft));
+  let target=status?.critical;
+  // Positive Critical Balance stops applying while overdraft can still fund
+  // sends. Extend the bar to OD exhaustion; a later snapshot with OD removed
+  // automatically returns the bar to the configured Critical Balance.
+  if(overdraft>0&&(!Number.isFinite(target)||target>=0))target=-overdraft;
+  if(!Number.isFinite(credit)||!Number.isFinite(target)||!Number.isFinite(balance)||credit<=target)return null;
+  return Math.max(0,Math.min(100,(credit-balance)/(credit-target)*100));
 }
 function smsBalanceWarningIsHot(rowOrStatus) {
   const status=rowOrStatus?._status||rowOrStatus;
-  return status?.code==='warning'&&(smsBalanceWarningProgress(status)??0)>=90;
+  return ['warning','overdraft'].includes(status?.code)&&(smsBalanceWarningProgress(status)??0)>=90;
 }
 function smsBalanceWarningBar(rowOrStatus) {
   const progress=smsBalanceWarningProgress(rowOrStatus);
@@ -13717,7 +13722,7 @@ function smsBalanceAlertSets() {
   return {
     all:rows,
     critical:rows.filter(smsBalanceIsCritical),
-    warning:rows.filter(row => ['near','warning'].includes(row._status.code)),
+    warning:rows.filter(row => ['near','warning','overdraft'].includes(row._status.code)),
     safe:rows.filter(row => row._status.code === 'safe'),
     nothreshold:smsBalanceNoThresholdRows(),
     newnothreshold:newNoThreshold,
