@@ -1201,7 +1201,7 @@
 
     /* Balance-only toolbar separators — hide in other modules so no divider is
        left dangling once the tnav-* buttons around it are hidden (#2). */
-    body.stats-mode .tsep-bal, body.traffic-mode .tsep-bal, body.sms-mode .tsep-bal,
+    body.stats-mode .tsep-bal, body.traffic-mode .tsep-bal, body.vos-mode .tsep-bal, body.sms-mode .tsep-bal,
     body.users-mode .tsep-bal { display: none !important; }
 
     /* ── Stats module ── */
@@ -1227,6 +1227,7 @@
     body.stats-mode #sidebar-snap { display: none !important; }
     body.stats-mode #voip-action-menu,
     body.traffic-mode #voip-action-menu,
+    body.vos-mode #voip-action-menu,
     body.users-mode #voip-action-menu { display:none !important; }
     body.stats-mode #view-banner { display: none !important; }
     #stats-sidebar-snap { display: none; flex: 1; flex-direction: column; gap: 6px; overflow: hidden; padding: 10px 8px 8px; }
@@ -1248,14 +1249,12 @@
     body.traffic-mode #stats-sidebar-current { display: none; }
     body.traffic-mode #stats-sidebar-daily { display: flex; }
     body.traffic-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
-    body.traffic-mode.traffic-vos-mode #sidebar { display: none !important; }
-    .traffic-source-tabs { display:flex; gap:5px; padding:7px 8px; border-bottom:1px solid var(--border); background:var(--surface-2); }
-    .traffic-source-tab { border:1px solid var(--border); border-radius:999px; padding:5px 16px; background:var(--surface); color:var(--text-2); font:600 11px/1.2 var(--font); cursor:pointer; }
-    .traffic-source-tab:hover { border-color:var(--accent); color:var(--accent); }
-    .traffic-source-tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+    body.vos-mode #toolbar,
+    body.vos-mode #view-banner,
+    body.vos-mode #sidebar { display:none !important; }
     .traffic-source-panel { flex:1; min-height:0; flex-direction:column; }
     #traffic-source-voip { display:flex; }
-    #traffic-source-vos { display:none; padding:8px; gap:8px; overflow:hidden; }
+    #traffic-source-vos { display:flex; padding:8px; gap:8px; overflow:hidden; }
     .vos-import-card { display:flex; align-items:center; gap:8px; padding:10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
     .vos-import-copy { min-width:0; flex:1; }
     .vos-import-title { font-size:12px; font-weight:700; color:var(--text); }
@@ -3175,6 +3174,11 @@
           <path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/>
         </svg>
       </button>
+      <button class="micon" id="view-menu-vos" onclick="animateModuleIcon(this); switchModule('vos')" title="VOS">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m7.4 11.2 9.2-4.3M7.4 12.8l9.2 4.3"/>
+        </svg>
+      </button>
       <button class="micon" id="view-menu-users" onclick="animateModuleIcon(this); switchModule('users')" title="Admin" aria-label="Admin" style="display:none">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
           <path d="M8 1.5 13 3.4v3.8c0 3.2-2 5.9-5 7.3-3-1.4-5-4.1-5-7.3V3.4z"/>
@@ -4696,11 +4700,7 @@
       <!-- STATS — DAILY TRAFFIC CHANGE MONITOR -->
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="traffic-source-tabs" role="tablist" aria-label="Traffic source">
-            <button type="button" class="traffic-source-tab active" id="traffic-source-tab-voip" role="tab" aria-selected="true" aria-controls="traffic-source-voip" onclick="switchTrafficSource('voip')">VOIP</button>
-            <button type="button" class="traffic-source-tab" id="traffic-source-tab-vos" role="tab" aria-selected="false" aria-controls="traffic-source-vos" onclick="switchTrafficSource('vos')">VOS</button>
-          </div>
-          <div class="traffic-source-panel" id="traffic-source-voip" role="tabpanel" aria-labelledby="traffic-source-tab-voip">
+          <div class="traffic-source-panel" id="traffic-source-voip">
           <div class="groupbox-title">Daily Traffic — Raw Duration Change Monitor</div>
           <div class="st-daily-tabs" role="tablist" aria-label="Daily Traffic views">
             <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
@@ -4813,8 +4813,13 @@
             <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
           </div>
           </div>
+        </div>
+      </div>
 
-          <div class="traffic-source-panel" id="traffic-source-vos" role="tabpanel" aria-labelledby="traffic-source-tab-vos" hidden>
+      <!-- VOS — FILE UPLOAD + GATEWAY/DESTINATION AGGREGATION -->
+      <div class="view" id="view-vos-traffic">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="traffic-source-panel" id="traffic-source-vos">
             <div class="groupbox-title">VOS Traffic — Gateway + Destination Aggregation</div>
             <div class="vos-import-card">
               <div class="vos-import-copy">
@@ -4844,9 +4849,9 @@
                   <th onclick="sortVosTraffic('area_name')">Area Name</th>
                   <th class="num" onclick="sortVosTraffic('source_rows')">Merged Rows</th>
                   <th class="num" onclick="sortVosTraffic('total_calls')">Total Calls</th>
-                  <th class="num" onclick="sortVosTraffic('fail')" title="Adds the values outside and inside parentheses before merging">Fail</th>
-                  <th class="num" onclick="sortVosTraffic('success')" title="Adds the values outside and inside parentheses before merging">Success</th>
-                  <th class="num" onclick="sortVosTraffic('answered')" title="Adds the values outside and inside parentheses before merging">Answered</th>
+                  <th class="num" onclick="sortVosTraffic('fail')" title="Uses the count; a percentage inside parentheses is descriptive and is not added">Fail</th>
+                  <th class="num" onclick="sortVosTraffic('success')" title="Uses the count; a percentage inside parentheses is descriptive and is not added">Success</th>
+                  <th class="num" onclick="sortVosTraffic('answered')" title="Uses the count; a percentage inside parentheses is descriptive and is not added">Answered</th>
                   <th class="num" onclick="sortVosTraffic('avg_call_duration_sum_minutes')" title="Sum of the source Average Call Duration values, converted to minutes">Avg Call Duration Sum (min)</th>
                   <th class="num" onclick="sortVosTraffic('total_call_time_minutes')">Total Call Time (min)</th>
                   <th class="num" onclick="sortVosTraffic('asr')" title="Answered / Total Calls × 100">ASR %</th>
@@ -6161,16 +6166,19 @@ function updateViewMenuState() {
   const smsMode   = document.body.classList.contains('sms-mode');
   const stMode    = document.body.classList.contains('stats-mode');
   const trafficMode = document.body.classList.contains('traffic-mode');
+  const vosMode = document.body.classList.contains('vos-mode');
   const usersMode = document.body.classList.contains('users-mode');
-  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !stMode && !trafficMode && !usersMode);
+  document.getElementById('view-menu-balance')?.classList.toggle('active', !smsMode && !stMode && !trafficMode && !vosMode && !usersMode);
   document.getElementById('view-menu-sms')?.classList.toggle('active', smsMode);
   document.getElementById('view-menu-stats')?.classList.toggle('active', stMode);
   document.getElementById('view-menu-traffic')?.classList.toggle('active', trafficMode);
+  document.getElementById('view-menu-vos')?.classList.toggle('active', vosMode);
   document.getElementById('view-menu-users')?.classList.toggle('active', usersMode);
   const title = document.querySelector('#titlebar .title');
   if (title) title.textContent = smsMode ? 'SMS'
     : stMode ? 'Stats'
     : trafficMode ? 'Traffic'
+    : vosMode ? 'VOS'
     : usersMode ? 'Admin' : 'BalanceMonitor VOIP';
 }
 
@@ -6743,7 +6751,7 @@ window.animateModuleIcon = button => {
 
 window.switchModule = module => {
   closeViewMenu();
-  document.body.classList.remove('users-mode', 'traffic-mode', 'traffic-vos-mode');
+  document.body.classList.remove('users-mode', 'traffic-mode', 'vos-mode');
   // Users & Roles is admin-only. SMS Balance is visible to the monitoring team;
   // its Client / Phoenix / Credentials tabs are available to admin and semi-admin.
   if (module === 'users' && !isAdmin()) module = 'balance';
@@ -6808,9 +6816,7 @@ window.switchModule = module => {
     document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('view-stats-daily')?.classList.add('active');
-    trafficSource = 'voip';
     statsDailyTab = 'today';
-    updateTrafficSourceUI();
     updateStatsDailyTabUI();
     updateViewMenuState();
     syncStatsDailyImportDate();
@@ -6818,9 +6824,21 @@ window.switchModule = module => {
     setSbStatus('Viewing: Daily Traffic');
     return;
   }
+  if (module === 'vos') {
+    document.body.classList.remove('sms-mode', 'stats-mode', 'stats-daily-mode', 'stats-daily-today-tab');
+    document.body.classList.add('vos-mode');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.tbtn[id^="tnav-"]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-vos-traffic')?.classList.add('active');
+    updateViewMenuState();
+    renderVosTraffic();
+    setSbStatus('Viewing: VOS');
+    return;
+  }
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
-  document.body.classList.remove('traffic-mode', 'traffic-vos-mode', 'stats-daily-mode', 'stats-daily-today-tab');
+  document.body.classList.remove('traffic-mode', 'vos-mode', 'stats-daily-mode', 'stats-daily-today-tab');
   updateViewMenuState();
   window.switchView('summary');
 };
@@ -6837,7 +6855,7 @@ window.switchView = name => {
   closeAppActionMenus();
   document.body.classList.remove('sms-mode');
   document.body.classList.remove('stats-mode');
-  document.body.classList.remove('traffic-mode', 'stats-daily-mode', 'stats-daily-today-tab');
+  document.body.classList.remove('traffic-mode', 'vos-mode', 'stats-daily-mode', 'stats-daily-today-tab');
   document.body.classList.remove('users-mode');
   updateViewMenuState();
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -10572,7 +10590,7 @@ const VOIP_ADMIN_DANGER_BUTTONS = [
 ];
 
 // Show/hide top-level modules based on the signed-in user's role. Stats and
-// Traffic are
+// Traffic and VOS are
 // available to every signed-in user (view-only for viewers). SMS Balance is also
 // available to everyone; its Client / Phoenix / Credentials tabs are available
 // to admin and semi-admin, with destructive record removal reserved for admin.
@@ -10581,10 +10599,11 @@ function applyModuleAccess(){
   const smsEditor = canManageSmsRegisters();
   const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
   const disable = (id, on) => { const el = document.getElementById(id); if (el) el.disabled = !!on; };
-  // Stats + Traffic + SMS Balance: everyone. Users & Roles stays admin-only;
+  // Stats + Traffic + VOS + SMS Balance: everyone. Users & Roles stays admin-only;
   // SMS register tabs are available to admin and semi-admin.
   show('view-menu-stats',   true);
   show('view-menu-traffic', true);
+  show('view-menu-vos',     true);
   show('view-menu-sms',     true);
   show('view-menu-users',   admin);
   show('sms-tab-client',      smsEditor);
@@ -18059,7 +18078,6 @@ let statsDailySelectedDate = '';
 let statsDailyImportDateAutoTrack = true;
 let statsDailySortCol = 'status', statsDailySortDir = 1;
 let statsDailyTab = 'today';
-let trafficSource = 'voip';
 let vosTrafficRows = [];
 let vosTrafficFilename = '';
 let vosTrafficSortCol = 'mapping_gateway', vosTrafficSortDir = 1;
@@ -18371,7 +18389,10 @@ function vosSumOutsideInside(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const raw = String(value ?? '').trim();
   if (!raw) return 0;
-  const inside = [...raw.matchAll(/\(([^)]*)\)/g)].reduce((sum, match) => sum + vosNumber(match[1]), 0);
+  // Parentheses containing a percentage describe the outside count; they are
+  // not an additional count (120(6.977%) means 120, not 126.977).
+  const inside = [...raw.matchAll(/\(([^)]*)\)/g)].reduce((sum, match) =>
+    sum + (/%/.test(match[1]) ? 0 : vosNumber(match[1])), 0);
   const outside = vosNumber(raw.replace(/\([^)]*\)/g, ' '));
   return outside + inside;
 }
@@ -18428,6 +18449,30 @@ function parseVosTrafficMatrix(matrix) {
     acd:item.answered > 0 ? item.total_call_time_seconds / 60 / item.answered : 0,
   }));
 }
+const VOS_TRAFFIC_LOCAL_KEY = 'bm_vos_traffic_v2';
+function saveVosTrafficLocal() {
+  try {
+    localStorage.setItem(VOS_TRAFFIC_LOCAL_KEY, JSON.stringify({filename:vosTrafficFilename, rows:vosTrafficRows}));
+    return true;
+  } catch(e) {
+    console.warn('VOS local save:', e);
+    return false;
+  }
+}
+function loadVosTrafficLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VOS_TRAFFIC_LOCAL_KEY) || 'null');
+    if (saved && Array.isArray(saved.rows)) {
+      vosTrafficRows = saved.rows;
+      vosTrafficFilename = String(saved.filename || 'Restored VOS report');
+    }
+  } catch(e) {
+    console.warn('VOS local restore:', e);
+    vosTrafficRows = [];
+    vosTrafficFilename = '';
+  }
+}
+loadVosTrafficLocal();
 function vosVisibleRows() {
   const search = String(document.getElementById('vos-traffic-search')?.value || '').trim().toLowerCase();
   const numeric = new Set(['source_rows','total_calls','fail','success','answered','avg_call_duration_sum_minutes','total_call_time_minutes','asr','acd']);
@@ -18442,6 +18487,11 @@ function renderVosTraffic() {
   const tbody = document.getElementById('vos-traffic-tbody');
   if (!tbody) return;
   const rows = vosVisibleRows();
+  const fileStatus = document.getElementById('vos-file-status');
+  if (fileStatus && vosTrafficFilename && !fileStatus.dataset.current) {
+    fileStatus.textContent = `${vosTrafficFilename} · restored · ${vosTrafficRows.length} grouped row(s)`;
+    fileStatus.title = fileStatus.textContent;
+  }
   const allTotals = vosTrafficRows.reduce((sum,row) => ({
     total_calls:sum.total_calls + row.total_calls, answered:sum.answered + row.answered,
     total_call_time_seconds:sum.total_call_time_seconds + row.total_call_time_seconds
@@ -18506,9 +18556,10 @@ window.importVosTrafficFile = async file => {
     vosTrafficSortCol = 'mapping_gateway'; vosTrafficSortDir = 1;
     const search = document.getElementById('vos-traffic-search'); if (search) search.value = '';
     const status = document.getElementById('vos-file-status');
-    if (status) { status.textContent = `${vosTrafficFilename} · ${sheetName} · ${vosTrafficRows.length} grouped row(s)`; status.title = status.textContent; }
+    if (status) { status.dataset.current = '1'; status.textContent = `${vosTrafficFilename} · ${sheetName} · ${vosTrafficRows.length} grouped row(s)`; status.title = status.textContent; }
+    const persisted = saveVosTrafficLocal();
     renderVosTraffic();
-    toast(`VOS file processed: ${vosTrafficRows.length} gateway + destination row(s) after merging`, 'ok', 7000);
+    toast(`VOS file processed: ${vosTrafficRows.length} gateway + destination row(s) after merging${persisted ? ' · saved for refresh' : ' · browser storage is full, so re-upload after refresh'}`, persisted ? 'ok' : 'err', 8000);
   } catch(e) {
     window.alert(`VOS file could not be processed.\n\n${e.message}`);
     toast('VOS import failed: ' + e.message, 'err', 8000);
@@ -19656,36 +19707,6 @@ window.exportStatsDailyTab = async format => {
     URL.revokeObjectURL(url);
   }
   toast(`Exported ${data.rows.length} Daily Traffic row(s) to ${format === 'xlsx' ? 'Excel' : 'CSV'}`, 'ok');
-};
-
-function updateTrafficSourceUI() {
-  const isVos = trafficSource === 'vos';
-  const voipPanel = document.getElementById('traffic-source-voip');
-  const vosPanel = document.getElementById('traffic-source-vos');
-  if (voipPanel) { voipPanel.hidden = isVos; voipPanel.style.display = isVos ? 'none' : 'flex'; }
-  if (vosPanel) { vosPanel.hidden = !isVos; vosPanel.style.display = isVos ? 'flex' : 'none'; }
-  ['voip','vos'].forEach(source => {
-    const active = trafficSource === source;
-    const button = document.getElementById(`traffic-source-tab-${source}`);
-    button?.classList.toggle('active', active);
-    button?.setAttribute('aria-selected', active ? 'true' : 'false');
-    if (button) button.tabIndex = active ? 0 : -1;
-  });
-  document.body.classList.toggle('traffic-vos-mode', isVos);
-}
-window.switchTrafficSource = source => {
-  trafficSource = source === 'vos' ? 'vos' : 'voip';
-  updateTrafficSourceUI();
-  if (trafficSource === 'vos') {
-    renderVosTraffic();
-    setSbStatus('Viewing: Daily Traffic — VOS');
-  } else {
-    updateStatsDailyTabUI();
-    if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
-    else if (statsDailyTab === 'history') renderStatsDailyHistory();
-    else renderStatsDailyTraffic();
-    setSbStatus(`Viewing: Daily Traffic — VOIP ${statsDailyTab.replace(/\b\w/g, character => character.toUpperCase())}`);
-  }
 };
 
 function updateStatsDailyTabUI() {
