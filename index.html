@@ -3824,7 +3824,7 @@
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
                       <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client at Critical, zero/blocked balance, or running on overdraft without adding them to Critical History.">New Critical <span id="sms-bal-alert-count-new"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client currently Critical or blocked, without adding them to Critical History. Clients that still have overdraft available remain in overdraft monitoring and are excluded.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing non-zero 30-minute usage. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
@@ -13482,9 +13482,8 @@ function smsBalanceIsFreshBaselineView() {
 }
 function smsBalanceFreshBaselineNewCriticalRows(rows=smsBalanceRows()) {
   return rows.filter(row => {
-    const status = row?._status || smsBalanceStatus(row);
     const meta = row?._meta || smsBalanceMetaFor(row);
-    return meta?.is_active !== false && ['critical','blocked','overdraft'].includes(status.code);
+    return meta?.is_active !== false && smsBalanceIsCritical(row);
   });
 }
 function smsBalanceDecoratedSnapshotRows(snap) {
@@ -14369,9 +14368,9 @@ window.processSmsBalanceSnapshot = async () => {
     ? smsBalanceFreshBaselineNewCriticalRows(smsBalanceRows()).length>0
     : hasCurrentCritical;
   advanceSmsBalanceSlotAfterPost(slot);window.clearSmsBalancePaste();renderSmsBalanceModule();
-  // A fresh post-clear baseline opens New Critical with all active Critical,
-  // zero/blocked, and overdraft clients. History/audio still use only genuine
-  // transitions, so the baseline remains absent from Critical History.
+  // A fresh post-clear baseline opens New Critical with all active Critical or
+  // blocked clients. Clients with overdraft remaining can still send, so they
+  // stay in overdraft monitoring. History/audio still use genuine transitions.
   if(shouldFocusNewCritical)focusSmsBalanceNewCriticalView();
   if(freshCriticalCount&&SBS.soundAlert)playSmsNewCriticalAudio();
   let blockedRoutes=0;
