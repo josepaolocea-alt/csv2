@@ -199,7 +199,15 @@
     .micon:hover { background: var(--surface-3); color: var(--text); }
     .micon.active { background: var(--accent-soft); color: var(--accent); }
     .micon svg { width: 18px; height: 18px; transform-origin: center; }
+    .micon-glyph {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; line-height: 1; letter-spacing: -.04em;
+      transform-origin: center;
+    }
     .micon svg.micon-icon-click {
+      animation: miconIconClick .28s cubic-bezier(.22, 1, .36, 1);
+    }
+    .micon-glyph.micon-icon-click {
       animation: miconIconClick .28s cubic-bezier(.22, 1, .36, 1);
     }
     @keyframes miconIconClick {
@@ -3181,9 +3189,7 @@
         </svg>
       </button>
       <button class="micon" id="view-menu-vos" onclick="animateModuleIcon(this); switchModule('vos')" title="VOS">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m7.4 11.2 9.2-4.3M7.4 12.8l9.2 4.3"/>
-        </svg>
+        <span class="micon-glyph" aria-hidden="true">VOS</span>
       </button>
       <button class="micon" id="view-menu-users" onclick="animateModuleIcon(this); switchModule('users')" title="Admin" aria-label="Admin" style="display:none">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
@@ -4826,7 +4832,6 @@
       <div class="view" id="view-vos-traffic">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="traffic-source-panel" id="traffic-source-vos">
-            <div class="groupbox-title">VOS</div>
             <div class="st-daily-tabs vos-primary-tabs" role="tablist" aria-label="VOS sections">
               <button type="button" class="st-daily-tab" id="vos-primary-tab-stats" role="tab" aria-selected="false" onclick="switchVosPrimaryTab('stats')">Stats</button>
               <button type="button" class="st-daily-tab active" id="vos-primary-tab-daily" role="tab" aria-selected="true" onclick="switchVosPrimaryTab('daily')">Daily Traffic</button>
@@ -4916,7 +4921,20 @@
               </div>
 
               <div class="st-daily-panel settings-page" id="vos-daily-panel-settings" role="tabpanel" aria-labelledby="vos-daily-tab-settings" style="display:none">
-                <div class="groupbox" style="max-width:760px"><div class="groupbox-title settings-page-title">VOS Daily Traffic Settings</div><div class="settings-note">Reports are retained locally for the latest 14 dates and restored after a hard refresh.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete all locally saved VOS Daily Traffic reports.</div><button type="button" class="tbtn" style="color:#880000" onclick="clearVosDailyHistory()">Delete ALL VOS Daily Traffic History</button></div></div>
+                <div class="groupbox" style="max-width:760px">
+                  <div class="groupbox-title settings-page-title">VOS Daily Traffic Settings</div>
+                  <div class="settings-note">Reports are retained locally for the latest 14 dates and restored after a hard refresh.</div>
+                  <div class="settings-note">Archive completed months to keep them in this browser while excluding them from the active VOS Daily Traffic views.</div>
+                  <div id="vos-daily-archive-controls" class="stats-daily-archive">
+                    <div style="font-weight:700">Archive completed month</div>
+                    <div class="stats-daily-archive-row">
+                      <input id="vos-daily-archive-month" class="win-inp" type="month" data-premium-date aria-label="VOS Daily Traffic month to archive">
+                      <button type="button" class="tbtn" id="vos-daily-archive-btn" onclick="archiveVosDailyMonth()" title="Move this month out of the active VOS Daily Traffic history">Archive</button>
+                    </div>
+                    <div class="stats-daily-archive-note">Admin only. Archived reports remain in this browser's local storage.</div>
+                  </div>
+                  <div class="settings-danger"><div style="margin-bottom:5px">Delete all locally saved VOS Daily Traffic reports.</div><button type="button" class="tbtn" style="color:#880000" onclick="clearVosDailyHistory()">Delete ALL VOS Daily Traffic History</button></div>
+                </div>
               </div>
             </div>
           </div>
@@ -6799,7 +6817,7 @@ function initPremiumDates() {
 }
 
 window.animateModuleIcon = button => {
-  const icon = button?.querySelector('svg');
+  const icon = button?.querySelector('svg') || button?.querySelector('.micon-glyph');
   if (!icon) return;
   // Restart the short pop even when the same navigation button is clicked rapidly.
   icon.classList.remove('micon-icon-click');
@@ -10713,6 +10731,8 @@ function applyModuleAccess(){
   disable('stats-daily-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
+  disable('vos-daily-archive-month', !canArchiveDailyTraffic());
+  disable('vos-daily-archive-btn', !canArchiveDailyTraffic());
   // Non-admins should never sit on the admin-only Users module. Viewers should
   // never sit on the SMS register tabs.
   if (!admin && document.body.classList.contains('users-mode')) {
@@ -18510,6 +18530,7 @@ function parseVosTrafficMatrix(matrix) {
   }));
 }
 const VOS_TRAFFIC_LOCAL_KEY = 'bm_vos_traffic_v2';
+const VOS_TRAFFIC_ARCHIVE_LOCAL_KEY = 'bm_vos_traffic_archive_v1';
 const VOS_DAILY_MAX_DATES = 14;
 const vosRowKey = row => `${String(row.mapping_gateway || '').toUpperCase()}\u0000${String(row.area_name || '').toUpperCase()}`;
 const vosSortedHistory = () => vosDailyHistory.slice().filter(day => day.session_date).sort((a,b) => a.session_date.localeCompare(b.session_date)).slice(-VOS_DAILY_MAX_DATES);
@@ -18527,6 +18548,19 @@ function saveVosTrafficLocal() {
     localStorage.setItem(VOS_TRAFFIC_LOCAL_KEY, JSON.stringify({version:3, selectedDate:vosSelectedDate, history:vosDailyHistory}));
     return true;
   } catch(e) { console.warn('VOS local save:', e); return false; }
+}
+function vosDailyDefaultArchiveMonth() {
+  const date = new Date(`${todayStr()}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - 2);
+  return date.toISOString().slice(0, 7);
+}
+function vosDailyMonthBounds(month) {
+  if (!/^\d{4}-\d{2}$/.test(String(month || ''))) return null;
+  const start = `${month}-01`;
+  const date = new Date(`${start}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 7) !== month) return null;
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return {start, end:date.toISOString().slice(0, 10)};
 }
 function loadVosTrafficLocal() {
   try {
@@ -18621,12 +18655,13 @@ function vosSetText(id,value){const element=document.getElementById(id);if(eleme
 function vosDashboardRow(row){return `<tr><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(row.total_call_time_seconds)}</td><td class="num">${stN2(row.previous_total_call_time_seconds)}</td><td class="num">${row.change_seconds>0?'+':''}${stN2(row.change_seconds)}</td></tr>`;}
 function renderVosDailyDashboard(){
   const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');
-  const empty='<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No matching routes.</td></tr>';
+  const needsComparison=!!comparison.currentDay&&!comparison.previousDay;
+  const empty=`<tr><td colspan="4" style="text-align:center;color:var(--text-3)">${needsComparison?'Add a second dated report to compare routes.':'No matching routes.'}</td></tr>`;
   const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:comparison.rows.filter(r=>r.status==='stopped').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
   ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);if(body)body.innerHTML=groups[name].map(vosDashboardRow).join('')||empty;vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}`);});
   const days=vosSortedHistory(), totals=days.map((day,index)=>{const total=day.rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0),previous=index?days[index-1].rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0):0;return{date:day.session_date,total,change:index?total-previous:0};}).reverse();
   const totalBody=document.getElementById('vos-dashboard-total'); if(totalBody)totalBody.innerHTML=totals.map(row=>`<tr><td>${stEsc(row.date)}</td><td class="num">${stN2(row.total)}</td><td class="num">${row.change>0?'+':''}${stN2(row.change)}</td><td style="text-align:center"><span class="st-daily-status ${row.change>0?'increase':row.change<0?'decrease':'unchanged'}">${row.change>0?'Increase':row.change<0?'Decrease':'—'}</span></td></tr>`).join('')||empty;
-  vosSetText('vos-dashboard-total-count',`${totals.length} date${totals.length===1?'':'s'}`);vosSetText('vos-daily-dashboard-meta',comparison.currentDay?`${comparison.currentDay.session_date} compared with ${comparison.previousDay?.session_date||'no previous saved date'} · ranked by Total Call Time seconds.`:'Add dated VOS reports to build the two-week dashboard.');
+  vosSetText('vos-dashboard-total-count',`${totals.length} date${totals.length===1?'':'s'}`);vosSetText('vos-daily-dashboard-meta',needsComparison?`${comparison.currentDay.session_date} is the only saved date. Its Total Call Time is shown below; add a second dated report to populate increase, decrease, and stopped comparisons.`:comparison.currentDay?`${comparison.currentDay.session_date} compared with ${comparison.previousDay.session_date} · ranked by Total Call Time seconds.`:'Add dated VOS reports to build the two-week dashboard.');
 }
 window.renderVosDailyDashboard=renderVosDailyDashboard;
 function renderVosDailyHistory(){
@@ -18639,6 +18674,26 @@ function renderVosDailyHistory(){
 window.renderVosDailyHistory=renderVosDailyHistory;
 function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');}
 window.renderVosDailyLogs=renderVosDailyLogs;
+window.archiveVosDailyMonth=()=>{
+  if(!canArchiveDailyTraffic()){toast('Only admins can archive VOS Daily Traffic months.','err');return;}
+  const month=document.getElementById('vos-daily-archive-month')?.value||'',bounds=vosDailyMonthBounds(month);
+  if(!bounds){toast('Select a valid month to archive.','err');return;}
+  if(month>=todayStr().slice(0,7)){toast('Choose a completed month before the current month.','err',6000);return;}
+  const archivedDays=vosDailyHistory.filter(day=>day.session_date>=bounds.start&&day.session_date<bounds.end);
+  if(!archivedDays.length){toast(`No active VOS Daily Traffic reports were found for ${month}.`,'ok',6000);return;}
+  if(!window.confirm(`Archive ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}?\n\nThe reports will remain in this browser and be excluded from active VOS views.`))return;
+  try{
+    const existing=JSON.parse(localStorage.getItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY)||'[]'),merged=new Map((Array.isArray(existing)?existing:[]).map(day=>[day.session_date,day]));
+    archivedDays.forEach(day=>merged.set(day.session_date,{...day,archived_month:month,archived_at:new Date().toISOString(),archived_by:operatorName||''}));
+    localStorage.setItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY,JSON.stringify([...merged.values()]));
+    vosDailyHistory=vosDailyHistory.filter(day=>day.session_date<bounds.start||day.session_date>=bounds.end);
+    vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';
+    saveVosTrafficLocal();
+    const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+    renderVosTraffic();
+    toast(`Archived ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}.`,'ok',7000);
+  }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
+};
 window.clearVosDailyHistory=()=>{if(!window.confirm('Delete all locally saved VOS Daily Traffic history?'))return;vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}renderVosTraffic();toast('VOS Daily Traffic history deleted.','ok');};
 window.importVosTrafficFile = async file => {
   if(!file)return;if(!window.XLSX){window.alert('The Excel/CSV reader is still loading. Please try again.');return;}
@@ -21298,6 +21353,8 @@ async function initStats() {
   if (dailyImportDate && !dailyImportDate.value) dailyImportDate.value = todayStr();
   const dailyArchiveMonth = document.getElementById('stats-daily-archive-month');
   if (dailyArchiveMonth && !dailyArchiveMonth.value) dailyArchiveMonth.value = statsDailyDefaultArchiveMonth();
+  const vosArchiveMonth = document.getElementById('vos-daily-archive-month');
+  if (vosArchiveMonth && !vosArchiveMonth.value) vosArchiveMonth.value = vosDailyDefaultArchiveMonth();
   dailyImportDate?.addEventListener('change', () => { statsDailyImportDateAutoTrack = false; });
   populateStatsSlots();
   // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
