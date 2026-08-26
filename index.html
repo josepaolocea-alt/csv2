@@ -1263,7 +1263,22 @@
     .traffic-source-panel { flex:1; min-height:0; flex-direction:column; }
     #traffic-source-voip { display:flex; }
     #traffic-source-vos { display:flex; padding:8px; gap:8px; overflow:hidden; }
-    .vos-primary-tabs { flex:0 0 auto; border:1px solid var(--border); border-radius:var(--r-md); }
+    .vos-primary-tabs {
+      display:inline-flex; align-self:flex-start; flex:0 0 auto;
+      gap:2px; margin-bottom:0; padding:4px;
+      background:var(--surface-2); border:1px solid var(--border); border-radius:11px;
+      box-shadow:inset 0 1px 2px rgba(22,34,58,.05);
+    }
+    .vos-primary-tabs .st-daily-tab {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-height:32px; padding:6px 14px; color:var(--text-2); background:transparent;
+      border:0; border-radius:8px; font-size:11.5px; font-weight:650;
+    }
+    .vos-primary-tabs .st-daily-tab:hover { color:var(--text); background:var(--surface); }
+    .vos-primary-tabs .st-daily-tab.active {
+      color:var(--on-accent); background:var(--accent); border:0;
+      box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 24%,transparent);
+    }
     .vos-primary-panel { flex:1; min-height:0; flex-direction:column; overflow:hidden; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); }
     .vos-coming-soon { margin:auto; width:min(560px,calc(100% - 32px)); padding:28px; border:1px dashed var(--border-strong); border-radius:var(--r-lg); background:var(--surface-2); text-align:center; }
     .vos-import-card { display:flex; align-items:center; gap:8px; padding:10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); }
@@ -2999,13 +3014,18 @@
     .sms-bal-main { min-width:0; min-height:0; overflow:hidden; }
     .sms-bal-view { display:none; height:100%; min-height:0; overflow:auto; }
     .sms-bal-view.active { display:flex; flex-direction:column; gap:6px; }
-    .sms-bal-stat-grid { display:grid; grid-template-columns:repeat(6,minmax(110px,1fr)); gap:6px; }
-    .sms-bal-card { padding:11px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); box-shadow:var(--shadow-sm); }
-    .sms-bal-card .value { font:700 22px/1 var(--mono); color:var(--text); }
-    .sms-bal-card .label { margin-top:5px; color:var(--text-2); font-size:10px; }
-    .sms-bal-card.warning { background:var(--yellow-soft); border-color:color-mix(in srgb,var(--yellow-deep) 38%,var(--border)); }
-    .sms-bal-card.critical, .sms-bal-card.blocked { background:var(--red-soft); border-color:color-mix(in srgb,var(--red) 42%,var(--border)); }
-    .sms-bal-card.overdraft { background:var(--orange-soft); border-color:color-mix(in srgb,var(--orange) 42%,var(--border)); }
+    .sms-bal-stat-grid { display:grid; grid-template-columns:repeat(7,minmax(100px,1fr)); gap:8px; }
+    .sms-bal-card {
+      padding:8px 6px; text-align:center; background:var(--surface-2);
+      border:1px solid var(--border); border-radius:var(--r-md); box-shadow:none;
+    }
+    .sms-bal-card .value { font:600 17px/1 var(--mono); color:var(--accent); }
+    .sms-bal-card .label { margin-top:3px; color:var(--text-2); font-size:9px; }
+    .sms-bal-card.is-active .value, .sms-bal-card.safe .value { color:var(--green); }
+    .sms-bal-card.warning .value { color:var(--yellow-deep); }
+    .sms-bal-card.critical .value, .sms-bal-card.blocked .value { color:var(--red); }
+    .sms-bal-card.overdraft .value { color:var(--orange); }
+    .sms-bal-stat-legend { margin:4px 0 0; }
     .sms-bal-table-wrap { flex:1; min-height:0; overflow:auto; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); box-shadow:var(--shadow-sm); }
     .sms-bal-table { width:100%; border-collapse:collapse; font-size:10.5px; }
     .sms-bal-table th { position:sticky; top:0; z-index:2; padding:6px 7px; text-align:left; white-space:nowrap; color:var(--text-2); background:var(--surface-2); border-bottom:1px solid var(--border-strong); }
@@ -3820,11 +3840,18 @@
                   <section class="sms-bal-view active" id="sms-bal-view-summary">
                     <div class="sms-bal-stat-grid">
                       <div class="sms-bal-card"><div class="value" id="sms-bal-stat-total">0</div><div class="label">Total clients</div></div>
-                      <div class="sms-bal-card warning"><div class="value" id="sms-bal-stat-warning">0</div><div class="label">Near / warning threshold</div></div>
-                      <div class="sms-bal-card critical"><div class="value" id="sms-bal-stat-critical">0</div><div class="label">Critical balance</div></div>
+                      <div class="sms-bal-card is-active"><div class="value" id="sms-bal-stat-active">0</div><div class="label">Active</div></div>
+                      <div class="sms-bal-card safe"><div class="value" id="sms-bal-stat-safe">0</div><div class="label">Safe</div></div>
+                      <div class="sms-bal-card critical"><div class="value" id="sms-bal-stat-critical">0</div><div class="label">Critical / blocked</div></div>
                       <div class="sms-bal-card overdraft"><div class="value" id="sms-bal-stat-overdraft">0</div><div class="label">Running on overdraft</div></div>
-                      <div class="sms-bal-card blocked"><div class="value" id="sms-bal-stat-blocked">0</div><div class="label">OD exhausted / blocked</div></div>
-                      <div class="sms-bal-card"><div class="value" id="sms-bal-stat-nothreshold">0</div><div class="label">No notification threshold</div></div>
+                      <div class="sms-bal-card warning"><div class="value" id="sms-bal-stat-warning">0</div><div class="label">Warning</div></div>
+                      <div class="sms-bal-card"><div class="value" id="sms-bal-stat-nothreshold">0</div><div class="label">No threshold</div></div>
+                    </div>
+                    <div class="legend sms-bal-stat-legend" aria-label="SMS balance summary legend">
+                      <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Safe — active client is above configured thresholds</div>
+                      <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>Warning — balance is near or inside the configured Credit Limit</div>
+                      <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Critical — Critical Balance reached or available overdraft exhausted</div>
+                      <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>Overdraft — client is using available overdraft</div>
                     </div>
                     <div class="sms-bal-panel">
                       <div class="collapsible-header sms-summary-header">
@@ -4955,10 +4982,10 @@
   </div>
 </div><!-- /#win -->
 
-<!-- SMS Confirm Dialog -->
+<!-- Shared premium app confirmation dialog -->
 <div id="sms-confirm-overlay">
   <div id="sms-confirm-box">
-    <div class="dlg-tb"><span id="sms-confirm-title">Confirm SMS Change</span></div>
+    <div class="dlg-tb"><span id="sms-confirm-title">Confirm Action</span></div>
     <div style="padding:12px;font-size:11px">
       <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
       <div style="display:flex;justify-content:flex-end;gap:6px">
@@ -14009,10 +14036,11 @@ function renderSmsBalanceSummary() {
   const counts = code => rows.filter(row => row._status.code === code).length;
   const set = (id, value) => { const el=document.getElementById(id); if(el) el.textContent=String(value); };
   set('sms-bal-stat-total', rows.length);
+  set('sms-bal-stat-active', rows.filter(row => smsBalanceMetaFor(row)?.is_active !== false).length);
+  set('sms-bal-stat-safe', counts('safe'));
   set('sms-bal-stat-warning', counts('near') + counts('warning'));
-  set('sms-bal-stat-critical', counts('critical'));
+  set('sms-bal-stat-critical', counts('critical') + counts('blocked'));
   set('sms-bal-stat-overdraft', counts('overdraft'));
-  set('sms-bal-stat-blocked', counts('blocked'));
   set('sms-bal-stat-nothreshold', rows.filter(row => row._status.credit === null && row._status.critical === null).length);
   set('sms-bal-alerts-count', warning.length ? `(${warning.length})` : '');
   renderSmsBalanceTimeline();
@@ -17233,6 +17261,13 @@ window.runSmsConfirm = () => {
 };
 
 function confirmSmsBalanceAction({title='Confirm SMS Balance Change',html='Confirm this action?',label='Confirm'}={}) {
+  return confirmPremiumAction({title,html,label});
+}
+
+// Shared promise wrapper for themed confirmations outside the SMS module.
+// The existing overlay is intentionally reused so every module gets the same
+// premium spacing, typography, theme tokens and button treatment.
+function confirmPremiumAction({title='Confirm Action',html='Confirm this action?',label='Confirm'}={}) {
   return new Promise(resolve => openSmsConfirm(html,label,()=>resolve(true),title,()=>resolve(false)));
 }
 
@@ -18674,14 +18709,19 @@ function renderVosDailyHistory(){
 window.renderVosDailyHistory=renderVosDailyHistory;
 function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');}
 window.renderVosDailyLogs=renderVosDailyLogs;
-window.archiveVosDailyMonth=()=>{
+window.archiveVosDailyMonth=async()=>{
   if(!canArchiveDailyTraffic()){toast('Only admins can archive VOS Daily Traffic months.','err');return;}
   const month=document.getElementById('vos-daily-archive-month')?.value||'',bounds=vosDailyMonthBounds(month);
   if(!bounds){toast('Select a valid month to archive.','err');return;}
   if(month>=todayStr().slice(0,7)){toast('Choose a completed month before the current month.','err',6000);return;}
   const archivedDays=vosDailyHistory.filter(day=>day.session_date>=bounds.start&&day.session_date<bounds.end);
   if(!archivedDays.length){toast(`No active VOS Daily Traffic reports were found for ${month}.`,'ok',6000);return;}
-  if(!window.confirm(`Archive ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}?\n\nThe reports will remain in this browser and be excluded from active VOS views.`))return;
+  const approved=await confirmPremiumAction({
+    title:'Archive VOS Daily Traffic',
+    html:`Archive <strong>${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'}</strong> from <strong>${stEsc(month)}</strong>?<br><br>The reports will remain in this browser and be excluded from active VOS views.`,
+    label:'Archive'
+  });
+  if(!approved)return;
   try{
     const existing=JSON.parse(localStorage.getItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY)||'[]'),merged=new Map((Array.isArray(existing)?existing:[]).map(day=>[day.session_date,day]));
     archivedDays.forEach(day=>merged.set(day.session_date,{...day,archived_month:month,archived_at:new Date().toISOString(),archived_by:operatorName||''}));
@@ -18694,17 +18734,30 @@ window.archiveVosDailyMonth=()=>{
     toast(`Archived ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}.`,'ok',7000);
   }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
 };
-window.clearVosDailyHistory=()=>{if(!window.confirm('Delete all locally saved VOS Daily Traffic history?'))return;vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}renderVosTraffic();toast('VOS Daily Traffic history deleted.','ok');};
+window.clearVosDailyHistory=async()=>{
+  const approved=await confirmPremiumAction({
+    title:'Delete VOS Daily Traffic History',
+    html:'Delete <strong>all locally saved VOS Daily Traffic reports</strong>?<br><br>This removes every active VOS report from this browser and cannot be undone.',
+    label:'Delete All'
+  });
+  if(!approved)return;
+  vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';
+  try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}
+  const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
+  renderVosTraffic();toast('VOS Daily Traffic history deleted.','ok');
+};
 window.importVosTrafficFile = async file => {
-  if(!file)return;if(!window.XLSX){window.alert('The Excel/CSV reader is still loading. Please try again.');return;}
-  const sessionDate=String(document.getElementById('vos-traffic-date')?.value||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)){window.alert('Select the VOS Traffic Date before uploading.');return;}
+  if(!file)return;
+  if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
+  const dateInput=document.getElementById('vos-traffic-date'),sessionDate=String(dateInput?.value||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)){setRequiredFieldState('vos-traffic-date',true);dateInput?.focus();toast('Select the VOS Traffic Date before uploading.','err',7000);return;}
   setLoading(true,'Reading VOS traffic file…');
   try{const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate;sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');
     vosTrafficRows=parsed;vosTrafficFilename=file.name||'VOS report';vosSelectedDate=sessionDate;vosDailyHistory=[...vosDailyHistory.filter(day=>day.session_date!==sessionDate),{session_date:sessionDate,filename:vosTrafficFilename,sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed}];vosDailyHistory=vosSortedHistory();vosTrafficSortCol='mapping_gateway';vosTrafficSortDir=1;
     const search=document.getElementById('vos-traffic-search');if(search)search.value='';const status=document.getElementById('vos-file-status');if(status){status.dataset.current='1';status.textContent=`${vosTrafficFilename} · ${sheetName} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}
     const persisted=saveVosTrafficLocal();renderVosTraffic();toast(`VOS Daily Traffic saved for ${sessionDate}: ${parsed.length} grouped row(s)${persisted?'':' · browser storage is full'}`,persisted?'ok':'err',8000);
-  }catch(e){window.alert(`VOS file could not be processed.\n\n${e.message}`);toast('VOS import failed: '+e.message,'err',8000);}finally{setLoading(false);}
+  }catch(e){toast('VOS file could not be processed: '+e.message,'err',9000);}finally{setLoading(false);}
 };
 function vosExportDataset(){
   if(vosDailyTab==='history'){const days=vosSortedHistory(),dates=days.map(day=>day.session_date).reverse(),maps=new Map(days.map(day=>[day.session_date,new Map(day.rows.map(row=>[vosRowKey(row),row]))])),identities=new Map();days.forEach(day=>day.rows.forEach(row=>identities.set(vosRowKey(row),row)));return{sheet:'Last 2 Weeks',headers:['Mapping Gateway','Area Name',...dates],rows:[...identities.entries()].map(([key,row])=>[row.mapping_gateway,row.area_name,...dates.map(date=>maps.get(date)?.get(key)?.total_call_time_seconds??'')])};}
