@@ -4295,8 +4295,8 @@
       --row-hover: #d4e6e5;
       --neu-hi: rgba(255, 255, 255, .86);
       --neu-lo: rgba(96, 119, 124, .26);
-      --neu-raised: 9px 9px 20px var(--neu-lo), -9px -9px 20px var(--neu-hi);
-      --neu-raised-sm: 4px 4px 9px var(--neu-lo), -4px -4px 9px var(--neu-hi);
+      --neu-raised: 7px 9px 24px rgba(96, 119, 124, .18), -7px -7px 20px rgba(255, 255, 255, .72);
+      --neu-raised-sm: 3px 4px 10px rgba(96, 119, 124, .18), -3px -3px 9px rgba(255, 255, 255, .68);
       --neu-floating: 16px 16px 34px rgba(78, 99, 104, .28), -10px -10px 28px rgba(255, 255, 255, .82);
       --neu-inset: inset 4px 4px 9px rgba(103, 126, 131, .22), inset -4px -4px 9px rgba(255, 255, 255, .78);
       --neu-inset-sm: inset 2px 2px 5px rgba(103, 126, 131, .22), inset -2px -2px 5px rgba(255, 255, 255, .72);
@@ -4324,8 +4324,8 @@
       --row-hover: #1b3b40;
       --neu-hi: rgba(73, 111, 117, .18);
       --neu-lo: rgba(2, 10, 12, .68);
-      --neu-raised: 9px 9px 20px var(--neu-lo), -8px -8px 18px var(--neu-hi);
-      --neu-raised-sm: 4px 4px 9px var(--neu-lo), -4px -4px 9px var(--neu-hi);
+      --neu-raised: 7px 10px 26px rgba(2, 10, 12, .38), -6px -6px 18px rgba(73, 111, 117, .10);
+      --neu-raised-sm: 3px 4px 10px rgba(2, 10, 12, .40), -3px -3px 9px rgba(73, 111, 117, .10);
       --neu-floating: 18px 18px 40px rgba(0, 7, 9, .72), -10px -10px 28px rgba(67, 107, 113, .15);
       --neu-inset: inset 4px 4px 10px rgba(0, 8, 10, .7), inset -4px -4px 9px rgba(69, 108, 114, .14);
       --neu-inset-sm: inset 2px 2px 5px rgba(0, 8, 10, .62), inset -2px -2px 5px rgba(69, 108, 114, .13);
@@ -4496,7 +4496,7 @@
       gap: 10px !important;
     }
     #content { min-width: 0; background: transparent; }
-    .view { gap: var(--ui-section-gap); padding: 8px 2px 20px 0; }
+    .view { gap: var(--ui-section-gap); padding: 12px 16px 24px 10px; }
     .dash-shell { max-width: 1520px; }
 
     /* Raised containers replace outlines; internal controls sit in inset wells. */
@@ -4879,6 +4879,149 @@
       box-shadow: var(--neu-raised-sm);
     }
 
+    /* Alerts mirrors the clean All Clients toolbar instead of nesting a
+       segmented well inside another segmented well. */
+    #view-alerts > .groupbox { gap: 14px; }
+    #view-alerts > .groupbox > .groupbox-title { margin-bottom: 0; }
+    #alert-tabs {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      background: var(--bg);
+      border: 0;
+      border-radius: 14px;
+      box-shadow: var(--neu-inset-sm);
+    }
+    #alert-tabs .alert-tab-list {
+      gap: 8px;
+      padding: 0;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    #alert-tabs .tab {
+      min-height: var(--ui-control-h);
+      padding: 0 13px;
+      color: var(--text-2);
+      background: var(--bg);
+      border: 0;
+      border-radius: var(--ui-control-radius);
+      box-shadow: var(--neu-raised-sm);
+    }
+    #alert-tabs .tab:hover {
+      color: var(--text);
+      background: var(--bg);
+      border: 0;
+      box-shadow: 5px 6px 14px rgba(2, 10, 12, .24), -3px -3px 9px var(--neu-hi);
+    }
+    #alert-tabs .tab.active {
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border: 0;
+      box-shadow: var(--neu-inset-sm);
+    }
+    #alert-tabs .alert-tab-actions { align-self: center; }
+    #view-alerts .tab-content {
+      padding: 4px 0 0 !important;
+      gap: 12px;
+    }
+    #view-alerts #alert-tbl-wrap,
+    #view-alerts #usage-hist-wrap { box-shadow: var(--neu-inset-sm); }
+
+    /* Date-aware VOS headings remain readable in the two-column dashboard. */
+    #vos-daily-panel-dashboard .st-daily-rank-card th:first-child,
+    #vos-daily-panel-dashboard .st-daily-rank-card td:first-child { width: 40%; }
+    #vos-daily-panel-dashboard .st-daily-rank-card th {
+      padding-inline: 5px;
+      font-size: 8.75px;
+      white-space: nowrap;
+    }
+
+    /* App-native dialogs: one sculpted material, one clear title marker and
+       no browser-native alert boxes. */
+    body > [id$="-overlay"]:not(#login-overlay) {
+      background: color-mix(in srgb, #061215 70%, transparent);
+      backdrop-filter: blur(10px) saturate(.85);
+      -webkit-backdrop-filter: blur(10px) saturate(.85);
+    }
+    body > [id$="-overlay"]:not(#login-overlay) > [id$="-box"] {
+      width: min(460px, calc(100vw - 32px));
+      max-width: min(540px, calc(100vw - 32px));
+      color: var(--text);
+      background: var(--bg);
+      border: 0;
+      border-radius: 22px;
+      box-shadow: 22px 26px 70px rgba(0, 7, 9, .54), -8px -8px 28px rgba(73, 111, 117, .12);
+      overflow: hidden;
+    }
+    body > [id$="-overlay"] .dlg-tb {
+      min-height: 52px;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 14px 18px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-tb::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      flex: 0 0 4px;
+      background: var(--accent);
+      border-radius: 4px;
+      box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    body > [id$="-overlay"] .dlg-tb span {
+      font-size: 13px;
+      font-weight: 680;
+      letter-spacing: -.01em;
+    }
+    body > [id$="-overlay"] .dlg-body {
+      align-items: flex-start;
+      gap: 14px;
+      padding: 4px 18px 20px;
+    }
+    body > [id$="-overlay"] .dlg-ico {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      color: var(--accent-strong);
+      background: var(--accent-soft);
+      border-radius: 12px;
+      box-shadow: var(--neu-inset-sm);
+      font-size: 17px;
+      font-weight: 700;
+    }
+    body > [id$="-overlay"] .dlg-text {
+      padding-top: 3px;
+      color: var(--text-2);
+      font-size: 12px;
+      line-height: 1.58;
+    }
+    body > [id$="-overlay"] [style*="justify-content:flex-end"] {
+      gap: 10px !important;
+      padding: 0 18px 18px !important;
+    }
+    #sms-confirm-box > div:nth-child(2) { padding: 2px 18px 18px !important; }
+    #sms-confirm-text {
+      margin-bottom: 18px !important;
+      color: var(--text-2);
+      font-size: 12px;
+      line-height: 1.58 !important;
+    }
+    #sms-confirm-box.dialog-notice #sms-confirm-cancel { display: none; }
+    #sms-confirm-box.dialog-notice #sms-confirm-ok { min-width: 118px; }
+    #sms-credential-otp-box .dlg-tb,
+    #stats-view-guide-box .dlg-tb { justify-content: flex-start; }
+    #sms-credential-otp-box .sms-credential-otp-close,
+    #stats-view-guide-box .stats-view-guide-close { margin-left: auto; }
+
     @media (max-width: 1120px) {
       #app-body { gap: 14px; padding-inline: 14px; }
       #sidebar { width: 200px; }
@@ -5220,7 +5363,7 @@
       <!-- ═══ ALERTS ════════════════════════════════ -->
       <div class="view" id="view-alerts">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Alert Panel</div>
+          <div class="groupbox-title">VOIP Alerts</div>
           <div class="tab-bar" id="alert-tabs">
             <div class="alert-tab-list" role="group" aria-label="VOIP alert filters">
               <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
@@ -6845,9 +6988,9 @@
               <div class="st-daily-panel" id="vos-daily-panel-dashboard" role="tabpanel" aria-labelledby="vos-daily-tab-dashboard" style="display:none">
                 <div class="st-daily-dashboard-meta" id="vos-daily-dashboard-meta">Add dated VOS reports to build the two-week dashboard.</div>
                 <div class="st-daily-dashboard-grid">
-                  <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
-                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
-                  <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num">Latest (min)</th><th class="num">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
+                  <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
+                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
+                  <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
                   <section class="st-daily-rank-card total"><div class="st-daily-rank-title"><span>Total Call Time</span><span class="st-daily-rank-count" id="vos-dashboard-total-count">0 dates</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Date</th><th class="num">Total minutes</th><th class="num">Change (min)</th><th>Trend</th></tr></thead><tbody id="vos-dashboard-total"></tbody></table></div></section>
                 </div>
               </div>
@@ -6905,7 +7048,7 @@
     <div style="padding:12px;font-size:11px">
       <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
       <div style="display:flex;justify-content:flex-end;gap:6px">
-        <button class="tbtn" onclick="closeSmsConfirm()">Cancel</button>
+        <button class="tbtn" id="sms-confirm-cancel" onclick="closeSmsConfirm()">Cancel</button>
         <button class="tbtn primary" id="sms-confirm-ok" onclick="runSmsConfirm()">Delete</button>
       </div>
     </div>
@@ -9025,10 +9168,12 @@ function requirePastedData(id, label) {
 
 function showPasteValidationAlert(message, id) {
   if (id) setRequiredFieldState(id, true);
-  window.alert(message);
   const element = id ? document.getElementById(id) : null;
-  element?.scrollIntoView?.({ behavior:'smooth', block:'center' });
-  element?.focus?.();
+  const focusField = () => {
+    element?.scrollIntoView?.({ behavior:'smooth', block:'center' });
+    element?.focus?.();
+  };
+  openSmsConfirm(esc(message), 'Review data', focusField, 'Pasted data needs attention', focusField, 'notice');
   return false;
 }
 
@@ -11976,7 +12121,14 @@ window.processSnapshot = async() => {
       }catch(e){ console.warn('tritel overwrite check:',e); }
       finally{ setLoading(false); }
     }
-    if(tEx && !confirm(`The ${fmt12(tSlot)} slot already has Tritel data today (${tEx.data?.length||0} row(s)). Overwrite it?`)) return;
+    if(tEx){
+      const approved=await confirmPremiumAction({
+        title:'Replace Tritel Snapshot',
+        html:`The <strong>${esc(fmt12(tSlot))}</strong> slot already has <strong>${tEx.data?.length||0}</strong> Tritel row(s) today.<br><br>Replace that saved snapshot with the pasted data?`,
+        label:'Replace'
+      });
+      if(!approved)return;
+    }
     await maybeConfirmGapThenProcess(rows, tSlot, 'tritel');
     return;
   }
@@ -19200,9 +19352,11 @@ window.cancelSmsEdit = () => {
 
 // Open the shared themed SMS confirmation dialog. SMS Balance settings use the
 // same surface so destructive actions never fall back to a browser-native box.
-function openSmsConfirm(html, okLabel, callback, title='Confirm SMS Change', onCancel=null) {
+function openSmsConfirm(html, okLabel, callback, title='Confirm SMS Change', onCancel=null, mode='confirm') {
   smsConfirmCallback = callback;
   smsConfirmCancelCallback = onCancel;
+  const box = document.getElementById('sms-confirm-box');
+  box?.classList.toggle('dialog-notice', mode === 'notice');
   const titleEl = document.getElementById('sms-confirm-title');
   if (titleEl) titleEl.textContent = title;
   const text = document.getElementById('sms-confirm-text');
@@ -19217,7 +19371,7 @@ window.closeSmsConfirm = () => {
   smsConfirmCallback = null;
   smsConfirmCancelCallback = null;
   document.getElementById('sms-confirm-overlay')?.classList.remove('open');
-  document.getElementById('sms-confirm-box')?.classList.remove('sms-bal-range-confirm');
+  document.getElementById('sms-confirm-box')?.classList.remove('sms-bal-range-confirm','dialog-notice');
   if (typeof onCancel === 'function') onCancel();
 };
 
@@ -20663,9 +20817,19 @@ window.switchVosDailyTab = tab => {
 };
 function vosSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
 function vosMinutes(seconds){return vosNumber(seconds)/60;}
+function vosDashboardDateHeading(date,fallback) {
+  if(!date)return fallback;
+  const parsed=new Date(`${date}T00:00:00Z`);
+  const label=Number.isFinite(parsed.getTime())
+    ? parsed.toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'})
+    : date;
+  return `${label} (min)`;
+}
 function vosDashboardRow(row){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds);return `<tr><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num">${change>0?'+':''}${stN2(change)}</td></tr>`;}
 function renderVosDailyDashboard(){
   const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');
+  document.querySelectorAll('.vos-current-date-heading').forEach(heading=>{heading.textContent=vosDashboardDateHeading(comparison.currentDay?.session_date,'Last posted (min)');heading.title=comparison.currentDay?`Last posted date: ${comparison.currentDay.session_date}`:'Last posted date';});
+  document.querySelectorAll('.vos-previous-date-heading').forEach(heading=>{heading.textContent=vosDashboardDateHeading(comparison.previousDay?.session_date,'Previous (min)');heading.title=comparison.previousDay?`Previous saved date: ${comparison.previousDay.session_date}`:'Previous saved date';});
   const needsComparison=!!comparison.currentDay&&!comparison.previousDay;
   const empty=`<tr><td colspan="4" style="text-align:center;color:var(--text-3)">${needsComparison?'Add a second dated report to compare routes.':'No matching routes.'}</td></tr>`;
   const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:comparison.rows.filter(r=>r.status==='stopped').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
@@ -20741,7 +20905,7 @@ window.importVosTrafficFile = async file => {
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');
     vosTrafficRows=parsed;vosTrafficFilename=file.name||'VOS report';vosSelectedDate=sessionDate;vosDailyHistory=[...vosDailyHistory.filter(day=>day.session_date!==sessionDate),{session_date:sessionDate,filename:vosTrafficFilename,sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed}];vosDailyHistory=vosSortedHistory();vosTrafficSortCol='mapping_gateway';vosTrafficSortDir=1;
     const search=document.getElementById('vos-traffic-search');if(search)search.value='';const status=document.getElementById('vos-file-status');if(status){status.dataset.current='1';status.textContent=`${vosTrafficFilename} · ${sheetName} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}
-    const persisted=saveVosTrafficLocal();renderVosTraffic();toast(`VOS Daily Traffic saved for ${sessionDate}: ${parsed.length} grouped row(s)${persisted?'':' · browser storage is full'}`,persisted?'ok':'err',8000);
+    const persisted=saveVosTrafficLocal();renderVosTraffic();renderVosDailyDashboard();if(vosDailyTab==='history')renderVosDailyHistory();if(vosDailyTab==='logs')renderVosDailyLogs();toast(`VOS Daily Traffic saved for ${sessionDate}: ${parsed.length} grouped row(s)${persisted?'':' · browser storage is full'}`,persisted?'ok':'err',8000);
   }catch(e){toast('VOS file could not be processed: '+e.message,'err',9000);}finally{setLoading(false);}
 };
 function vosExportDataset(tab=vosDailyTab){
@@ -21416,7 +21580,12 @@ window.archiveStatsDailyMonth = async () => {
   const bounds = statsDailyMonthBounds(month);
   if (!bounds) { toast('Select a valid month to archive.', 'err'); return; }
   if (month >= todayStr().slice(0, 7)) { toast('Choose a completed month before the current month.', 'err', 6000); return; }
-  if (!confirm(`Archive all Daily Traffic reports from ${month}?\n\nThe reports will be moved to the Firebase archive and excluded from normal Daily Traffic reads.`)) return;
+  const approved = await confirmPremiumAction({
+    title:'Archive Daily Traffic Month',
+    html:`Archive all Daily Traffic reports from <strong>${esc(month)}</strong>?<br><br>The reports will move to the Firebase archive and no longer appear in normal Daily Traffic reads.`,
+    label:'Archive'
+  });
+  if (!approved) return;
   setLoading(true, `Archiving Daily Traffic for ${month}…`);
   try {
     let archivedCount = 0;
@@ -21596,14 +21765,18 @@ function statsDailyTwoWeekSnapshot() {
       ? priorObserved.reduce((sum, point) => sum + point.raw_dur, 0) / priorObserved.length
       : null;
     const latestRawDur = latestPoint?.present ? latestPoint.raw_dur : 0;
+    const yesterdayRawDur = yesterdayPoint?.has_report
+      ? (yesterdayPoint.present ? yesterdayPoint.raw_dur : 0)
+      : null;
     let status = 'new';
-    if (baseline !== null) {
-      if (baseline > 0 && latestRawDur === 0) status = 'stopped';
-      else if (latestRawDur < baseline) status = 'decrease';
-      else if (latestRawDur > baseline) status = 'increase';
+    if (yesterdayRawDur !== null) {
+      if (yesterdayRawDur > 0 && latestRawDur === 0) status = 'stopped';
+      else if (!yesterdayPoint.present && latestPoint?.present) status = 'new';
+      else if (latestRawDur < yesterdayRawDur) status = 'decrease';
+      else if (latestRawDur > yesterdayRawDur) status = 'increase';
       else status = 'unchanged';
     }
-    const change = baseline === null ? null : latestRawDur - baseline;
+    const change = yesterdayRawDur === null ? null : latestRawDur - yesterdayRawDur;
     const identity = latestPoint?.client || [...timeline].reverse().find(point => point.client)?.client || {};
     const row = {
       key,
@@ -21612,10 +21785,10 @@ function statsDailyTwoWeekSnapshot() {
       destination:'',
       timeline,
       latest_raw_dur:latestRawDur,
-      yesterday_raw_dur:yesterdayPoint?.has_report ? (yesterdayPoint.present ? yesterdayPoint.raw_dur : 0) : null,
+      yesterday_raw_dur:yesterdayRawDur,
       baseline_raw_dur:baseline,
       change,
-      change_pct:baseline > 0 ? change / baseline * 100 : null,
+      change_pct:yesterdayRawDur > 0 ? change / yesterdayRawDur * 100 : null,
       status,
       baseline_days:priorObserved.length,
     };
@@ -21683,7 +21856,7 @@ function statsDailyTwoWeekRouteSnapshot() {
 function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
   return {
     decrease:snapshot.rows.filter(row => row.status === 'decrease').sort((a,b) => a.change - b.change),
-    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.baseline_raw_dur - a.baseline_raw_dur),
+    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.yesterday_raw_dur - a.yesterday_raw_dur),
     increase:snapshot.rows.filter(row => row.status === 'increase').sort((a,b) => b.change - a.change),
   };
 }
@@ -21719,7 +21892,7 @@ function renderStatsDailyDashboard() {
   const yesterdayDate = snapshot.dates[snapshot.dates.length - 2] || '';
   const meta = document.getElementById('st-daily-dashboard-meta');
   if (meta) meta.textContent = snapshot.latestDay
-    ? `Latest is the newest saved report: ${snapshot.latestDay.session_date}. Yesterday is ${yesterdayDate}${snapshot.dayByDate.has(yesterdayDate) ? '' : ' (no report saved)'}. The 2-week average uses Raw Duration from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window). Rankings use Raw Duration gained or lost.`
+    ? `Latest is the newest saved report: ${snapshot.latestDay.session_date}. Yesterday is ${yesterdayDate}${snapshot.dayByDate.has(yesterdayDate) ? '' : ' (no report saved)'}. Rankings and Change compare Latest Raw Duration directly with Yesterday Raw Duration. The 2-week average remains context from available reports in the previous 13 calendar days (${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'} in this window).`
     : 'Add daily reports to build the two-week dashboard.';
 
   document.querySelectorAll('.st-daily-latest-heading').forEach(heading => {
@@ -22400,7 +22573,14 @@ window.processStatsDailyTraffic = async () => {
     const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
     return saved && statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
   }).map(day => day.session_date);
-  if (changedDates.length && !confirm(`Daily traffic already exists with different values for ${changedDates.join(', ')}. Replace ${changedDates.length === 1 ? 'that date' : 'those dates'}?`)) return;
+  if (changedDates.length) {
+    const approved = await confirmPremiumAction({
+      title:'Replace Daily Traffic Report',
+      html:`Daily Traffic already contains different values for <strong>${changedDates.map(esc).join(', ')}</strong>.<br><br>Replace ${changedDates.length === 1 ? 'that saved date' : 'those saved dates'} with the pasted data?`,
+      label:'Replace'
+    });
+    if (!approved) return;
+  }
   const daysToSave = parsedDays.filter(day => {
     const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
     return !saved || statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
@@ -22459,7 +22639,13 @@ window.undoLastStatsDailyTraffic = async () => {
   };
   const ordered = statsDailyHistory.slice().sort((a,b) => postedTime(a) - postedTime(b) || a.session_date.localeCompare(b.session_date));
   const last = ordered[ordered.length - 1];
-  if (!last || !confirm(`Remove the most recently saved Daily Traffic report (${last.session_date}, ${last.clients.length} route row(s))?`)) return;
+  if (!last) return;
+  const approved = await confirmPremiumAction({
+    title:'Remove Latest Daily Traffic Report',
+    html:`Remove the most recently posted report from <strong>${esc(last.session_date)}</strong> with <strong>${last.clients.length}</strong> route row(s)?`,
+    label:'Remove'
+  });
+  if (!approved) return;
   setLoading(true, 'Removing daily traffic report…');
   try {
     if (fbOk) await deleteDoc(doc(db, 'stats_daily_traffic', last.id || last.session_date));
@@ -23339,7 +23525,14 @@ window.processStatsSnapshot = async () => {
   const pastedTotal = rows.total || null;
   const slot = document.getElementById('stats-slot-sel').value;
   const existing = statsTodaySnaps.find(s => s.time_slot === slot);
-  if (existing && !confirm(`The ${fmt12(slot)} slot already has a stats snapshot today (${existing.data?.length||0} rows). Overwrite it?`)) return;
+  if (existing) {
+    const approved = await confirmPremiumAction({
+      title:'Replace Stats Snapshot',
+      html:`The <strong>${esc(fmt12(slot))}</strong> slot already has <strong>${existing.data?.length||0}</strong> Stats row(s) today.<br><br>Replace that saved snapshot with the pasted data?`,
+      label:'Replace'
+    });
+    if (!approved) return;
+  }
   const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows, total:pastedTotal, operator:operatorName||'', user_email:currentUserEmail||'' };
   statsTodaySnaps = [...statsTodaySnaps.filter(s => s.time_slot !== slot), snap];
   statsViewingSlot = null;
@@ -23367,7 +23560,12 @@ window.undoLastStatsSnapshot = async () => {
   const snaps = statsSortedSnaps();
   if (!snaps.length) { toast('No stats snapshots to undo.', 'err'); return; }
   const last = snaps[snaps.length-1];
-  if (!confirm(`Remove the ${fmt12(last.time_slot)} stats snapshot?`)) return;
+  const approved = await confirmPremiumAction({
+    title:'Remove Stats Snapshot',
+    html:`Remove the <strong>${esc(fmt12(last.time_slot))}</strong> Stats snapshot?`,
+    label:'Remove'
+  });
+  if (!approved) return;
   setLoading(true, 'Removing stats snapshot…');
   try {
     if (fbOk) await deleteDoc(doc(db, 'stats_snapshots', last.id || snapshotDocId(last.session_date, last.time_slot)));
@@ -23529,7 +23727,12 @@ window.clearStatsPreviousDaySnapshots = async () => {
     return;
   }
   const cachedCount = statsPreviousDaySnaps.length;
-  if (!confirm(`Delete all Stats snapshots from ${targetDate}?\n\nThis removes the day currently used by Traffic vs Prev Day (${cachedCount} cached snapshot${cachedCount === 1 ? '' : 's'}) and cannot be undone.`)) return;
+  const approved = await confirmPremiumAction({
+    title:'Delete Previous-day Stats',
+    html:`Delete all Stats snapshots from <strong>${esc(targetDate)}</strong>?<br><br>This removes the day currently used by Traffic vs Prev Day (${cachedCount} cached snapshot${cachedCount === 1 ? '' : 's'}) and cannot be undone.`,
+    label:'Delete'
+  });
+  if (!approved) return;
   setLoading(true, `Clearing previous-day Stats snapshots for ${targetDate}…`);
   try {
     let deletedCount = 0;
