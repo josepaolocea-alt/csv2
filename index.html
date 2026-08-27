@@ -1395,8 +1395,6 @@
     .st-daily-card.increase .value { color: var(--green); }
     .st-daily-card.decrease .value, .st-daily-card.stopped .value { color: var(--red); }
     .st-daily-card.new .value { color: var(--accent); }
-    .st-daily-alert { display: none; margin: 0 8px 8px; padding: 9px 11px; border: 1px solid var(--red); border-radius: var(--r-md); background: var(--red-soft); color: var(--red); font-size: 11px; line-height: 1.4; }
-    .st-daily-alert.visible { display: block; }
     .st-daily-status { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
     .st-daily-status.increase { background: var(--green-soft); color: var(--green); }
     .st-daily-status.decrease, .st-daily-status.stopped { background: var(--red-soft); color: var(--red); }
@@ -1545,6 +1543,12 @@
     #vos-daily-panel-dashboard .st-daily-rank-card td:not(:first-child) { text-align:right; }
     #vos-daily-panel-dashboard .st-daily-rank-card.total th:last-child,
     #vos-daily-panel-dashboard .st-daily-rank-card.total td:last-child { text-align:center; }
+    #vos-daily-panel-dashboard .st-daily-rank-scroll {
+      padding-bottom: 10px;
+      scroll-padding-bottom: 10px;
+      scrollbar-gutter: stable;
+    }
+    #vos-daily-panel-dashboard .st-daily-rank-card tbody tr:last-child td { padding-bottom: 11px; }
     .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
     .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 230px; }
     .st-daily-rank-card th {
@@ -6724,7 +6728,6 @@
             <div class="st-daily-card stopped"><div class="value" id="st-daily-stopped">0</div><div class="label">Stopped</div></div>
             <div class="st-daily-card new"><div class="value" id="st-daily-new">0</div><div class="label">New traffic</div></div>
           </div>
-          <div id="st-daily-alert" class="st-daily-alert"></div>
           <div class="st-daily-dashboard-meta" id="st-daily-comparison">Paste a daily report to begin tracking traffic changes.</div>
           <div class="vos-table-shell">
             <div class="lv-wrap"><table id="st-daily-table">
@@ -6878,19 +6881,19 @@
                     <div class="stat-box s-green"><div class="sv" id="vos-stats-summary-good">—</div><div class="sl">Good</div></div>
                   </div>
                   <div class="stat-row">
-                    <div class="stat-box"><div class="sv" id="vos-stats-summary-attempts">—</div><div class="sl">Total Attempts</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-attempts">—</div><div class="sl">Total Calls</div></div>
                     <div class="stat-box"><div class="sv" id="vos-stats-summary-answered">—</div><div class="sl">Total Answered</div></div>
                     <div class="stat-box"><div class="sv" id="vos-stats-summary-asr">—</div><div class="sl">Overall ASR %</div></div>
-                    <div class="stat-box"><div class="sv" id="vos-stats-summary-acd">—</div><div class="sl">Overall ACD (sec)</div></div>
+                    <div class="stat-box"><div class="sv" id="vos-stats-summary-acd">—</div><div class="sl">Overall ACD (min)</div></div>
                     <div class="stat-box"><div class="sv" id="vos-stats-summary-duration">—</div><div class="sl">Total Call Time (sec)</div></div>
                     <div class="stat-box s-high"><div class="sv" id="vos-stats-summary-stopped">—</div><div class="sl">Stopped routes</div></div>
                   </div>
                   <div class="groupbox-title">1-hour Snapshot Timeline — <span id="vos-stats-summary-slot">no snapshot</span></div>
                   <div class="vos-stats-timeline" id="vos-stats-timeline" aria-label="VOS one-hour snapshot timeline"></div>
                   <div class="legend" style="margin-top:8px">
-                    <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt;10 with &gt;30 attempts</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — ASR &lt;10 with ≤30 attempts</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 Total Calls</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt;10 with &gt;30 Total Calls</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — ASR &lt;10 with ≤30 Total Calls</div>
                     <div class="leg-item"><div class="leg-dot" style="background:#888800"></div>Ok — ASR 10–20</div>
                     <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
                   </div>
@@ -6903,22 +6906,22 @@
                     <input id="vos-stats-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosStats()">
                     <span class="daily-filter-count" id="vos-stats-row-count">0 grouped rows</span>
                   </div>
-                  <div class="vos-stats-meta">ASR = Answered ÷ Attempts × 100. ACD = Total Call Time in seconds ÷ Answered.</div>
-                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-all"></tbody></table></div></div>
+                  <div class="vos-stats-meta">ASR = Answered ÷ Total Calls × 100. ACD = (Total Call Time ÷ 60) ÷ Answered.</div>
+                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-all"></tbody></table></div></div>
                 </div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-hourly" role="tabpanel" aria-labelledby="vos-stats-tab-hourly">
                   <div class="fbar"><input id="vos-stats-hourly-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosStatsHourly()" style="min-width:280px"><span class="sms-muted" id="vos-stats-hourly-count" style="margin-left:auto"></span></div>
-                  <div class="vos-stats-meta">One row per Client + Destination from saved hourly data. Each hour shows Attempts, ASR, ACD, and Raw Duration (Total Call Time in seconds); Day recalculates metrics from combined totals.</div>
+                  <div class="vos-stats-meta">One row per Client + Destination from saved hourly data. Each hour shows Total Calls, ASR, ACD in minutes, and Raw Duration (Total Call Time in seconds); Day recalculates metrics from combined totals.</div>
                   <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-hourly-table" id="vos-stats-hourly-table"><thead id="vos-stats-hourly-head"></thead><tbody id="vos-stats-hourly-body"></tbody></table></div></div>
                 </div>
 
-                <div class="vos-stats-panel" id="vos-stats-panel-critical" role="tabpanel" aria-labelledby="vos-stats-tab-critical"><div class="vos-stats-meta">0 ASR and 0 ACD with more than 500 attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-critical"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-low" role="tabpanel" aria-labelledby="vos-stats-tab-low"><div class="vos-stats-meta">ASR below 10 with more than 30 attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-low"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer attempts.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Attempts</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (sec)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Attempts vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Attempts</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (sec)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-critical" role="tabpanel" aria-labelledby="vos-stats-tab-critical"><div class="vos-stats-meta">0 ASR and 0 ACD with more than 500 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-critical"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-low" role="tabpanel" aria-labelledby="vos-stats-tab-low"><div class="vos-stats-meta">ASR below 10 with more than 30 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-low"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>Classification</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
                 <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin and semi-admin only.</div><button type="button" class="tbtn" style="color:#880000" onclick="clearVosStatsHistory()">Delete ALL VOS Stats History</button></div></div></div>
@@ -6971,7 +6974,7 @@
                       <th class="num" onclick="sortVosTraffic('total_calls')">Total Calls</th><th class="num" onclick="sortVosTraffic('fail')">Fail</th><th class="num" onclick="sortVosTraffic('success')">Success</th><th class="num" onclick="sortVosTraffic('answered')">Answered</th>
                       <th class="num" onclick="sortVosTraffic('avg_call_duration_sum_seconds')">Avg Call Duration Sum (sec)</th><th class="num" onclick="sortVosTraffic('total_call_time_seconds')">Total Call Time (sec)</th>
                       <th class="num" onclick="sortVosTraffic('previous_total_call_time_seconds')">Previous Time (sec)</th><th class="num" onclick="sortVosTraffic('change_seconds')">Change (sec)</th><th class="num" onclick="sortVosTraffic('change_pct')">Change %</th><th onclick="sortVosTraffic('status')">Status</th>
-                      <th class="num" onclick="sortVosTraffic('asr')" title="Answered / Total Calls × 100">ASR %</th><th class="num" onclick="sortVosTraffic('acd')" title="Total Call Time in seconds / Answered">ACD (sec)</th>
+                      <th class="num" onclick="sortVosTraffic('asr')" title="Answered / Total Calls × 100">ASR %</th><th class="num" onclick="sortVosTraffic('acd')" title="(Total Call Time in seconds / 60) / Answered">ACD (min)</th>
                     </tr></thead>
                     <tbody id="vos-traffic-tbody"><tr><td colspan="16" style="padding:18px;text-align:center;color:var(--text-3)">Upload a VOS report to build the daily gateway + destination view.</td></tr></tbody>
                   </table></div>
@@ -6989,7 +6992,7 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-history" role="tabpanel" aria-labelledby="vos-daily-tab-history" style="display:none">
-                <div class="fbar"><input id="vos-history-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="renderVosDailyHistory()" style="min-width:280px"><span id="vos-history-count" class="sms-muted" style="margin-left:auto"></span></div>
+                <div class="fbar"><input id="vos-history-search" class="win-inp" type="search" placeholder="Search mapping gateway or area name…" oninput="clearVosDailyHistoryRouteFilter();renderVosDailyHistory()" style="min-width:280px"><span id="vos-history-count" class="sms-muted" style="margin-left:auto"></span></div>
                 <div class="st-daily-history-meta" id="vos-history-meta">The latest 14 saved dates of Total Call Time appear here.</div>
                 <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table id="vos-history-table"><thead id="vos-history-head"></thead><tbody id="vos-history-body"></tbody></table></div></div>
               </div>
@@ -20669,7 +20672,7 @@ function parseVosTrafficMatrix(matrix) {
   return [...grouped.values()].map(item => ({
     ...item,
     asr:item.total_calls > 0 ? item.answered / item.total_calls * 100 : 0,
-    acd:item.answered > 0 ? item.total_call_time_seconds / item.answered : 0,
+    acd:item.answered > 0 ? (item.total_call_time_seconds / 60) / item.answered : 0,
   }));
 }
 const VOS_TRAFFIC_LOCAL_KEY = 'bm_vos_traffic_v2';
@@ -20688,7 +20691,7 @@ function vosNormalizeRows(rows) {
     const avgSeconds = vosNumber(row.avg_call_duration_sum_seconds ?? (vosNumber(row.avg_call_duration_sum_minutes) * 60));
     const calls = vosNumber(row.total_calls), answered = vosNumber(row.answered);
     return {...row, total_call_time_seconds:totalSeconds, avg_call_duration_sum_seconds:avgSeconds,
-      asr:calls > 0 ? answered / calls * 100 : 0, acd:answered > 0 ? totalSeconds / answered : 0};
+      asr:calls > 0 ? answered / calls * 100 : 0, acd:answered > 0 ? (totalSeconds / 60) / answered : 0};
   });
 }
 function saveVosTrafficLocal() {
@@ -20859,11 +20862,14 @@ function renderVosTraffic() {
   set('vos-traffic-comparison', comparison.currentDay ? `${comparison.currentDay.session_date} compared with ${comparison.previousDay?.session_date || 'no previous saved date'} · Total Call Time stays in seconds.` : 'Upload a dated report to begin tracking daily changes.');
   const fileStatus = document.getElementById('vos-file-status'); if (fileStatus && comparison.currentDay && !fileStatus.dataset.current) { fileStatus.textContent=`${comparison.currentDay.filename || 'VOS report'} · restored · ${comparison.currentDay.rows.length} grouped row(s)`; fileStatus.title=fileStatus.textContent; }
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="16" style="padding:18px;text-align:center;color:var(--text-3)">${comparison.rows.length?'No VOS rows match the current filters.':'Upload a VOS report to build the daily gateway + destination view.'}</td></tr>`; return; }
-  const body = rows.map(row => `<tr class="st-daily-row-${row.status}"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(row.session_date)}</td><td>${stEsc(row.previous_date||'—')}</td>`
+  const body = rows.map(row => {
+    const routeToken = vosDailyRouteToken(row).replace(/'/g, '%27');
+    return `<tr class="st-daily-row-${row.status} st-daily-drill-row" data-vos-daily-route="${stEsc(routeToken)}" ondblclick="openVosDailyHistoryForRoute('${routeToken}')" title="Double-click to view this Mapping Gateway + Area Name in Last 2 Weeks"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(row.session_date)}</td><td>${stEsc(row.previous_date||'—')}</td>`
     + `<td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td>`
-    + `<td class="num">${stN2(row.previous_total_call_time_seconds)}</td><td class="num ${row.change_seconds<0?'st-daily-negative':row.change_seconds>0?'st-daily-positive':''}">${row.change_seconds>0?'+':''}${stN2(row.change_seconds)}</td><td class="num">${row.change_pct>0?'+':''}${stN2(row.change_pct)}%</td><td><span class="st-daily-status ${row.status}">${stEsc(row.status)}</span></td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td></tr>`).join('');
+    + `<td class="num">${stN2(row.previous_total_call_time_seconds)}</td><td class="num ${row.change_seconds<0?'st-daily-negative':row.change_seconds>0?'st-daily-positive':''}">${row.change_seconds>0?'+':''}${stN2(row.change_seconds)}</td><td class="num">${row.change_pct>0?'+':''}${stN2(row.change_pct)}%</td><td><span class="st-daily-status ${row.status}">${stEsc(row.status)}</span></td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td></tr>`;
+  }).join('');
   const total = rows.reduce((sum,row) => ({calls:sum.calls+vosNumber(row.total_calls),fail:sum.fail+vosNumber(row.fail),success:sum.success+vosNumber(row.success),answered:sum.answered+vosNumber(row.answered),avg:sum.avg+vosNumber(row.avg_call_duration_sum_seconds),seconds:sum.seconds+vosNumber(row.total_call_time_seconds),previous:sum.previous+vosNumber(row.previous_total_call_time_seconds)}),{calls:0,fail:0,success:0,answered:0,avg:0,seconds:0,previous:0});
-  const change=total.seconds-total.previous, pct=total.previous>0?change/total.previous*100:total.seconds>0?100:0, asr=total.calls>0?total.answered/total.calls*100:0, acd=total.answered>0?total.seconds/total.answered:0;
+  const change=total.seconds-total.previous, pct=total.previous>0?change/total.previous*100:total.seconds>0?100:0, asr=total.calls>0?total.answered/total.calls*100:0, acd=total.answered>0?(total.seconds/60)/total.answered:0;
   tbody.innerHTML=body+`<tr class="vos-total-row"><td>Total</td><td>${rows.length} grouped row(s)</td><td>${stEsc(vosSelectedDate)}</td><td>${stEsc(comparison.previousDay?.session_date||'—')}</td><td class="num">${stN0(total.calls)}</td><td class="num">${stN0(total.fail)}</td><td class="num">${stN0(total.success)}</td><td class="num">${stN0(total.answered)}</td><td class="num">${stN2(total.avg)}</td><td class="num">${stN2(total.seconds)}</td><td class="num">${stN2(total.previous)}</td><td class="num">${change>0?'+':''}${stN2(change)}</td><td class="num">${pct>0?'+':''}${stN2(pct)}%</td><td>—</td><td class="num">${stN2(asr)}%</td><td class="num">${stN2(acd)}</td></tr>`;
 }
 window.renderVosTraffic = renderVosTraffic;
@@ -20895,7 +20901,17 @@ function vosDashboardDateHeading(date,fallback) {
     : date;
   return `${label} (min)`;
 }
-function vosDashboardRow(row){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds);return `<tr><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num">${change>0?'+':''}${stN2(change)}</td></tr>`;}
+function vosDailyRouteToken(row){return encodeURIComponent(JSON.stringify([String(row?.mapping_gateway||''),String(row?.area_name||'')]));}
+window.openVosDailyHistoryForRoute=token=>{
+  let route;
+  try{route=JSON.parse(decodeURIComponent(String(token||'')));}catch(error){return;}
+  if(!Array.isArray(route)||route.length<2)return;
+  const search=document.getElementById('vos-history-search');
+  if(search){search.value=`${route[0]} ${route[1]}`.trim();search.dataset.routeKey=vosRowKey({mapping_gateway:route[0],area_name:route[1]});}
+  window.switchVosDailyTab('history');
+};
+window.clearVosDailyHistoryRouteFilter=()=>{const search=document.getElementById('vos-history-search');if(search)delete search.dataset.routeKey;};
+function vosDashboardRow(row){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds),changeClass=row.status==='stopped'||change<0?'st-daily-negative':change>0?'st-daily-positive':'',routeToken=vosDailyRouteToken(row).replace(/'/g,'%27');return `<tr data-vos-daily-route="${stEsc(routeToken)}" ondblclick="openVosDailyHistoryForRoute('${routeToken}')" title="Double-click to view this Mapping Gateway + Area Name in Last 2 Weeks"><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num ${changeClass}">${change>0?'+':''}${stN2(change)}</td></tr>`;}
 function renderVosDailyDashboard(){
   const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');
   document.querySelectorAll('.vos-current-date-heading').forEach(heading=>{heading.textContent=vosDashboardDateHeading(comparison.currentDay?.session_date,'Last posted (min)');heading.title=comparison.currentDay?`Last posted date: ${comparison.currentDay.session_date}`:'Last posted date';});
@@ -20912,7 +20928,7 @@ window.renderVosDailyDashboard=renderVosDailyDashboard;
 function renderVosDailyHistory(){
   const days=vosSortedHistory(), dates=days.map(day=>day.session_date).reverse(), maps=new Map(days.map(day=>[day.session_date,new Map(day.rows.map(row=>[vosRowKey(row),row]))]));
   const identities=new Map();days.forEach(day=>day.rows.forEach(row=>identities.set(vosRowKey(row),row)));
-  const search=String(document.getElementById('vos-history-search')?.value||'').trim().toLowerCase(); const rows=[...identities.entries()].filter(([,row])=>!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
+  const searchElement=document.getElementById('vos-history-search'),search=String(searchElement?.value||'').trim().toLowerCase(),routeKey=String(searchElement?.dataset.routeKey||''); const rows=[...identities.entries()].filter(([key,row])=>routeKey?key===routeKey:!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
   const head=document.getElementById('vos-history-head'),body=document.getElementById('vos-history-body');if(head)head.innerHTML=`<tr><th>Mapping Gateway</th><th>Area Name</th>${dates.map(date=>`<th>${stEsc(date)}</th>`).join('')}</tr>`;if(body)body.innerHTML=rows.map(([key,row])=>`<tr><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td>${dates.map(date=>`<td>${maps.get(date)?.has(key)?stN2(maps.get(date).get(key).total_call_time_seconds):'—'}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${dates.length+2}" style="text-align:center;color:var(--text-3)">No VOS history rows.</td></tr>`;
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
@@ -21020,8 +21036,8 @@ function vosExportDataset(tab=vosDailyTab){
     const days=vosSortedHistory(),dates=days.map(day=>day.session_date).reverse(),maps=new Map(days.map(day=>[day.session_date,new Map(day.rows.map(row=>[vosRowKey(row),row]))])),identities=new Map();
     days.forEach(day=>day.rows.forEach(row=>identities.set(vosRowKey(row),row)));
     const latestDate=days.slice(-1)[0]?.session_date||'',latestStatus=new Map(vosDailyComparison(latestDate).rows.map(row=>[vosRowKey(row),row.status]));
-    const search=String(document.getElementById('vos-history-search')?.value||'').trim().toLowerCase();
-    const rows=[...identities.entries()].filter(([,row])=>!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
+    const searchElement=document.getElementById('vos-history-search'),search=String(searchElement?.value||'').trim().toLowerCase(),routeKey=String(searchElement?.dataset.routeKey||'');
+    const rows=[...identities.entries()].filter(([key,row])=>routeKey?key===routeKey:!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
     const values=rows.map(([key,row])=>[row.mapping_gateway,row.area_name,latestStatus.get(key)||'',...dates.map(date=>maps.get(date)?.get(key)?.total_call_time_seconds??'')]);
     return{sheet:'Last 2 Weeks',suffix:`last_2_weeks_${latestDate||todayStr()}`,headers:['Mapping Gateway','Area Name','Status',...dates],rows:values,rowMeta:values.map(row=>({status:String(row[2]||'').toLowerCase()}))};
   }
@@ -21038,7 +21054,7 @@ function vosExportDataset(tab=vosDailyTab){
     return{sheet:'Dashboard',suffix:`dashboard_${comparison.currentDay?.session_date||todayStr()}`,headers:['Section','Rank','Mapping Gateway / Date','Area Name','Current (min)','Previous (min)','Change (min)','Change %','Status'],rows,rowMeta:rows.map(row=>({section:row[0],status:String(row[8]||'').toLowerCase()}))};
   }
   const rows=vosVisibleRows(),values=rows.map(row=>[row.mapping_gateway,row.area_name,row.session_date,row.previous_date,row.total_calls,row.fail,row.success,row.answered,row.avg_call_duration_sum_seconds,row.total_call_time_seconds,row.previous_total_call_time_seconds,row.change_seconds,row.change_pct,row.status,row.asr,row.acd]);
-  return{sheet:'Today',suffix:`today_${vosSelectedDate||todayStr()}`,headers:['Mapping Gateway','Area Name','Date','Previous Date','Total Calls','Fail','Success','Answered','Average Call Duration Sum (sec)','Total Call Time (sec)','Previous Time (sec)','Change (sec)','Change %','Status','ASR %','ACD (sec)'],rows:values,rowMeta:rows.map(row=>({status:row.status}))};
+  return{sheet:'Today',suffix:`today_${vosSelectedDate||todayStr()}`,headers:['Mapping Gateway','Area Name','Date','Previous Date','Total Calls','Fail','Success','Answered','Average Call Duration Sum (sec)','Total Call Time (sec)','Previous Time (sec)','Change (sec)','Change %','Status','ASR %','ACD (min)'],rows:values,rowMeta:rows.map(row=>({status:row.status}))};
 }
 function vosExportRowFill(data,values,rowIndex){
   const section=String(data.rowMeta?.[rowIndex]?.section||''),statusIndex=data.headers.indexOf('Status'),status=String(data.rowMeta?.[rowIndex]?.status||(statusIndex>=0?values?.[statusIndex]:'')||'').toLowerCase();
@@ -21064,7 +21080,7 @@ window.exportVosDailyTab=async format=>{
       data.headers.forEach((columnHeader,index)=>{sheet.getColumn(index+1).width=Math.min(34,data.rows.reduce((width,row)=>Math.max(width,String(row[index]??'').length+2),String(columnHeader).length+2));});
       for(let rowNumber=2;rowNumber<=data.rows.length+1;rowNumber++){
         const rowFill=vosExportRowFill(data,data.rows[rowNumber-2],rowNumber-2);sheet.getRow(rowNumber).eachCell({includeEmpty:true},cell=>{cell.alignment={vertical:'middle'};cell.border={bottom:thinBorder};if(rowFill)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowFill}};});
-        ['Change %','ASR %','ACD (sec)','Current (min)','Previous (min)','Change (min)'].forEach(label=>{const column=data.headers.indexOf(label)+1;if(column>0)sheet.getCell(rowNumber,column).numFmt='0.00';});
+        ['Change %','ASR %','ACD (min)','Current (min)','Previous (min)','Change (min)'].forEach(label=>{const column=data.headers.indexOf(label)+1;if(column>0)sheet.getCell(rowNumber,column).numFmt='0.00';});
       }
       sheet.autoFilter={from:{row:1,column:1},to:{row:data.rows.length+1,column:data.headers.length}};
       const buffer=await workbook.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),link=document.createElement('a');link.href=url;link.download=`${safe}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
@@ -21098,7 +21114,7 @@ function vosStatsNormalizeRow(row) {
   const totalCalls=vosNumber(row.total_calls), answered=vosNumber(row.answered), totalSeconds=vosDurationSeconds(row.total_call_time_seconds ?? row.total_call_time);
   const normalized={...row,mapping_gateway:String(row.mapping_gateway||'').trim(),area_name:String(row.area_name||'').trim(),source_rows:Math.max(1,vosNumber(row.source_rows)||1),total_calls:totalCalls,fail:vosNumber(row.fail),success:vosNumber(row.success),answered,
     avg_call_duration_sum_seconds:vosDurationSeconds(row.avg_call_duration_sum_seconds ?? row.average_call_duration),total_call_time_seconds:totalSeconds,
-    asr:totalCalls>0?answered/totalCalls*100:0,acd:answered>0?totalSeconds/answered:0};
+    asr:totalCalls>0?answered/totalCalls*100:0,acd:answered>0?(totalSeconds/60)/answered:0};
   normalized.cls=vosStatsClassify(normalized); return normalized;
 }
 function vosStatsSearchKey(value) {
@@ -21161,7 +21177,7 @@ function vosStatsStoppedRows() {
 }
 function vosStatsAggregate(rows) {
   const total=(rows||[]).reduce((sum,row)=>{sum.total_calls+=vosNumber(row.total_calls);sum.fail+=vosNumber(row.fail);sum.success+=vosNumber(row.success);sum.answered+=vosNumber(row.answered);sum.avg_call_duration_sum_seconds+=vosNumber(row.avg_call_duration_sum_seconds);sum.total_call_time_seconds+=vosNumber(row.total_call_time_seconds);return sum;},{total_calls:0,fail:0,success:0,answered:0,avg_call_duration_sum_seconds:0,total_call_time_seconds:0});
-  total.asr=total.total_calls>0?total.answered/total.total_calls*100:0;total.acd=total.answered>0?total.total_call_time_seconds/total.answered:0;total.cls=vosStatsClassify(total);return total;
+  total.asr=total.total_calls>0?total.answered/total.total_calls*100:0;total.acd=total.answered>0?(total.total_call_time_seconds/60)/total.answered:0;total.cls=vosStatsClassify(total);return total;
 }
 function vosStatsSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
 function vosStatsBadge(cls){return `<span class="stbadge ${cls}">${stEsc(String(cls||'').toUpperCase())}</span>`;}
@@ -21182,7 +21198,7 @@ function renderVosStatsTables() {
   VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
   const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
 }
-function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Att</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
+function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Calls</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD min</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
 function vosStatsHourlyMatrix() {
   const snaps=vosStatsSortedSnaps(),identities=new Map(),byKey=new Map();snaps.forEach(s=>(s.rows||[]).map(vosStatsNormalizeRow).forEach(row=>{const key=vosStatsKey(row);identities.set(key,row);if(!byKey.has(key))byKey.set(key,{});byKey.get(key)[s.time_slot]=row;}));
   return {slots:snaps.map(s=>s.time_slot),rows:[...identities.entries()].map(([key,identity])=>{const byHour=byKey.get(key),total=vosStatsAggregate(Object.values(byHour));return {key,identity,byHour,total};})};
@@ -21230,7 +21246,7 @@ window.clearVosStatsHistory=async()=>{
   if(!canPostStats()){toast('Deleting VOS Stats history is restricted for this account.','err');return;}const approved=await confirmPremiumAction({title:'Delete VOS Stats History',html:'Delete <strong>all saved VOS hourly snapshots</strong> for every operator?<br><br>This cannot be undone.',label:'Delete All'});if(!approved)return;
   setLoading(true,'Deleting VOS Stats history…');try{const cloudDeleted=await deleteVosStatsCloudHistory();vosStatsSnapshots=[];vosStatsSelectedSlot='';try{localStorage.removeItem(VOS_STATS_LOCAL_KEY);}catch(e){}const status=document.getElementById('vos-stats-file-status');if(status){delete status.dataset.current;status.textContent='No hourly VOS file uploaded.';}renderVosStats();toast(`VOS Stats history deleted${cloudDeleted?` · ${cloudDeleted} shared snapshot${cloudDeleted===1?'':'s'}`:' from this browser'}.`,'ok');}catch(e){toast('VOS Stats history could not be deleted: '+e.message,'err',8000);}finally{setLoading(false);}
 };
-function vosStatsExportDataset(){const baseHeaders=['Mapping Gateway','Area Name','Attempts','Fail','Success','Answered','ASR %','ACD (sec)','Average Call Duration Sum (sec)','Total Call Time (sec)','Classification','Attempts vs Past Hour'],baseRows=vosStatsRowsWithComparison();if(vosStatsTab==='hourly'){const matrix=vosStatsHourlyMatrix(),headers=['Mapping Gateway','Area Name',...matrix.slots.flatMap(slot=>[`${slot} Attempts`,`${slot} ASR %`,`${slot} ACD (sec)`,`${slot} Total Call Time (sec)`]),'Day Attempts','Day ASR %','Day ACD (sec)','Day Total Call Time (sec)'];return{sheet:'Hourly',headers,rows:matrix.rows.map(item=>[item.identity.mapping_gateway,item.identity.area_name,...matrix.slots.flatMap(slot=>{const row=item.byHour[slot];return row?[row.total_calls,row.asr,row.acd,row.total_call_time_seconds]:['','','',''];}),item.total.total_calls,item.total.asr,item.total.acd,item.total.total_call_time_seconds])};}if(vosStatsTab==='stopped'){return{sheet:'Stopped',headers:['Mapping Gateway','Area Name','Last Seen','Attempts','Answered','ASR %','ACD (sec)','Total Call Time (sec)'],rows:vosStatsStoppedRows().map(r=>[r.mapping_gateway,r.area_name,r.last_seen,r.total_calls,r.answered,r.asr,r.acd,r.total_call_time_seconds])};}const rows=VOS_STATS_CLASSES.includes(vosStatsTab)?baseRows.filter(r=>r.cls===vosStatsTab):baseRows;return{sheet:vosStatsTab==='summary'?'Summary':'All Clients',headers:baseHeaders,rows:rows.map(r=>[r.mapping_gateway,r.area_name,r.total_calls,r.fail,r.success,r.answered,r.asr,r.acd,r.avg_call_duration_sum_seconds,r.total_call_time_seconds,r.cls,r.attempt_change??''])};}
+function vosStatsExportDataset(){const baseHeaders=['Mapping Gateway','Area Name','Total Calls','Fail','Success','Answered','ASR %','ACD (min)','Average Call Duration Sum (sec)','Total Call Time (sec)','Classification','Total Calls vs Past Hour'],baseRows=vosStatsRowsWithComparison();if(vosStatsTab==='hourly'){const matrix=vosStatsHourlyMatrix(),headers=['Mapping Gateway','Area Name',...matrix.slots.flatMap(slot=>[`${slot} Total Calls`,`${slot} ASR %`,`${slot} ACD (min)`,`${slot} Total Call Time (sec)`]),'Day Total Calls','Day ASR %','Day ACD (min)','Day Total Call Time (sec)'];return{sheet:'Hourly',headers,rows:matrix.rows.map(item=>[item.identity.mapping_gateway,item.identity.area_name,...matrix.slots.flatMap(slot=>{const row=item.byHour[slot];return row?[row.total_calls,row.asr,row.acd,row.total_call_time_seconds]:['','','',''];}),item.total.total_calls,item.total.asr,item.total.acd,item.total.total_call_time_seconds])};}if(vosStatsTab==='stopped'){return{sheet:'Stopped',headers:['Mapping Gateway','Area Name','Last Seen','Total Calls','Answered','ASR %','ACD (min)','Total Call Time (sec)'],rows:vosStatsStoppedRows().map(r=>[r.mapping_gateway,r.area_name,r.last_seen,r.total_calls,r.answered,r.asr,r.acd,r.total_call_time_seconds])};}const rows=VOS_STATS_CLASSES.includes(vosStatsTab)?baseRows.filter(r=>r.cls===vosStatsTab):baseRows;return{sheet:vosStatsTab==='summary'?'Summary':'All Clients',headers:baseHeaders,rows:rows.map(r=>[r.mapping_gateway,r.area_name,r.total_calls,r.fail,r.success,r.answered,r.asr,r.acd,r.avg_call_duration_sum_seconds,r.total_call_time_seconds,r.cls,r.attempt_change??''])};}
 window.exportVosStatsView=format=>{const data=vosStatsExportDataset();if(!data.rows.length){toast('No VOS Stats rows to export.','err');return;}const safe=`vos_stats_${vosStatsTab}_${todayStr()}_${vosStatsSelectedSlot||'latest'}`.replace(/:/g,'');if(format==='xlsx'&&window.XLSX){const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([data.headers,...data.rows]);XLSX.utils.book_append_sheet(book,sheet,data.sheet.slice(0,31));XLSX.writeFile(book,`${safe}.xlsx`);}else{const csv=[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n'),url=URL.createObjectURL(new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${safe}.csv`;link.click();URL.revokeObjectURL(url);}toast(`Exported ${data.rows.length} VOS Stats row(s)`,'ok');};
 loadVosStatsLocal();
 
@@ -22589,15 +22605,6 @@ function renderStatsDailyTraffic() {
   if (comparisonLabel) comparisonLabel.textContent = comparison.currentDay
     ? `Comparing Raw Duration for ${comparison.currentDay.session_date}${comparison.previousDay ? ` with ${comparison.previousDay.session_date}` : ' (first saved date — all clients are new)'}. Archive completed months from the sidebar when needed.`
     : 'Paste a daily report to begin tracking traffic changes.';
-
-  const alerts = allRows.filter(row => row.status === 'decrease' || row.status === 'stopped');
-  const alertBox = document.getElementById('st-daily-alert');
-  if (alertBox) {
-    alertBox.classList.toggle('visible', alerts.length > 0);
-    alertBox.innerHTML = alerts.length ? `<strong>Raw Duration alert:</strong> ${counts.decrease} decreasing and ${counts.stopped} stopped. `
-      + alerts.slice(0, 6).map(row => `${stEsc(row.customer_name)} [${stEsc(row.account_codes)}${row.destination ? ` · ${stEsc(row.destination)}` : ''}]${row.decrease_streak >= 2 ? ` (${row.decrease_streak}-day decrease)` : ''}`).join(', ')
-      + (alerts.length > 6 ? ` and ${alerts.length - 6} more` : '') : '';
-  }
 
   const queryText = (document.getElementById('st-daily-search')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('st-daily-status-filter')?.value || '';
