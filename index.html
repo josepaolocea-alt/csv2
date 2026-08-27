@@ -5429,8 +5429,21 @@
       font-size: 9px; font-weight: 600; letter-spacing: .11em;
       text-transform: uppercase; color: var(--text-3);
     }
-    body.nav-collapsed .nav-group.is-flyout .nav-label,
-    body.nav-collapsed .nav-group.is-flyout .nav-sublabel { display: block; }
+    /* Scoped to the flyout's own contents. Matching `.nav-label` anywhere in
+       the group also un-hid the rail button's label, which then spilled out of
+       a 58px rail as a truncated word next to the icon. */
+    body.nav-collapsed .nav-group.is-flyout > .nav-children .nav-label,
+    body.nav-collapsed .nav-group.is-flyout > .nav-children .nav-sublabel { display: block; }
+    /* The flyout opens beside the rail, so the pointer has to cross the seam
+       between them. Overlap by 1px and widen the hit area to the left so the
+       travel never leaves the group and closes it mid-move. */
+    body.nav-collapsed .nav-group.is-flyout > .nav-children {
+      left: calc(var(--nav-w-min) - 1px);
+      border-left: 1px solid var(--border);
+    }
+    body.nav-collapsed .nav-group.is-flyout > .nav-children::after {
+      content: ''; position: absolute; left: -10px; top: 0; bottom: 0; width: 10px;
+    }
     /* Inside a flyout there is no room for a second level of disclosure, so
        nested groups are simply shown open. */
     body.nav-collapsed .nav-group.is-flyout .nav-subgroup > .nav-children {
@@ -5529,8 +5542,8 @@
     #toolbar > .tbtn,
     #toolbar > .app-action-menu > .tbtn,
     .stats-column-picker > .tbtn {
-      min-height: 28px; padding: 0 10px;
-      font-size: 11.5px; font-weight: 500;
+      min-height: 30px; padding: 0 11px;
+      font-size: 12px; font-weight: 500;
       color: var(--text-2); background: transparent;
       border: 1px solid transparent !important; border-radius: var(--r-sm);
       box-shadow: none;
@@ -5548,6 +5561,54 @@
     #users-toolbar-label {
       font-size: 11px; font-weight: 600; letter-spacing: .1em;
       text-transform: uppercase; color: var(--text-3); padding: 0 6px;
+    }
+
+    /* Nested in a Stats view container: same underline language as the Daily
+       Traffic strip. The severity colours the classification tabs carry stay,
+       but move from a filled pill to the label and its underline, which is
+       what lets them sit in a tab strip without reading as buttons. */
+    #toolbar.is-nested {
+      grid-area: auto;
+      margin: 0 0 14px; padding: 0; gap: 0;
+      align-items: flex-end;
+      background: transparent;
+      border: 0; border-bottom: 1px solid var(--border);
+      border-radius: 0;
+    }
+    body.stats-mode #toolbar.is-nested > .tbtn,
+    body.stats-mode #toolbar.is-nested > .tbtn.active {
+      min-height: 34px; padding: 0 12px; margin-bottom: -1px;
+      font-size: 12px; font-weight: 500;
+      background: transparent !important;
+      border: 0 !important;
+      border-bottom: 2px solid transparent !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    body.stats-mode #toolbar.is-nested > .tbtn:hover {
+      color: var(--text) !important;
+      border-bottom-color: var(--border-strong) !important;
+    }
+    body.stats-mode #toolbar.is-nested > .tbtn.active {
+      color: var(--text) !important; font-weight: 600;
+      border-bottom-color: var(--accent) !important;
+    }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-critical,
+    body.stats-mode #toolbar.is-nested > #stnav-stats-stopped { color: var(--red) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-low { color: var(--orange) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-ok { color: var(--yellow-deep) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-good { color: var(--green) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-critical.active,
+    body.stats-mode #toolbar.is-nested > #stnav-stats-stopped.active { border-bottom-color: var(--red) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-low.active { border-bottom-color: var(--orange) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-ok.active { border-bottom-color: var(--yellow-deep) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-good.active { border-bottom-color: var(--green) !important; }
+    /* The column picker is an action, not a destination: it keeps its button
+       shape and sits at the end of the strip. */
+    #toolbar.is-nested > .stats-column-picker { margin-left: auto; align-self: center; padding-bottom: 4px; }
+    #toolbar.is-nested > .stats-column-picker > .tbtn {
+      border: 1px solid var(--border-strong) !important;
+      border-radius: var(--ui-control-radius); min-height: 30px;
     }
 
     /* ── 7 · Panel 2 · Snapshot & upload ──────────────────────────────────
@@ -5731,11 +5792,14 @@
     }
     tr:nth-child(even) td { background: transparent; }
     tbody tr:hover td { background: var(--row-hover) !important; }
+    /* Numbers match the text cells beside them. Mono is narrower per character
+       than the sans at the same size, so setting it smaller as well made the
+       figures the least legible thing in a table built to be read for figures. */
     td.num, th.num {
       text-align: right;
-      font-family: var(--mono); font-size: 11.5px; letter-spacing: -.02em;
+      font-family: var(--mono); font-size: 12px; letter-spacing: -.02em;
     }
-    body.comfy td.num { font-size: 12.5px; }
+    body.comfy td.num { font-size: 13px; }
     #st-tbl-stopped tbody tr td { background: transparent !important; }
     #st-tbl-stopped tbody tr.st-stopped-active td { background: var(--red-soft) !important; }
     .pager { gap: 8px; padding-top: 10px; font-size: 11px; }
@@ -5746,7 +5810,7 @@
     .daily-import-actions .tbtn, .daily-workspace-nav .st-daily-export-btn,
     .premium-date-footer .tbtn, #sidebar .tbtn, #sidebar .fltbtn {
       min-height: var(--ui-control-h); padding: 0 11px;
-      font-size: 11.5px; font-weight: 500;
+      font-size: 12px; font-weight: 500;
       color: var(--text); background: var(--surface);
       border: 1px solid var(--border-strong) !important;
       border-radius: var(--ui-control-radius); box-shadow: none;
@@ -5834,6 +5898,52 @@
     }
     .settings-check input[type="checkbox"]:checked { background: var(--accent); }
 
+    /* ── 10b · Form fields ────────────────────────────────────────────────
+       These rows were authored around an 11px control; at 12px the controls
+       grew and the 3px gaps stopped reading as grouping. One label-to-control
+       gap and one control height for every field, on every SMS tab. */
+    .sms-field, .sms-bal-form .sms-field, .sms-cred-form-grid .sms-field {
+      gap: 5px; min-width: 0;
+    }
+    .sms-field > label {
+      font-size: 10px; font-weight: 600; color: var(--text-2);
+      line-height: 1.3; letter-spacing: .01em;
+    }
+    /* Every control that can sit in a field row resolves to the same height,
+       so an input, its dropdown toggle and its comment button line up. */
+    .sms-field .win-inp, .sms-field .win-sel, .sms-field .premium-select-trigger,
+    .sms-combo-btn, .sms-comment-btn, .sms-sender-row .win-inp {
+      height: auto; min-height: var(--ui-control-h);
+      border-radius: var(--ui-control-radius);
+    }
+    /* The date picker's trigger kept a 32px of its own, which left it two
+       pixels taller than every control beside it in the same row. */
+    .premium-date-trigger {
+      height: var(--ui-control-h); min-height: var(--ui-control-h);
+      border-radius: var(--ui-control-radius);
+    }
+    /* Explicit height, not just min-height: these two carried a 32px height of
+       their own, so the row rendered a 30px input flanked by 32px buttons. */
+    .sms-combo-btn, .sms-comment-btn {
+      height: var(--ui-control-h) !important;
+      width: var(--ui-control-h); min-width: var(--ui-control-h);
+      flex: 0 0 var(--ui-control-h); align-self: center;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    }
+    .sms-sender-row { gap: 6px; align-items: center; }
+    .sms-sender-row .sms-combo { min-width: 0; align-self: center; }
+    .sms-sender-row .win-inp, .sms-combo > .win-inp { height: var(--ui-control-h) !important; }
+    /* The Manual OTP row's last two tracks were sized for 11px text, so the
+       12px controls overflowed and the Digits control overlapped Period. */
+    .sms-otp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 160px) minmax(0, 136px) minmax(0, 144px); gap: 10px; }
+    .premium-select, .premium-select-trigger { min-width: 0; max-width: 100%; }
+    .premium-select-trigger > span:first-child {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    @media (max-width: 980px) {
+      .sms-otp-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    }
+
     /* ── 11 · Tabs ────────────────────────────────────────────────────────
        Two distinct languages, because they do two different jobs:
        navigation strips are underlined tabs; filter strips stay as chips so
@@ -5848,8 +5958,8 @@
     .tab, .st-daily-tab, .sms-cred-subtab,
     .daily-tab-segment .st-daily-tab, .sms-bal-subnav .tbtn,
     .vos-primary-tabs .st-daily-tab {
-      min-height: 32px; padding: 0 12px; margin-bottom: -1px;
-      font-size: 11.5px; font-weight: 500;
+      min-height: 34px; padding: 0 12px; margin-bottom: -1px;
+      font-size: 12px; font-weight: 500;
       color: var(--text-2); background: transparent;
       border: 0 !important; border-bottom: 2px solid transparent !important;
       border-radius: 0; box-shadow: none;
@@ -5876,8 +5986,8 @@
     }
     #alert-tabs { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
     .sms-bal-segmented .tbtn, #alert-tabs .tab {
-      min-height: 27px; padding: 0 11px;
-      font-size: 11.5px; font-weight: 500;
+      min-height: 28px; padding: 0 12px;
+      font-size: 12px; font-weight: 500;
       color: var(--text-2); background: var(--surface);
       border: 1px solid var(--border-strong) !important;
       border-radius: 999px; box-shadow: none;
@@ -5903,17 +6013,10 @@
     .sms-bal-segmented .tbtn[data-tone="safe"].active { color: var(--on-accent); background: var(--green); border-color: var(--green) !important; }
     .sms-bal-segmented .alert-tab-actions .tbtn.icon-only { border-radius: var(--ui-control-radius); }
 
-    /* The SMS Balance sub-nav is now the rail's job; what remains useful in
-       that strip is the live snapshot label, so it becomes a context line. */
-    .sms-bal-subnav {
-      border-bottom: 0; min-height: 0; padding: 0 0 2px;
-    }
-    .sms-bal-subnav > .tbtn, .sms-bal-subnav > #sms-action-menu { display: none !important; }
-    #sms-bal-sync-label {
-      font-size: 10.5px; font-weight: 500; color: var(--text-3);
-      font-family: var(--mono); letter-spacing: -.01em;
-    }
-    /* Module/tab strips the rail now owns. */
+    /* Strips the rail now owns. The SMS Balance sub-nav goes entirely rather
+       than lingering as an empty band: its one remaining occupant, the
+       "last snapshot" label, duplicates #sb-sms-last in the status bar. */
+    .sms-bal-subnav,
     #view-sms > .groupbox > .tab-bar,
     #sms-credentials-panel .sms-cred-subtabs { display: none !important; }
 
@@ -5925,7 +6028,27 @@
       border: 1px solid var(--border); border-radius: var(--r-md);
       box-shadow: none;
     }
-    .daily-workspace-nav { background: transparent; border: 0; padding: 0; }
+    /* One row, always. With space-between and wrapping, an over-long tab strip
+       pushed the export buttons onto a second line pinned hard right, leaving a
+       full-width empty band beside them. The strip scrolls instead. */
+    .daily-workspace-nav,
+    .vos-stats-workspace .daily-workspace-nav {
+      background: transparent; border: 0; padding: 0;
+      flex-wrap: nowrap; align-items: flex-end; gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .daily-workspace-nav > .daily-tab-segment,
+    .daily-workspace-nav > .st-daily-tabs,
+    .vos-stats-workspace .daily-workspace-nav > .daily-tab-segment {
+      flex: 1 1 auto; min-width: 0;
+      flex-wrap: nowrap;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
+      border-bottom: 0;
+    }
+    .daily-workspace-nav > .st-daily-export-actions {
+      flex: 0 0 auto; align-self: center; padding-bottom: 4px;
+    }
     .fbar, .clients-toolbar { margin-bottom: 12px; }
     .sms-bal-status-guide-item, .sms-vendor-box, .sms-bal-delete-keep {
       background: var(--surface-2); border: 1px solid var(--border);
@@ -25454,7 +25577,7 @@ if (auth) {
     users: 'Admin'
   };
 
-  var nav, navScroll, toolbar, syncQueued = false, syncing = false;
+  var nav, navScroll, toolbar, syncQueued = false, syncing = false, flyoutTimer = null;
 
   /* ── Preferences ─────────────────────────────────────────────────────── */
   function readPrefs() {
@@ -25553,6 +25676,29 @@ if (auth) {
     }
   }
 
+  /* Daily Traffic keeps its tab strip inside the panel it belongs to
+     (.groupbox > .daily-workspace-nav). Stats had its strip up in the app
+     chrome instead, so the two modules disagreed about where a sub-menu
+     lives. In Stats the strip is re-homed into whichever view container is
+     showing, and put back in the shell for every other module. */
+  function placeToolbar(mod) {
+    if (!toolbar) return;
+    if (mod !== 'stats') {
+      var shell = document.getElementById('win');
+      var body = document.getElementById('app-body');
+      if (shell && toolbar.parentElement !== shell) shell.insertBefore(toolbar, body);
+      toolbar.classList.remove('is-nested');
+      return;
+    }
+    var view = document.querySelector('#content .view.active');
+    // .groupbox for the table views, .dash-shell for Summary,
+    // .settings-page-shell for Settings.
+    var host = view && view.firstElementChild;
+    if (!host) return;
+    toolbar.classList.add('is-nested');
+    if (toolbar.parentElement !== host) host.insertBefore(toolbar, host.firstChild);
+  }
+
   /* ── Sync: rail highlight, breadcrumb, sub-menu presence ─────────────── */
   function sync() {
     if (!nav) return;
@@ -25562,6 +25708,7 @@ if (auth) {
 
   function syncBody() {
     var mod = currentModule();
+    placeToolbar(mod);
 
     // Role gating: inherit each item's visibility from the control it drives.
     nav.querySelectorAll('[data-src]').forEach(function (el) {
@@ -25670,7 +25817,16 @@ if (auth) {
   }
   function closeFlyouts() {
     if (!nav) return;
+    clearTimeout(flyoutTimer);
     nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
+  }
+
+  /* Reaching a submenu means travelling diagonally off the 58px rail, which
+     crosses out of the group for a moment. A short close delay (cancelled on
+     re-entry) makes that trip survivable instead of a game of skill. */
+  function scheduleClose(group) {
+    clearTimeout(flyoutTimer);
+    flyoutTimer = setTimeout(function () { group.classList.remove('is-flyout'); }, 260);
   }
 
   /* ── Relocate the SMS and VOS paste rails into the snapshot panel ─────
@@ -25709,8 +25865,8 @@ if (auth) {
     });
 
     nav.querySelectorAll('.nav-group').forEach(function (g) {
-      g.addEventListener('mouseenter', function () { openFlyout(g); });
-      g.addEventListener('mouseleave', function () { g.classList.remove('is-flyout'); });
+      g.addEventListener('mouseenter', function () { clearTimeout(flyoutTimer); openFlyout(g); });
+      g.addEventListener('mouseleave', function () { scheduleClose(g); });
     });
     window.addEventListener('resize', closeFlyouts);
 
