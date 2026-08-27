@@ -4222,6 +4222,31 @@
     .daily-workspace-intro { padding: 12px 14px; }
     .sms-bal-card, .sms-bal-summary-card, .sum-card, .sum-section { border-radius: var(--ui-control-radius); box-shadow: none; }
 
+    /* Critical VOIP Alerts must keep a filled surface in light mode. The
+       toolbar's later transparent-button rule previously left white text on
+       the light toolbar whenever this state was active. */
+    #toolbar > #tnav-alerts.critical-flash,
+    #toolbar > #tnav-alerts.critical-flash:hover {
+      color: #fff !important;
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    /* Daily Traffic mirrors the bounded VOS Daily Traffic workspace instead
+       of nesting its table inside the older generic tab-content treatment. */
+    #view-stats-daily > .groupbox { padding: 8px; }
+    #traffic-source-voip {
+      min-width: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--ui-panel-radius);
+    }
+    #traffic-source-voip .st-daily-dashboard-meta { padding: 8px 10px; }
+    #traffic-source-voip .vos-table-shell { margin: 0 8px 8px; }
+    .vos-stats-drill-row { cursor: pointer; }
+    .vos-stats-drill-row:hover td:first-child { color: var(--accent-strong); }
+
     @media (max-width: 900px) {
       :root { --ui-view-pad: 12px; --ui-section-gap: 10px; }
       .daily-tab-segment, .sms-bal-subnav, .sms-bal-segmented { width: 100%; }
@@ -5930,8 +5955,8 @@
             <div class="st-daily-card new"><div class="value" id="st-daily-new">0</div><div class="label">New traffic</div></div>
           </div>
           <div id="st-daily-alert" class="st-daily-alert"></div>
-          <div style="padding:0 8px 6px;color:var(--text-3);font-size:10px" id="st-daily-comparison">Paste a daily report to begin tracking traffic changes.</div>
-          <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
+          <div class="st-daily-dashboard-meta" id="st-daily-comparison">Paste a daily report to begin tracking traffic changes.</div>
+          <div class="vos-table-shell">
             <div class="lv-wrap"><table id="st-daily-table">
               <thead><tr>
                 <th onclick="sortStatsDaily('customer_name')">Client</th>
@@ -20171,6 +20196,15 @@ function vosStatsNormalizeRow(row) {
     asr:totalCalls>0?answered/totalCalls*100:0,acd:answered>0?totalSeconds/answered:0};
   normalized.cls=vosStatsClassify(normalized); return normalized;
 }
+function vosStatsSearchKey(value) {
+  return String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function vosStatsMatchesSearch(row,query) {
+  const needle=vosStatsSearchKey(query);if(!needle)return true;
+  const haystack=vosStatsSearchKey([row?.mapping_gateway,row?.area_name,row?.client,row?.customer_name,row?.account_code,row?.destination].filter(Boolean).join(' '));
+  return haystack.includes(needle)||needle.split(' ').every(token=>haystack.includes(token));
+}
+function vosStatsRouteToken(row) {return encodeURIComponent(JSON.stringify([String(row?.mapping_gateway||''),String(row?.area_name||'')]));}
 function vosStatsSortedSnaps(allDates=false) {
   const rows=vosStatsSnapshots.slice().filter(s=>s.session_date&&s.time_slot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));
   return allDates?rows:rows.filter(s=>s.session_date===todayStr());
@@ -20228,7 +20262,7 @@ function vosStatsSetText(id,value){const element=document.getElementById(id);if(
 function vosStatsBadge(cls){return `<span class="stbadge ${cls}">${stEsc(String(cls||'').toUpperCase())}</span>`;}
 function vosStatsTableRow(row) {
   const delta=row.attempt_change===null||row.attempt_change===undefined?'—':`${row.attempt_change>0?'+':''}${stN0(row.attempt_change)}`;
-  return `<tr class="st-row-${row.cls}"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td class="num">${delta}</td></tr>`;
+  return `<tr class="st-row-${row.cls} vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td class="num">${delta}</td></tr>`;
 }
 function renderVosStatsSummary() {
   const snap=vosStatsCurrentSnap(),rows=vosStatsRowsWithComparison(),total=vosStatsAggregate(rows),counts=rows.reduce((out,row)=>(out[row.cls]=(out[row.cls]||0)+1,out),{}),stopped=vosStatsStoppedRows();
@@ -20238,10 +20272,10 @@ function renderVosStatsSummary() {
 }
 function renderVosStatsTables() {
   const all=vosStatsRowsWithComparison(),search=String(document.getElementById('vos-stats-search')?.value||'').trim().toLowerCase(),filter=String(document.getElementById('vos-stats-class-filter')?.value||'');
-  const filtered=all.filter(row=>(!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search))&&(!filter||row.cls===filter)).sort((a,b)=>(ST_CLS_RANK?.[a.cls]??9)-(ST_CLS_RANK?.[b.cls]??9)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
+  const filtered=all.filter(row=>vosStatsMatchesSearch(row,search)&&(!filter||row.cls===filter)).sort((a,b)=>(ST_CLS_RANK?.[a.cls]??9)-(ST_CLS_RANK?.[b.cls]??9)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
   vosStatsSetText('vos-stats-row-count',`${filtered.length} of ${all.length} grouped row(s)`);const allBody=document.getElementById('vos-stats-tbody-all');if(allBody)allBody.innerHTML=filtered.map(vosStatsTableRow).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats rows match the current view.</td></tr>';
   VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
-  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
+  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
 }
 function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Att</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
 function vosStatsHourlyMatrix() {
@@ -20249,11 +20283,17 @@ function vosStatsHourlyMatrix() {
   return {slots:snaps.map(s=>s.time_slot),rows:[...identities.entries()].map(([key,identity])=>{const byHour=byKey.get(key),total=vosStatsAggregate(Object.values(byHour));return {key,identity,byHour,total};})};
 }
 function renderVosStatsHourly() {
-  const head=document.getElementById('vos-stats-hourly-head'),body=document.getElementById('vos-stats-hourly-body');if(!head||!body)return;const matrix=vosStatsHourlyMatrix(),search=String(document.getElementById('vos-stats-hourly-search')?.value||'').trim().toLowerCase(),rows=matrix.rows.filter(row=>!search||`${row.identity.mapping_gateway} ${row.identity.area_name}`.toLowerCase().includes(search)).sort((a,b)=>a.identity.mapping_gateway.localeCompare(b.identity.mapping_gateway)||a.identity.area_name.localeCompare(b.identity.area_name));
+  const head=document.getElementById('vos-stats-hourly-head'),body=document.getElementById('vos-stats-hourly-body');if(!head||!body)return;const matrix=vosStatsHourlyMatrix(),search=String(document.getElementById('vos-stats-hourly-search')?.value||'').trim(),rows=matrix.rows.filter(row=>vosStatsMatchesSearch(row.identity,search)).sort((a,b)=>a.identity.mapping_gateway.localeCompare(b.identity.mapping_gateway)||a.identity.area_name.localeCompare(b.identity.area_name));
   head.innerHTML=`<tr><th class="st-hr-client">Client + Destination</th>${matrix.slots.map(slot=>`<th>${stEsc(fmt12(slot))}</th>`).join('')}${matrix.slots.length?'<th>Day</th>':''}</tr>`;
   if(!matrix.slots.length){body.innerHTML='<tr><td class="st-hr-client">—</td><td style="padding:18px;text-align:center;color:var(--text-3)">No VOS hourly snapshots saved today.</td></tr>';vosStatsSetText('vos-stats-hourly-count','0 routes · 0 saved hours');return;}
   body.innerHTML=rows.map(row=>`<tr><td class="st-hr-client"><div class="st-hr-name">${stEsc(row.identity.mapping_gateway)}</div><div class="st-hr-dest">${stEsc(row.identity.area_name||'No destination')}</div></td>${matrix.slots.map(slot=>vosStatsHourlyCell(row.byHour[slot])).join('')}${vosStatsHourlyCell(row.total,true)}</tr>`).join('')||`<tr><td class="st-hr-client">—</td><td colspan="${matrix.slots.length+1}" style="text-align:center;color:var(--text-3);padding:18px">No Client + Destination rows match the current search.</td></tr>`;vosStatsSetText('vos-stats-hourly-count',`${rows.length} route${rows.length===1?'':'s'} · ${matrix.slots.length} saved hour${matrix.slots.length===1?'':'s'}`);
 }
+window.openVosStatsHourlyForRow=element=>{
+  let route=[];try{route=JSON.parse(decodeURIComponent(element?.dataset?.vosRoute||''));}catch(e){route=[];}
+  const search=document.getElementById('vos-stats-hourly-search');if(search)search.value=route.filter(Boolean).join(' ');
+  window.switchVosStatsTab('hourly');
+  requestAnimationFrame(()=>document.querySelector('#vos-stats-hourly-body .st-hr-client')?.scrollIntoView({block:'nearest',inline:'start'}));
+};
 function renderVosStatsLogs() {const body=document.getElementById('vos-stats-logs-body'),snaps=vosStatsSortedSnaps(true).slice().reverse();if(body)body.innerHTML=snaps.map(s=>`<tr><td>${stEsc(s.session_date)}</td><td>${stEsc(fmt12(s.time_slot))}</td><td>${stEsc(s.processed_at?new Date(s.processed_at).toLocaleString():'—')}</td><td>${stEsc(s.filename||'VOS report')}</td><td>${stEsc(s.sheet_name||'—')}</td><td class="num">${stN0(s.rows?.length||0)}</td><td class="num">${stN0((s.rows||[]).reduce((sum,row)=>sum+vosNumber(row.source_rows),0))}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats imports yet.</td></tr>';}
 async function deleteVosStatsCloudHistory() {
   if(!fbOk)return 0;const snapshot=await getDocs(collection(db,VOS_STATS_CLOUD_COLLECTION));let batch=writeBatch(db),pending=0,deleted=0;
