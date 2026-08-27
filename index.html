@@ -12936,7 +12936,7 @@ function logLateness(log){
 }
 
 const SNAPSHOT_LOG_MODULE_LABELS = {
-  voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'vos-stats':'VOS Stats', 'daily-traffic':'Daily Traffic'
+  voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'vos-stats':'VOS Stats', 'vos-daily-traffic':'VOS Daily Traffic', 'daily-traffic':'Daily Traffic'
 };
 function snapshotLogModule(log) { return String(log?.module || 'voip'); }
 function snapshotLogModuleLabel(log) { const module=snapshotLogModule(log);return SNAPSHOT_LOG_MODULE_LABELS[module]||module; }
@@ -20692,7 +20692,12 @@ function parseVosTrafficMatrix(matrix) {
 }
 const VOS_TRAFFIC_LOCAL_KEY = 'bm_vos_traffic_v2';
 const VOS_TRAFFIC_ARCHIVE_LOCAL_KEY = 'bm_vos_traffic_archive_v1';
+const VOS_DAILY_CLOUD_COLLECTION = 'vos_daily_traffic';
+const VOS_DAILY_ARCHIVE_CLOUD_COLLECTION = 'vos_daily_traffic_archive';
+const VOS_DAILY_CLOUD_MIGRATION_KEY = 'bm_vos_daily_cloud_migrated_v1';
 const VOS_DAILY_MAX_DATES = 14;
+let vosDailyCloudUnsubscribe = null;
+let vosDailyCloudMigrationRunning = false;
 const vosRowKey = row => `${String(row.mapping_gateway || '').toUpperCase()}\u0000${String(row.area_name || '').toUpperCase()}`;
 const vosSortedHistory = () => vosDailyHistory.slice().filter(day => day.session_date).sort((a,b) => a.session_date.localeCompare(b.session_date)).slice(-VOS_DAILY_MAX_DATES);
 function vosNormalizeRows(rows) {
@@ -20739,6 +20744,88 @@ function loadVosTrafficLocal() {
   } catch(e) { console.warn('VOS local restore:', e); vosDailyHistory=[]; vosTrafficRows=[]; vosTrafficFilename=''; }
 }
 loadVosTrafficLocal();
+const vosDailyCloudDocId = date => String(date || '').replace(/[^0-9]/g, '');
+function vosDailyCloudDay(entry) {
+  const data = entry.data ? entry.data() : entry;
+  const processed = data.processed_at?.toDate?.();
+  return {
+    id:entry.id || data.id || vosDailyCloudDocId(data.session_date),
+    session_date:String(data.session_date || ''),
+    filename:String(data.filename || 'VOS report'),
+    sheet_name:String(data.sheet_name || ''),
+    processed_at:processed ? processed.toISOString() : String(data.processed_at || ''),
+    posted_by:String(data.posted_by || ''),
+    rows:vosNormalizeRows(data.rows),
+  };
+}
+function vosDailyCloudPayload(day, extra={}) {
+  const processed = new Date(day.processed_at || Date.now());
+  return {
+    session_date:String(day.session_date || ''),
+    filename:String(day.filename || 'VOS report'),
+    sheet_name:String(day.sheet_name || ''),
+    processed_at:Timestamp.fromDate(Number.isFinite(processed.getTime()) ? processed : new Date()),
+    posted_by:String(day.posted_by || currentUserEmail || operatorName || ''),
+    rows:vosNormalizeRows(day.rows),
+    updated_at:Timestamp.now(),
+    ...extra,
+  };
+}
+function renderAllVosDailyTrafficViews() {
+  renderVosTraffic();
+  renderVosDailyDashboard();
+  renderVosDailyHistory();
+  renderVosDailyLogs();
+}
+async function migrateVosDailyTrafficLocalToCloud(days) {
+  if(!fbOk || !canPostStats() || vosDailyCloudMigrationRunning || !days.length)return false;
+  vosDailyCloudMigrationRunning=true;
+  try{
+    const batch=writeBatch(db);
+    days.forEach(day=>batch.set(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(day.session_date)),vosDailyCloudPayload(day,{migrated_from_browser:true})));
+    await batch.commit();
+    localStorage.setItem(VOS_DAILY_CLOUD_MIGRATION_KEY,'1');
+    toast(`Migrated ${days.length} browser-saved VOS Daily Traffic report${days.length===1?'':'s'} to Firebase.`, 'ok', 7000);
+    return true;
+  }catch(error){
+    console.warn('migrate VOS Daily Traffic:',error);
+    toast('VOS Daily Traffic is still in this browser; Firebase migration failed: '+error.message,'err',9000);
+    return false;
+  }finally{vosDailyCloudMigrationRunning=false;}
+}
+function subscribeVosDailyTrafficCloud() {
+  if(!fbOk || vosDailyCloudUnsubscribe)return;
+  try{
+    const cloudQuery=query(collection(db,VOS_DAILY_CLOUD_COLLECTION),orderBy('session_date','desc'),limit(VOS_DAILY_MAX_DATES));
+    vosDailyCloudUnsubscribe=onSnapshot(cloudQuery,async snapshot=>{
+      const remote=snapshot.docs.map(vosDailyCloudDay).filter(day=>day.session_date).sort((a,b)=>a.session_date.localeCompare(b.session_date));
+      // Do not treat an empty cache event as an authoritative empty server.
+      if(snapshot.metadata?.fromCache && !remote.length)return;
+      const local=vosSortedHistory(),remoteDates=new Set(remote.map(day=>day.session_date));
+      const migrationDone=localStorage.getItem(VOS_DAILY_CLOUD_MIGRATION_KEY)==='1';
+      const pending=!migrationDone&&canPostStats()?local.filter(day=>!remoteDates.has(day.session_date)):[];
+      if(pending.length){
+        const merged=new Map(local.map(day=>[day.session_date,day]));
+        remote.forEach(day=>merged.set(day.session_date,day));
+        vosDailyHistory=[...merged.values()].sort((a,b)=>a.session_date.localeCompare(b.session_date)).slice(-VOS_DAILY_MAX_DATES);
+        saveVosTrafficLocal();renderAllVosDailyTrafficViews();
+        await migrateVosDailyTrafficLocalToCloud(pending);
+        return;
+      }
+      if(!migrationDone&&canPostStats())localStorage.setItem(VOS_DAILY_CLOUD_MIGRATION_KEY,'1');
+      // Once connected, Firestore is authoritative and the browser mirrors it.
+      vosDailyHistory=remote;
+      if(!vosDailyHistory.some(day=>day.session_date===vosSelectedDate))vosSelectedDate=vosDailyHistory[vosDailyHistory.length-1]?.session_date||'';
+      saveVosTrafficLocal();renderAllVosDailyTrafficViews();
+    },error=>{
+      console.warn('VOS Daily Traffic subscription:',error);
+      toast('VOS Daily Traffic cloud sync is unavailable; showing the browser cache.','err',8000);
+    });
+  }catch(error){console.warn('subscribe VOS Daily Traffic:',error);}
+}
+function unsubscribeVosDailyTrafficCloud() {
+  if(vosDailyCloudUnsubscribe){try{vosDailyCloudUnsubscribe();}catch(error){}vosDailyCloudUnsubscribe=null;}
+}
 function vosDailyComparison(date = vosSelectedDate) {
   const days = vosSortedHistory();
   const index = days.findIndex(day => day.session_date === date);
@@ -20805,7 +20892,8 @@ window.switchVosPrimaryTab = tab => {
   ['stats','daily'].forEach(name => { const active=name===vosPrimaryTab; const button=document.getElementById(`vos-primary-tab-${name}`), panel=document.getElementById(`vos-primary-panel-${name}`); button?.classList.toggle('active',active); button?.setAttribute('aria-selected',String(active)); if(panel)panel.style.display=active?'flex':'none'; });
   document.getElementById('vos-side-upload-stats')?.classList.toggle('active',vosPrimaryTab==='stats');
   document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily');
-  if(vosPrimaryTab==='daily') switchVosDailyTab(vosDailyTab); else switchVosStatsTab(vosStatsTab);
+  if(vosPrimaryTab==='daily') { subscribeVosDailyTrafficCloud(); switchVosDailyTab(vosDailyTab); }
+  else switchVosStatsTab(vosStatsTab);
 };
 window.switchVosDailyTab = tab => {
   vosDailyTab=['today','dashboard','history','logs','settings'].includes(tab)?tab:'today';
@@ -20851,11 +20939,16 @@ function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),bo
 window.renderVosDailyLogs=renderVosDailyLogs;
 window.deleteVosDailyReport=async sessionDate=>{
   if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic reports.','err');return;}
-  const approved=await confirmPremiumAction({title:'Delete VOS Daily Traffic Report',html:`Delete the local report and import log for <strong>${stEsc(sessionDate)}</strong>?<br><br>This date will be removed from dashboard comparisons and cannot be undone.`,label:'Delete'});
+  const approved=await confirmPremiumAction({title:'Delete VOS Daily Traffic Report',html:`Delete the shared report and import log for <strong>${stEsc(sessionDate)}</strong>?<br><br>This date will be removed from every operator's dashboard comparison and cannot be undone.`,label:'Delete'});
   if(!approved)return;
-  vosDailyHistory=vosDailyHistory.filter(day=>day.session_date!==sessionDate);vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';saveVosTrafficLocal();
-  const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
-  renderVosTraffic();renderVosDailyLogs();toast(`Deleted VOS Daily Traffic report for ${sessionDate}.`,'ok');
+  setLoading(true,'Deleting VOS Daily Traffic report…');
+  try{
+    if(fbOk)await deleteDoc(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(sessionDate)));
+    vosDailyHistory=vosDailyHistory.filter(day=>day.session_date!==sessionDate);vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';saveVosTrafficLocal();
+    const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+    renderAllVosDailyTrafficViews();toast(`Deleted VOS Daily Traffic report for ${sessionDate}.`,'ok');
+  }catch(error){toast('VOS Daily Traffic report could not be deleted: '+error.message,'err',8000);}
+  finally{setLoading(false);}
 };
 window.archiveVosDailyMonth=async()=>{
   if(!canArchiveDailyTraffic()){toast('Only admins can archive VOS Daily Traffic months.','err');return;}
@@ -20871,6 +20964,15 @@ window.archiveVosDailyMonth=async()=>{
   });
   if(!approved)return;
   try{
+    if(fbOk){
+      const batch=writeBatch(db);
+      archivedDays.forEach(day=>{
+        const id=vosDailyCloudDocId(day.session_date);
+        batch.set(doc(db,VOS_DAILY_ARCHIVE_CLOUD_COLLECTION,id),vosDailyCloudPayload(day,{archived_month:month,archived_at:Timestamp.now(),archived_by:operatorName||currentUserEmail||''}));
+        batch.delete(doc(db,VOS_DAILY_CLOUD_COLLECTION,id));
+      });
+      await batch.commit();
+    }
     const existing=JSON.parse(localStorage.getItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY)||'[]'),merged=new Map((Array.isArray(existing)?existing:[]).map(day=>[day.session_date,day]));
     archivedDays.forEach(day=>merged.set(day.session_date,{...day,archived_month:month,archived_at:new Date().toISOString(),archived_by:operatorName||''}));
     localStorage.setItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY,JSON.stringify([...merged.values()]));
@@ -20878,7 +20980,7 @@ window.archiveVosDailyMonth=async()=>{
     vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';
     saveVosTrafficLocal();
     const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
-    renderVosTraffic();
+    renderAllVosDailyTrafficViews();
     toast(`Archived ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}.`,'ok',7000);
   }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
 };
@@ -20890,22 +20992,45 @@ window.clearVosDailyHistory=async()=>{
     label:'Delete All'
   });
   if(!approved)return;
-  vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';
-  try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}
-  const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
-  renderVosTraffic();renderVosDailyLogs();toast('VOS Daily Traffic history deleted.','ok');
+  setLoading(true,'Deleting VOS Daily Traffic history…');
+  try{
+    if(fbOk&&vosDailyHistory.length){const batch=writeBatch(db);vosDailyHistory.forEach(day=>batch.delete(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(day.session_date))));await batch.commit();}
+    vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';
+    try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}
+    const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
+    renderAllVosDailyTrafficViews();toast('VOS Daily Traffic history deleted for every operator.','ok');
+  }catch(error){toast('VOS Daily Traffic history could not be deleted: '+error.message,'err',8000);}
+  finally{setLoading(false);}
 };
 window.importVosTrafficFile = async file => {
   if(!file)return;
+  if(!canPostStats()){toast('Posting VOS Daily Traffic reports is restricted for this account.','err');return;}
   if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
   const dateInput=document.getElementById('vos-traffic-date'),sessionDate=String(dateInput?.value||'');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)){setRequiredFieldState('vos-traffic-date',true);dateInput?.focus();toast('Select the VOS Traffic Date before uploading.','err',7000);return;}
   setLoading(true,'Reading VOS traffic file…');
   try{const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate;sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');
-    vosTrafficRows=parsed;vosTrafficFilename=file.name||'VOS report';vosSelectedDate=sessionDate;vosDailyHistory=[...vosDailyHistory.filter(day=>day.session_date!==sessionDate),{session_date:sessionDate,filename:vosTrafficFilename,sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed}];vosDailyHistory=vosSortedHistory();vosTrafficSortCol='mapping_gateway';vosTrafficSortDir=1;
+    vosTrafficRows=parsed;vosTrafficFilename=file.name||'VOS report';vosSelectedDate=sessionDate;
+    const report={session_date:sessionDate,filename:vosTrafficFilename,sheet_name:sheetName,processed_at:new Date().toISOString(),posted_by:currentUserEmail||operatorName||'',rows:parsed};
+    const nextHistory=[...vosDailyHistory.filter(day=>day.session_date!==sessionDate),report].sort((a,b)=>a.session_date.localeCompare(b.session_date));
+    const removedDates=nextHistory.slice(0,Math.max(0,nextHistory.length-VOS_DAILY_MAX_DATES)).map(day=>day.session_date);
+    vosDailyHistory=nextHistory.slice(-VOS_DAILY_MAX_DATES);vosTrafficSortCol='mapping_gateway';vosTrafficSortDir=1;
     const search=document.getElementById('vos-traffic-search');if(search)search.value='';const status=document.getElementById('vos-file-status');if(status){status.dataset.current='1';status.textContent=`${vosTrafficFilename} · ${sheetName} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}
-    const persisted=saveVosTrafficLocal();renderVosTraffic();renderVosDailyDashboard();if(vosDailyTab==='history')renderVosDailyHistory();if(vosDailyTab==='logs')renderVosDailyLogs();toast(`VOS Daily Traffic saved for ${sessionDate}: ${parsed.length} grouped row(s)${persisted?'':' · browser storage is full'}`,persisted?'ok':'err',8000);
+    const persisted=saveVosTrafficLocal();renderAllVosDailyTrafficViews();
+    let synced=false,syncError=null;
+    if(fbOk){
+      try{
+        const batch=writeBatch(db);
+        batch.set(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(sessionDate)),vosDailyCloudPayload(report));
+        removedDates.filter(date=>date!==sessionDate).forEach(date=>batch.delete(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(date))));
+        await batch.commit();
+        await writeSnapshotLog({...report,timestamp:new Date(report.processed_at)},parsed.length,'vos-daily-traffic',{filename:report.filename,sheet_name:sheetName,source_rows:parsed.reduce((sum,row)=>sum+vosNumber(row.source_rows),0)});
+        synced=true;
+      }catch(error){syncError=error;try{localStorage.removeItem(VOS_DAILY_CLOUD_MIGRATION_KEY);}catch(e){}console.warn('save VOS Daily Traffic to Firebase:',error);}
+    }
+    const saveDetail=synced?' · synced to Firebase':fbOk?` · saved in this browser; Firebase sync failed${syncError?.message?`: ${syncError.message}`:''}`:' · saved in this browser (Firebase unavailable)';
+    toast(`VOS Daily Traffic saved for ${sessionDate}: ${parsed.length} grouped row(s)${saveDetail}${persisted?'':' · browser storage is full'}`,synced||(!fbOk&&persisted)?'ok':'err',9000);
   }catch(e){toast('VOS file could not be processed: '+e.message,'err',9000);}finally{setLoading(false);}
 };
 function vosExportDataset(tab=vosDailyTab){
@@ -23960,6 +24085,7 @@ if (auth) {
       if (document.getElementById('view-logs')?.classList.contains('active')) renderLogs();
     } else {
       stopHeartbeatCoordinator();
+      unsubscribeVosDailyTrafficCloud();
       unsubscribeLogs();
       unsubscribeAllUsers();
       currentUserEmail = '';
