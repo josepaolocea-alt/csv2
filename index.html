@@ -1423,18 +1423,6 @@
     .st-daily-export-actions { display: flex; gap: 4px; margin-left: auto; }
     .st-daily-export-btn { min-height: 28px; padding: 4px 9px; }
     .daily-workspace { background:var(--surface); }
-    .daily-workspace-intro {
-      display:flex; align-items:center; justify-content:space-between; gap:14px;
-      padding:11px 12px 9px;
-      background:linear-gradient(115deg,color-mix(in srgb,var(--accent-soft) 48%,var(--surface)),var(--surface) 58%);
-      border-bottom:1px solid var(--border);
-    }
-    .daily-workspace-eyebrow {
-      margin-bottom:3px; color:var(--accent); font-size:8.5px; font-weight:800;
-      letter-spacing:.12em; text-transform:uppercase;
-    }
-    .daily-workspace-title { color:var(--text); font-size:14px; font-weight:750; line-height:1.2; }
-    .daily-workspace-subtitle { margin-top:3px; color:var(--text-3); font-size:9.5px; line-height:1.35; }
     .daily-workspace-nav {
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       padding:7px 10px; background:var(--surface); border-bottom:1px solid var(--border);
@@ -4205,7 +4193,6 @@
     .sms-bal-table-wrap, .vos-stats-table-shell, .vos-stats-timeline { border-radius: var(--ui-panel-radius); box-shadow: none; }
 
     /* Flat operational surfaces remove module-specific decorative effects. */
-    .daily-workspace-intro,
     .daily-import-strip,
     .sms-bal-subnav,
     .sms-bal-status-guide,
@@ -4213,7 +4200,6 @@
       background-image: none;
       box-shadow: none;
     }
-    .daily-workspace-intro { padding: 12px 14px; }
     .sms-bal-card, .sms-bal-summary-card, .sum-card, .sum-section { border-radius: var(--ui-control-radius); box-shadow: none; }
 
     /* Critical VOIP Alerts must keep a filled surface in light mode. The
@@ -4500,7 +4486,6 @@
     .daily-workspace,
     .vos-side-rail,
     .sms-bal-sidebar,
-    .daily-workspace-intro,
     .sms-bal-status-guide,
     .voip-alert-guide {
       background: var(--bg);
@@ -6676,13 +6661,6 @@
       <div class="view" id="view-stats-daily">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="traffic-source-panel daily-workspace" id="traffic-source-voip">
-          <div class="daily-workspace-intro">
-            <div>
-              <div class="daily-workspace-eyebrow">VOIP Daily Traffic</div>
-              <div class="daily-workspace-title">Raw Duration Change Monitor</div>
-              <div class="daily-workspace-subtitle">Compare daily routes, surface meaningful changes, and review the latest two-week trend.</div>
-            </div>
-          </div>
           <div class="daily-workspace-nav">
             <div class="daily-tab-segment" role="tablist" aria-label="Daily Traffic views">
               <button type="button" class="st-daily-tab active" id="st-daily-tab-today" role="tab" aria-selected="true" onclick="switchStatsDailyTab('today')">Today / Paste</button>
@@ -6844,13 +6822,6 @@
 
             <div class="vos-primary-panel" id="vos-primary-panel-stats" role="tabpanel" aria-labelledby="vos-primary-tab-stats" style="display:none">
               <div class="vos-stats-workspace">
-                <div class="daily-workspace-intro">
-                  <div>
-                    <div class="daily-workspace-eyebrow">VOS Stats</div>
-                    <div class="daily-workspace-title">Hourly Gateway Performance</div>
-                    <div class="daily-workspace-subtitle">Upload each hourly VOS report, merge duplicate gateway + destination rows, and monitor ASR, ACD, call volume, and stopped traffic.</div>
-                  </div>
-                </div>
                 <div class="daily-workspace-nav">
                   <div class="daily-tab-segment" role="tablist" aria-label="VOS Stats views">
                     <button type="button" class="st-daily-tab active" id="vos-stats-tab-summary" role="tab" aria-selected="true" onclick="switchVosStatsTab('summary')">Summary</button>
@@ -6929,13 +6900,6 @@
             </div>
 
             <div class="vos-primary-panel daily-workspace" id="vos-primary-panel-daily" role="tabpanel" aria-labelledby="vos-primary-tab-daily" style="display:flex">
-              <div class="daily-workspace-intro">
-                <div>
-                  <div class="daily-workspace-eyebrow">VOS Daily Traffic</div>
-                  <div class="daily-workspace-title">Gateway &amp; Area Change Monitor</div>
-                  <div class="daily-workspace-subtitle">Upload dated reports, compare call-time movement, and review route trends across two weeks.</div>
-                </div>
-              </div>
               <div class="daily-workspace-nav">
                 <div class="daily-tab-segment" role="tablist" aria-label="VOS Daily Traffic views">
                   <button type="button" class="st-daily-tab active" id="vos-daily-tab-today" role="tab" aria-selected="true" onclick="switchVosDailyTab('today')">Today / Upload</button>
