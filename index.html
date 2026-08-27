@@ -2172,7 +2172,6 @@
     }
     .sms-cred-topbar { display:flex; align-items:center; gap:8px; flex:none; flex-wrap:wrap; }
     .sms-cred-topbar-actions { display:flex; align-items:center; gap:6px; margin-left:auto; }
-    #sms-credentials-form-toggle[hidden] { display:none !important; }
     .sms-cred-sync {
       display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 8px;
       border:1px solid var(--border); border-radius:999px; background:var(--surface-2);
@@ -6115,7 +6114,6 @@
                 </div>
                 <div class="sms-cred-topbar-actions">
                   <span class="sms-cred-sync local" id="sms-cred-sync-status" role="status" aria-live="polite" title="Credential records are currently available from this browser's local cache.">Local only</span>
-                  <button type="button" class="tbtn" id="sms-credentials-form-toggle" onclick="toggleSmsCredentialForm()" aria-controls="sms-credentials-form" aria-expanded="false" data-premium-tooltip="Show the Add / Edit Credential form.">✎ Show Form</button>
                 </div>
               </div>
               <div id="sms-credentials-register-panel">
@@ -17840,10 +17838,8 @@ window.switchSmsCredentialSubtab = tab => {
   document.getElementById('sms-cred-subtab-otp')?.classList.toggle('active', tab === 'otp');
   const registerPanel = document.getElementById('sms-credentials-register-panel');
   const otpPanel = document.getElementById('sms-credentials-otp-panel');
-  const formToggle = document.getElementById('sms-credentials-form-toggle');
   if (registerPanel) registerPanel.style.display = tab === 'register' ? 'flex' : 'none';
   if (otpPanel) otpPanel.style.display = tab === 'otp' ? 'block' : 'none';
-  if (formToggle) formToggle.hidden = tab !== 'register';
   if (tab === 'otp') { refreshSmsOtpCredentialOptions(); startSmsOtpTimer(); }
   else stopSmsOtpTimer();
 };
@@ -18355,7 +18351,6 @@ let smsCredentialFormRevealTimer = null;
 
 window.setSmsCredentialForm = open => {
   const form=document.getElementById('sms-credentials-form');
-  const button=document.getElementById('sms-credentials-form-toggle');
   clearTimeout(smsCredentialFormRevealTimer);smsCredentialFormRevealTimer=null;
   if(form){
     form.classList.remove('sms-cred-form-opening');
@@ -18368,12 +18363,6 @@ window.setSmsCredentialForm = open => {
         smsCredentialFormRevealTimer=null;
       },revealDelay);
     }else form.classList.toggle('collapsed',!open);
-  }
-  if(button){
-    button.classList.toggle('active',!!open);
-    button.setAttribute('aria-expanded',String(!!open));
-    button.textContent=open?'✕ Hide Form':'✎ Show Form';
-    button.setAttribute('data-premium-tooltip',`${open?'Hide':'Show'} the Add / Edit Credential form.`);
   }
 };
 
