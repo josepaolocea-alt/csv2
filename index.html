@@ -1535,6 +1535,32 @@
       padding-bottom: 10px;
       scroll-padding-bottom: 10px;
       scrollbar-gutter: stable;
+      overscroll-behavior-y: auto;
+    }
+    #vos-daily-panel-dashboard .st-daily-dashboard-grid {
+      flex: 1;
+      min-height: 0;
+      grid-auto-rows: max-content;
+      align-content: start;
+      overflow-y: scroll;
+      overscroll-behavior-y: contain;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    #vos-daily-panel-dashboard .st-daily-dashboard-grid::-webkit-scrollbar,
+    #vos-dashboard-stopped-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+    #vos-daily-panel-dashboard .st-daily-dashboard-grid::-webkit-scrollbar-thumb,
+    #vos-dashboard-stopped-scroll::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border: 2px solid transparent;
+      border-radius: 999px;
+      background-clip: padding-box;
+    }
+    #vos-daily-panel-dashboard .st-daily-dashboard-grid:focus-visible,
+    #vos-dashboard-stopped-scroll:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
     }
     #vos-daily-panel-dashboard .st-daily-rank-card tbody tr:last-child td { padding-bottom: 11px; }
     .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
@@ -6947,9 +6973,9 @@
 
               <div class="st-daily-panel" id="vos-daily-panel-dashboard" role="tabpanel" aria-labelledby="vos-daily-tab-dashboard" style="display:none">
                 <div class="st-daily-dashboard-meta" id="vos-daily-dashboard-meta">Add dated VOS reports to build the two-week dashboard.</div>
-                <div class="st-daily-dashboard-grid">
+                <div class="st-daily-dashboard-grid" tabindex="0" aria-label="VOS Daily Traffic dashboard cards">
                   <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
-                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
+                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll" id="vos-dashboard-stopped-scroll" tabindex="0" aria-label="Top 10 Stopped Traffic routes"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
                   <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
                   <section class="st-daily-rank-card total"><div class="st-daily-rank-title"><span>Total Call Time</span><span class="st-daily-rank-count" id="vos-dashboard-total-count">0 dates</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Date</th><th class="num">Total minutes</th><th class="num">Change (min)</th><th>Trend</th></tr></thead><tbody id="vos-dashboard-total"></tbody></table></div></section>
                 </div>
@@ -21013,10 +21039,11 @@ function vosExportDataset(tab=vosDailyTab){
       increase:comparison.rows.filter(row=>row.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10),
     };
     const sections=[['Top 10 Decreases',groups.decrease],['Top 10 Stopped Traffic',groups.stopped],['Top 10 Increases',groups.increase]];
+    const currentHeading=vosDashboardDateHeading(comparison.currentDay?.session_date,'Current (min)'),previousHeading=vosDashboardDateHeading(comparison.previousDay?.session_date,'Previous (min)');
     const rows=sections.flatMap(([section,items])=>items.map((row,index)=>[section,index+1,row.mapping_gateway,row.area_name,vosMinutes(row.total_call_time_seconds),vosMinutes(row.previous_total_call_time_seconds),vosMinutes(row.change_seconds),row.change_pct,row.status]));
     const days=vosSortedHistory();
     days.map((day,index)=>{const total=day.rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0),previous=index?days[index-1].rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0):0,change=index?total-previous:0;return{date:day.session_date,total,previous,change,status:change>0?'increase':change<0?'decrease':'unchanged'};}).reverse().forEach((row,index)=>rows.push(['Total Call Time',index+1,row.date,'',vosMinutes(row.total),vosMinutes(row.previous),vosMinutes(row.change),'',row.status]));
-    return{sheet:'Dashboard',suffix:`dashboard_${comparison.currentDay?.session_date||todayStr()}`,headers:['Section','Rank','Mapping Gateway / Date','Area Name','Current (min)','Previous (min)','Change (min)','Change %','Status'],rows,rowMeta:rows.map(row=>({section:row[0],status:String(row[8]||'').toLowerCase()}))};
+    return{sheet:'Dashboard',suffix:`dashboard_${comparison.currentDay?.session_date||todayStr()}`,headers:['Section','Rank','Mapping Gateway / Date','Area Name',currentHeading,previousHeading,'Change (min)','Change %','Status'],numericHeaders:[currentHeading,previousHeading,'Change (min)','Change %'],rows,rowMeta:rows.map(row=>({section:row[0],status:String(row[8]||'').toLowerCase()}))};
   }
   const rows=vosVisibleRows(),values=rows.map(row=>[row.mapping_gateway,row.area_name,row.session_date,row.previous_date,row.total_calls,row.fail,row.success,row.answered,row.avg_call_duration_sum_seconds,row.total_call_time_seconds,row.previous_total_call_time_seconds,row.change_seconds,row.change_pct,row.status,row.asr,row.acd]);
   return{sheet:'Today',suffix:`today_${vosSelectedDate||todayStr()}`,headers:['Mapping Gateway','Area Name','Date','Previous Date','Total Calls','Fail','Success','Answered','Average Call Duration Sum (sec)','Total Call Time (sec)','Previous Time (sec)','Change (sec)','Change %','Status','ASR %','ACD (min)'],rows:values,rowMeta:rows.map(row=>({status:row.status}))};
@@ -21045,7 +21072,7 @@ window.exportVosDailyTab=async format=>{
       data.headers.forEach((columnHeader,index)=>{sheet.getColumn(index+1).width=Math.min(34,data.rows.reduce((width,row)=>Math.max(width,String(row[index]??'').length+2),String(columnHeader).length+2));});
       for(let rowNumber=2;rowNumber<=data.rows.length+1;rowNumber++){
         const rowFill=vosExportRowFill(data,data.rows[rowNumber-2],rowNumber-2);sheet.getRow(rowNumber).eachCell({includeEmpty:true},cell=>{cell.alignment={vertical:'middle'};cell.border={bottom:thinBorder};if(rowFill)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:rowFill}};});
-        ['Change %','ASR %','ACD (min)','Current (min)','Previous (min)','Change (min)'].forEach(label=>{const column=data.headers.indexOf(label)+1;if(column>0)sheet.getCell(rowNumber,column).numFmt='0.00';});
+        (data.numericHeaders||['Change %','ASR %','ACD (min)','Current (min)','Previous (min)','Change (min)']).forEach(label=>{const column=data.headers.indexOf(label)+1;if(column>0)sheet.getCell(rowNumber,column).numFmt='0.00';});
       }
       sheet.autoFilter={from:{row:1,column:1},to:{row:data.rows.length+1,column:data.headers.length}};
       const buffer=await workbook.xlsx.writeBuffer(),url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),link=document.createElement('a');link.href=url;link.download=`${safe}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),0);
