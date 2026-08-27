@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="BalanceMonitor" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600;700&display=swap" rel="stylesheet" />
   <script>
     /* Boot watchdog — surfaces a clear message if a CDN dependency fails to load
        (blocked network, offline, CDN outage) instead of failing silently or
@@ -5098,6 +5098,1044 @@
       .daily-tab-segment, .sms-bal-subnav, .sms-bal-segmented { gap: 7px; padding: 7px; }
     }
 
+    /* ══════════════════════════════════════════════════════════════════════
+       FUNCTIONAL MINIMALISM — OPERATIONS SHELL
+       Final visual layer. Markup, IDs, handlers and data are untouched; this
+       restates the surface language and re-flows the existing shell elements
+       into three panels: navigation, snapshot/upload, workspace.
+
+       Principles applied throughout:
+       · Structure comes from 1px hairlines and spacing, never from elevation.
+         Shadow is reserved for things that genuinely float above the page.
+       · One accent hue. Every other colour in the interface carries a status
+         meaning (critical / warning / watch / safe) and is never decorative.
+       · Numbers are monospaced and tabular so columns align optically and a
+         value that changes between snapshots is caught by shape, not reading.
+       · Chrome is quiet and small; data is the largest text on screen.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /* ── 1 · Tokens ────────────────────────────────────────────────────────
+       The neumorphic layer above resolved every panel edge through soft
+       shadows and set --border to transparent. Both are reversed here: the
+       --neu-* hooks collapse to `none`, so each `box-shadow: var(--neu-*)`
+       rule in that layer flattens without having to be hunted down, and the
+       hairline tokens carry structure again. --neu-floating is kept live —
+       it is the one place elevation is still correct (menus, dialogs). */
+    :root {
+      --font: 'IBM Plex Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+
+      --bg: #f7f7f9;
+      --surface: #ffffff;
+      --surface-2: #f4f4f6;
+      --surface-3: #eaeaee;
+      --border: #e4e4e7;
+      /* --border-strong is the resting outline of buttons and inputs, which on
+         a white ground is the only thing identifying them as controls, so it
+         is held at 3:1 against both --surface and --surface-2 (WCAG 1.4.11)
+         rather than tuned by eye. --text-3 carries column headers over
+         --surface-2 and is set for 4.5:1 there, not just against white. */
+      --border-strong: #8d8d95;
+      --text: #18181b;
+      --text-2: #52525b;
+      --text-3: #6b6b76;
+      --muted: var(--text-2);
+
+      --accent: #2563eb;
+      --accent-soft: #eef3ff;
+      --accent-strong: #1d4ed8;
+      --on-accent: #ffffff;
+
+      --red: #b91c1c;      --red-soft: #fdf1f1;   --red-deep: #991b1b;
+      --orange: #b45309;   --orange-soft: #fdf4ea;
+      --yellow: #a16207;   --yellow-deep: #854d0e; --yellow-soft: #fdf8e7;
+      --green: #15803d;    --green-soft: #eff8f1;
+
+      --row-hover: #f2f6fe;
+
+      --shadow-sm: none;
+      --shadow-md: 0 1px 2px rgba(24,24,27,.05), 0 6px 16px rgba(24,24,27,.06);
+      --shadow-lg: 0 1px 2px rgba(24,24,27,.06), 0 18px 48px rgba(24,24,27,.14);
+      --shadow-xs: none;
+
+      --neu-hi: transparent;
+      --neu-lo: transparent;
+      --neu-raised: none;
+      --neu-raised-sm: none;
+      --neu-inset: none;
+      --neu-inset-sm: none;
+      --neu-floating: 0 1px 2px rgba(24,24,27,.06), 0 18px 48px rgba(24,24,27,.14);
+
+      /* One graduated radius scale, by container size — and only one step per
+         size, so a button and the toolbar button beside it cannot end up 1px
+         apart. 0 full-bleed edges · 2px indicator bars · 3px the 16px tick box
+         · 5px controls and small items · 6px panels/cards/tables · 8px
+         dialogs · 999px filter chips. */
+      --r-sm: 5px;
+      --r-md: 6px;
+      --r-lg: 8px;
+      --ui-control-h: 30px;
+      --ui-control-radius: var(--r-sm);
+      --ui-panel-radius: var(--r-md);
+      --ui-control-gap: 8px;
+      --ui-section-gap: 14px;
+      --ui-view-pad: 18px;
+
+      --nav-w: 236px;
+      --nav-w-min: 58px;
+      --snap-w: 274px;
+      --chrome-h: 46px;
+      color-scheme: light;
+    }
+
+    body.night-mode {
+      --bg: #0c0d10;
+      --surface: #141519;
+      --surface-2: #1a1b20;
+      --surface-3: #232429;
+      --border: #26272e;
+      --border-strong: #6a6b75;
+      --text: #ededf0;
+      --text-2: #a1a1aa;
+      --text-3: #8e8f98;
+
+      --accent: #5b8def;
+      --accent-soft: #17233d;
+      --accent-strong: #93b4f7;
+      --on-accent: #0b1220;
+
+      --red: #f87171;      --red-soft: #2a1618;   --red-deep: #fca5a5;
+      --orange: #fb923c;   --orange-soft: #2a1d12;
+      --yellow: #e3b341;   --yellow-deep: #f0cf74; --yellow-soft: #262010;
+      --green: #4ade80;    --green-soft: #11251a;
+
+      --row-hover: #1c1e25;
+
+      --shadow-md: 0 1px 2px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.4);
+      --shadow-lg: 0 1px 2px rgba(0,0,0,.6), 0 18px 48px rgba(0,0,0,.55);
+      --neu-floating: 0 1px 2px rgba(0,0,0,.6), 0 18px 48px rgba(0,0,0,.55);
+      color-scheme: dark;
+    }
+
+    /* ── 2 · Typography ───────────────────────────────────────────────────
+       12px is the reading size for a desk that is watched for a whole shift;
+       chrome sits below it and data above. Tabular figures are on globally so
+       a balance never shifts horizontally between two snapshots. */
+    body {
+      font-family: var(--font);
+      font-size: 12px;
+      line-height: 1.45;
+      background: var(--bg);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body::before { display: none; }
+    body.comfy { font-size: 13px; }
+    body.comfy td { padding: 8px 11px; font-size: 13px; }
+    body.comfy th { padding: 9px 11px; font-size: 10.5px; }
+    body.comfy .nav-leaf, body.comfy .nav-parent { font-size: 13px; }
+
+    /* Numbers read as data, not prose: mono, tabular, slightly tightened. */
+    td.num, th.num, .num,
+    .stat-box .sv, .sms-bal-card .value, .st-daily-card .value,
+    .sum-card .value, .sv {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1, 'zero' 1;
+    }
+
+    /* ── 3 · Shell ────────────────────────────────────────────────────────
+       Full bleed, three columns. #app-body is flattened with display:contents
+       so its two children (#sidebar, #content) join #win's grid directly —
+       that is what lets the snapshot panel run the full height of the window
+       beside the navigation rail without moving either element in the DOM. */
+    #win {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      border: 0; border-radius: 0; box-shadow: none;
+      display: grid;
+      /* The nav column is sized on the track, not the item: as a row-spanning
+         grid item the rail's own width does not drive an `auto` track. The
+         snapshot column stays `auto` on purpose — that is what lets it fall to
+         zero in the modules that have no paste panel. */
+      --col-nav: var(--nav-w);
+      grid-template-columns: var(--col-nav) auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      transition: grid-template-columns .18s cubic-bezier(.4, 0, .2, 1);
+      grid-template-areas:
+        "nav snap top"
+        "nav snap sub"
+        "nav snap main"
+        "nav snap foot";
+      overflow: hidden;
+    }
+    #app-nav   { grid-area: nav; }
+    #sidebar   { grid-area: snap; }
+    #menubar   { grid-area: top; }
+    #toolbar   { grid-area: sub; }
+    #content   { grid-area: main; }
+    #statusbar { grid-area: foot; }
+    #app-body  { display: contents; }
+    #titlebar  { display: none !important; }
+
+    /* ── 4 · Panel 1 · Navigation ─────────────────────────────────────────
+       Every control here is a façade over an existing button: it calls the
+       same switch* function and mirrors that button's .active class, so the
+       tree can never disagree with the app's real state. */
+    /* The rail takes its width from the grid track, and the track is what
+       animates: transitioning the element instead would leave it wider than
+       its column for the length of the transition and lap over the panel
+       beside it. */
+    #app-nav {
+      display: flex; flex-direction: column; min-height: 0; min-width: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: relative; z-index: 30;
+      overflow: hidden;
+    }
+    body.nav-collapsed #win { --col-nav: var(--nav-w-min); }
+
+    .nav-head {
+      flex: 0 0 auto; height: var(--chrome-h);
+      display: flex; align-items: center; gap: 9px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .nav-mark {
+      flex: 0 0 20px; width: 20px; height: 20px;
+      display: grid; place-items: center;
+      color: var(--accent);
+    }
+    .nav-mark svg { width: 20px; height: 20px; }
+    .nav-brand { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+    .nav-brand-name {
+      font-size: 12.5px; font-weight: 600; color: var(--text);
+      letter-spacing: -.012em; white-space: nowrap;
+    }
+    .nav-brand-sub {
+      font-size: 9px; font-weight: 500; color: var(--text-3);
+      letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+    }
+
+    .nav-scroll {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+      padding: 8px 7px 12px;
+      scrollbar-width: thin;
+    }
+    .nav-group + .nav-group { margin-top: 1px; }
+
+    .nav-parent, .nav-leaf, #nav-collapse-btn {
+      display: flex; align-items: center; gap: 9px;
+      width: 100%; padding: 0 8px;
+      font: inherit; text-align: left;
+      background: none; border: 0; border-radius: var(--r-sm);
+      color: var(--text-2); cursor: pointer;
+      transition: background-color .12s ease, color .12s ease;
+    }
+    .nav-parent { min-height: 32px; font-size: 12.5px; font-weight: 500; }
+    .nav-parent:hover, .nav-leaf:hover, #nav-collapse-btn:hover {
+      background: var(--surface-2); color: var(--text);
+    }
+    .nav-ico {
+      flex: 0 0 18px; width: 18px; height: 18px;
+      display: grid; place-items: center; color: var(--text-3);
+      transition: color .12s ease;
+    }
+    .nav-ico svg { width: 18px; height: 18px; display: block; }
+    .nav-ico-text {
+      font-size: 8.5px; font-weight: 700; letter-spacing: -.04em;
+      font-family: var(--mono);
+    }
+    .nav-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-caret {
+      flex: 0 0 13px; width: 13px; height: 13px; color: var(--text-3);
+      transition: transform .16s cubic-bezier(.4, 0, .2, 1);
+    }
+    .nav-caret svg { width: 13px; height: 13px; display: block; }
+    .nav-group.is-open > .nav-parent .nav-caret,
+    .nav-subgroup.is-open > .nav-subparent .nav-caret { transform: rotate(90deg); }
+
+    /* The module a user is currently inside is marked on the parent; the exact
+       view is marked on the leaf. Two different weights of the same signal. */
+    .nav-group.is-current > .nav-parent { color: var(--text); font-weight: 600; }
+    .nav-group.is-current > .nav-parent .nav-ico { color: var(--accent); }
+    .nav-group-flat.is-current > .nav-parent {
+      background: var(--accent-soft); color: var(--accent-strong);
+    }
+    .nav-group-flat.is-current > .nav-parent .nav-ico { color: var(--accent-strong); }
+
+    .nav-children { display: none; margin: 1px 0 4px 17px; padding-left: 8px; border-left: 1px solid var(--border); }
+    .nav-group.is-open > .nav-children,
+    .nav-subgroup.is-open > .nav-children { display: block; }
+    .nav-leaf { min-height: 27px; font-size: 12px; position: relative; }
+    .nav-leaf.is-active {
+      background: var(--accent-soft); color: var(--accent-strong); font-weight: 600;
+    }
+    /* Active marker rides the rail line rather than adding a second surface. */
+    .nav-leaf.is-active::before {
+      content: ''; position: absolute; left: -9px; top: 50%;
+      width: 2px; height: 15px; margin-top: -7.5px;
+      background: var(--accent); border-radius: 2px;
+    }
+    .nav-subparent { font-weight: 500; }
+    .nav-subgroup.is-current > .nav-subparent { color: var(--text); font-weight: 600; }
+    .nav-subgroup > .nav-children { margin-left: 8px; }
+    .nav-sublabel {
+      padding: 10px 8px 3px;
+      font-size: 9px; font-weight: 600; letter-spacing: .11em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+
+    .nav-foot { flex: 0 0 auto; padding: 7px; border-top: 1px solid var(--border); }
+    #nav-collapse-btn { min-height: 30px; font-size: 12px; color: var(--text-3); }
+    body.nav-collapsed #nav-collapse-btn .nav-ico svg { transform: rotate(180deg); }
+
+    /* Collapsed: icons only. Children become a fixed flyout positioned by JS
+       (--fly-top), because a rail 58px wide cannot clip a submenu usefully. */
+    body.nav-collapsed .nav-brand,
+    body.nav-collapsed .nav-label,
+    body.nav-collapsed .nav-caret,
+    body.nav-collapsed .nav-sublabel { display: none; }
+    body.nav-collapsed .nav-children { display: none !important; }
+    body.nav-collapsed .nav-head { justify-content: center; padding: 0; }
+    body.nav-collapsed .nav-parent,
+    body.nav-collapsed #nav-collapse-btn { justify-content: center; padding: 0; min-height: 36px; }
+    body.nav-collapsed .nav-group.is-current > .nav-parent {
+      background: var(--accent-soft); color: var(--accent-strong);
+    }
+    body.nav-collapsed .nav-group.is-current > .nav-parent .nav-ico { color: var(--accent-strong); }
+
+    body.nav-collapsed .nav-group.is-flyout > .nav-children {
+      display: block !important;
+      position: fixed; left: var(--nav-w-min); top: var(--fly-top, 64px);
+      /* Local to #app-nav's stacking context (position:relative + z-index:30),
+         so this only orders the flyout above the rail's own children. A large
+         value here would read as if it outranked the app's popup band (2600 to
+         2750) when it cannot, and should not: an open dropdown wins. */
+      z-index: 1;
+      min-width: 212px; max-width: 260px;
+      max-height: min(74vh, 560px); overflow-y: auto;
+      margin: 0; padding: 7px;
+      background: var(--surface);
+      border: 1px solid var(--border); border-left: 0;
+      border-radius: 0 var(--r-md) var(--r-md) 0;
+      box-shadow: var(--shadow-lg);
+    }
+    body.nav-collapsed .nav-group.is-flyout > .nav-children::before {
+      content: var(--fly-title, '');
+      display: block; padding: 2px 8px 7px;
+      font-size: 9px; font-weight: 600; letter-spacing: .11em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+    body.nav-collapsed .nav-group.is-flyout .nav-label,
+    body.nav-collapsed .nav-group.is-flyout .nav-sublabel { display: block; }
+    /* Inside a flyout there is no room for a second level of disclosure, so
+       nested groups are simply shown open. */
+    body.nav-collapsed .nav-group.is-flyout .nav-subgroup > .nav-children {
+      display: block !important;
+      position: static; min-width: 0; max-height: none; overflow: visible;
+      margin: 1px 0 4px 8px; padding: 0 0 0 8px;
+      background: none; border: 0; border-left: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+    }
+    body.nav-collapsed .nav-group.is-flyout .nav-subgroup > .nav-children::before { content: none; }
+    body.nav-collapsed .nav-group.is-flyout .nav-subparent .nav-caret { display: none; }
+
+    /* ── 5 · Topbar ───────────────────────────────────────────────────────
+       The module icon row is retired — the rail owns it — but stays in the
+       DOM because applyModuleAccess() writes each icon's inline display and
+       the nav mirrors it. Hide the container, never the buttons. */
+    #menubar {
+      height: var(--chrome-h); min-height: var(--chrome-h);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 14px 0 10px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: none; z-index: 20;
+    }
+    #module-nav { display: none !important; }
+
+    #topbar-lead { display: flex; align-items: center; gap: 2px; }
+    #snap-collapse-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; padding: 0;
+      background: transparent; color: var(--text-3);
+      border: 1px solid transparent; border-radius: var(--r-sm);
+      cursor: pointer; transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+    }
+    #snap-collapse-btn svg { width: 17px; height: 17px; }
+    #snap-collapse-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+    body.snap-collapsed #snap-collapse-btn { color: var(--accent-strong); background: var(--accent-soft); }
+    body.users-mode #snap-collapse-btn,
+    body.sms-mode:not(.sms-tab-balance) #snap-collapse-btn { display: none; }
+
+    #topbar-heading {
+      display: flex; align-items: baseline; gap: 7px;
+      min-width: 0; flex: 1 1 auto;
+    }
+    #topbar-crumb {
+      font-size: 11.5px; font-weight: 500; color: var(--text-3);
+      white-space: nowrap; letter-spacing: -.005em;
+    }
+    #topbar-crumb-sep { color: var(--border-strong); font-size: 11.5px; }
+    #topbar-view {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      letter-spacing: -.015em; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
+
+    #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+    #login-user-label {
+      font-size: 11px; color: var(--text-3); padding-right: 8px;
+      max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #night-toggle, #ui-comfy-toggle, #menubar-right #btn-signout {
+      width: 30px; height: 30px;
+      color: var(--text-3); background: transparent;
+      border: 1px solid transparent; border-radius: var(--r-sm);
+      box-shadow: none;
+      transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+    }
+    #night-toggle:hover, #ui-comfy-toggle:hover, #menubar-right #btn-signout:hover {
+      color: var(--text); background: var(--surface-2);
+      border-color: var(--border); box-shadow: none;
+    }
+    #menubar-right #btn-signout:hover { color: var(--red); }
+    #night-toggle svg, #ui-comfy-toggle svg, #menubar-right #btn-signout svg { width: 16px; height: 16px; }
+    body.comfy #ui-comfy-toggle { background: var(--accent-soft); color: var(--accent-strong); border-color: transparent; }
+
+    /* ── 6 · Sub-menu strip ───────────────────────────────────────────────
+       What is left in #toolbar once the rail owns module + view navigation:
+       the Stats classification tabs (which carry live counts and status
+       colour), the column picker, and the alarm dismiss. If a module leaves
+       it empty, bmNavSync drops .has-submenu and the strip disappears rather
+       than leaving a blank 40px band above the data. */
+    #toolbar {
+      height: auto; min-height: 0;
+      margin: 0; padding: 6px 14px; gap: 3px;
+      align-items: center;
+      background: var(--surface);
+      border: 0; border-bottom: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
+    }
+    #toolbar > .tbtn[id^="tnav-"],
+    #toolbar > #voip-action-menu,
+    #toolbar > .tsep { display: none !important; }
+    body:not(.has-submenu) #toolbar { display: none !important; }
+    #toolbar > .tbtn,
+    #toolbar > .app-action-menu > .tbtn,
+    .stats-column-picker > .tbtn {
+      min-height: 28px; padding: 0 10px;
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text-2); background: transparent;
+      border: 1px solid transparent !important; border-radius: var(--r-sm);
+      box-shadow: none;
+    }
+    #toolbar > .tbtn:hover,
+    #toolbar > .app-action-menu > .tbtn:hover,
+    .stats-column-picker > .tbtn:hover {
+      color: var(--text); background: var(--surface-2);
+      box-shadow: none; transform: none;
+    }
+    #toolbar .tbtn.active {
+      color: var(--accent-strong); background: var(--accent-soft);
+      border-color: transparent !important; box-shadow: none; font-weight: 600;
+    }
+    #users-toolbar-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-3); padding: 0 6px;
+    }
+
+    /* ── 7 · Panel 2 · Snapshot & upload ──────────────────────────────────
+       The SMS and VOS paste rails are relocated into #sidebar at boot (see
+       bmAdoptRails) so all five modules present their input controls in the
+       same physical column instead of three different places on screen. */
+    #sidebar {
+      width: var(--snap-w);
+      display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+      color: var(--text); background: var(--surface);
+      border: 0; border-right: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+    }
+    body.night-mode #sidebar { color: var(--text); background: var(--surface); border: 0; border-right: 1px solid var(--border); }
+    body.snap-collapsed #sidebar { display: none !important; }
+
+    #sidebar-snap, #stats-sidebar-snap { padding: 14px 13px 12px; gap: 16px; }
+    #snap-editor, #stats-sidebar-current, #stats-sidebar-daily,
+    #stats-post-controls, #stats-daily-post-controls { gap: 8px !important; }
+    .snap-source-row, .snap-action-row,
+    #snap-editor > div:has(> .tbtn.primary),
+    #stats-post-controls > div:has(> .tbtn.primary),
+    #stats-daily-post-controls > div:has(> .tbtn.primary) { gap: 6px !important; }
+
+    .snap-label, .sidebar-section-label {
+      font-size: 9px; font-weight: 600; letter-spacing: .11em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 5px;
+    }
+    #sidebar .snap-label, #sidebar .sidebar-section-label { color: var(--text-3); }
+    .required-hint {
+      font-size: 8.5px; font-weight: 500; letter-spacing: .06em;
+      color: var(--orange); text-transform: none;
+    }
+    /* Paste targets are raw report text — monospace so a mis-copied column
+       shows up as a broken edge before it is ever processed. */
+    #snap-ta, #stats-snap-ta, #stats-daily-ta,
+    .sms-bal-sidebar textarea, .win-ta {
+      font-family: var(--mono);
+      font-size: 10.5px; line-height: 1.5;
+    }
+    .top-usage-item {
+      padding: 5px 7px; font-size: 10.5px; line-height: 1.35;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-usage-empty, .empty-state, .premium-select-empty {
+      padding: 9px 8px; font-size: 10.5px; color: var(--text-3);
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); box-shadow: none;
+    }
+
+    /* Relocated rails adopt the panel, and shed the tab strips the rail owns. */
+    #sidebar > .sms-bal-sidebar, #sidebar > .vos-side-rail {
+      display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      gap: 10px; padding: 14px 13px 12px;
+      background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    }
+    body.sms-mode #sidebar > .sms-bal-sidebar,
+    body.vos-mode #sidebar > .vos-side-rail { display: flex; }
+    body.sms-mode.sms-tab-balance #sidebar,
+    body.vos-mode #sidebar { display: flex !important; }
+    body.sms-mode:not(.sms-tab-balance) #sidebar { display: none !important; }
+    /* Only one paste surface may occupy the panel at a time: the VOIP/Stats
+       editors are part of #sidebar itself, so they stand down for an adopted
+       rail rather than stacking underneath it. */
+    body.sms-mode #sidebar-snap, body.sms-mode #stats-sidebar-snap,
+    body.vos-mode #sidebar-snap, body.vos-mode #stats-sidebar-snap { display: none !important; }
+    /* The SMS/VOS rules above carry an extra class each, so collapsing has to
+       match that weight per module or the panel would refuse to close there. */
+    body.snap-collapsed #sidebar,
+    body.sms-mode.sms-tab-balance.snap-collapsed #sidebar,
+    body.vos-mode.snap-collapsed #sidebar,
+    body.snap-collapsed #sidebar > .sms-bal-sidebar,
+    body.snap-collapsed #sidebar > .vos-side-rail { display: none !important; }
+    #sidebar > .vos-side-rail > .vos-primary-tabs { display: none !important; }
+    .sms-bal-shell { grid-template-columns: minmax(0, 1fr) !important; }
+    #traffic-source-vos { grid-template-columns: minmax(0, 1fr) !important; padding: 0; gap: 0; }
+    .vos-side-upload .daily-import-strip { margin: 0; }
+    .sms-bal-note {
+      font-size: 10px; line-height: 1.45; color: var(--text-3);
+      padding: 8px 9px; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+    }
+
+    /* ── 8 · Panel 3 · Workspace ──────────────────────────────────────────*/
+    #content { min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
+    .view { padding: var(--ui-view-pad); gap: var(--ui-section-gap); }
+    /* Held at the width the previous pass settled on: the rail and snapshot
+       panel already take ~470px off the viewport, so widening the cap on top
+       of that is what makes summary tiles look stretched on a big monitor. */
+    .dash-shell { max-width: 1520px; }
+    #view-banner {
+      padding: 7px 14px; gap: 10px;
+      font-size: 11.5px; color: var(--yellow-deep);
+      background: var(--yellow-soft);
+      border: 0; border-bottom: 1px solid var(--border);
+    }
+
+    /* Panels: one surface, one hairline, no elevation. */
+    .groupbox, .settings-page-panel, .sms-bal-panel, .vos-primary-panel,
+    .daily-workspace, .sms-bal-status-guide, .voip-alert-guide {
+      background: var(--surface);
+      background-image: none;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      box-shadow: none;
+    }
+    .groupbox { padding: 16px; }
+    .settings-page-panel, .sms-bal-panel { padding: 16px; }
+    .groupbox-title {
+      margin-bottom: 12px;
+      font-size: 12px; font-weight: 600; letter-spacing: -.005em;
+      color: var(--text);
+    }
+    .settings-note, .settings-danger {
+      padding: 10px 12px; font-size: 11px; line-height: 1.5;
+      background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: var(--r-sm);
+      box-shadow: none;
+    }
+    .settings-danger { border-color: color-mix(in srgb, var(--red) 34%, var(--border)); background: var(--red-soft); }
+
+    /* Metric tiles — the value is the largest text in the app on purpose. */
+    .stat-row { gap: 10px; padding: 0; background: transparent; border: 0; border-radius: 0; }
+    .stat-box, .st-daily-card, .sum-card, .sms-bal-card,
+    .sms-bal-summary-card, .st-daily-rank-card, .sum-section {
+      background: var(--surface); background-image: none;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: none;
+      transition: border-color .13s ease;
+    }
+    .stat-box, .st-daily-card, .sum-card { padding: 12px 13px; }
+    .sms-bal-card { padding: 11px 10px; }
+    .sms-bal-summary-card { padding: 12px; }
+    .stat-box:hover, .st-daily-card:hover, .sum-card:hover {
+      background: var(--surface); border-color: var(--border-strong);
+      box-shadow: none; transform: none;
+    }
+    .stat-box .sv, .sms-bal-card .value, .st-daily-card .value {
+      font-family: var(--mono); font-size: 22px; font-weight: 500;
+      letter-spacing: -.03em; line-height: 1.15; color: var(--text);
+    }
+    .stat-box .sl, .sms-bal-card .label, .st-daily-card .label {
+      font-size: 9.5px; font-weight: 600; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--text-3); margin-top: 4px;
+    }
+    /* Status tiles state their meaning with a single edge, not a filled card. */
+    .stat-box.s-high, .sms-bal-card.critical { border-left: 2px solid var(--red); }
+    .stat-box.s-medium, .sms-bal-card.warning { border-left: 2px solid var(--orange); }
+    .sms-bal-card.overdraft { border-left: 2px solid var(--yellow); }
+    .sms-bal-card.safe { border-left: 2px solid var(--green); }
+    .sms-bal-card.is-active { border-left: 2px solid var(--accent); }
+    .stat-box.s-high .sv, .sms-bal-card.critical .value { color: var(--red); }
+    .stat-box.s-medium .sv, .sms-bal-card.warning .value { color: var(--orange); }
+    .sms-bal-card.safe .value { color: var(--green); }
+
+    /* ── 9 · Tables ───────────────────────────────────────────────────────
+       No zebra: rows are already coloured by status in most tables and a
+       striped ground competes with that signal. Hairlines carry the rhythm,
+       hover carries the row you are tracking. */
+    .lv-wrap, .sms-bal-table-wrap, .vos-stats-table-shell,
+    .vos-stats-timeline, #stats-timeline-list, #stats-daily-date-list {
+      background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: none;
+    }
+    table { border-collapse: collapse; }
+    th {
+      padding: 7px 10px;
+      font-size: 9.5px; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-3);
+      background: var(--surface-2);
+      border: 0; border-bottom: 1px solid var(--border);
+      box-shadow: none; white-space: nowrap;
+    }
+    /* Sticky only where the header is a single row, so multi-row heads
+       (30m usage per snapshot) can never stack on top of themselves. */
+    thead > tr:only-child > th { position: sticky; top: 0; z-index: 3; }
+    td {
+      padding: 6px 10px; font-size: 12px;
+      border: 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    }
+    tr:nth-child(even) td { background: transparent; }
+    tbody tr:hover td { background: var(--row-hover) !important; }
+    td.num, th.num {
+      text-align: right;
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: -.02em;
+    }
+    body.comfy td.num { font-size: 12.5px; }
+    #st-tbl-stopped tbody tr td { background: transparent !important; }
+    #st-tbl-stopped tbody tr.st-stopped-active td { background: var(--red-soft) !important; }
+    .pager { gap: 8px; padding-top: 10px; font-size: 11px; }
+
+    /* ── 10 · Controls ────────────────────────────────────────────────────*/
+    .tbtn, .fltbtn,
+    .clients-toolbar .tbtn, .clients-toolbar .fltbtn,
+    .daily-import-actions .tbtn, .daily-workspace-nav .st-daily-export-btn,
+    .premium-date-footer .tbtn, #sidebar .tbtn, #sidebar .fltbtn {
+      min-height: var(--ui-control-h); padding: 0 11px;
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text); background: var(--surface);
+      border: 1px solid var(--border-strong) !important;
+      border-radius: var(--ui-control-radius); box-shadow: none;
+      transition: background-color .13s ease, border-color .13s ease, color .13s ease;
+    }
+    .tbtn:hover:not(:disabled), .fltbtn:hover:not(:disabled),
+    #sidebar .tbtn:hover, #sidebar .fltbtn:hover {
+      color: var(--text); background: var(--surface-2);
+      border-color: var(--text-3) !important;
+      box-shadow: none; transform: none;
+    }
+    .tbtn:active:not(:disabled), .fltbtn:active:not(:disabled) {
+      background: var(--surface-3); box-shadow: none; transform: none;
+    }
+    .tbtn.primary, #sidebar .tbtn.primary, .fltbtn.active, #sidebar .fltbtn.active {
+      color: var(--on-accent); background: var(--accent);
+      border-color: var(--accent) !important; font-weight: 600; box-shadow: none;
+    }
+    .tbtn.primary:hover:not(:disabled), .fltbtn.active:hover {
+      background: var(--accent-strong); border-color: var(--accent-strong) !important; box-shadow: none;
+    }
+    .tbtn.danger {
+      color: var(--on-accent); background: var(--red);
+      border-color: var(--red) !important; font-weight: 600; box-shadow: none;
+    }
+    .tbtn.danger:hover:not(:disabled) { background: var(--red-deep); border-color: var(--red-deep) !important; }
+    .tbtn:disabled { opacity: .45; box-shadow: none; }
+    .row-del { background: transparent; border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none; }
+    .row-del:hover { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+    #sms-cancel-edit-btn { background: var(--orange-soft); color: var(--orange); border-color: var(--orange) !important; }
+    #sms-cancel-edit-btn:hover { background: var(--orange); color: var(--on-accent); border-color: var(--orange) !important; }
+
+    .win-inp, .win-sel, .win-search, #slot-sel,
+    .premium-select-trigger, .sms-combo-btn,
+    .sms-textarea, .win-ta, textarea.win-inp,
+    #snap-ta, #stats-snap-ta, #stats-daily-ta, #st-remark-ta, #sms-sender-id-comment,
+    #sidebar .win-inp, #sidebar .win-sel, #sidebar #slot-sel,
+    #sidebar #snap-ta, #sidebar #stats-snap-ta, #sidebar #stats-daily-ta {
+      min-height: var(--ui-control-h); padding: 6px 9px;
+      font-size: 12px; color: var(--text);
+      background-color: var(--surface) !important; background-image: none;
+      border: 1px solid var(--border-strong) !important;
+      border-radius: var(--ui-control-radius);
+      box-shadow: none !important;
+      transition: border-color .13s ease, box-shadow .13s ease;
+    }
+    body.night-mode #sidebar .win-inp, body.night-mode #sidebar .win-sel,
+    body.night-mode #sidebar #slot-sel, body.night-mode #sidebar #snap-ta,
+    body.night-mode #sidebar #stats-snap-ta, body.night-mode #sidebar #stats-daily-ta {
+      color: var(--text); background-color: var(--surface) !important;
+    }
+    .win-inp:hover, .win-sel:hover, .win-search:hover, #slot-sel:hover,
+    .premium-select-trigger:hover { border-color: var(--text-3) !important; }
+    /* Re-stated explicitly: the layer above composed its focus ring with
+       var(--neu-inset), which now resolves to `none` and would invalidate the
+       whole shorthand — taking the focus indicator with it. */
+    .win-inp:focus, .win-sel:focus, .win-search:focus, #slot-sel:focus,
+    .sms-textarea:focus, .win-ta:focus, textarea.win-inp:focus,
+    .premium-select-trigger:focus, .sms-combo-btn:focus,
+    #snap-ta:focus, #stats-snap-ta:focus, #stats-daily-ta:focus,
+    #st-remark-ta:focus, #sms-sender-id-comment:focus {
+      outline: none;
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+    }
+    /* Size is deliberately left alone: the box is already 16px with a `::after`
+       tick positioned for that box, and a `min-width: 16px` alongside it — so
+       setting width here only makes the control non-square. This restores the
+       flat treatment and nothing else. Focus rings are not restated either;
+       `:where(button, input, textarea, select, [tabindex]):focus-visible`
+       above already covers every control in the app. */
+    input[type="checkbox"] {
+      background: var(--surface);
+      border: 1px solid var(--border-strong); border-radius: 3px;
+      box-shadow: none; accent-color: var(--accent);
+    }
+    /* Full border, not just border-color: an earlier `:checked { border: 0 }`
+       outranks the unchecked rule above, so ticking a box would otherwise drop
+       the 1px edge and shift the ::after tick by a pixel. */
+    input[type="checkbox"]:checked {
+      background: var(--accent); border: 1px solid var(--accent); box-shadow: none;
+    }
+    .settings-check input[type="checkbox"] {
+      border: 0; box-shadow: none; background: var(--border-strong);
+    }
+    .settings-check input[type="checkbox"]:checked { background: var(--accent); }
+
+    /* ── 11 · Tabs ────────────────────────────────────────────────────────
+       Two distinct languages, because they do two different jobs:
+       navigation strips are underlined tabs; filter strips stay as chips so
+       they can keep carrying counts and status colour. */
+    .tab-bar, .st-daily-tabs, .sms-cred-subtabs,
+    .daily-tab-segment, .sms-bal-subnav, .vos-primary-tabs {
+      gap: 0; padding: 0;
+      background: transparent; background-image: none;
+      border: 0; border-bottom: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+    }
+    .tab, .st-daily-tab, .sms-cred-subtab,
+    .daily-tab-segment .st-daily-tab, .sms-bal-subnav .tbtn,
+    .vos-primary-tabs .st-daily-tab {
+      min-height: 32px; padding: 0 12px; margin-bottom: -1px;
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text-2); background: transparent;
+      border: 0 !important; border-bottom: 2px solid transparent !important;
+      border-radius: 0; box-shadow: none;
+      transition: color .13s ease, border-color .13s ease;
+    }
+    .tab:hover, .st-daily-tab:hover, .sms-cred-subtab:hover,
+    .daily-tab-segment .st-daily-tab:hover, .sms-bal-subnav .tbtn:hover {
+      color: var(--text); background: transparent;
+      border-bottom-color: var(--border-strong) !important;
+      box-shadow: none; transform: none;
+    }
+    .tab.active, .st-daily-tab.active, .sms-cred-subtab.active,
+    .daily-tab-segment .st-daily-tab.active, .sms-bal-subnav .tbtn.active,
+    .vos-primary-tabs .st-daily-tab.active {
+      color: var(--text); background: transparent; font-weight: 600;
+      border-bottom-color: var(--accent) !important; box-shadow: none;
+    }
+
+    /* Filter chips keep their tone colours (critical / warning / safe). */
+    .sms-bal-segmented, #alert-tabs, #alert-tabs .alert-tab-list {
+      gap: 4px; padding: 0;
+      background: transparent; background-image: none;
+      border: 0; border-radius: 0; box-shadow: none;
+    }
+    #alert-tabs { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+    .sms-bal-segmented .tbtn, #alert-tabs .tab {
+      min-height: 27px; padding: 0 11px;
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text-2); background: var(--surface);
+      border: 1px solid var(--border-strong) !important;
+      border-radius: 999px; box-shadow: none;
+    }
+    .sms-bal-segmented .tbtn:hover, #alert-tabs .tab:hover {
+      color: var(--text); background: var(--surface-2);
+      border-color: var(--text-3) !important; box-shadow: none; transform: none;
+    }
+    /* border-radius is restated here because the earlier layer's
+       `#alert-tabs .tab.active` rule outranks the chip rule above and would
+       square off only the selected chip. */
+    .sms-bal-segmented .tbtn.active, #alert-tabs .tab.active {
+      color: var(--on-accent); background: var(--accent);
+      border-color: var(--accent) !important; font-weight: 600;
+      border-radius: 999px; box-shadow: none;
+    }
+    /* Ink on a saturated status fill is always --on-accent: it is already the
+       theme-aware "text on a strong fill" token (white in light, near-black in
+       dark). The literal dark inks this replaced were only 3.2:1 on the light
+       --yellow, which is a text-weight colour, not a fill-weight one. */
+    .sms-bal-segmented .tbtn[data-tone="critical"].active { color: var(--on-accent); background: var(--red); border-color: var(--red) !important; }
+    .sms-bal-segmented .tbtn[data-tone="warning"].active { color: var(--on-accent); background: var(--yellow); border-color: var(--yellow) !important; }
+    .sms-bal-segmented .tbtn[data-tone="safe"].active { color: var(--on-accent); background: var(--green); border-color: var(--green) !important; }
+    .sms-bal-segmented .alert-tab-actions .tbtn.icon-only { border-radius: var(--ui-control-radius); }
+
+    /* The SMS Balance sub-nav is now the rail's job; what remains useful in
+       that strip is the live snapshot label, so it becomes a context line. */
+    .sms-bal-subnav {
+      border-bottom: 0; min-height: 0; padding: 0 0 2px;
+    }
+    .sms-bal-subnav > .tbtn, .sms-bal-subnav > #sms-action-menu { display: none !important; }
+    #sms-bal-sync-label {
+      font-size: 10.5px; font-weight: 500; color: var(--text-3);
+      font-family: var(--mono); letter-spacing: -.01em;
+    }
+    /* Module/tab strips the rail now owns. */
+    #view-sms > .groupbox > .tab-bar,
+    #sms-credentials-panel .sms-cred-subtabs { display: none !important; }
+
+    .fbar, .clients-toolbar, .sms-bal-alert-toolbar, .sms-bal-file-actions,
+    .daily-workspace-nav, .daily-filterbar, .daily-import-strip,
+    .sms-cred-form-body > .fbar {
+      gap: 8px; padding: 9px 10px;
+      background: var(--surface-2); background-image: none;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: none;
+    }
+    .daily-workspace-nav { background: transparent; border: 0; padding: 0; }
+    .fbar, .clients-toolbar { margin-bottom: 12px; }
+    .sms-bal-status-guide-item, .sms-vendor-box, .sms-bal-delete-keep {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); box-shadow: none;
+    }
+    .sms-vendor-chk { background: var(--surface); border: 1px solid var(--border); box-shadow: none; }
+    .sms-vendor-chk:has(input:checked) { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); box-shadow: none; }
+
+    /* ── 12 · Status badges ───────────────────────────────────────────────
+       Tinted ground + matching text + hairline. Weight and edge survive
+       greyscale, so status never rests on hue alone. */
+    .badge, .stbadge, .st-daily-status, .sms-prio-badge, .sms-bal-badge {
+      box-shadow: none; border-radius: 3px;
+      font-size: 9.5px; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; padding: 2px 6px;
+      border: 1px solid transparent;
+    }
+    .sms-bal-badge.critical, .sms-bal-badge.blocked { color: var(--red); background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+    .sms-bal-badge.warning, .sms-bal-badge.near { color: var(--orange); background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 30%, transparent); }
+    .sms-bal-badge.overdraft { color: var(--yellow-deep); background: var(--yellow-soft); border-color: color-mix(in srgb, var(--yellow) 34%, transparent); }
+    .sms-bal-badge.safe { color: var(--green); background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+    .sms-bal-badge.nothreshold { color: var(--text-2); background: var(--surface-3); border-color: var(--border); }
+    .u-badge { border-radius: 999px; font-size: 10.5px; }
+    .u-mod { border-radius: 999px; }
+    .leg-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .legend { font-size: 10.5px; color: var(--text-3); gap: 14px; }
+
+    /* ── 13 · Floating layers ─────────────────────────────────────────────*/
+    .app-action-menu-panel, .premium-select-menu, .premium-date-menu,
+    .sms-combo-options, #sms-comment-popover, .col-dd {
+      background: var(--surface); background-image: none;
+      border: 1px solid var(--border); border-radius: var(--r-md);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    .premium-select-option, .sms-combo-option, .app-action-menu-panel .tbtn { border-radius: var(--r-sm); }
+    .app-action-menu-panel .tbtn { border-color: transparent !important; background: transparent; }
+    .app-action-menu-panel .tbtn:hover { background: var(--surface-2); border-color: transparent !important; }
+    .premium-select-option:hover, .sms-combo-option:hover, .premium-select-option.active { background: var(--accent-soft); }
+    .toast {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-left: 2px solid var(--accent);
+      border-radius: var(--r-md); box-shadow: var(--shadow-lg);
+      font-size: 11.5px;
+    }
+    .toast.ok  { border-left-color: var(--green); }
+    .toast.err { border-left-color: var(--red); }
+
+    body > [id$="-overlay"]:not(#login-overlay) {
+      background: color-mix(in srgb, #09090b 58%, transparent);
+      backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    }
+    body > [id$="-overlay"]:not(#login-overlay) > [id$="-box"],
+    .win-dialog {
+      color: var(--text); background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+    }
+    body > [id$="-overlay"] .dlg-tb {
+      min-height: 44px; padding: 12px 16px; gap: 9px;
+      background: transparent;
+      border: 0; border-bottom: 1px solid var(--border); box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-tb::before {
+      width: 3px; height: 15px; flex: 0 0 3px;
+      background: var(--accent); border-radius: 2px; box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-tb span { font-size: 12.5px; font-weight: 600; letter-spacing: -.01em; }
+    body > [id$="-overlay"] .dlg-body { gap: 12px; padding: 14px 16px 16px; }
+    body > [id$="-overlay"] .dlg-ico {
+      width: 30px; height: 30px; flex: 0 0 30px;
+      font-size: 14px; font-weight: 600; border-radius: var(--r-sm);
+      color: var(--accent-strong); background: var(--accent-soft); box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-text { font-size: 11.5px; line-height: 1.55; color: var(--text-2); }
+    body > [id$="-overlay"] [style*="justify-content:flex-end"] { gap: 7px !important; padding: 0 16px 16px !important; }
+    .dlg-tb { border-bottom: 1px solid var(--border); box-shadow: none; }
+
+    /* ── 14 · Status bar ──────────────────────────────────────────────────
+       Reads as an instrument line: mono, tabular, hairline-separated fields. */
+    #statusbar {
+      height: 28px; padding: 0 12px;
+      font-size: 10.5px; color: var(--text-3);
+      background: var(--surface);
+      border: 0; border-top: 1px solid var(--border); box-shadow: none;
+    }
+    #statusbar .sb-pane {
+      flex: 0 0 auto; min-width: 0; padding: 0 11px;
+      border: 0; white-space: nowrap;
+      font-family: var(--mono); letter-spacing: -.01em;
+    }
+    #statusbar .sb-pane + .sb-pane { border-left: 1px solid var(--border); }
+    #statusbar #sb-status { color: var(--text-2); font-weight: 500; font-family: var(--font); letter-spacing: 0; }
+    #statusbar #sb-right { min-width: 0; margin-left: auto; padding-right: 0; }
+
+    /* ── 15 · Sign-in ─────────────────────────────────────────────────────*/
+    #login-overlay {
+      color: var(--text);
+      background-color: var(--bg) !important;
+      background-image: none !important;
+    }
+    #login-overlay::after { background: var(--accent); }
+    .login-brief, .login-brief h1 { color: var(--text); }
+    .login-brief > p, .login-signals { color: var(--text-2); }
+    .login-brief-mark {
+      color: var(--text-3); font-family: var(--mono);
+      font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    }
+    #login-overlay .premium-login-card {
+      color: var(--text); background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+    }
+    .premium-login-mark { color: var(--on-accent); background: var(--accent); border-radius: var(--r-sm); box-shadow: none; }
+    .premium-login-eyebrow {
+      color: var(--text-3); font-size: 9.5px; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .premium-login-title { color: var(--text); font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+    .premium-login-subtitle, .premium-login-security { color: var(--text-2); font-size: 11.5px; }
+    .premium-login-field label { color: var(--text-2); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .premium-login-field .win-inp {
+      color: var(--text); background-color: var(--surface) !important;
+      border: 1px solid var(--border-strong) !important;
+      border-radius: var(--ui-control-radius); box-shadow: none !important;
+    }
+    .premium-login-actions .tbtn {
+      min-height: 36px; background: var(--accent); color: var(--on-accent);
+      border-color: var(--accent) !important; border-radius: var(--ui-control-radius); box-shadow: none;
+    }
+
+    /* ── 15b · Night-mode leftovers ───────────────────────────────────────
+       An earlier theme hard-coded a teal night palette for the snapshot panel
+       at `body.night-mode #sidebar .tbtn.primary` weight, which outranks the
+       token-driven rules above; those literals are returned to the tokens
+       here so the dark theme is one palette rather than two. */
+    body.night-mode #sidebar .snap-label,
+    body.night-mode #sidebar .sidebar-section-label { color: var(--text-3); }
+    body.night-mode #sidebar .top-usage-empty,
+    body.night-mode #sidebar .settings-note {
+      color: var(--text-3) !important; background: var(--surface-2);
+    }
+    body.night-mode #sidebar #tritel-status { color: var(--text-3) !important; background: transparent; }
+    body.night-mode #sidebar .tbtn,
+    body.night-mode #sidebar .fltbtn {
+      color: var(--text); background: var(--surface);
+      border-color: var(--border-strong) !important;
+    }
+    body.night-mode #sidebar .tbtn:hover:not(:disabled),
+    body.night-mode #sidebar .fltbtn:hover:not(:disabled) {
+      background: var(--surface-2); border-color: var(--text-3) !important;
+    }
+    body.night-mode #sidebar .tbtn.primary,
+    body.night-mode #sidebar .fltbtn.active {
+      color: var(--on-accent); background: var(--accent);
+      border-color: var(--accent) !important;
+    }
+    body.night-mode #sidebar .tbtn.primary:hover:not(:disabled) {
+      background: var(--accent-strong); border-color: var(--accent-strong) !important;
+    }
+    body.night-mode #sidebar .tbtn.danger {
+      color: var(--on-accent); background: var(--red); border-color: var(--red) !important;
+    }
+    body.night-mode #sidebar textarea::placeholder,
+    body.night-mode #sidebar input::placeholder { color: var(--text-3); }
+    .sms-bal-usage-hot { color: var(--on-accent); background: var(--yellow) !important; }
+
+    /* ── 16 · Responsive ──────────────────────────────────────────────────*/
+    @media (max-width: 1280px) {
+      :root { --nav-w: 216px; --snap-w: 250px; }
+    }
+    @media (max-width: 1080px) {
+      :root { --snap-w: 232px; --ui-view-pad: 14px; --ui-section-gap: 12px; }
+      #app-body { gap: 0; padding: 0; }
+      .view { padding: 14px; }
+    }
+    @media (max-width: 860px) {
+      :root { --nav-w: var(--nav-w-min); }
+      #app-nav .nav-brand, #app-nav .nav-label,
+      #app-nav .nav-caret, #app-nav .nav-sublabel { display: none; }
+      #app-nav .nav-children { display: none !important; }
+      #app-nav .nav-head { justify-content: center; padding: 0; }
+      #app-nav .nav-parent, #nav-collapse-btn { justify-content: center; padding: 0; }
+      #topbar-crumb, #topbar-crumb-sep { display: none; }
+      #login-user-label { display: none; }
+      #toolbar { padding: 6px 10px; }
+    }
+    @media (max-width: 640px) {
+      #sidebar { position: fixed; left: var(--nav-w-min); top: var(--chrome-h); bottom: 0; z-index: 40; box-shadow: var(--shadow-lg); }
+      #menubar { padding: 0 8px; gap: 8px; }
+      .view { padding: 10px; }
+    }
+
+    /* No reduced-motion block here on purpose: the app already ships a global
+       `*, *::before, *::after` catch-all that clamps every animation and
+       transition duration, and it covers this layer too. */
+
+    /* The shell is a fixed-position grid on screen; printing needs ordinary
+       block flow or the report is clipped to one viewport-sized page. */
+    @media print {
+      #win {
+        position: static; inset: auto;
+        display: block; overflow: visible;
+        background: #fff;
+      }
+      #app-nav, #app-body > #sidebar { display: none !important; }
+      #content { display: block; overflow: visible; background: #fff; }
+      .view { padding: 0; overflow: visible; }
+      .view.active { display: block; }
+    }
 
     @media print {
       body.night-mode,
@@ -5149,6 +6187,140 @@
 
 <!-- Main Window -->
 <div id="win">
+
+  <!-- ══ Panel 1 · Module navigation ═══════════════════════════════════════
+       Purely a presentation layer over the existing controls: every leaf
+       calls the same switch* function its old toolbar button called, mirrors
+       that button's .active state, and inherits its role-based visibility
+       through data-src. No navigation state is duplicated here. -->
+  <nav id="app-nav" aria-label="Modules and views">
+    <div class="nav-head">
+      <span class="nav-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.2l2.3-6.5L12 18l2.2-6h4.6"/></svg>
+      </span>
+      <span class="nav-brand">
+        <span class="nav-brand-name">BalanceMonitor</span>
+        <span class="nav-brand-sub">Network operations</span>
+      </span>
+    </div>
+
+    <div class="nav-scroll" id="nav-scroll">
+
+      <!-- Balance Monitor VOIP -->
+      <div class="nav-group" data-module="balance" data-src="view-menu-balance">
+        <button type="button" class="nav-parent" data-module="balance" data-view="summary" title="Balance Monitor VOIP">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.2l2.3-6.5L12 18l2.2-6h4.6"/></svg></span>
+          <span class="nav-label">Balance Monitor VOIP</span>
+          <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <button type="button" class="nav-leaf" data-module="balance" data-view="summary" data-active-src="tnav-summary">Summary</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="alerts" data-active-src="tnav-alerts">Alerts</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="all-clients" data-active-src="tnav-all-clients">All Clients</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="client-manager" data-active-src="tnav-client-manager" data-src="tnav-client-manager">Client Manager</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="export" data-active-src="tnav-export">Export</button>
+          <div class="nav-sublabel">Records</div>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="logs" data-active-src="tnav-logs">Logs</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="crit-history" data-active-src="tnav-crit-history">Critical History</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="spam-history" data-active-src="tnav-spam-history">Flagged Spam</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="no-threshold" data-active-src="tnav-no-threshold">No Threshold</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="settings" data-active-src="tnav-settings">Settings</button>
+        </div>
+      </div>
+
+      <!-- SMS -->
+      <div class="nav-group" data-module="sms" data-src="view-menu-sms">
+        <button type="button" class="nav-parent" data-module="sms" data-smstab="balance" title="SMS">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.6A2.6 2.6 0 0 1 6.6 4h10.8A2.6 2.6 0 0 1 20 6.6v6.8a2.6 2.6 0 0 1-2.6 2.6H9.4L4.8 19.6a.5.5 0 0 1-.8-.4z"/></svg></span>
+          <span class="nav-label">SMS</span>
+          <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
+        </button>
+        <div class="nav-children">
+
+          <div class="nav-subgroup" data-subgroup="sms-balance" data-default-open="1">
+            <button type="button" class="nav-leaf nav-subparent" data-module="sms" data-smstab="balance" data-smsview="summary">
+              <span class="nav-label">SMS Balance</span>
+              <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
+            </button>
+            <div class="nav-children">
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="summary" data-active-src="sms-bal-nav-summary">Summary</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="alerts" data-active-src="sms-bal-nav-alerts">SMS Alerts</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="all" data-active-src="sms-bal-nav-all">All Clients</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="manager" data-active-src="sms-bal-nav-manager" data-src="sms-bal-nav-manager">Client Manager</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="export" data-active-src="sms-bal-nav-export">Export</button>
+              <div class="nav-sublabel">Records</div>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="logs" data-active-src="sms-bal-nav-logs">Logs</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="critical-history" data-active-src="sms-bal-nav-critical-history">Critical History</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="nothreshold" data-active-src="sms-bal-nav-nothreshold">No Threshold History</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="inactive-usage-history" data-active-src="sms-bal-nav-inactive-usage-history">Inactive w/ Usage History</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="settings" data-active-src="sms-bal-nav-settings">SMS Settings</button>
+            </div>
+          </div>
+
+          <button type="button" class="nav-leaf" data-module="sms" data-smstab="client" data-active-src="sms-tab-client" data-src="sms-tab-client">V3</button>
+          <button type="button" class="nav-leaf" data-module="sms" data-smstab="phoenix" data-active-src="sms-tab-phoenix" data-src="sms-tab-phoenix">Phoenix Platform</button>
+
+          <div class="nav-subgroup" data-subgroup="sms-credentials" data-src="sms-tab-credentials">
+            <button type="button" class="nav-leaf nav-subparent" data-module="sms" data-smstab="credentials" data-credtab="register" data-active-src="sms-tab-credentials">
+              <span class="nav-label">Credentials</span>
+              <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
+            </button>
+            <div class="nav-children">
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="credentials" data-credtab="register" data-active-src="sms-cred-subtab-register">Credential Register</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="credentials" data-credtab="otp" data-active-src="sms-cred-subtab-otp">Manual OTP</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="nav-group nav-group-flat" data-module="stats" data-src="view-menu-stats">
+        <button type="button" class="nav-parent" data-module="stats" title="Stats">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-7"/><path d="M12 20V4"/><path d="M19 20v-5"/></svg></span>
+          <span class="nav-label">Stats</span>
+        </button>
+      </div>
+
+      <!-- Daily Traffic -->
+      <div class="nav-group nav-group-flat" data-module="traffic" data-src="view-menu-traffic">
+        <button type="button" class="nav-parent" data-module="traffic" title="Daily Traffic">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M3 16c3.2 0 3.4-9 6.6-9s3.4 7 6.6 7 2.6-4 4.8-4"/></svg></span>
+          <span class="nav-label">Daily Traffic</span>
+        </button>
+      </div>
+
+      <!-- VOS -->
+      <div class="nav-group" data-module="vos" data-src="view-menu-vos">
+        <button type="button" class="nav-parent" data-module="vos" data-vostab="daily" title="VOS">
+          <span class="nav-ico nav-ico-text" aria-hidden="true">VOS</span>
+          <span class="nav-label">VOS</span>
+          <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
+        </button>
+        <div class="nav-children">
+          <button type="button" class="nav-leaf" data-module="vos" data-vostab="stats" data-active-src="vos-primary-tab-stats">Stats</button>
+          <button type="button" class="nav-leaf" data-module="vos" data-vostab="daily" data-active-src="vos-primary-tab-daily">Daily Traffic</button>
+        </div>
+      </div>
+
+      <!-- Admin -->
+      <div class="nav-group nav-group-flat" data-module="users" data-src="view-menu-users">
+        <button type="button" class="nav-parent" data-module="users" title="Admin">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 19 5.6v5.3c0 4.4-2.9 8.2-7 9.6-4.1-1.4-7-5.2-7-9.6V5.6z"/><path d="m8.9 12 2.1 2.1 4-4.2"/></svg></span>
+          <span class="nav-label">Admin</span>
+        </button>
+      </div>
+
+    </div>
+
+    <div class="nav-foot">
+      <button type="button" id="nav-collapse-btn" onclick="bmToggleNav()" aria-label="Collapse navigation" title="Collapse navigation (Ctrl+B)">
+        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 8 10.5 12l4 4"/><path d="M4 5v14"/></svg></span>
+        <span class="nav-label">Collapse</span>
+      </button>
+    </div>
+  </nav>
+
   <!-- Title bar -->
   <div id="titlebar">
     <svg class="ico" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -5191,6 +6363,17 @@
           <path d="m5.7 8 1.5 1.5 3.3-3.3"/>
         </svg>
       </button>
+    </div>
+    <!-- Panel toggles + breadcrumb. Purely chrome: no data or handler here. -->
+    <div id="topbar-lead">
+      <button type="button" id="snap-collapse-btn" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16"/></svg>
+      </button>
+    </div>
+    <div id="topbar-heading">
+      <span id="topbar-crumb">Balance Monitor VOIP</span>
+      <span id="topbar-crumb-sep" aria-hidden="true">/</span>
+      <span id="topbar-view">Summary</span>
     </div>
     <div id="menubar-right">
       <span id="login-user-label"></span>
@@ -24244,6 +25427,323 @@ if (auth) {
   if (overlay) overlay.style.display = 'none';
   init();
 }
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SHELL CONTROLLER — navigation rail, panel collapse, breadcrumb
+
+     Deliberately a read-only observer of the app, not a participant in it.
+     It owns no navigation state: every rail item calls the same switch*
+     function its former toolbar button called, and its highlight is derived
+     from that button's live .active class. Role-based visibility is mirrored
+     from the source control too, so applyModuleAccess() keeps working without
+     knowing this layer exists. Nothing here can put the UI out of step with
+     the data, because it never decides anything.
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  'use strict';
+
+  var PREFS_KEY = 'bm_shell_prefs_v1';
+  var MODULE_CRUMB = {
+    balance: 'Balance Monitor VOIP',
+    sms: 'SMS',
+    stats: 'Stats',
+    traffic: 'Daily Traffic',
+    vos: 'VOS',
+    users: 'Admin'
+  };
+
+  var nav, navScroll, toolbar, syncQueued = false, syncing = false;
+
+  /* ── Preferences ─────────────────────────────────────────────────────── */
+  function readPrefs() {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function writePrefs(patch) {
+    try {
+      var p = readPrefs();
+      Object.keys(patch).forEach(function (k) { p[k] = patch[k]; });
+      localStorage.setItem(PREFS_KEY, JSON.stringify(p));
+    } catch (e) {}
+  }
+
+  window.bmToggleNav = function () {
+    var on = document.body.classList.toggle('nav-collapsed');
+    document.querySelectorAll('#app-nav .nav-group.is-flyout')
+      .forEach(function (g) { g.classList.remove('is-flyout'); });
+    var btn = document.getElementById('nav-collapse-btn');
+    if (btn) {
+      btn.setAttribute('aria-label', on ? 'Expand navigation' : 'Collapse navigation');
+      btn.title = (on ? 'Expand' : 'Collapse') + ' navigation (Ctrl+B)';
+    }
+    writePrefs({ navCollapsed: on });
+  };
+
+  window.bmToggleSnap = function () {
+    var on = document.body.classList.toggle('snap-collapsed');
+    var btn = document.getElementById('snap-collapse-btn');
+    if (btn) {
+      btn.setAttribute('aria-label', on ? 'Show the snapshot panel' : 'Hide the snapshot panel');
+      btn.title = on ? 'Show the snapshot panel' : 'Hide the snapshot panel';
+    }
+    writePrefs({ snapCollapsed: on });
+  };
+
+  /* ── Reading the app's current position ──────────────────────────────── */
+  function currentModule() {
+    var c = document.body.classList;
+    if (c.contains('users-mode')) return 'users';
+    if (c.contains('sms-mode')) return 'sms';
+    if (c.contains('stats-mode')) return 'stats';
+    if (c.contains('traffic-mode')) return 'traffic';
+    if (c.contains('vos-mode')) return 'vos';
+    return 'balance';
+  }
+
+  /* Tab captions often carry a live count in a trailing <span>; the crumb
+     wants the name only, so take the leading text node when there is one. */
+  function labelOf(el) {
+    if (!el) return '';
+    var named = el.querySelector && el.querySelector('.nav-label');
+    if (named) return named.textContent.trim();
+    var first = el.firstChild;
+    if (first && first.nodeType === 3 && first.textContent.trim()) return first.textContent.trim();
+    return el.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  function sourceHidden(id) {
+    var el = id && document.getElementById(id);
+    return !el || el.style.display === 'none';
+  }
+
+  function tabIsActive(id) {
+    var el = document.getElementById(id);
+    return !!el && el.classList.contains('active');
+  }
+
+  /* ── Navigation ──────────────────────────────────────────────────────── */
+  function go(el) {
+    var d = el.dataset, w = window, mod = d.module;
+    if (!mod) return;
+    try {
+      if (mod === 'balance') {
+        if (d.view && w.switchView) w.switchView(d.view);
+        else if (w.switchModule) w.switchModule('balance');
+        return;
+      }
+      if (mod === 'sms') {
+        if (currentModule() !== 'sms' && w.switchModule) w.switchModule('sms');
+        // switchSmsTab is a no-op when the tab is already active, which is
+        // exactly what is wanted when only the deeper view is changing.
+        if (d.smstab && w.switchSmsTab) w.switchSmsTab(d.smstab);
+        if (d.smstab === 'balance' && d.smsview && w.switchSmsBalanceView) w.switchSmsBalanceView(d.smsview);
+        if (d.smstab === 'credentials' && d.credtab && w.switchSmsCredentialSubtab) w.switchSmsCredentialSubtab(d.credtab);
+        return;
+      }
+      if (mod === 'vos') {
+        if (currentModule() !== 'vos' && w.switchModule) w.switchModule('vos');
+        if (d.vostab && w.switchVosPrimaryTab) w.switchVosPrimaryTab(d.vostab);
+        return;
+      }
+      if (w.switchModule) w.switchModule(mod);
+    } catch (e) {
+      if (window.console) console.error('[shell] navigation failed', e);
+    }
+  }
+
+  /* ── Sync: rail highlight, breadcrumb, sub-menu presence ─────────────── */
+  function sync() {
+    if (!nav) return;
+    syncing = true;
+    try { syncBody(); } finally { syncing = false; }
+  }
+
+  function syncBody() {
+    var mod = currentModule();
+
+    // Role gating: inherit each item's visibility from the control it drives.
+    nav.querySelectorAll('[data-src]').forEach(function (el) {
+      el.style.display = sourceHidden(el.dataset.src) ? 'none' : '';
+    });
+
+    var activeLeaf = null;
+    nav.querySelectorAll('.nav-group').forEach(function (g) {
+      var isCurrent = g.dataset.module === mod;
+      g.classList.toggle('is-current', isCurrent);
+      g.classList.toggle('is-open', isCurrent);
+
+      g.querySelectorAll('.nav-leaf').forEach(function (leaf) {
+        var src = leaf.dataset.activeSrc ? document.getElementById(leaf.dataset.activeSrc) : null;
+        // The credential sub-tabs keep their .active class while another SMS
+        // tab is on screen, so a leaf below an SMS tab only counts when that
+        // tab is the one actually showing.
+        var tabOk = !leaf.dataset.smstab || tabIsActive('sms-tab-' + leaf.dataset.smstab);
+        var on = isCurrent && tabOk && !!src && src.classList.contains('active');
+        leaf.classList.toggle('is-active', on);
+        leaf.setAttribute('aria-current', on ? 'page' : 'false');
+        // Prefer the deepest match: a sub-group header is only the answer
+        // when nothing inside it is.
+        if (on && (!activeLeaf || activeLeaf.classList.contains('nav-subparent'))) activeLeaf = leaf;
+      });
+
+      g.querySelectorAll('.nav-subgroup').forEach(function (sg) {
+        var hasActive = !!sg.querySelector('.nav-leaf.is-active');
+        var open = hasActive || (isCurrent && sg.dataset.defaultOpen === '1');
+        sg.classList.toggle('is-current', hasActive);
+        sg.classList.toggle('is-open', open);
+      });
+
+      var parent = g.querySelector(':scope > .nav-parent');
+      if (parent) parent.setAttribute('aria-expanded', String(isCurrent && !!g.querySelector(':scope > .nav-children')));
+    });
+
+    // SMS only offers a paste panel on the Balance tab.
+    var onSmsBalance = !!document.getElementById('sms-tab-balance');
+    onSmsBalance = onSmsBalance && document.getElementById('sms-tab-balance').classList.contains('active');
+    document.body.classList.toggle('sms-tab-balance', mod === 'sms' && onSmsBalance);
+
+    // Breadcrumb.
+    var crumbParts = [MODULE_CRUMB[mod] || ''];
+    var viewLabel = activeLeaf ? labelOf(activeLeaf) : '';
+    if (activeLeaf) {
+      var sg = activeLeaf.closest('.nav-subgroup');
+      if (sg) {
+        var sgName = labelOf(sg.querySelector(':scope > .nav-subparent'));
+        if (sgName && sgName !== viewLabel) crumbParts.push(sgName);
+      }
+    }
+    if (mod === 'stats') viewLabel = labelOf(document.querySelector('#toolbar .stats-tab.active')) || 'Summary';
+    else if (mod === 'traffic') viewLabel = labelOf(document.querySelector('#view-stats-daily .st-daily-tab.active')) || 'Today';
+    else if (mod === 'users') viewLabel = 'Users & Roles';
+    else if (mod === 'vos') {
+      // Both VOS panels keep their tab's .active class while hidden, so read
+      // the one belonging to the section actually on screen.
+      var vosPanel = tabIsActive('vos-primary-tab-stats') ? '#vos-primary-panel-stats' : '#vos-primary-panel-daily';
+      var vosDeep = document.querySelector(vosPanel + ' .st-daily-tab.active');
+      if (activeLeaf) crumbParts.push(labelOf(activeLeaf));
+      viewLabel = labelOf(vosDeep) || labelOf(activeLeaf) || '';
+      if (crumbParts[crumbParts.length - 1] === viewLabel) crumbParts.pop();
+    }
+
+    var crumbEl = document.getElementById('topbar-crumb');
+    var viewEl = document.getElementById('topbar-view');
+    var sepEl = document.getElementById('topbar-crumb-sep');
+    if (crumbEl) crumbEl.textContent = crumbParts.filter(Boolean).join(' / ');
+    if (viewEl) viewEl.textContent = viewLabel;
+    if (sepEl) sepEl.style.display = viewLabel ? '' : 'none';
+
+    // An empty sub-menu strip is removed rather than left as a blank band.
+    if (toolbar) {
+      var hasSubmenu = Array.prototype.some.call(toolbar.children, function (c) {
+        return getComputedStyle(c).display !== 'none';
+      });
+      document.body.classList.toggle('has-submenu', hasSubmenu);
+    }
+  }
+
+  /* setTimeout rather than requestAnimationFrame: the pass only reads computed
+     style and toggles classes, and rAF does not run in a backgrounded or
+     non-compositing tab — which would leave the queue flag stuck and the rail
+     frozen on whatever it last showed. */
+  function queueSync() {
+    if (syncQueued || syncing) return;
+    syncQueued = true;
+    setTimeout(function () { syncQueued = false; sync(); }, 0);
+  }
+
+  /* ── Collapsed flyout ────────────────────────────────────────────────── */
+  function openFlyout(group) {
+    if (!document.body.classList.contains('nav-collapsed')) return;
+    var children = group.querySelector(':scope > .nav-children');
+    if (!children) return;
+    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
+    group.style.setProperty('--fly-title', JSON.stringify(labelOf(group.querySelector(':scope > .nav-parent'))));
+    group.style.setProperty('--fly-top', Math.max(8, group.getBoundingClientRect().top) + 'px');
+    group.classList.add('is-flyout');
+    requestAnimationFrame(function () {
+      var h = children.offsetHeight;
+      var top = Math.max(8, Math.min(group.getBoundingClientRect().top, window.innerHeight - h - 8));
+      group.style.setProperty('--fly-top', top + 'px');
+    });
+  }
+  function closeFlyouts() {
+    if (!nav) return;
+    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
+  }
+
+  /* ── Relocate the SMS and VOS paste rails into the snapshot panel ─────
+     Both are addressed by id everywhere in the app, never by position, so
+     moving them is invisible to the existing code — it just puts all five
+     modules' input controls in the same column instead of three places. */
+  function adoptRails() {
+    var host = document.getElementById('sidebar');
+    if (!host) return;
+    ['.sms-bal-sidebar', '.vos-side-rail'].forEach(function (sel) {
+      var el = document.querySelector(sel);
+      if (el && el.parentElement !== host) host.appendChild(el);
+    });
+  }
+
+  /* ── Boot ────────────────────────────────────────────────────────────── */
+  function boot() {
+    nav = document.getElementById('app-nav');
+    navScroll = document.getElementById('nav-scroll');
+    toolbar = document.getElementById('toolbar');
+    if (!nav) return;
+
+    var prefs = readPrefs();
+    if (prefs.navCollapsed) document.body.classList.add('nav-collapsed');
+    if (prefs.snapCollapsed) document.body.classList.add('snap-collapsed');
+
+    adoptRails();
+
+    nav.addEventListener('click', function (ev) {
+      var item = ev.target.closest('.nav-parent, .nav-leaf');
+      if (!item || !nav.contains(item)) return;
+      ev.preventDefault();
+      closeFlyouts();
+      go(item);
+      queueSync();
+    });
+
+    nav.querySelectorAll('.nav-group').forEach(function (g) {
+      g.addEventListener('mouseenter', function () { openFlyout(g); });
+      g.addEventListener('mouseleave', function () { g.classList.remove('is-flyout'); });
+    });
+    window.addEventListener('resize', closeFlyouts);
+
+    document.addEventListener('keydown', function (ev) {
+      if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'b' || ev.key === 'B')) {
+        var t = ev.target;
+        if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+        ev.preventDefault();
+        window.bmToggleNav();
+      }
+      if (ev.key === 'Escape') closeFlyouts();
+    });
+
+    /* Watch the controls the rail mirrors. Attribute-only, so the large table
+       re-renders (which replace children) never trigger a pass; a frame-level
+       queue collapses bursts during a module switch into one update. */
+    var observer = new MutationObserver(function () { if (!syncing) queueSync(); });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    ['menubar', 'toolbar', 'view-sms', 'sidebar', 'view-stats-daily', 'view-vos-traffic']
+      .forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) observer.observe(el, { attributes: true, attributeFilter: ['class', 'style'], subtree: true });
+      });
+
+    sync();
+    // The app's own bootstrap restores the last view asynchronously, after
+    // sign-in; these later passes catch that without polling forever.
+    [120, 400, 1200, 3000].forEach(function (ms) { setTimeout(sync, ms); });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
 </script>
 </body>
 </html>
