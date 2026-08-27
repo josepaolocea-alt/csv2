@@ -1202,15 +1202,41 @@
     .u-badge.admin { background: var(--accent-soft); color: var(--accent); }
     .u-badge.self { margin-left: 6px; background: var(--surface-3); color: var(--text-2); font-weight: 500; }
     .u-last { font-size: 11px; color: var(--text-3); }
-    /* Per-user module access chips (Admin ▸ Users & Roles) */
-    .u-mods { display: flex; flex-wrap: wrap; gap: 4px; }
+    /* Per-user module access (Admin ▸ Users & Roles).
+       Toggle pills, not checkboxes: the filled/unfilled pill already carries the
+       boolean, so a 16px tick box beside an 11px label would encode it twice and
+       out-weigh the word it belongs to. State reaches assistive tech through
+       aria-pressed, and weight (600 vs 400) carries it without relying on hue. */
+    .u-mods { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     /* --surface matches the panel behind this table, so the resting pill uses
        --surface-3 to stay visible (same idea as .u-badge.self). */
-    .u-mod { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-3); color: var(--text-2); cursor: pointer; user-select: none; transition: background .14s ease, border-color .14s ease, color .14s ease; }
-    .u-mod:hover { color: var(--text); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
-    .u-mod input { margin: 0; cursor: pointer; }
-    .u-mod.on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); color: var(--accent-strong); font-weight: 600; }
+    /* Granted is the normal state, so it stays quiet; a withheld module is the
+       exception and reads as an unfilled, dashed outline. Fill-vs-outline and
+       600-vs-400 weight both survive greyscale, so the state never rests on hue
+       alone. --border is transparent in this theme, hence the explicit mix. */
+    .u-mod {
+      display: inline-flex; align-items: center; font: inherit; font-size: 11px; line-height: 1.45;
+      padding: 3px 10px; border-radius: 999px; cursor: pointer; user-select: none;
+      border: 1px dashed var(--text-3);
+      background: transparent; color: var(--text-2);
+      transition: background .14s ease, border-color .14s ease, color .14s ease;
+    }
+    .u-mod:hover { color: var(--text); border-color: var(--accent); }
+    /* No focus rule here on purpose: the global
+       :where(button, ...):focus-visible outline already covers these and is the
+       indicator every other control in the app uses. */
+    .u-mod[aria-pressed="true"] {
+      border-style: solid; border-color: var(--accent);
+      background: var(--accent-soft); color: var(--accent-strong); font-weight: 600;
+    }
+    /* Reading the column should not require counting pills. Deliberately not a
+       second accent hue: weight carries the exception, --accent stays the only
+       colour with meaning on this page. */
+    .u-mods-count { font-size: 10.5px; color: var(--text-2); margin-left: 4px; white-space: nowrap; }
+    .u-mods-count.limited { color: var(--text); font-weight: 600; }
     .u-mods-all { font-size: 11px; color: var(--text-3); }
+    #users-table .u-state td { padding: 0; border-bottom: 0; }
+    #users-table .u-state .empty-state { margin: 10px 0; font-size: 11.5px; }
 
     /* Balance-only toolbar separators — hide in other modules so no divider is
        left dangling once the tnav-* buttons around it are hidden (#2). */
@@ -6282,13 +6308,9 @@
           <div class="groupbox-title">Users &amp; Roles</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 12px;overflow:auto">
             <div style="font-size:11.5px;color:var(--text-2);margin-bottom:10px;line-height:1.5">
-              Everyone who signs in appears here. Set each person's role — <strong>Semi-admin</strong>
-              (post/undo VOIP, SMS Balance &amp; Stats snapshots; add/edit clients, SMS routes and credentials;
-              manage Stats remarks; delete snapshot collections but not protected histories or SMS records) or <strong>Viewer</strong> (read-only). New logins are Viewer by default.<br>
-              <strong>Modules</strong> is a separate, narrower gate: tick only the modules a person may open. It applies on top of the
-              role — a semi-admin with just VOIP ticked keeps their semi-admin powers inside VOIP but cannot open SMS, Stats,
-              Traffic or VOS. Everything ticked (the default) means no restriction; at least one module must stay ticked.<br>
-              <span style="color:var(--text-3)">To add a person, first create their login in Firebase Console → Authentication → Users; they show up here after their first sign-in.</span>
+              <strong>Role</strong> is what a person can do. <strong>Modules</strong> is which tabs they can open.
+              The two combine: a semi-admin with only VOIP keeps full semi-admin rights inside VOIP and cannot open the rest.<br>
+              <span style="color:var(--text-3)">New logins start as Viewer with every module. Create the login in Firebase Console → Authentication → Users; it appears here after the first sign-in.</span>
             </div>
             <table id="users-table">
               <thead>
@@ -9138,6 +9160,7 @@ function toast(msg, type='', ms=3500) {
     t.classList.add('leaving');
     setTimeout(()=>t.remove(),180);
   },ms);
+  return t;   // callers that update the same thing repeatedly can replace it
 }
 
 function setRequiredFieldState(id, invalid) {
@@ -12596,6 +12619,7 @@ function subscribePresence() {
 ════════════════════════════════════════════════ */
 let usersData = [];         // all user_roles docs (admin view)
 let usersUnsub = null;      // collection subscription (admin only)
+let usersLoaded = false;    // true once the first snapshot has landed
 const U_ONLINE_MS = 5*60*1000;
 
 // Upsert the signed-in user's own record. Identity in the Users tab is the
@@ -12645,6 +12669,7 @@ function subscribeAllUsers() {
     if (usersUnsub) return;
     usersUnsub = onSnapshot(collection(db,'user_roles'), snap => {
       usersData = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      usersLoaded = true;
       if (document.getElementById('view-users')?.classList.contains('active')) usersRender();
     });
   } catch(e) {}
@@ -12654,6 +12679,7 @@ function unsubscribeAllUsers() {
   if (!usersUnsub) return;
   try { usersUnsub(); } catch(e) {}
   usersUnsub = null;
+  usersLoaded = false;   // next visit shows Loading, not a stale/empty table
 }
 
 function usersEffectiveRole(u){
@@ -12679,10 +12705,18 @@ function usersRelTime(ts){
   return d.toLocaleDateString();
 }
 
+// Row state that must survive the full re-render this table does on every
+// snapshot: which pill was just toggled, so the keyboard focus lands back on it.
+let usersFocusChip = null;   // { email, key }
+const usersStateRow = html => `<tr class="u-state"><td colspan="4"><div class="empty-state">${html}</div></td></tr>`;
+
 function usersRender(){
   const tb = document.getElementById('users-tbody');
   if (!tb) return;
-  if (!isAdmin()) { tb.innerHTML = '<tr><td colspan="4" style="color:var(--text-3);padding:14px 10px">Admins only.</td></tr>'; return; }
+  if (!isAdmin()) { tb.innerHTML = usersStateRow('Admins only.'); return; }
+  // Distinct loading state: before the first snapshot lands there is no data
+  // yet, which is not the same thing as there being no users.
+  if (!usersLoaded) { tb.innerHTML = usersStateRow('Loading accounts…'); return; }
   // Sort: online first, then by email (the account identity).
   const rows = [...usersData].sort((a,b) => {
     const ao = (a.last_seen?.toDate?.() > new Date(Date.now()-U_ONLINE_MS)) ? 0 : 1;
@@ -12690,7 +12724,7 @@ function usersRender(){
     if (ao !== bo) return ao - bo;
     return (a.email||a.id).localeCompare(b.email||b.id);
   });
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" style="color:var(--text-3);padding:14px 10px">No users yet — they appear here after their first sign-in.</td></tr>'; return; }
+  if (!rows.length) { tb.innerHTML = usersStateRow('No users yet. They appear here after their first sign-in.'); return; }
   tb.innerHTML = rows.map(u => {
     const email = u.email || u.id;
     const role  = usersEffectiveRole(u);
@@ -12714,17 +12748,32 @@ function usersRender(){
         `<option value="viewer"${role==='viewer'?' selected':''}>Viewer (read-only)</option>` +
         `<option value="semi-admin"${role==='semi-admin'?' selected':''}>Semi-admin</option>` +
         `</select>`;
-      // One tick box per top-level module. Everything ticked = unrestricted.
+      // One toggle pill per top-level module. Everything on = unrestricted.
       const allowed = usersEffectiveModules(u);
-      modulesCell = '<div class="u-mods">' + ACCESS_MODULES.map(m => {
+      const full = allowed.length === ACCESS_MODULE_KEYS.length;
+      const pills = ACCESS_MODULES.map(m => {
         const on = allowed.includes(m.key);
-        return `<label class="u-mod${on?' on':''}" title="${escAttr(m.label)} module">` +
-               `<input type="checkbox"${on?' checked':''} onchange="setUserModule('${escAttr(email)}','${m.key}', this.checked)">` +
-               `${esc(m.label)}</label>`;
-      }).join('') + '</div>';
+        return `<button type="button" class="u-mod" aria-pressed="${on}"` +
+               ` data-email="${escAttr(email)}" data-mod="${m.key}"` +
+               ` title="${on ? 'Remove' : 'Grant'} ${escAttr(m.label)}"` +
+               ` onclick="setUserModule('${escAttr(email)}','${m.key}', ${!on})">${esc(m.label)}</button>`;
+      }).join('');
+      // Say the state in words as well, so a restricted account is obvious at a
+      // glance instead of having to count which pills are filled.
+      const count = full
+        ? '<span class="u-mods-count">All modules</span>'
+        : `<span class="u-mods-count limited">${allowed.length} of ${ACCESS_MODULE_KEYS.length}</span>`;
+      modulesCell = `<div class="u-mods">${pills}${count}</div>`;
     }
     return `<tr><td>${nameCell}</td><td>${statusCell}</td><td>${roleCell}</td><td>${modulesCell}</td></tr>`;
   }).join('');
+  // Re-render wipes the DOM, so put focus back on the pill that was just used.
+  if (usersFocusChip) {
+    const { email:fe, key:fk } = usersFocusChip;
+    usersFocusChip = null;
+    [...tb.querySelectorAll('.u-mod')]
+      .find(b => b.dataset.email === fe && b.dataset.mod === fk)?.focus();
+  }
 }
 
 window.setUserRole = async (email, role) => {
@@ -12737,25 +12786,35 @@ window.setUserRole = async (email, role) => {
   } catch(e) { toast('Could not update role: ' + e.message, 'err', 6000); }
 };
 
-// Tick/untick one module for one account. The stored list is always written in
-// full (never a partial diff) so the user's own live subscription can apply it
-// as-is. Un-ticking the last module is refused — everyone keeps a landing page.
+// Narrowing someone to a single module means switching several pills in a row,
+// so the confirmation replaces itself instead of stacking four toasts up the
+// screen. It always states the resulting access, not the individual edit.
+let usersModuleToastEl = null;
+function moduleAccessToast(msg, type='ok', ms=3500){
+  try { usersModuleToastEl?.remove(); } catch(e) {}
+  usersModuleToastEl = toast(msg, type, ms);
+}
+
+// Switch one module on or off for one account. The stored list is always written
+// in full (never a partial diff) so the user's own live subscription can apply
+// it as-is. Removing the last module is refused; everyone keeps a landing page.
 window.setUserModule = async (email, key, on) => {
-  if (!isAdmin()) { toast('Only the admin can change module access.','err'); usersRender(); return; }
-  if (ADMIN_EMAILS.includes((email||'').toLowerCase())) { toast('The admin always has every module.','err'); usersRender(); return; }
+  if (!isAdmin()) { moduleAccessToast('Only the admin can change module access.','err'); usersRender(); return; }
+  if (ADMIN_EMAILS.includes((email||'').toLowerCase())) { moduleAccessToast('The admin always has every module.','err'); usersRender(); return; }
   if (!ACCESS_MODULE_KEYS.includes(key)) return;
+  usersFocusChip = { email, key };
   const row = usersData.find(u => (u.email || u.id || '').toLowerCase() === (email||'').toLowerCase());
   const current = normalizeModuleList(row?.modules) || ACCESS_MODULE_KEYS.slice();
   const next = on ? [...new Set([...current, key])] : current.filter(k => k !== key);
-  if (!next.length) { toast('Each account needs at least one module.','err'); usersRender(); return; }
+  if (!next.length) { moduleAccessToast('Each account needs at least one module.','err'); usersRender(); return; }
   const modules = ACCESS_MODULE_KEYS.filter(k => next.includes(k));
   try {
     await setDoc(doc(db,'user_roles',email), { modules, email }, { merge:true });
     const summary = modules.length === ACCESS_MODULE_KEYS.length
       ? 'all modules'
       : modules.map(moduleLabel).join(', ');
-    toast(`✓ ${email.split('@')[0]} — ${summary}`, 'ok');
-  } catch(e) { toast('Could not update module access: ' + e.message, 'err', 6000); usersRender(); }
+    moduleAccessToast(`✓ ${email.split('@')[0]}: ${summary}`);
+  } catch(e) { moduleAccessToast('Could not update module access: ' + e.message, 'err', 6000); usersRender(); }
 };
 
 /* ════════════════════════════════════════════════
