@@ -16087,9 +16087,18 @@ function snapshotLogDate(value) {
   return date instanceof Date&&Number.isFinite(date.getTime())?date:null;
 }
 function snapshotLogsFor(module) { return logsData.filter(log=>snapshotLogModule(log)===module); }
-function mergeSnapshotAuditRows(module,fallbackRows=[]) {
-  const audit=snapshotLogsFor(module),auditedKeys=new Set(audit.map(log=>`${log.session_date||''}|${log.time_slot||''}`));
-  return [...audit,...fallbackRows.filter(log=>!auditedKeys.has(`${log.session_date||''}|${log.time_slot||''}`))]
+/* Audit records only, newest first. This used to merge in rows synthesised from
+   the saved snapshots for anything that had data but no audit record, which
+   made a Logs tab show entries that were not logs: they could not be deleted,
+   because there was nothing behind them to delete, and "Delete All Logs"
+   correctly reported nothing to do while rows sat on screen. A Logs tab now
+   lists exactly what is in snapshot_logs, so every row it shows is a real
+   record that can be acted on. Imports made before audit logging existed simply
+   do not appear; their data is untouched and still listed in the module's own
+   views. */
+function mergeSnapshotAuditRows(module) {
+  return snapshotLogsFor(module)
+    .slice()
     .sort((a,b)=>(snapshotLogDate(b.processed_at)?.getTime()||0)-(snapshotLogDate(a.processed_at)?.getTime()||0));
 }
 async function writeSnapshotLog(snap, rowCount, module='voip', details={}){
@@ -16298,16 +16307,9 @@ window.confirmDeleteLogs = async () => {
         .filter(entry => mode === 'module' || String(entry.data()?.session_date || '') === scopeDate)
         .map(entry => entry.id);
     }
-    if (!ids.length) {
-      // For a module-scoped clear this is not an error state: it means every
-      // row on screen is derived from a saved report rather than from an audit
-      // record, so there is genuinely no log to remove. Say where to go next
-      // instead of the bare "No logs to delete."
-      toast(scopeModule
-        ? 'No log records found. These rows are taken from the saved reports, so clear them in Settings → Danger Zone.'
-        : 'No logs to delete.', 'err', 9000);
-      return;
-    }
+    // Now that a Logs tab lists only real records, an empty result means the
+    // trail for that scope is genuinely already clear.
+    if (!ids.length) { toast(scopeModule ? 'No log records to delete.' : 'No logs to delete.', 'err'); return; }
     let batch = writeBatch(db), count = 0;
     for (const id of ids){
       batch.delete(doc(db,'snapshot_logs',id));
@@ -19819,11 +19821,7 @@ window.importSmsBalanceClientsCsv = async file => {
 };
 function renderSmsBalanceLogs() {
   const body=document.getElementById('sms-bal-logs-tbody');if(!body)return;
-  const fallback=smsBalanceTodaySnaps.map(s=>({
-    ...s,module:'sms-balance',processed_at:s.timestamp,operator:s.operator||'',user_email:s.user_email||'',
-    rows:(s.data||[]).length,reseller_rows:(s.reseller||[]).length,wholesale_rows:(s.wholesale||[]).length,_snapshotFallback:true
-  }));
-  const rows=mergeSnapshotAuditRows('sms-balance',fallback);
+  const rows=mergeSnapshotAuditRows('sms-balance');
   body.innerHTML=rows.length?rows.map(log=>{
     const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});
     const live=smsBalanceTodaySnaps.find(s=>s.session_date===log.session_date&&s.time_slot===log.time_slot);
@@ -19833,20 +19831,17 @@ function renderSmsBalanceLogs() {
 }
 function renderStatsSnapshotLogs(){
   const body=document.getElementById('stats-logs-tbody'),count=document.getElementById('stats-logs-count');if(!body)return;
-  const fallback=statsTodaySnaps.map(s=>({...s,module:'stats',processed_at:s.timestamp,operator:s.operator||'',user_email:s.user_email||'',rows:(s.data||[]).length,_snapshotFallback:true}));
-  const rows=mergeSnapshotAuditRows('stats',fallback);
+  const rows=mergeSnapshotAuditRows('stats');
   body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(6,'No Stats snapshot audit logs yet.');
   if(count)count.textContent=rows.length?`${rows.length} Stats log(s)`:'No Stats logs yet.';
 }
 window.renderStatsSnapshotLogs=renderStatsSnapshotLogs;
 function renderStatsDailyLogs(){
   const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
-  const fallback=statsDailyHistory.map(day=>({module:'daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.posted_at,operator:day.posted_by||'',user_email:day.user_email||'',rows:(day.clients||[]).length,_snapshotFallback:true}));
-  const rows=mergeSnapshotAuditRows('daily-traffic',fallback);
-  // The row action deletes the LOG RECORD only. A row with no id is not a log
-  // record at all: it is synthesised from the saved report for a date that has
-  // data but no audit entry, so there is nothing to delete and it shows a dash.
-  // Removing a date's data is a separate decision, in Settings → Danger Zone.
+  const rows=mergeSnapshotAuditRows('daily-traffic');
+  // Every row here is a real snapshot_logs record, so every row can be deleted.
+  // The action removes the LOG RECORD only; removing a date's data is a separate
+  // decision, in Settings → Danger Zone.
   body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';
     const action=isAdmin()&&date
       ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the Daily Traffic log entry for ${escAttr(date)}" onclick="openDeleteLogsForDateConfirm('daily-traffic','${escAttr(date)}','the Daily Traffic log entry for ${escAttr(date)}')">${DEL_ICON_SVG}</button>`
@@ -24146,15 +24141,13 @@ function renderVosDailyHistory(){
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
 window.renderVosDailyHistory=renderVosDailyHistory;
-// VOS uploads already write real audit records (module 'vos-daily-traffic'), but
-// this table used to list the saved reports instead, so it showed the data
-// rather than the trail and a delete here would have removed a report. It now
-// reads the same merge the Daily Traffic log does: real log entries first, and
-// a synthesised row for any date that has a report but no audit entry.
+// VOS uploads write real audit records (module 'vos-daily-traffic'); this table
+// used to list the saved reports instead, so it showed the data rather than the
+// trail and a delete here would have removed a report. It now reads the audit
+// records, like every other Logs tab.
 function renderVosDailyLogs(){
-  const days=vosSortedHistory(),body=document.getElementById('vos-daily-logs-tbody');
-  const fallback=days.map(day=>({module:'vos-daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.processed_at,filename:day.filename||'',rows:(day.rows||[]).length,_snapshotFallback:true}));
-  const rows=mergeSnapshotAuditRows('vos-daily-traffic',fallback);
+  const body=document.getElementById('vos-daily-logs-tbody');
+  const rows=mergeSnapshotAuditRows('vos-daily-traffic');
   if(body)body.innerHTML=rows.length?rows.map(log=>{
     const processed=snapshotLogDate(log.processed_at),processedText=processed?processed.toLocaleString():'—';
     const action=isAdmin()&&log.session_date
