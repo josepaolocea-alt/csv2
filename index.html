@@ -27668,25 +27668,27 @@ function openImportantNotification(kind) {
     window.switchView('alerts');
     const filter = kind === 'voip-new' ? 'new' : 'spam';
     window.setAlertFilter(filter, document.getElementById(kind === 'voip-new' ? 'tab-new-critical' : 'tab-spam'));
-    return;
+    return true;
   }
   if (kind === 'sms-new') {
     window.switchModule('sms');
     window.switchSmsTab('balance');
     window.switchSmsBalanceView('alerts');
     window.setSmsBalanceAlertFilter('new', document.getElementById('sms-bal-alert-new'));
-    return;
+    return true;
   }
   if (kind === 'stats-critical') {
     window.switchModule('stats');
     window.switchStatsView('critical');
-    return;
+    return true;
   }
   if (kind === 'vos-critical') {
     window.switchModule('vos');
     window.switchVosPrimaryTab('stats');
     window.switchVosStatsTab('critical');
+    return true;
   }
+  return false;
 }
 function initImportantNotifications() {
   if (importantNotificationsReady) return;
@@ -27704,7 +27706,10 @@ function initImportantNotifications() {
       dismissImportantNotification(row.dataset.notificationId);
       return;
     }
-    if (event.target.closest('.important-notification-open')) openImportantNotification(row.dataset.notificationKind);
+    if (event.target.closest('.important-notification-open')) {
+      const opened = openImportantNotification(row.dataset.notificationKind);
+      if (opened) dismissImportantNotification(row.dataset.notificationId);
+    }
   });
   document.addEventListener('mousedown', event => { if (!root.contains(event.target)) closeImportantNotifications(); });
   document.addEventListener('keydown', event => {
