@@ -15939,6 +15939,58 @@ const ADMIN_EMAILS = [
 ];
 let currentUserEmail = '';
 let currentUserUid = '';
+
+/* Favourites are account data, not browser-shell data. The shell controller
+   below owns the UI and local cache, while these small bridges keep the
+   Firestore access inside this Firebase module. */
+const USER_FAVORITES_FIELD = 'shell_favorites';
+const USER_FAVORITES_UPDATED_FIELD = 'shell_favorites_updated_at';
+function normalizeUserFavoriteKeys(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter(key => typeof key === 'string' && key.length <= 240))].slice(0, 12);
+}
+window.bmLoadUserFavorites = async () => {
+  const uid = currentUserUid || (!auth ? 'local' : '');
+  if (!uid || uid === 'local' || !fbOk) {
+    return { uid, found:false, favorites:[], offline:!fbOk };
+  }
+  try {
+    const snapshot = await getDoc(doc(db, 'user_preferences', uid));
+    const data = snapshot.exists() ? snapshot.data() : null;
+    const found = !!data && Array.isArray(data[USER_FAVORITES_FIELD]);
+    return {
+      uid,
+      found,
+      favorites:normalizeUserFavoriteKeys(found ? data[USER_FAVORITES_FIELD] : []),
+      updatedAt:data?.[USER_FAVORITES_UPDATED_FIELD]?.toMillis?.() || 0,
+    };
+  } catch(error) {
+    console.warn('load user favourites:', error);
+    return { uid, found:false, favorites:[], error:true };
+  }
+};
+window.bmSaveUserFavorites = async (uid, value, updatedAt) => {
+  const activeUid = currentUserUid || (!auth ? 'local' : '');
+  if (!uid || uid !== activeUid) return false;
+  if (uid === 'local' || !fbOk) return true;
+  try {
+    await setDoc(doc(db, 'user_preferences', uid), {
+      [USER_FAVORITES_FIELD]:normalizeUserFavoriteKeys(value),
+      [USER_FAVORITES_UPDATED_FIELD]:Timestamp.fromMillis(Math.max(0, Number(updatedAt) || Date.now())),
+      updated_at:Timestamp.now(),
+    }, { merge:true });
+    return true;
+  } catch(error) {
+    console.warn('save user favourites:', error);
+    return false;
+  }
+};
+function announceFavoriteUser() {
+  window.__bmFavoriteUserUid = currentUserUid || (!auth ? 'local' : '');
+  window.dispatchEvent(new CustomEvent('bm-favorite-user-changed', {
+    detail:{ uid:window.__bmFavoriteUserUid }
+  }));
+}
 let logsData = [];               // all snapshot_logs docs, newest first
 let logsSelected = new Set();    // log ids ticked for multi-delete
 let pendingLogDelete = null;     // { mode:'one'|'selected'|'all', id? }
@@ -27438,6 +27490,7 @@ if (auth) {
     if (user) {
       currentUserEmail = user.email || '';
       currentUserUid = user.uid || '';
+      announceFavoriteUser();
       // Seed the role from the email immediately (admin pinned, Customer Support
       // seeded as semi-admin) so the UI is correct before the live user_roles
       // snapshot arrives; subscribeMyRole() refines it from Firestore.
@@ -27463,6 +27516,7 @@ if (auth) {
       unsubscribeAllUsers();
       currentUserEmail = '';
       currentUserUid = '';
+      announceFavoriteUser();
       statsVisibleClassificationColumns = new Set(STATS_CLASSIFICATION_COLUMNS.map(column => column.key));
       renderStatsColumnPicker();
       applyStatsClassificationColumnVisibility();
@@ -27478,6 +27532,7 @@ if (auth) {
   });
 } else {
   // Firebase not configured — run in demo mode without login
+  announceFavoriteUser();
   const overlay = document.getElementById('login-overlay');
   if (overlay) overlay.style.display = 'none';
   init();
@@ -27500,6 +27555,7 @@ if (auth) {
   'use strict';
 
   var PREFS_KEY = 'bm_shell_prefs_v1';
+  var FAVORITES_KEY_PREFIX = 'bm_shell_favorites_v1_';
   var MODULE_CRUMB = {
     balance: 'Balance Monitor VOIP',
     sms: 'SMS',
@@ -27510,6 +27566,7 @@ if (auth) {
   };
 
   var nav, navScroll, toolbar, syncQueued = false, syncing = false, flyoutTimer = null;
+  var favoriteLoadToken = 0, favoriteSaveTimer = null;
 
   /* ── Preferences ─────────────────────────────────────────────────────── */
   function readPrefs() {
@@ -27522,6 +27579,102 @@ if (auth) {
       Object.keys(patch).forEach(function (k) { p[k] = patch[k]; });
       localStorage.setItem(PREFS_KEY, JSON.stringify(p));
     } catch (e) {}
+  }
+
+  function favoriteUserUid() {
+    return String(window.__bmFavoriteUserUid || '');
+  }
+  function favoriteStorageKey(uid) {
+    return uid ? FAVORITES_KEY_PREFIX + encodeURIComponent(uid) : '';
+  }
+  function normalizeFavorites(value) {
+    if (!Array.isArray(value)) return [];
+    return value.filter(function (key, index, list) {
+      return typeof key === 'string' && key.length <= 240 && list.indexOf(key) === index;
+    }).slice(0, 12);
+  }
+  function cacheFavorites(uid, value, updatedAt) {
+    var key = favoriteStorageKey(uid);
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify({
+        favorites:normalizeFavorites(value),
+        updatedAt:Math.max(0, Number(updatedAt) || 0),
+      }));
+    } catch (e) {}
+  }
+  function favoriteCache(uid) {
+    var key = favoriteStorageKey(uid);
+    if (!key) return { exists:false, favorites:[] };
+    try {
+      var raw = localStorage.getItem(key);
+      if (raw !== null) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return { exists:true, favorites:normalizeFavorites(parsed), updatedAt:0 };
+        return {
+          exists:true,
+          favorites:normalizeFavorites(parsed && parsed.favorites),
+          updatedAt:Math.max(0, Number(parsed && parsed.updatedAt) || 0),
+        };
+      }
+
+      // One-time migration from the old browser-wide shell preference. It is
+      // assigned only after Firebase identifies the current account, then
+      // removed so another account on this browser can never inherit it.
+      var legacyPrefs = readPrefs();
+      var legacy = normalizeFavorites(legacyPrefs.favorites);
+      if (legacy.length) {
+        cacheFavorites(uid, legacy, Date.now());
+        delete legacyPrefs.favorites;
+        localStorage.setItem(PREFS_KEY, JSON.stringify(legacyPrefs));
+        return { exists:true, favorites:legacy, updatedAt:Date.now() };
+      }
+    } catch (e) {}
+    return { exists:false, favorites:[], updatedAt:0 };
+  }
+  function saveFavorites(value) {
+    var uid = favoriteUserUid();
+    var list = normalizeFavorites(value);
+    var updatedAt = Date.now();
+    if (!uid) return;
+    cacheFavorites(uid, list, updatedAt);
+    if (favoriteSaveTimer) clearTimeout(favoriteSaveTimer);
+    favoriteSaveTimer = setTimeout(function () {
+      favoriteSaveTimer = null;
+      if (uid !== favoriteUserUid() || typeof window.bmSaveUserFavorites !== 'function') return;
+      window.bmSaveUserFavorites(uid, list, updatedAt);
+    }, 200);
+  }
+
+  async function loadFavoritesForCurrentUser() {
+    var token = ++favoriteLoadToken;
+    var uid = favoriteUserUid();
+    var local = favoriteCache(uid);
+    favRendered = null;
+    renderFavorites(true);
+    syncFavButton();
+    if (!uid || typeof window.bmLoadUserFavorites !== 'function') return;
+
+    var result = await window.bmLoadUserFavorites();
+    if (token !== favoriteLoadToken || uid !== favoriteUserUid() || !result || result.uid !== uid || result.error) return;
+    if (result.found) {
+      var remoteUpdatedAt = Math.max(0, Number(result.updatedAt) || 0);
+      if (local.exists && local.updatedAt > remoteUpdatedAt) {
+        // A refresh may happen before the debounced cloud write finishes. The
+        // newer local account cache wins that race and is pushed back to cloud.
+        window.bmSaveUserFavorites(uid, local.favorites, local.updatedAt);
+      } else {
+        cacheFavorites(uid, result.favorites, remoteUpdatedAt);
+        favRendered = null;
+        renderFavorites(true);
+        syncFavButton();
+        if (findPanel && !findPanel.hidden) renderFind(findInput ? findInput.value : '');
+      }
+    } else if (local.exists && typeof window.bmSaveUserFavorites === 'function') {
+      // Populate the account document from the per-user cache (including the
+      // one-time legacy migration) without making a hard refresh look empty.
+      window.bmSaveUserFavorites(uid, local.favorites, local.updatedAt);
+    }
   }
 
   window.bmToggleNav = function () {
@@ -27820,8 +27973,7 @@ if (auth) {
   }
 
   function favorites() {
-    var f = readPrefs().favorites;
-    return Array.isArray(f) ? f.filter(function (k) { return typeof k === 'string'; }) : [];
+    return favoriteCache(favoriteUserUid()).favorites;
   }
 
   function isHidden(el) {
@@ -27874,7 +28026,7 @@ if (auth) {
       list.push(key);
       if (list.length > FAV_MAX) list.shift();
     }
-    writePrefs({ favorites: list });
+    saveFavorites(list);
     renderFavorites(true);
     syncFavButton();
     if (findPanel && !findPanel.hidden) renderFind(findInput ? findInput.value : '');
@@ -28139,6 +28291,8 @@ if (auth) {
     window.addEventListener('resize', closeFlyouts);
 
     initFind();
+    window.addEventListener('bm-favorite-user-changed', loadFavoritesForCurrentUser);
+    loadFavoritesForCurrentUser();
 
     document.addEventListener('keydown', function (ev) {
       if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'b' || ev.key === 'B')) {
