@@ -16566,8 +16566,15 @@ window.saveClientEdit = async () => {
     }
     if (!clientsMeta[name]) clientsMeta[name] = {};
     Object.assign(clientsMeta[name], updates);
-    _pendingClientRefresh = false; // refreshAll below renders the latest data
-    refreshAll();
+    // refreshClientDataViews, not refreshAll: refreshAll covers the snapshot
+    // views but not the screens built from the client record itself, and the
+    // Client Manager's configured-clients table is one of those. Clearing
+    // _pendingClientRefresh and then calling the narrower refresh left that
+    // table showing the previous Account Manager until the page was reloaded —
+    // the setDoc echo had already set the pending flag while this dialog was
+    // still open, so the flush on close found nothing to do.
+    _pendingClientRefresh = false;
+    refreshClientDataViews();
     toast('✓ Client updated', 'ok');
     closeClientDetail();
   } catch(e) { toast('Save error: ' + e.message, 'err'); }
@@ -18295,7 +18302,7 @@ window.saveWizard=async()=>{
     const unchangedMsg=wUnchanged.length?` · ${wUnchanged.length} already up-to-date`:'';
     toast(`✓ ${nNew} new · ${nUpd} updated · ${nRem} removed${unchangedMsg}`,'ok');
     wStep=1;wCsvData=null;wChanges=[];wHeaders=[];wUnchanged=[];wFilename='';
-    window.renderWizard();renderImpHist();refreshAll();
+    window.renderWizard();renderImpHist();refreshClientDataViews();
   }catch(e){toast('Save failed: '+e.message,'err');}
   finally{setLoading(false);}
 };
@@ -23221,8 +23228,10 @@ window.saveBulkEdits = async () => {
     bulkEditMode = false; bulkEdits = {};
     document.getElementById('btn-bulk-edit').classList.remove('active');
     document.getElementById('bulk-save-bar').classList.remove('visible');
-    _pendingClientRefresh = false; // refreshAll below renders the latest data
-    refreshAll();
+    // Same reason as saveClientDetail: bulk edits change the client record, so
+    // the configured-clients table has to be re-rendered with it.
+    _pendingClientRefresh = false;
+    refreshClientDataViews();
   } catch(e) { toast('Save error: '+e.message,'err'); }
   finally { setLoading(false); }
 };
@@ -23487,7 +23496,7 @@ window.confirmRollback = async () => {
       await setDoc(doc(db, 'csv_imports', imp.id), { rolled_back: true, rolled_back_at: Timestamp.now() }, { merge: true });
     }
     toast('✓ Import rolled back successfully', 'ok');
-    renderImpHist(); refreshAll();
+    renderImpHist(); refreshClientDataViews();
   } catch(e) { toast('Rollback error: ' + e.message, 'err'); }
   finally { setLoading(false); }
 };
