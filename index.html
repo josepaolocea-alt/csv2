@@ -6962,6 +6962,25 @@
     body.stats-mode #toolbar.is-nested > #stnav-stats-ok.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--yellow) !important; }
     body.stats-mode #toolbar.is-nested > #stnav-stats-good.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
 
+    /* VOS Stats classification tabs carry the same status colours as the Stats
+       module's, so a route that is Critical reads the same wherever it is seen.
+       The tone is set at id weight with !important for the same reason it is in
+       Stats: it has to outrank the shared track rule's active colour, or a
+       selected Critical tab would turn accent-blue and lose its meaning. Watch
+       is deliberately left untoned in both modules — it is the neutral band
+       between Low and Ok, and giving it a colour would imply a severity it does
+       not carry. */
+    #vos-stats-tab-critical,
+    #vos-stats-tab-stopped { color: var(--red) !important; }
+    #vos-stats-tab-low { color: var(--orange) !important; }
+    #vos-stats-tab-ok { color: var(--yellow-deep) !important; }
+    #vos-stats-tab-good { color: var(--green) !important; }
+    #vos-stats-tab-critical.active,
+    #vos-stats-tab-stopped.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--red) !important; }
+    #vos-stats-tab-low.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important; }
+    #vos-stats-tab-ok.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--yellow) !important; }
+    #vos-stats-tab-good.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
+
     /* Actions that sit inside a track are objects, not destinations, so they
        keep the raised button shape and a gap that separates them from it. */
     #toolbar > .stats-column-picker, #toolbar.is-nested > .stats-column-picker { margin-left: 8px; align-self: center; padding: 0; }
@@ -9747,9 +9766,9 @@
           </div>
 
           <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
-            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. To remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button></div>
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-logs-wipe-btn" style="color:#880000" onclick="openDeleteModuleLogsConfirm('daily-traffic','Daily Traffic')">Delete All Logs</button></div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
-              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
+              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th><th>Actions</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
             <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
           </div>
@@ -9943,8 +9962,8 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-logs" role="tabpanel" aria-labelledby="vos-daily-tab-logs" style="display:none">
-                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. To remove a date's data, use Settings → Danger Zone.</span></div>
-                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
+                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button type="button" class="tbtn" id="vos-daily-logs-wipe-btn" style="color:#880000" onclick="openDeleteModuleLogsConfirm('vos-daily-traffic','VOS Daily Traffic')">Delete All Logs</button></div>
+                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
                 <div class="sms-muted" id="vos-daily-logs-count">No VOS Daily Traffic logs yet.</div>
               </div>
 
@@ -15951,6 +15970,9 @@ function applyModuleAccess(){
   disable('stats-daily-delete-date-btn', !admin);
   disable('vos-daily-delete-date', !admin);
   disable('vos-daily-delete-date-btn', !admin);
+  // Clearing an audit trail is admin-only too, even though it destroys no data.
+  disable('stats-daily-logs-wipe-btn', !admin);
+  disable('vos-daily-logs-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
@@ -16216,9 +16238,33 @@ window.closeLogsConfirm = () => {
   document.getElementById('logs-confirm-overlay').classList.remove('open');
   pendingLogDelete = null;
 };
+/* Per-row and per-module log deletes for the Daily Traffic and VOS Daily
+   Traffic audit tables. These remove the log RECORD only. The traffic data for
+   that date lives in stats_daily_traffic / the VOS report collection and is
+   deleted from each module's Settings → Danger Zone, so the two decisions stay
+   separate. Both reuse the existing logs confirmation dialog. */
+window.openDeleteOneLogConfirm = (id, label = 'this log entry') => {
+  if (!isAdmin() || !id) return;
+  pendingLogDelete = { mode:'one', id };
+  document.getElementById('logs-confirm-text').innerHTML =
+    `<strong>Delete ${esc(label)}?</strong><br><br>` +
+    `Only the log record is removed. The traffic data for that date is not affected — that is deleted from Settings → Danger Zone.`;
+  document.getElementById('logs-confirm-overlay').classList.add('open');
+};
+window.openDeleteModuleLogsConfirm = (module, label) => {
+  if (!isAdmin()) return;
+  if (!snapshotLogsFor(module).length){ toast('No logs to delete.','err'); return; }
+  pendingLogDelete = { mode:'module', module };
+  document.getElementById('logs-confirm-text').innerHTML =
+    `<strong>Delete all ${esc(label)} log entries?</strong><br><br>` +
+    `Only the log records are removed. The traffic data for those dates is not affected — that is deleted from Settings → Danger Zone.<br><br>` +
+    `<span style="color:#880000">This cannot be undone.</span>`;
+  document.getElementById('logs-confirm-overlay').classList.add('open');
+};
 window.confirmDeleteLogs = async () => {
   if (!pendingLogDelete || !isAdmin()){ window.closeLogsConfirm(); return; }
   const mode = pendingLogDelete.mode;
+  const scopeModule = pendingLogDelete.module || '';
   let ids = [];
   if (mode === 'one')           ids = [pendingLogDelete.id];
   else if (mode === 'selected') ids = [...logsSelected];
@@ -16231,6 +16277,11 @@ window.confirmDeleteLogs = async () => {
     if (mode === 'all') {
       const allLogs = await getDocs(collection(db, 'snapshot_logs'));
       ids = allLogs.docs.map(entry => entry.id);
+    } else if (mode === 'module') {
+      // Same reason as 'all', narrowed to one module so Daily Traffic and VOS
+      // can clear their own audit trail without touching anyone else's.
+      const scoped = await getDocs(query(collection(db, 'snapshot_logs'), where('module', '==', scopeModule)));
+      ids = scoped.docs.map(entry => entry.id);
     }
     if (!ids.length) { toast('No logs to delete.', 'err'); return; }
     let batch = writeBatch(db), count = 0;
@@ -19768,11 +19819,15 @@ function renderStatsDailyLogs(){
   const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
   const fallback=statsDailyHistory.map(day=>({module:'daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.posted_at,operator:day.posted_by||'',user_email:day.user_email||'',rows:(day.clients||[]).length,_snapshotFallback:true}));
   const rows=mergeSnapshotAuditRows('daily-traffic',fallback);
-  // Read-only on purpose: this table records when each date was pasted and by
-  // whom. Removing a date's data is a separate decision and lives in Daily
-  // Traffic → Settings → Danger Zone, so an audit trail cannot be edited from
-  // inside itself.
-  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(4,'No Daily Traffic audit logs yet.');
+  // The row action deletes the LOG RECORD only. A row with no id is not a log
+  // record at all: it is synthesised from the saved report for a date that has
+  // data but no audit entry, so there is nothing to delete and it shows a dash.
+  // Removing a date's data is a separate decision, in Settings → Danger Zone.
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';
+    const action=isAdmin()&&log.id
+      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the Daily Traffic log entry for ${escAttr(date||'this date')}" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}','the Daily Traffic log entry for ${escAttr(date||'this date')}')">${DEL_ICON_SVG}</button>`
+      :'<span class="sms-muted" title="Taken from the saved report — there is no separate log record to delete">—</span>';
+    return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(5,'No Daily Traffic audit logs yet.');
   populateDailyDeleteDates();
   if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
 }
@@ -24067,9 +24122,25 @@ function renderVosDailyHistory(){
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
 window.renderVosDailyHistory=renderVosDailyHistory;
-// Read-only, matching the Daily Traffic log: it records when each report was
-// imported. Deleting a date lives in VOS Daily Traffic → Settings → Danger Zone.
-function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');populateVosDeleteDates();}
+// VOS uploads already write real audit records (module 'vos-daily-traffic'), but
+// this table used to list the saved reports instead, so it showed the data
+// rather than the trail and a delete here would have removed a report. It now
+// reads the same merge the Daily Traffic log does: real log entries first, and
+// a synthesised row for any date that has a report but no audit entry.
+function renderVosDailyLogs(){
+  const days=vosSortedHistory(),body=document.getElementById('vos-daily-logs-tbody');
+  const fallback=days.map(day=>({module:'vos-daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.processed_at,filename:day.filename||'',rows:(day.rows||[]).length,_snapshotFallback:true}));
+  const rows=mergeSnapshotAuditRows('vos-daily-traffic',fallback);
+  if(body)body.innerHTML=rows.length?rows.map(log=>{
+    const processed=snapshotLogDate(log.processed_at),processedText=processed?processed.toLocaleString():'—';
+    const action=isAdmin()&&log.id
+      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the VOS Daily Traffic log entry for ${escAttr(log.session_date||'this date')}" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}','the VOS Daily Traffic log entry for ${escAttr(log.session_date||'this date')}')">${DEL_ICON_SVG}</button>`
+      :'<span class="sms-muted" title="Taken from the saved report — there is no separate log record to delete">—</span>';
+    return `<tr><td>${stEsc(log.session_date||'—')}</td><td>${stEsc(processedText)}</td><td>${stEsc(log.filename||'VOS report')}</td><td class="num">${stN0(log.rows||0)}</td><td>${action}</td></tr>`;
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';
+  vosSetText('vos-daily-logs-count',rows.length?`${rows.length} import${rows.length===1?'':'s'} logged`:'No VOS Daily Traffic logs yet.');
+  populateVosDeleteDates();
+}
 window.renderVosDailyLogs=renderVosDailyLogs;
 window.deleteVosDailyReport=async sessionDate=>{
   if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic reports.','err');return;}
