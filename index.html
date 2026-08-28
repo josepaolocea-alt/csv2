@@ -7570,13 +7570,74 @@
        separators short of the edge. The divider before the export buttons
        goes with it, since those are raised objects and do not need a rule to
        be told apart from a recessed track. */
-    .daily-workspace-nav,
-    .vos-stats-workspace .daily-workspace-nav {
-      padding: 14px 16px 0;
-      margin-bottom: 14px;
-    }
     .daily-workspace-nav .st-daily-export-actions { padding-left: 0; border-left: 0; }
     .sms-bal-status-guide, .voip-alert-guide { padding: 14px; }
+
+    /* 5 · VOS panels were pinned to `grid-column: 2` for the two-column layout
+       they had before the side rail was adopted into the snapshot panel. With
+       the rail gone, #traffic-source-vos declares a single 1fr column, so
+       column 2 is implicit and therefore sized to its own content: the panel
+       re-measured on every tab change and left a growing gap down its left
+       side. Logs came out 225px in from the edge, Settings 40px, the other
+       three flush. Both VOS panels — Stats and Daily Traffic — sit in the one
+       real column now, so the width is the column's and never the content's. */
+    #traffic-source-vos > .vos-primary-panel {
+      grid-column: 1 / -1 !important;
+      grid-row: 1 !important;
+      min-width: 0;
+    }
+
+    /* 6 · Daily Traffic and VOS: one left edge for everything.
+       Insetting only the nav row left the sub-tabs at 17px while the live
+       statistics, the filter row and the meta band sat at 1px and the table
+       shell at 9px — four different starting points down one panel. The panel
+       carries the inset for all of them now, and the bands that used to be
+       divided by full-bleed 1px rules become recessed blocks, which is the
+       same treatment every other filter row in the app already had. */
+    .daily-workspace, .vos-primary-panel { padding: 16px; }
+    .daily-workspace-nav,
+    .vos-stats-workspace .daily-workspace-nav { padding: 0; margin-bottom: 14px; }
+    .daily-workspace > .st-daily-panel,
+    .vos-primary-panel > .st-daily-panel,
+    .vos-stats-workspace > .st-daily-panel { gap: 12px; }
+    .daily-workspace .st-daily-summary,
+    .daily-workspace .st-daily-panel > .fbar,
+    .daily-workspace .st-daily-dashboard-meta,
+    .daily-workspace .st-daily-history-meta,
+    #traffic-source-voip .st-daily-dashboard-meta {
+      padding: 10px 12px;
+      background: var(--surface-2);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+    .daily-workspace .vos-table-shell,
+    #traffic-source-voip .vos-table-shell { margin: 0; }
+
+    /* 7 · The snapshot panel's focus ring was cut off at both sides. Two
+       separate causes, both fixed here:
+       · #snap-editor clips to its content box, and a full-width field inside
+         it is exactly as wide as that box, so the ring — drawn outside the
+         field's border box — had nowhere to land horizontally. It gets its
+         room back through padding that a matching negative margin cancels,
+         which keeps the clipping the panel relies on.
+       · The base field rule in §10 lists `#sidebar #snap-ta` at two ids, which
+         outranks `#snap-ta:focus` at one id and one class, so the accent ring
+         in the shared focus rule never applied to any field in this panel.
+         Restated at a weight that wins. */
+    /* 6px, not 4: the ring's outer edge is exactly 4px out (2px offset plus a
+       2px stroke), and landing it exactly on the clip boundary loses a
+       fraction of it to rounding. The snapshot column has 15px of padding to
+       give, so the negative margin still lands well inside it. */
+    #snap-editor, #stats-post-controls, #stats-daily-post-controls {
+      padding-inline: 6px;
+      margin-inline: -6px;
+    }
+    #sidebar .win-inp:focus, #sidebar .win-sel:focus, #sidebar #slot-sel:focus,
+    #sidebar #snap-ta:focus, #sidebar #stats-snap-ta:focus, #sidebar #stats-daily-ta:focus,
+    #sidebar textarea:focus, #sidebar .premium-select-trigger:focus {
+      outline: none;
+      box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent) !important;
+    }
 
     /* ── 15 · Responsive ──────────────────────────────────────────────────*/
     @media (max-width: 1360px) {
