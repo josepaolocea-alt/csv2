@@ -7868,6 +7868,105 @@
       .view { padding: 12px; }
     }
 
+    /* ── 16 · Snapshot-panel fields ───────────────────────────────────────
+       Two regressions from the shared field rule in §10, both of them worst
+       in the Daily Traffic panel. That rule lists `#sidebar #stats-daily-ta`
+       at two ids, so it outranks everything the paste boxes were authored
+       with at one.
+
+       · Height. `min-height: var(--ui-control-h)` is meant for one-line
+         controls, and it collapsed the paste targets to a single control row
+         — under three lines for a report that is pasted dozens of rows at a
+         time. The Daily Traffic box is the one people paste into most, so it
+         takes the panel's free space instead of a fixed slice; the other two
+         get back the minimum they were written with. Same two-id reason the
+         mono stack a few sections up never applied — restored here, because
+         a mis-copied column has to show as a broken edge before processing.
+
+       · Material. The rule fills fields with --surface-2, which is also this
+         panel's own fill, so a field had no surface of its own: at rest it
+         was the panel with a soft inset laid on it, and the only thing that
+         drew its edge was the focus ring. Fields are wells, so they get a
+         tone one step below the panel they sit in, in both themes. Buttons
+         stay raised; the date trigger is an input wearing a button, so it
+         gives up its lifted gradient and joins the wells. */
+    :root { --field-well: #d5dbe5; }
+    body.night-mode { --field-well: #141821; }
+
+    /* Restated under body.night-mode as well: §10 pins the dark theme's field
+       fill from a selector carrying an extra class, so two ids alone lose to
+       it and the wells would come back flat after dark. */
+    #sidebar .win-inp, #sidebar .win-sel, #sidebar #slot-sel,
+    #sidebar #snap-ta, #sidebar #stats-snap-ta, #sidebar #stats-daily-ta,
+    #sidebar .premium-date-trigger, #sidebar .premium-select-trigger,
+    body.night-mode #sidebar .win-inp, body.night-mode #sidebar .win-sel,
+    body.night-mode #sidebar #slot-sel, body.night-mode #sidebar #snap-ta,
+    body.night-mode #sidebar #stats-snap-ta, body.night-mode #sidebar #stats-daily-ta {
+      background-color: var(--field-well) !important;
+      background-image: none !important;
+    }
+    #sidebar .premium-date-trigger {
+      border: 0;
+      box-shadow: var(--neu-inset-sm);
+    }
+    #sidebar .premium-date-trigger:hover:not(:disabled) {
+      border: 0;
+      box-shadow: var(--neu-inset);
+    }
+    /* The trigger's own open/focus styling coloured a border this rule just
+       removed, and its ring was written at two classes, so it loses to the id
+       above. Restated as a ring on the well, at a weight that outranks the
+       hover state it has to show through. */
+    #sidebar .premium-date-trigger:focus-visible:not(:disabled),
+    #sidebar .premium-date.open .premium-date-trigger:not(:disabled) {
+      border: 0;
+      box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent);
+    }
+
+    #sidebar #snap-ta, #sidebar #stats-snap-ta, #sidebar #stats-daily-ta {
+      padding: 9px 11px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      min-height: 60px;
+    }
+    /* The panel was pinned to `flex: 0 0 auto !important`, which left the
+       column's spare height sitting empty under the saved-dates list while
+       the paste box stayed at one row. It absorbs that space now and hands
+       it to the only child that can use it. */
+    #sidebar #stats-daily-post-controls { flex: 1 1 auto !important; min-height: 0; }
+    #sidebar #stats-daily-ta { flex: 1 1 auto; min-height: 148px; }
+
+    /* ── 17 · Focus rings sliced off by scrolling form bodies ─────────────
+       §7 fixed this for the snapshot panel, but it fixed it on the inner
+       wrapper, and the same defect exists in three other forms with a
+       different geometry: there the element that clips is a *scrolling* body
+       one level up, so padding the wrapper inside it buys nothing — the
+       wrapper's own padding is still inside the scroller's clip box.
+
+       A field exactly as wide as its scroller's content box has nowhere to
+       draw a ring that lands 4px outside its border box (2px offset plus a
+       2px stroke), so the ring is cut: on the left for a left-column field,
+       on the right for a right-column one, on both for a full-width one.
+       Measured across every tab, it was 22 fields in these four containers —
+       the whole SMS add/edit form (V3 and Phoenix), all of Credentials, and
+       both Stats paste boxes.
+
+       Each scroller takes the room from its own inline padding and hands the
+       width straight back with a matching negative margin, so no field moves
+       and no column re-flows. Both form bodies also carry `contain: paint`,
+       which clips to the padding box exactly as overflow does, so the same
+       padding covers that too. 6px, not 4: landing the ring's outer edge
+       exactly on the clip boundary loses a fraction of it to rounding. Every
+       parent here has at least 9px of inline padding to bleed into. */
+    #sms-form-section > .caret-body,
+    .sms-cred-form-body,
+    #stats-sidebar-current,
+    #stats-sidebar-daily {
+      padding-inline: 6px;
+      margin-inline: -6px;
+    }
+
     /* No reduced-motion block here on purpose: the app already ships a global
        `*, *::before, *::after` catch-all that clamps every animation and
        transition duration, and it covers this layer too. */
