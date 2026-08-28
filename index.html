@@ -16243,9 +16243,17 @@ window.closeLogsConfirm = () => {
    that date lives in stats_daily_traffic / the VOS report collection and is
    deleted from each module's Settings → Danger Zone, so the two decisions stay
    separate. Both reuse the existing logs confirmation dialog. */
-window.openDeleteOneLogConfirm = (id, label = 'this log entry') => {
-  if (!isAdmin() || !id) return;
-  pendingLogDelete = { mode:'one', id };
+/* Addressed by module + date rather than by document id. The Logs view
+   subscribes to only the newest SNAPSHOT_LOG_LIVE_LIMIT (100) entries across
+   every module at once, so on a busy day a VOS or Daily Traffic record is
+   routinely outside that window: it is still in Firestore, but not in
+   logsData. Keying the delete to the id we happen to be holding made those
+   rows look permanently undeletable, which is what "there's nothing to delete"
+   was really reporting. The row now says which date to clear and the
+   confirmed action looks the records up. */
+window.openDeleteLogsForDateConfirm = (module, sessionDate, label = 'this log entry') => {
+  if (!isAdmin() || !module) return;
+  pendingLogDelete = { mode:'date', module, sessionDate:String(sessionDate || '') };
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete ${esc(label)}?</strong><br><br>` +
     `Only the log record is removed. The traffic data for that date is not affected — that is deleted from Settings → Danger Zone.`;
@@ -16253,7 +16261,9 @@ window.openDeleteOneLogConfirm = (id, label = 'this log entry') => {
 };
 window.openDeleteModuleLogsConfirm = (module, label) => {
   if (!isAdmin()) return;
-  if (!snapshotLogsFor(module).length){ toast('No logs to delete.','err'); return; }
+  // Deliberately not gated on snapshotLogsFor(module).length: that reads the
+  // live window only, and refusing on it is exactly the bug above. The
+  // confirmed action queries Firestore and reports what it actually found.
   pendingLogDelete = { mode:'module', module };
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete all ${esc(label)} log entries?</strong><br><br>` +
@@ -16265,6 +16275,7 @@ window.confirmDeleteLogs = async () => {
   if (!pendingLogDelete || !isAdmin()){ window.closeLogsConfirm(); return; }
   const mode = pendingLogDelete.mode;
   const scopeModule = pendingLogDelete.module || '';
+  const scopeDate = pendingLogDelete.sessionDate || '';
   let ids = [];
   if (mode === 'one')           ids = [pendingLogDelete.id];
   else if (mode === 'selected') ids = [...logsSelected];
@@ -16277,13 +16288,26 @@ window.confirmDeleteLogs = async () => {
     if (mode === 'all') {
       const allLogs = await getDocs(collection(db, 'snapshot_logs'));
       ids = allLogs.docs.map(entry => entry.id);
-    } else if (mode === 'module') {
+    } else if (mode === 'module' || mode === 'date') {
       // Same reason as 'all', narrowed to one module so Daily Traffic and VOS
-      // can clear their own audit trail without touching anyone else's.
+      // can clear their own audit trail without touching anyone else's. The
+      // date is filtered in JS rather than as a second equality clause so this
+      // needs no composite index, matching how deleteStatsDailyReport does it.
       const scoped = await getDocs(query(collection(db, 'snapshot_logs'), where('module', '==', scopeModule)));
-      ids = scoped.docs.map(entry => entry.id);
+      ids = scoped.docs
+        .filter(entry => mode === 'module' || String(entry.data()?.session_date || '') === scopeDate)
+        .map(entry => entry.id);
     }
-    if (!ids.length) { toast('No logs to delete.', 'err'); return; }
+    if (!ids.length) {
+      // For a module-scoped clear this is not an error state: it means every
+      // row on screen is derived from a saved report rather than from an audit
+      // record, so there is genuinely no log to remove. Say where to go next
+      // instead of the bare "No logs to delete."
+      toast(scopeModule
+        ? 'No log records found. These rows are taken from the saved reports, so clear them in Settings → Danger Zone.'
+        : 'No logs to delete.', 'err', 9000);
+      return;
+    }
     let batch = writeBatch(db), count = 0;
     for (const id of ids){
       batch.delete(doc(db,'snapshot_logs',id));
@@ -19824,9 +19848,9 @@ function renderStatsDailyLogs(){
   // data but no audit entry, so there is nothing to delete and it shows a dash.
   // Removing a date's data is a separate decision, in Settings → Danger Zone.
   body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';
-    const action=isAdmin()&&log.id
-      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the Daily Traffic log entry for ${escAttr(date||'this date')}" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}','the Daily Traffic log entry for ${escAttr(date||'this date')}')">${DEL_ICON_SVG}</button>`
-      :'<span class="sms-muted" title="Taken from the saved report — there is no separate log record to delete">—</span>';
+    const action=isAdmin()&&date
+      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the Daily Traffic log entry for ${escAttr(date)}" onclick="openDeleteLogsForDateConfirm('daily-traffic','${escAttr(date)}','the Daily Traffic log entry for ${escAttr(date)}')">${DEL_ICON_SVG}</button>`
+      :'<span class="sms-muted">—</span>';
     return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(5,'No Daily Traffic audit logs yet.');
   populateDailyDeleteDates();
   if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
@@ -24133,9 +24157,9 @@ function renderVosDailyLogs(){
   const rows=mergeSnapshotAuditRows('vos-daily-traffic',fallback);
   if(body)body.innerHTML=rows.length?rows.map(log=>{
     const processed=snapshotLogDate(log.processed_at),processedText=processed?processed.toLocaleString():'—';
-    const action=isAdmin()&&log.id
-      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the VOS Daily Traffic log entry for ${escAttr(log.session_date||'this date')}" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}','the VOS Daily Traffic log entry for ${escAttr(log.session_date||'this date')}')">${DEL_ICON_SVG}</button>`
-      :'<span class="sms-muted" title="Taken from the saved report — there is no separate log record to delete">—</span>';
+    const action=isAdmin()&&log.session_date
+      ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the VOS Daily Traffic log entry for ${escAttr(log.session_date)}" onclick="openDeleteLogsForDateConfirm('vos-daily-traffic','${escAttr(log.session_date)}','the VOS Daily Traffic log entry for ${escAttr(log.session_date)}')">${DEL_ICON_SVG}</button>`
+      :'<span class="sms-muted">—</span>';
     return `<tr><td>${stEsc(log.session_date||'—')}</td><td>${stEsc(processedText)}</td><td>${stEsc(log.filename||'VOS report')}</td><td class="num">${stN0(log.rows||0)}</td><td>${action}</td></tr>`;
   }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';
   vosSetText('vos-daily-logs-count',rows.length?`${rows.length} import${rows.length===1?'':'s'} logged`:'No VOS Daily Traffic logs yet.');
