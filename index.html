@@ -6782,6 +6782,21 @@
     }
     #nav-search::placeholder { color: var(--text-3); font-weight: 500; }
     #nav-search:focus-visible { outline: none !important; }
+    /* Clear control. Flat, because it sits inside a recessed field and the
+       three-depth rule keeps raised objects out of wells. It appears only
+       when there is something to clear, so the field is quiet at rest and the
+       caret still lands where you click on an empty box. */
+    #nav-search-clear {
+      flex: 0 0 20px; width: 20px; height: 20px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: transparent;
+      border: 0; border-radius: var(--r-pill); cursor: pointer;
+      transition: color .13s ease, background-color .13s ease;
+    }
+    #nav-search-clear[hidden] { display: none; }
+    #nav-search-clear svg { width: 13px; height: 13px; display: block; }
+    #nav-search-clear:hover { color: var(--text); background: var(--surface-3); }
+    #nav-search-clear:active { background: var(--border); }
     #fav-btn {
       flex: 0 0 34px; width: 34px; height: 34px; padding: 0;
       display: inline-flex; align-items: center; justify-content: center;
@@ -7159,6 +7174,31 @@
     #st-tbl-stopped tbody tr.st-stopped-active td { background: var(--red-soft) !important; }
     .pager { gap: 10px; padding-top: 12px; font-size: 11.5px; }
 
+    /* Empty states. A row that is one cell spanning the whole table is a
+       message, not data, and every table in the app has one. They were
+       authored inline across ~20 render functions with five different
+       paddings, three different greys (#666, #888, var(--text-3)) and, in a
+       couple of places, no alignment at all, so the same sentence sat centred
+       in one tab and hard left in the next. The two literal greys are worse
+       than inconsistent: they are fixed values that do not follow the theme,
+       so they sink to near-invisible on the dark ground.
+
+       !important is load-bearing here. Each of these cells carries its own
+       inline style attribute, which no ordinary rule can outrank, and they
+       are built inside template literals in the render functions rather than
+       in markup — normalising them here fixes every table at once, including
+       any added later, instead of editing twenty interpolated strings.
+
+       .alert-note is excluded on purpose: those rows are prose banners that
+       read from the left, not empty states. */
+    tbody > tr:not(.alert-note) > td[colspan]:only-child {
+      text-align: center !important;
+      padding: 20px 14px !important;
+      color: var(--text-3) !important;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
     /* ── 9b · Material corrections ────────────────────────────────────────
        Three places where an older pass gave one instance of a component a
        different material from the other forty, addressed at the weight the
@@ -7328,6 +7368,38 @@
       box-shadow: var(--neu-inset-sm);
     }
     .fbar, .clients-toolbar { margin-bottom: 14px; }
+
+    /* The All Clients toolbar was a three-track grid whose breakpoints were
+       written against the viewport (1180px / 760px). The workspace is not the
+       viewport: the rail and snapshot panel take roughly 480px off it, so on a
+       1280px screen the toolbar has about 700px to work with while the media
+       query still believes it has 1280 and keeps all three tracks. The result
+       is the ragged wrap in the report — the filter chips break to a second
+       line while the search sits beside them on the first, and the actions
+       split with one button stranded underneath.
+
+       Flex instead of a grid, so it reflows on its own width rather than on a
+       number that no longer describes it. Each group wraps as a whole unit, so
+       a row either fits or moves down intact and the toolbar never breaks
+       across a group. No !important needed: these selectors match the earlier
+       ones exactly and simply come later, which also means they win inside
+       those two media queries. */
+    .clients-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .clients-filter-group { flex: 0 1 auto; }
+    /* Sized, not greedy: letting this group grow stretched the search field to
+       645px on a wide workspace and pushed the actions onto their own row for
+       no reason. It takes what it needs and gives the rest back. */
+    .clients-query-group {
+      flex: 0 1 320px; min-width: 200px;
+      grid-template-columns: minmax(130px, 1fr) minmax(130px, 175px);
+    }
+    .clients-action-group { flex: 0 0 auto; margin-left: auto; }
+
     .daily-workspace-nav,
     .vos-stats-workspace .daily-workspace-nav {
       background: transparent; border: 0; padding: 0; box-shadow: none;
@@ -7637,6 +7709,36 @@
     #sidebar textarea:focus, #sidebar .premium-select-trigger:focus {
       outline: none;
       box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent) !important;
+    }
+
+    /* 8 · VOS and Daily Traffic were rendering a panel inside a panel inside a
+       panel. Each module wraps its workspace in a .groupbox holding nothing
+       but that one child, and the workspace in turn holds a .groupbox for its
+       Settings sub-tab: three surfaces with the same fill and the same
+       elevation, stacked. It was invisible while the workspace had no padding,
+       because the inner surface covered the outer one exactly. Giving the
+       workspace its 16px inset in fix 6 exposed every layer, and in the dark
+       theme, where the two fills are the same near-black, the result is an
+       ambiguous slab on a slab with a soft corner floating in it.
+
+       Only the object a person actually points at keeps its elevation, which
+       is the workspace. The wrapper above it and the settings card inside it
+       are containers, so they go flat and hand their inset to the panel that
+       is left. This is the same rule already applied to nested table shells
+       in 9b: two raised surfaces must never be stacked. */
+    /* Descendant, not child: the Daily Traffic settings card is wrapped in a
+       .settings-page-shell, so a child combinator misses it and leaves that
+       one tab with the stack still showing. */
+    #view-vos-traffic > .groupbox,
+    #view-stats-daily > .groupbox,
+    .traffic-source-panel .st-daily-panel .groupbox,
+    .traffic-source-panel .st-daily-panel .sms-bal-panel,
+    .traffic-source-panel .st-daily-panel .settings-page-panel,
+    .traffic-source-panel .vos-stats-panel .groupbox {
+      padding: 0;
+      background: transparent;
+      border-radius: 0;
+      box-shadow: none;
     }
 
     /* ── 15 · Responsive ──────────────────────────────────────────────────*/
@@ -7956,6 +8058,11 @@
         </svg>
         <input type="text" id="nav-search" placeholder="Search tabs" autocomplete="off" spellcheck="false"
                aria-label="Search tabs" aria-expanded="false" aria-controls="nav-search-panel" />
+        <button type="button" id="nav-search-clear" aria-label="Clear search" title="Clear search" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true">
+            <path d="m7 7 10 10M17 7 7 17"/>
+          </svg>
+        </button>
       </div>
       <button type="button" id="fav-btn" aria-pressed="false" title="Add this view to Favourites" aria-label="Add this view to Favourites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
@@ -27339,7 +27446,7 @@ if (auth) {
   var DEST_KEYS = ['module', 'view', 'smstab', 'smsview', 'credtab', 'vostab'];
   var FAV_MAX = 12;
   var currentDest = null;
-  var findInput, findPanel, favBtn, favList, favGroup;
+  var findInput, findPanel, findClear, favBtn, favList, favGroup;
 
   function destKey(d) {
     return DEST_KEYS.map(function (k) { return d[k] || ''; }).join('|');
@@ -27554,6 +27661,10 @@ if (auth) {
     hits.forEach(function (h) { findPanel.appendChild(findRow(h.d, favKeys)); });
   }
 
+  function syncClear() {
+    if (findClear) findClear.hidden = !(findInput && findInput.value);
+  }
+
   function openFind() {
     if (!findPanel) return;
     renderFind(findInput ? findInput.value : '');
@@ -27583,16 +27694,30 @@ if (auth) {
   function initFind() {
     findInput = document.getElementById('nav-search');
     findPanel = document.getElementById('nav-search-panel');
+    findClear = document.getElementById('nav-search-clear');
     favBtn = document.getElementById('fav-btn');
     favList = document.getElementById('nav-fav-list');
     favGroup = document.getElementById('nav-fav-group');
     if (!findInput || !findPanel) return;
 
-    findInput.addEventListener('input', function () { openFind(); });
+    if (findClear) {
+      // mousedown, not click: the panel closes on mousedown anywhere outside
+      // #nav-find, and taking focus off the input first would blur it before
+      // the clear ever ran.
+      findClear.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      findClear.addEventListener('click', function () {
+        findInput.value = '';
+        syncClear();
+        findInput.focus();
+        openFind();
+      });
+    }
+
+    findInput.addEventListener('input', function () { syncClear(); openFind(); });
     findInput.addEventListener('focus', function () { openFind(); });
     findInput.addEventListener('keydown', function (ev) {
       if (ev.key === 'ArrowDown') { ev.preventDefault(); openFind(); moveFindFocus(1); }
-      else if (ev.key === 'Escape') { ev.preventDefault(); findInput.value = ''; closeFind(); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); findInput.value = ''; syncClear(); closeFind(); }
       else if (ev.key === 'Enter') {
         var first = findPanel.querySelector('.nfr-go');
         if (first && !findPanel.hidden) { ev.preventDefault(); first.click(); }
@@ -27615,6 +27740,7 @@ if (auth) {
     }
     renderFavorites();
     syncFavButton();
+    syncClear();
   }
 
   /* ── Boot ────────────────────────────────────────────────────────────── */
