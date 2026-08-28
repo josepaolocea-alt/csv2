@@ -1207,7 +1207,11 @@
        boolean, so a 16px tick box beside an 11px label would encode it twice and
        out-weigh the word it belongs to. State reaches assistive tech through
        aria-pressed, and weight (600 vs 400) carries it without relying on hue. */
-    .u-mods { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .u-mods {
+      display: flex; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%;
+      gap: 8px; padding: 7px 9px; border-radius: var(--r-md);
+      background: var(--surface); box-shadow: var(--neu-inset-sm);
+    }
     /* --surface matches the panel behind this table, so the resting pill uses
        --surface-3 to stay visible (same idea as .u-badge.self). */
     /* Granted is the normal state, so it stays quiet; a withheld module is the
@@ -1216,25 +1220,51 @@
        alone. --border is transparent in this theme, hence the explicit mix. */
     .u-mod {
       display: inline-flex; align-items: center; font: inherit; font-size: 11px; line-height: 1.45;
-      padding: 3px 10px; border-radius: 999px; cursor: pointer; user-select: none;
+      min-height: 28px; padding: 4px 12px; border-radius: var(--r-pill); cursor: pointer; user-select: none;
       border: 1px dashed var(--text-3);
       background: transparent; color: var(--text-2);
-      transition: background .14s ease, border-color .14s ease, color .14s ease;
+      box-shadow: var(--neu-inset-sm);
+      transition: background .18s ease, border-color .18s ease, color .18s ease,
+                  box-shadow .18s ease, transform .18s ease;
     }
-    .u-mod:hover { color: var(--text); border-color: var(--accent); }
+    .u-mod:hover {
+      color: var(--text); border-color: var(--accent); background: var(--surface);
+      box-shadow: var(--neu-raised-sm); transform: translateY(-1px);
+    }
+    .u-mod:active {
+      box-shadow: var(--neu-inset-sm); transform: translateY(1px) scale(.98);
+    }
     /* No focus rule here on purpose: the global
        :where(button, ...):focus-visible outline already covers these and is the
        indicator every other control in the app uses. */
     .u-mod[aria-pressed="true"] {
       border-style: solid; border-color: var(--accent);
       background: var(--accent-soft); color: var(--accent-strong); font-weight: 600;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
+    .u-mod[aria-pressed="true"]:hover { box-shadow: var(--neu-accent); }
+    .u-mod[aria-pressed="true"]:active { box-shadow: var(--neu-inset-sm); }
     /* Reading the column should not require counting pills. Deliberately not a
        second accent hue: weight carries the exception, --accent stays the only
        colour with meaning on this page. */
-    .u-mods-count { font-size: 10.5px; color: var(--text-2); margin-left: 4px; white-space: nowrap; }
+    .u-mods-count {
+      display: inline-flex; align-items: center; min-height: 26px;
+      padding: 0 9px; border-radius: var(--r-pill); margin-left: 2px;
+      font-size: 10.5px; color: var(--text-2); white-space: nowrap;
+      background: var(--surface); box-shadow: var(--neu-inset-sm);
+    }
     .u-mods-count.limited { color: var(--text); font-weight: 600; }
-    .u-mods-all { font-size: 11px; color: var(--text-3); }
+    .u-mods-all {
+      display: inline-flex; align-items: center; min-height: 28px;
+      padding: 0 10px; border-radius: var(--r-pill);
+      font-size: 11px; color: var(--text-3);
+      background: var(--surface); box-shadow: var(--neu-inset-sm);
+    }
+    @media (max-width: 640px) {
+      .u-mods { gap: 6px; padding: 6px; }
+      .u-mod { padding-inline: 10px; }
+      .u-mods-count { margin-left: 0; }
+    }
     #users-table .u-state td { padding: 0; border-bottom: 0; }
     #users-table .u-state .empty-state { margin: 10px 0; font-size: 11.5px; }
 
