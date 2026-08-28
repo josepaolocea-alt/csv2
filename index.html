@@ -6813,6 +6813,93 @@
     #fav-btn[aria-pressed="true"] svg { fill: currentColor; }
     #fav-btn:disabled { opacity: .4; cursor: default; box-shadow: var(--neu-raised-sm); }
 
+    /* Important notifications — a compact bell beside Favourites. The menu is
+       intentionally closer to a utility popover than a full notification
+       centre: enough room for context, but never large enough to cover the
+       operational tables underneath it. */
+    #important-notifications { position: relative; flex: 0 0 34px; }
+    #important-notification-btn {
+      position: relative;
+      width: 34px; height: 34px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: var(--surface);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-raised-sm); cursor: pointer;
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    #important-notification-btn svg { width: 17px; height: 17px; }
+    #important-notification-btn:hover { color: var(--accent-strong); box-shadow: var(--neu-raised); }
+    #important-notification-btn[aria-expanded="true"] { color: var(--accent); box-shadow: var(--neu-inset-sm); }
+    #important-notification-badge {
+      position: absolute; top: -5px; right: -6px;
+      min-width: 17px; height: 17px; padding: 0 4px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; background: var(--red); border: 2px solid var(--bg);
+      border-radius: 999px; font: 800 9px/1 var(--font);
+      box-shadow: 0 3px 8px rgba(165,59,59,.28);
+      pointer-events: none;
+    }
+    #important-notification-badge[hidden] { display: none; }
+    #important-notification-panel {
+      position: absolute; top: calc(100% + 10px); right: 0;
+      z-index: 2600; width: min(370px, 88vw);
+      max-height: min(58vh, 430px); overflow: hidden;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r-lg); box-shadow: var(--neu-floating);
+    }
+    #important-notification-panel[hidden] { display: none; }
+    .important-notification-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 12px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .important-notification-title { font-size: 12px; font-weight: 800; color: var(--text); }
+    .important-notification-count { font: 600 10px/1 var(--mono); color: var(--text-3); }
+    #important-notification-list { max-height: min(48vh, 350px); overflow-y: auto; padding: 6px; scrollbar-width: thin; }
+    .important-notification-row {
+      display: flex; align-items: stretch; gap: 2px;
+      min-height: 62px; border-radius: var(--r-md);
+      transition: background-color .13s ease;
+    }
+    .important-notification-row + .important-notification-row { margin-top: 2px; }
+    .important-notification-row:hover,
+    .important-notification-row:focus-within { background: var(--surface-2); }
+    .important-notification-open {
+      flex: 1 1 auto; min-width: 0;
+      display: grid; grid-template-columns: 30px minmax(0,1fr); align-items: center; gap: 10px;
+      padding: 9px 8px 9px 9px; color: inherit; background: transparent;
+      border: 0; border-radius: var(--r-md); text-align: left; cursor: pointer;
+    }
+    .important-notification-icon {
+      width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+      color: var(--red); background: var(--red-soft); border-radius: 10px;
+    }
+    .important-notification-icon svg { width: 16px; height: 16px; }
+    .important-notification-copy { min-width: 0; }
+    .important-notification-name {
+      display: block; color: var(--text); font-size: 11.5px; font-weight: 750;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .important-notification-detail {
+      display: block; margin-top: 3px; color: var(--text-3); font-size: 10.5px; line-height: 1.35;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .important-notification-delete {
+      flex: 0 0 30px; align-self: center; width: 30px; height: 30px; margin-right: 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: transparent; border: 0; border-radius: var(--r-sm);
+      cursor: pointer; opacity: 0; transform: translateX(3px);
+      transition: opacity .13s ease, transform .13s ease, color .13s ease, background-color .13s ease;
+    }
+    .important-notification-row:hover .important-notification-delete,
+    .important-notification-delete:focus-visible { opacity: 1; transform: translateX(0); }
+    .important-notification-delete:hover { color: var(--red); background: var(--red-soft); }
+    .important-notification-delete svg { width: 15px; height: 15px; }
+    .important-notification-empty { padding: 28px 18px; text-align: center; color: var(--text-3); }
+    .important-notification-empty svg { width: 23px; height: 23px; margin-bottom: 7px; opacity: .7; }
+    .important-notification-empty strong { display: block; color: var(--text-2); font-size: 11.5px; }
+    .important-notification-empty span { display: block; margin-top: 3px; font-size: 10.5px; }
+
     #nav-search-panel {
       position: absolute; top: calc(100% + 9px); right: 0; left: 0;
       z-index: 2500;
@@ -8261,6 +8348,21 @@
           <path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/>
         </svg>
       </button>
+      <div id="important-notifications">
+        <button type="button" id="important-notification-btn" aria-label="Open important notifications" aria-haspopup="menu" aria-expanded="false" aria-controls="important-notification-panel" title="Important notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>
+          </svg>
+          <span id="important-notification-badge" hidden>0</span>
+        </button>
+        <div id="important-notification-panel" role="menu" aria-label="Important notifications" hidden>
+          <div class="important-notification-head">
+            <span class="important-notification-title">Important notifications</span>
+            <span class="important-notification-count" id="important-notification-count">0 active</span>
+          </div>
+          <div id="important-notification-list"></div>
+        </div>
+      </div>
       <div id="nav-search-panel" role="group" aria-label="Tab search results" hidden></div>
     </div>
     <div id="menubar-right">
@@ -17299,6 +17401,7 @@ function refreshAll() {
   }
   if(document.getElementById('view-all-clients').classList.contains('active')) safeRender('All Clients', window.renderClients);
   safeRender('Spam scan', scanSpamSuspects); // notify on new spam suspects regardless of active view
+  safeRender('Important notifications', refreshImportantNotifications);
 }
 
 function updateSync() {
@@ -20108,6 +20211,7 @@ function renderSmsBalanceModule() {
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
   updateSmsBalanceStatusBar();
   window.switchSmsBalanceView(smsBalanceView, false);
+  refreshImportantNotifications();
 }
 window.switchSmsBalanceView = (view, persist=true) => {
   if(!SMS_BALANCE_VIEWS.has(view))view='summary';
@@ -24656,7 +24760,7 @@ async function deleteVosStatsCloudHistory() {
   for(const entry of snapshot.docs){batch.delete(doc(db,VOS_STATS_CLOUD_COLLECTION,entry.id));pending++;deleted++;if(pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}
   if(pending)await batch.commit();return deleted;
 }
-function renderVosStats() {populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}}
+function renderVosStats() {populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}refreshImportantNotifications();}
 window.renderVosStats=renderVosStats;window.renderVosStatsHourly=renderVosStatsHourly;
 window.switchVosStatsTab=tab=>{vosStatsTab=VOS_STATS_TABS.includes(tab)?tab:'summary';VOS_STATS_TABS.forEach(name=>{const active=name===vosStatsTab,button=document.getElementById(`vos-stats-tab-${name}`),panel=document.getElementById(`vos-stats-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));panel?.classList.toggle('active',active);});const exports=document.getElementById('vos-stats-export-actions');if(exports)exports.style.display=['logs','settings'].includes(vosStatsTab)?'none':'flex';renderVosStats();setSbStatus(`Viewing: VOS — Stats — ${vosStatsTab.replace(/\b\w/g,c=>c.toUpperCase())}`);};
 window.selectVosStatsSlot=slot=>{vosStatsSelectedSlot=String(slot||'');const status=document.getElementById('vos-stats-file-status');if(status)delete status.dataset.current;saveVosStatsLocal();renderVosStats();};window.viewVosStatsSlot=slot=>{window.selectVosStatsSlot(slot);window.switchVosStatsTab('all');};
@@ -27063,6 +27167,7 @@ function statsRender() {
   renderStatsDailyTraffic();
   updateStatsStatusBar();
   updateDailyTrafficStatusBar();
+  refreshImportantNotifications();
 }
 
 window.processStatsSnapshot = async () => {
@@ -27385,10 +27490,238 @@ async function initStats() {
 }
 
 /* ════════════════════════════════════════════════
+   IMPORTANT NOTIFICATIONS
+   Compact, derived alerts. Deleting a row dismisses only that exact alert set
+   for the signed-in user; a later snapshot or changed affected-client set gets
+   a new signature and appears again automatically.
+════════════════════════════════════════════════ */
+const IMPORTANT_NOTIFICATION_STORAGE_PREFIX = 'bm_important_notifications_v1_';
+let importantNotificationsReady = false;
+
+function importantNotificationUserKey() {
+  const identity = currentUserUid || String(currentUserEmail || '').trim().toLowerCase() || 'local';
+  return `${IMPORTANT_NOTIFICATION_STORAGE_PREFIX}${encodeURIComponent(identity)}`;
+}
+function importantNotificationDismissals() {
+  try {
+    const value = JSON.parse(localStorage.getItem(importantNotificationUserKey()) || '[]');
+    return Array.isArray(value) ? value.filter(item => typeof item === 'string').slice(-160) : [];
+  } catch(error) { return []; }
+}
+function saveImportantNotificationDismissals(value) {
+  try { localStorage.setItem(importantNotificationUserKey(), JSON.stringify([...new Set(value)].slice(-160))); }
+  catch(error) {}
+}
+function importantNotificationHash(value) {
+  const text = String(value || '');
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+function importantNotificationPreview(names) {
+  const clean = [...new Set((names || []).map(name => String(name || '').trim()).filter(Boolean))];
+  if (!clean.length) return '';
+  const shown = clean.slice(0, 2).join(', ');
+  return clean.length > 2 ? `${shown} +${clean.length - 2} more` : shown;
+}
+function importantNotificationItem(kind, title, count, date, slot, names) {
+  if (!(count > 0)) return null;
+  const cleanNames = [...new Set((names || []).map(name => String(name || '').trim()).filter(Boolean))].sort();
+  const context = [date, slot ? fmt12(slot) : ''].filter(Boolean).join(' · ');
+  const preview = importantNotificationPreview(cleanNames);
+  const detail = [`${count} affected`, context, preview].filter(Boolean).join(' · ');
+  const signature = importantNotificationHash(JSON.stringify([date || '', slot || '', cleanNames]));
+  return { id:`${kind}:${signature}`, kind, title, detail, count };
+}
+function currentImportantNotifications() {
+  const items = [];
+
+  if (canUseModule('balance')) {
+    try {
+      const alerts = alertRows();
+      const previousCritical = getPrevCriticalSet();
+      const voipNew = previousCritical === undefined ? [] : activeData().filter(row => {
+        const meta = clientsMeta[row?.carrier_name] || {};
+        return row?.carrier_name && !isClientInactive(meta) && alertLevel(row) === 'high'
+          && (previousCritical === null || !previousCritical.has(row.carrier_name));
+      });
+      const reading = currentReadingMeta();
+      items.push(importantNotificationItem('voip-new', 'VOIP · New Critical', voipNew.length, reading.date, reading.slot, voipNew.map(row => row.carrier_name)));
+      items.push(importantNotificationItem('voip-spam', 'VOIP · Possible Spam', alerts.spamCount, reading.date, reading.slot, alerts.spamSuspects.map(row => row.name)));
+    } catch(error) { console.warn('build VOIP notifications:', error); }
+  }
+
+  if (canUseModule('sms')) {
+    try {
+      const smsNew = (smsBalanceAlertSets().new || []).filter(row => row._meta?.is_active !== false);
+      items.push(importantNotificationItem(
+        'sms-new', 'SMS · New Critical', smsNew.length,
+        smsBalanceLatest?.session_date || '', smsBalanceLatest?.time_slot || '',
+        smsNew.map(row => row.client)
+      ));
+    } catch(error) { console.warn('build SMS notifications:', error); }
+  }
+
+  if (canUseModule('stats')) {
+    try {
+      const critical = statsCurrentRows().filter(row => row.cls === 'critical');
+      const snapshot = statsCurrentSnap();
+      items.push(importantNotificationItem(
+        'stats-critical', 'Stats · Critical', critical.length,
+        snapshot?.session_date || '', snapshot?.time_slot || '',
+        critical.map(row => row.customer_name || row.account_code)
+      ));
+    } catch(error) { console.warn('build Stats notifications:', error); }
+  }
+
+  if (canUseModule('vos')) {
+    try {
+      const critical = vosStatsRowsWithComparison().filter(row => row.cls === 'critical');
+      const snapshot = vosStatsCurrentSnap();
+      items.push(importantNotificationItem(
+        'vos-critical', 'VOS Stats · Critical', critical.length,
+        snapshot?.session_date || '', snapshot?.time_slot || '',
+        critical.map(row => row.mapping_gateway || row.area_name)
+      ));
+    } catch(error) { console.warn('build VOS Stats notifications:', error); }
+  }
+
+  return items.filter(Boolean);
+}
+function importantNotificationIcon(kind) {
+  if (kind === 'voip-spam') {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 20 7v5c0 4.7-3.1 7.7-8 9-4.9-1.3-8-4.3-8-9V7z"/><path d="M12 8v5M12 16.5h.01"/></svg>';
+  }
+  if (kind === 'stats-critical' || kind === 'vos-critical') {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/><path d="m16 7 2.5-3L21 7"/></svg>';
+  }
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>';
+}
+function refreshImportantNotifications() {
+  const button = document.getElementById('important-notification-btn');
+  const badge = document.getElementById('important-notification-badge');
+  const list = document.getElementById('important-notification-list');
+  const count = document.getElementById('important-notification-count');
+  if (!button || !badge || !list || !count) return;
+
+  const dismissed = new Set(importantNotificationDismissals());
+  const items = currentImportantNotifications().filter(item => !dismissed.has(item.id));
+  badge.hidden = items.length === 0;
+  badge.textContent = items.length > 99 ? '99+' : String(items.length);
+  count.textContent = `${items.length} active`;
+  button.setAttribute('aria-label', items.length
+    ? `Open important notifications, ${items.length} active`
+    : 'Open important notifications');
+  list.innerHTML = items.length ? items.map(item => `
+    <div class="important-notification-row" data-notification-id="${esc(item.id)}" data-notification-kind="${esc(item.kind)}">
+      <button type="button" class="important-notification-open" role="menuitem" aria-label="Open ${esc(item.title)}">
+        <span class="important-notification-icon">${importantNotificationIcon(item.kind)}</span>
+        <span class="important-notification-copy">
+          <span class="important-notification-name">${esc(item.title)}</span>
+          <span class="important-notification-detail">${esc(item.detail)}</span>
+        </span>
+      </button>
+      <button type="button" class="important-notification-delete" aria-label="Dismiss ${esc(item.title)}" title="Dismiss notification">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+      </button>
+    </div>`).join('') : `
+    <div class="important-notification-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+      <strong>All clear</strong><span>No important notifications right now.</span>
+    </div>`;
+}
+function closeImportantNotifications() {
+  const button = document.getElementById('important-notification-btn');
+  const panel = document.getElementById('important-notification-panel');
+  if (!button || !panel) return;
+  panel.hidden = true;
+  button.setAttribute('aria-expanded', 'false');
+}
+function toggleImportantNotifications() {
+  const button = document.getElementById('important-notification-btn');
+  const panel = document.getElementById('important-notification-panel');
+  if (!button || !panel) return;
+  const opening = panel.hidden;
+  if (opening) {
+    const searchPanel = document.getElementById('nav-search-panel');
+    const searchInput = document.getElementById('nav-search');
+    if (searchPanel) searchPanel.hidden = true;
+    searchInput?.setAttribute('aria-expanded', 'false');
+    refreshImportantNotifications();
+  }
+  panel.hidden = !opening;
+  button.setAttribute('aria-expanded', String(opening));
+}
+function dismissImportantNotification(id) {
+  if (!id) return;
+  const dismissed = importantNotificationDismissals();
+  dismissed.push(id);
+  saveImportantNotificationDismissals(dismissed);
+  refreshImportantNotifications();
+}
+function openImportantNotification(kind) {
+  closeImportantNotifications();
+  if (kind === 'voip-new' || kind === 'voip-spam') {
+    window.switchView('alerts');
+    const filter = kind === 'voip-new' ? 'new' : 'spam';
+    window.setAlertFilter(filter, document.getElementById(kind === 'voip-new' ? 'tab-new-critical' : 'tab-spam'));
+    return;
+  }
+  if (kind === 'sms-new') {
+    window.switchModule('sms');
+    window.switchSmsTab('balance');
+    window.switchSmsBalanceView('alerts');
+    window.setSmsBalanceAlertFilter('new', document.getElementById('sms-bal-alert-new'));
+    return;
+  }
+  if (kind === 'stats-critical') {
+    window.switchModule('stats');
+    window.switchStatsView('critical');
+    return;
+  }
+  if (kind === 'vos-critical') {
+    window.switchModule('vos');
+    window.switchVosPrimaryTab('stats');
+    window.switchVosStatsTab('critical');
+  }
+}
+function initImportantNotifications() {
+  if (importantNotificationsReady) return;
+  const root = document.getElementById('important-notifications');
+  const button = document.getElementById('important-notification-btn');
+  const list = document.getElementById('important-notification-list');
+  if (!root || !button || !list) return;
+  importantNotificationsReady = true;
+  button.addEventListener('click', event => { event.stopPropagation(); toggleImportantNotifications(); });
+  list.addEventListener('click', event => {
+    const row = event.target.closest('.important-notification-row');
+    if (!row) return;
+    if (event.target.closest('.important-notification-delete')) {
+      event.stopPropagation();
+      dismissImportantNotification(row.dataset.notificationId);
+      return;
+    }
+    if (event.target.closest('.important-notification-open')) openImportantNotification(row.dataset.notificationKind);
+  });
+  document.addEventListener('mousedown', event => { if (!root.contains(event.target)) closeImportantNotifications(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !document.getElementById('important-notification-panel')?.hidden) {
+      closeImportantNotifications();
+      button.focus();
+    }
+  });
+  refreshImportantNotifications();
+}
+
+/* ════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════ */
 async function init(){
   loadSettings();
+  initImportantNotifications();
   await loadVoipReminderSettings();
   loadSpamCfg(); loadLastProcessedSnap(); loadTritelSnap(); populateSlots(); initSmsModule(); applySummaryCollapseState(); updateBalanceStatusBar(); window.renderWizard(); window.renderClients();
   // A hand-pick of the time box stops it from auto-following "last sync + 1"; the next post re-enables tracking.
