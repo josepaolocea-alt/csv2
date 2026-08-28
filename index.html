@@ -7400,6 +7400,25 @@
     }
     .clients-action-group { flex: 0 0 auto; margin-left: auto; }
 
+    /* The Cols dropdown now lives inside the actions menu. It opens inline,
+       as a recessed block that grows the menu, rather than as a second
+       floating layer stacked on the first: a popover over a popover has no
+       anchor that survives the menu being flipped above its trigger near the
+       bottom of the screen, and the three-depth rule puts recessed content,
+       not another raised surface, inside something already floating. The menu
+       is capped and scrolls so a long column list cannot outgrow the
+       viewport after the panel has already been positioned. */
+    #clients-action-menu-panel { max-height: min(70vh, 460px); overflow-y: auto; }
+    #clients-action-menu-panel .col-wrap { position: static; }
+    #clients-action-menu-panel .col-dd {
+      position: static; inset: auto;
+      margin: 3px 0 1px; padding: 5px;
+      min-width: 0; max-height: 230px; overflow-y: auto;
+      background: var(--surface-2);
+      border: 0; border-radius: var(--r-sm);
+      box-shadow: var(--neu-inset-sm);
+    }
+
     .daily-workspace-nav,
     .vos-stats-workspace .daily-workspace-nav {
       background: transparent; border: 0; padding: 0; box-shadow: none;
@@ -7558,6 +7577,14 @@
     body.night-mode #sidebar .settings-note {
       color: var(--text-3) !important; background: var(--surface-2); box-shadow: var(--neu-inset-sm);
     }
+    /* These two lists were the last holdouts of that teal palette: the old
+       rule fills them with a literal #213a42 at two-id weight, which outranks
+       the shared table-shell rule, so Saved Daily Dates and the snapshot
+       timeline rendered green while everything around them was blue-grey. */
+    body.night-mode #sidebar #stats-timeline-list,
+    body.night-mode #sidebar #stats-daily-date-list {
+      color: var(--text); background: var(--surface); border: 0;
+    }
     body.night-mode #sidebar #tritel-status { color: var(--text-3) !important; background: transparent; }
     body.night-mode #sidebar .tbtn,
     body.night-mode #sidebar .fltbtn {
@@ -7657,6 +7684,15 @@
       grid-column: 1 / -1 !important;
       grid-row: 1 !important;
       min-width: 0;
+    }
+    /* That grid still carried `overflow: hidden` with square corners from the
+       two-column layout, and now that the panel fills it exactly, the clip
+       landed right on the panel's edge: it sheared the 20px corners back to
+       points and cut the panel's shadow off entirely. The clip is redundant
+       anyway, because the panel does its own clipping, so it is dropped. */
+    #traffic-source-vos {
+      overflow: visible;
+      border-radius: var(--r-lg);
     }
 
     /* 6 · Daily Traffic and VOS: one left edge for everything.
@@ -8376,14 +8412,30 @@
                 <option value="all">All managers</option>
               </select>
             </div>
+            <!-- The four view actions live behind one trigger, using the same
+                 app-action-menu the VOIP and SMS toolbars already use. Every
+                 id and handler is unchanged; only the nesting moved, and all
+                 of these are addressed by id in the render code. Cols keeps
+                 its dropdown, which opens inline inside the menu rather than
+                 as a second floating layer over the first. -->
             <div class="clients-action-group" aria-label="All Clients actions">
-              <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive()">Hide inactive</button>
-              <button class="tbtn" onclick="exportCurrentClientView()" title="Export the current All Clients button/filter">Export View</button>
-              <div class="col-wrap">
-                <button class="tbtn" onclick="toggleColDD()">Cols</button>
-                <div class="col-dd" id="col-dd"></div>
+              <div class="app-action-menu" id="clients-action-menu">
+                <button type="button" class="tbtn app-action-menu-trigger" id="clients-action-menu-trigger"
+                        onclick="toggleAppActionMenu('clients',event)" aria-haspopup="true" aria-expanded="false"
+                        aria-controls="clients-action-menu-panel" title="Open All Clients view actions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
+                  Actions
+                </button>
+                <div class="app-action-menu-panel" id="clients-action-menu-panel" role="menu" aria-label="All Clients actions">
+                  <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive();closeAppActionMenus()" role="menuitem">Hide inactive</button>
+                  <button class="tbtn" onclick="exportCurrentClientView();closeAppActionMenus()" title="Export the current All Clients button/filter" role="menuitem">Export View</button>
+                  <div class="col-wrap">
+                    <button class="tbtn" onclick="toggleColDD()" aria-haspopup="true" aria-controls="col-dd" role="menuitem">Cols</button>
+                    <div class="col-dd" id="col-dd"></div>
+                  </div>
+                  <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit();closeAppActionMenus()" title="Edit Credit Limit &amp; Critical Balance for multiple clients at once" role="menuitem">Bulk Edit</button>
+                </div>
               </div>
-              <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit()" title="Edit Credit Limit & Critical Balance for multiple clients at once">Bulk Edit</button>
             </div>
           </div>
           <div id="bulk-save-bar">
@@ -9695,9 +9747,9 @@
           </div>
 
           <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
-            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All</button></div>
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. To remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button></div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
-              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th><th>Actions</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
+              <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
             <div class="sms-muted" id="stats-daily-logs-count">No Daily Traffic logs yet.</div>
           </div>
@@ -9891,8 +9943,8 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-logs" role="tabpanel" aria-labelledby="vos-daily-tab-logs" style="display:none">
-                <div class="fbar"><span class="sms-muted">Persistent local audit trail of VOS Daily Traffic imports.</span><button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()">Delete All</button></div>
-                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
+                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. To remove a date's data, use Settings → Danger Zone.</span></div>
+                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
                 <div class="sms-muted" id="vos-daily-logs-count">No VOS Daily Traffic logs yet.</div>
               </div>
 
@@ -9908,6 +9960,19 @@
                       <button type="button" class="tbtn" id="vos-daily-archive-btn" onclick="archiveVosDailyMonth()" title="Move this month out of the active VOS Daily Traffic history">Archive</button>
                     </div>
                     <div class="stats-daily-archive-note">Admin only. Archived reports remain in this browser's local storage.</div>
+                  </div>
+                  <!-- Same split as Daily Traffic: the Logs tab records the
+                       imports, this is where a date's data is removed. -->
+                  <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:var(--red)">Danger Zone</div>
+                  <div class="settings-danger">
+                    <div style="margin-bottom:6px">Delete one date's VOS Daily Traffic report. This removes the date for every operator, not just this browser.</div>
+                    <div class="stats-daily-archive-row">
+                      <select id="vos-daily-delete-date" class="win-sel" aria-label="VOS Daily Traffic date to delete"><option value="">No saved dates</option></select>
+                      <button type="button" class="tbtn" id="vos-daily-delete-date-btn" onclick="deleteVosDailyReportFromSettings()" title="Delete the selected date's VOS Daily Traffic report">Delete Date</button>
+                    </div>
+                    <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
+                    <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator.</div>
+                    <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()">Delete All VOS Daily Traffic</button>
                   </div>
                 </div>
               </div>
@@ -10221,6 +10286,21 @@
             <button type="button" class="tbtn" id="stats-daily-archive-btn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
           </div>
           <div class="stats-daily-archive-note" id="stats-daily-archive-note">Admin only. Semi-admins and viewers may review this setting but cannot archive.</div>
+        </div>
+        <!-- Deleting a date's data is a decision about the data, not about the
+             audit trail, so it lives here rather than in the Logs tab. The
+             Delete All control keeps its original id so the existing role
+             gating in applyModuleAccess continues to reach it. -->
+        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:var(--red)">Danger Zone</div>
+        <div class="settings-danger">
+          <div style="margin-bottom:6px">Delete one date's Daily Traffic data. The report and its import log are removed together, and the date leaves every comparison.</div>
+          <div class="stats-daily-archive-row">
+            <select id="stats-daily-delete-date" class="win-sel" aria-label="Daily Traffic date to delete"><option value="">No saved dates</option></select>
+            <button type="button" class="tbtn" id="stats-daily-delete-date-btn" onclick="deleteStatsDailyReportFromSettings()" title="Delete the selected date's Daily Traffic data">Delete Date</button>
+          </div>
+          <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
+          <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once.</div>
+          <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All Daily Traffic</button>
         </div>
       </div>
     </div>
@@ -11188,6 +11268,11 @@ function closeAppActionMenus(exceptName = '') {
     panel.closest('.app-action-menu')?.querySelector('.app-action-menu-trigger')?.setAttribute('aria-expanded','false');
   });
 }
+/* Menu items call this from inline onclick, which runs in global scope; this
+   script is a module, so without the export the call is a ReferenceError and
+   the menu silently stays open after the item has done its work. The VOIP
+   alert guide item has been calling it that way all along. */
+window.closeAppActionMenus = closeAppActionMenus;
 
 window.toggleAppActionMenu = (name, event) => {
   event?.stopPropagation();
@@ -15860,6 +15945,12 @@ function applyModuleAccess(){
   VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
   disable('vos-daily-clear-btn', !admin);
+  // Per-date deletes moved out of the Logs tabs into each module's Danger Zone;
+  // they are admin-only for the same reason the wipes are.
+  disable('stats-daily-delete-date', !admin);
+  disable('stats-daily-delete-date-btn', !admin);
+  disable('vos-daily-delete-date', !admin);
+  disable('vos-daily-delete-date-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
@@ -19677,7 +19768,12 @@ function renderStatsDailyLogs(){
   const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
   const fallback=statsDailyHistory.map(day=>({module:'daily-traffic',session_date:day.session_date,time_slot:'',processed_at:day.posted_at,operator:day.posted_by||'',user_email:day.user_email||'',rows:(day.clients||[]).length,_snapshotFallback:true}));
   const rows=mergeSnapshotAuditRows('daily-traffic',fallback);
-  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';const action=isAdmin()&&date?`<button class="tbtn" onclick="deleteStatsDailyReport('${escAttr(date)}')">Delete</button>`:'<span class="sms-muted">Admin only</span>';return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td><td>${action}</td></tr>`;}).join(''):smsBalanceEmptyRow(5,'No Daily Traffic audit logs yet.');
+  // Read-only on purpose: this table records when each date was pasted and by
+  // whom. Removing a date's data is a separate decision and lives in Daily
+  // Traffic → Settings → Danger Zone, so an audit trail cannot be edited from
+  // inside itself.
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),date=log.session_date||'';return `<tr><td>${esc(date||'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(4,'No Daily Traffic audit logs yet.');
+  populateDailyDeleteDates();
   if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
 }
 window.renderStatsDailyLogs=renderStatsDailyLogs;
@@ -19697,6 +19793,25 @@ window.deleteStatsDailyReport=async sessionDate=>{
     statsDailySelectedDate=statsDailySortedHistory().slice(-1)[0]?.session_date||'';saveStatsDailyLocal();syncStatsDailyImportDate(true);renderStatsDailyTraffic();renderStatsDailyLogs();renderStatsTables();
     toast(`Deleted Daily Traffic report for ${sessionDate}.`,'ok');
   }catch(e){toast('Daily Traffic delete failed: '+e.message,'err',8000);}finally{setLoading(false);}
+};
+/* The Danger Zone picker is filled from the same history the log table reads,
+   so it can only ever offer a date that actually exists, and it re-syncs after
+   every delete because renderStatsDailyLogs calls it. A repopulated <select> is
+   re-wrapped by the premium-select layer on its own. */
+function populateDailyDeleteDates(){
+  const sel=document.getElementById('stats-daily-delete-date');
+  if(!sel)return;
+  const dates=statsDailySortedHistory().map(day=>day.session_date).filter(Boolean).reverse();
+  const keep=sel.value;
+  sel.innerHTML=dates.length
+    ?dates.map(date=>`<option value="${escAttr(date)}">${esc(date)}</option>`).join('')
+    :'<option value="">No saved dates</option>';
+  if(keep&&dates.includes(keep))sel.value=keep;
+}
+window.deleteStatsDailyReportFromSettings=()=>{
+  const date=document.getElementById('stats-daily-delete-date')?.value||'';
+  if(!date){toast('No saved Daily Traffic date is selected.','err');return;}
+  return window.deleteStatsDailyReport(date);
 };
 function renderSmsBalanceHistory() {
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
@@ -23952,7 +24067,9 @@ function renderVosDailyHistory(){
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
 window.renderVosDailyHistory=renderVosDailyHistory;
-function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—',action=isAdmin()?`<button class="tbtn" onclick="deleteVosDailyReport('${escAttr(day.session_date)}')">Delete</button>`:'<span class="sms-muted">Admin only</span>';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td><td>${action}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');}
+// Read-only, matching the Daily Traffic log: it records when each report was
+// imported. Deleting a date lives in VOS Daily Traffic → Settings → Danger Zone.
+function renderVosDailyLogs(){const days=vosSortedHistory().slice().reverse(),body=document.getElementById('vos-daily-logs-tbody');if(body)body.innerHTML=days.map(day=>{const processed=day.processed_at?new Date(day.processed_at):null,processedText=processed&&!Number.isNaN(processed.getTime())?processed.toLocaleString():'—';return `<tr><td>${stEsc(day.session_date)}</td><td>${stEsc(processedText)}</td><td>${stEsc(day.filename||'VOS report')}</td><td class="num">${stN0(day.rows?.length||0)}</td></tr>`;}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';vosSetText('vos-daily-logs-count',days.length?`${days.length} saved import${days.length===1?'':'s'}`:'No VOS Daily Traffic logs yet.');populateVosDeleteDates();}
 window.renderVosDailyLogs=renderVosDailyLogs;
 window.deleteVosDailyReport=async sessionDate=>{
   if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic reports.','err');return;}
@@ -23966,6 +24083,22 @@ window.deleteVosDailyReport=async sessionDate=>{
     renderAllVosDailyTrafficViews();toast(`Deleted VOS Daily Traffic report for ${sessionDate}.`,'ok');
   }catch(error){toast('VOS Daily Traffic report could not be deleted: '+error.message,'err',8000);}
   finally{setLoading(false);}
+};
+/* Mirrors populateDailyDeleteDates; renderVosDailyLogs calls it. */
+function populateVosDeleteDates(){
+  const sel=document.getElementById('vos-daily-delete-date');
+  if(!sel)return;
+  const dates=vosSortedHistory().map(day=>day.session_date).filter(Boolean).reverse();
+  const keep=sel.value;
+  sel.innerHTML=dates.length
+    ?dates.map(date=>`<option value="${escAttr(date)}">${stEsc(date)}</option>`).join('')
+    :'<option value="">No saved dates</option>';
+  if(keep&&dates.includes(keep))sel.value=keep;
+}
+window.deleteVosDailyReportFromSettings=()=>{
+  const date=document.getElementById('vos-daily-delete-date')?.value||'';
+  if(!date){toast('No saved VOS Daily Traffic date is selected.','err');return;}
+  return window.deleteVosDailyReport(date);
 };
 window.archiveVosDailyMonth=async()=>{
   if(!canArchiveDailyTraffic()){toast('Only admins can archive VOS Daily Traffic months.','err');return;}
