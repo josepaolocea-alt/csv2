@@ -7388,11 +7388,17 @@
     }
     .fbar, .clients-toolbar { margin-bottom: 14px; }
 
-    /* Stats > All Clients uses one shared left edge for its heading, filter
-       well, and data-table shell. The generic tab-content inset was creating
-       a second indentation and its border rendered as a divider between the
-       filters and table. */
-    #view-stats-all .tab-content {
+    /* Stats data views use one shared left edge for their heading/filter area
+       and data-table shell. The generic tab-content inset was creating a
+       second indentation and its border rendered as a divider above tables. */
+    #view-stats-all .tab-content,
+    #view-stats-hourly .tab-content,
+    #view-stats-critical .tab-content,
+    #view-stats-low .tab-content,
+    #view-stats-watch .tab-content,
+    #view-stats-ok .tab-content,
+    #view-stats-good .tab-content,
+    #view-stats-stopped .tab-content {
       padding: 0 !important;
       border-top: 0;
     }
