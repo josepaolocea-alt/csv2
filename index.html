@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-title" content="BalanceMonitor" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script>
     /* Boot watchdog — surfaces a clear message if a CDN dependency fails to load
        (blocked network, offline, CDN outage) instead of failing silently or
@@ -6274,6 +6274,1286 @@
         color: #000 !important;
       }
     }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       SOFT NEUMORPHIC OPERATIONS SHELL
+       Final visual layer. Markup, IDs, handlers, labels and data are
+       untouched: this restates surface, type and rhythm so every module
+       renders in one language instead of six.
+
+       The material is soft neumorphism, the restrained kind: a panel is a
+       little LIGHTER than the ground it sits on, lifted by one diffuse
+       shadow below-right and one white bloom above-left. Not the monochrome
+       embossed kind, which sinks text contrast below AA and is unreadable on
+       a monitoring desk for a whole shift.
+
+       Only three depths exist, and every element picks exactly one:
+         · RAISED  — things you act on or read as an object: panels, cards,
+                     buttons, the selected tab, the current nav item.
+         · INSET   — things that receive input or hold a set: fields, paste
+                     areas, tab tracks, the search box.
+         · FLAT    — things that live inside something already lifted: table
+                     rows, list items, leaves in the rail.
+       If a new element does not obviously belong to one of the three, it is
+       flat. Stacking a raised card inside a raised card is what turns a
+       neumorphic interface to mush.
+
+       Colour still carries one meaning only. One accent (indigo); every
+       other hue is a status (critical / warning / watch / safe). Elevation
+       is never the sole carrier of state: the selected tab is also darker
+       ink and heavier weight, a critical tile also has a coloured edge.
+       ══════════════════════════════════════════════════════════════════════ */
+
+    /* ── 1 · Tokens ────────────────────────────────────────────────────────
+       Ordered light-to-dark: --surface (raised) is LIGHTER than --bg (the
+       ground), and --surface-2 / --surface-3 are darker than the ground and
+       read as recessed. That ordering is the whole illusion; swap any two
+       and every card in the app inverts.
+
+       The ink and edge values are contrast-derived, not eyeballed: --text-3
+       carries table headers over --surface-2 (4.7:1), --border-strong is the
+       resting outline of a control against --surface (3.25:1), and the four
+       status hues clear 4.5:1 on --surface in both themes. */
+    :root {
+      --font: 'Manrope', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+
+      --bg: #e6eaf1;
+      --surface: #eef1f7;
+      --surface-2: #e1e6ee;
+      --surface-3: #d6dce6;
+      --border: #d3d9e4;
+      --border-strong: #7b8698;
+      --text: #1a2231;
+      --text-2: #4c5768;
+      --text-3: #5a6577;
+      --muted: var(--text-2);
+
+      --accent: #3a63c8;
+      --accent-soft: #dce4f7;
+      --accent-strong: #2b4ca4;
+      --on-accent: #ffffff;
+
+      --red: #b23b3b;      --red-soft: #f6e3e3;   --red-deep: #8f2e2e;
+      --orange: #90540f;   --orange-soft: #f6e8d8;
+      --yellow: #7b5f0a;   --yellow-deep: #634c07; --yellow-soft: #f4eed7;
+      --green: #2b7049;    --green-soft: #dcece3;
+
+      --row-hover: #e3eaf9;
+
+      /* The two lights. Every raised or inset rule below is composed from
+         these, so re-tinting the whole material is a two-value change. */
+      --neu-lo: 163, 173, 193;
+      --neu-hi: 255, 255, 255;
+      --neu-raised:     6px 6px 14px rgba(var(--neu-lo), .40), -6px -6px 14px rgba(var(--neu-hi), .92);
+      --neu-raised-sm:  3px 3px 7px  rgba(var(--neu-lo), .36), -3px -3px 7px  rgba(var(--neu-hi), .90);
+      --neu-inset:      inset 3px 3px 7px rgba(var(--neu-lo), .42), inset -3px -3px 7px rgba(var(--neu-hi), .92);
+      --neu-inset-sm:   inset 2px 2px 4px rgba(var(--neu-lo), .38), inset -2px -2px 4px rgba(var(--neu-hi), .85);
+      --neu-floating:   14px 18px 40px rgba(120, 132, 155, .34), -8px -8px 22px rgba(var(--neu-hi), .70);
+      --neu-accent:     4px 5px 12px rgba(58, 99, 200, .38), -3px -3px 8px rgba(var(--neu-hi), .55);
+
+      --shadow-sm: var(--neu-raised-sm);
+      --shadow-md: var(--neu-raised);
+      --shadow-lg: var(--neu-floating);
+      --shadow-xs: none;
+
+      /* One radius per container size. Soft material needs generous corners,
+         but only four steps exist: 8px badges and ticks · 10px items inside a
+         track · 14px controls, fields and tab pills · 20px panels, cards and
+         dialogs. Pills (filter chips, avatars) are the one full-round shape. */
+      --r-sm: 10px;
+      --r-md: 14px;
+      --r-lg: 20px;
+      --r-pill: 999px;
+      --ui-control-h: 34px;
+      --ui-control-radius: var(--r-md);
+      --ui-panel-radius: var(--r-lg);
+      --ui-control-gap: 10px;
+      --ui-section-gap: 16px;
+      --ui-view-pad: 20px;
+
+      --nav-w: 244px;
+      --nav-w-min: 62px;
+      --snap-w: 282px;
+      --chrome-h: 54px;
+      color-scheme: light;
+    }
+
+    body.night-mode {
+      --bg: #1a1e25;
+      --surface: #212630;
+      --surface-2: #1b2029;
+      --surface-3: #2b313d;
+      --border: #2d3441;
+      --border-strong: #68748a;
+      --text: #e8ebf2;
+      --text-2: #a6b0c0;
+      --text-3: #8b96a8;
+
+      --accent: #7099f2;
+      --accent-soft: #222f4c;
+      --accent-strong: #a3bef8;
+      --on-accent: #0d121c;
+
+      --red: #f08585;      --red-soft: #341f22;   --red-deep: #f8a9a9;
+      --orange: #eda65f;   --orange-soft: #33261a;
+      --yellow: #dcbe58;   --yellow-deep: #ead68a; --yellow-soft: #2e2817;
+      --green: #5ec98d;    --green-soft: #17301f;
+
+      --row-hover: #262d3a;
+
+      /* In the dark theme the "light" is a cool rim, not white: a white bloom
+         on a near-black ground reads as fog rather than as an edge. */
+      --neu-lo: 6, 9, 14;
+      --neu-hi: 78, 90, 112;
+      --neu-raised:     6px 6px 14px rgba(var(--neu-lo), .64), -6px -6px 14px rgba(var(--neu-hi), .16);
+      --neu-raised-sm:  3px 3px 7px  rgba(var(--neu-lo), .60), -3px -3px 7px  rgba(var(--neu-hi), .14);
+      --neu-inset:      inset 3px 3px 7px rgba(var(--neu-lo), .72), inset -3px -3px 7px rgba(var(--neu-hi), .15);
+      --neu-inset-sm:   inset 2px 2px 4px rgba(var(--neu-lo), .66), inset -2px -2px 4px rgba(var(--neu-hi), .13);
+      --neu-floating:   14px 18px 44px rgba(0, 0, 0, .70), -8px -8px 22px rgba(var(--neu-hi), .12);
+      --neu-accent:     4px 5px 14px rgba(0, 0, 0, .55), -3px -3px 8px rgba(var(--neu-hi), .16);
+      color-scheme: dark;
+    }
+
+    /* ── 2 · Typography ───────────────────────────────────────────────────
+       13px reading size: Manrope carries a tall x-height, so this sits about
+       where a 14px Inter would and stays legible across a shift without
+       costing a table row. Chrome is smaller than the data, never larger.
+       Figures are mono and tabular everywhere so a balance keeps its column
+       between two snapshots and a change is caught by shape. */
+    body {
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 500;
+      letter-spacing: -.004em;
+      background: var(--bg);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body::before { display: none; }
+    body.comfy { font-size: 14px; }
+    body.comfy td, body.comfy td.num { font-size: 14px; padding: 8px 12px; }
+    body.comfy th { padding: 9px 12px; font-size: 10.5px; }
+    body.comfy .nav-leaf, body.comfy .nav-parent { font-size: 13.5px; }
+
+    td.num, th.num, .num,
+    .stat-box .sv, .sms-bal-card .value, .st-daily-card .value,
+    .sum-card .value, .sv {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: 'tnum' 1, 'zero' 1;
+    }
+
+    /* One micro-label, used for every section heading, column group, rail
+       divider and panel caption in the app. Before this pass each module had
+       its own: that is most of what made the tabs feel unrelated. */
+    .snap-label, .sidebar-section-label, .nav-sublabel,
+    #users-toolbar-label, .snap-head-title, .nav-find-group,
+    .stat-box .sl, .sms-bal-card .label, .st-daily-card .label {
+      font-size: 9.5px; font-weight: 700;
+      letter-spacing: .13em; text-transform: uppercase;
+      color: var(--text-3);
+    }
+
+    /* ── 3 · Shell ────────────────────────────────────────────────────────
+       Three columns, unchanged from the previous pass: navigation, snapshot
+       and upload, workspace. #app-body stays display:contents so its two
+       children join #win's grid directly.
+
+       Tone separates the panels rather than rules: the two side panels sit
+       on the recessed --surface-2, the workspace on the mid-tone --bg, and
+       every card inside it is raised above that. One hairline is kept at
+       each seam for the case where a viewer's display flattens the tones. */
+    #win {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      border: 0; border-radius: 0; box-shadow: none;
+      display: grid;
+      --col-nav: var(--nav-w);
+      grid-template-columns: var(--col-nav) auto minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      /* No transition on the track list, deliberately. The previous pass
+         animated grid-template-columns, and because this list mixes a length
+         with `auto` and `minmax(0, 1fr)` the browser builds the transition
+         from used values and ends up with an identical pair of keyframes:
+         the rail then sat at its expanded width indefinitely while a fresh
+         180ms transition was created every frame and never advanced past
+         currentTime 0, so collapsing hid the labels but never narrowed the
+         column. Collapsing is instant instead, which is also the right feel
+         for a control that gets hit mid-shift. */
+      transition: none;
+      grid-template-areas:
+        "nav snap top"
+        "nav snap sub"
+        "nav snap main"
+        "nav snap foot";
+      overflow: hidden;
+    }
+    #app-nav   { grid-area: nav; }
+    #sidebar   { grid-area: snap; }
+    #menubar   { grid-area: top; }
+    #toolbar   { grid-area: sub; }
+    #content   { grid-area: main; }
+    #statusbar { grid-area: foot; }
+    #app-body  { display: contents; }
+    #titlebar  { display: none !important; }
+
+    /* ── 4 · Panel 1 · Navigation ─────────────────────────────────────────
+       Still a façade: every control calls the same switch* function its old
+       toolbar button called and mirrors that button's .active class. What is
+       new is the material — the current destination is the one raised object
+       in the column — plus the favourites group at the top and the account
+       and theme controls at the bottom. */
+    #app-nav {
+      display: flex; flex-direction: column; min-height: 0; min-width: 0;
+      background: var(--surface-2);
+      border-right: 1px solid var(--border);
+      position: relative; z-index: 30;
+      overflow: hidden;
+    }
+    body.nav-collapsed #win { --col-nav: var(--nav-w-min); }
+
+    .nav-head {
+      flex: 0 0 auto; height: var(--chrome-h);
+      display: flex; align-items: center; gap: 11px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .nav-mark {
+      flex: 0 0 32px; width: 32px; height: 32px;
+      display: grid; place-items: center;
+      color: var(--accent);
+      background: var(--surface);
+      border-radius: var(--r-sm);
+      box-shadow: var(--neu-raised-sm);
+    }
+    .nav-mark svg { width: 18px; height: 18px; }
+    .nav-brand { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+    .nav-brand-name {
+      font-size: 13.5px; font-weight: 800; color: var(--text);
+      letter-spacing: -.02em; white-space: nowrap;
+    }
+    .nav-brand-sub {
+      font-size: 8.5px; font-weight: 700; color: var(--text-3);
+      letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+    }
+
+    .nav-scroll {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+      padding: 10px 10px 14px;
+      scrollbar-width: thin;
+    }
+    .nav-group + .nav-group { margin-top: 2px; }
+
+    .nav-parent, .nav-leaf, .nav-foot-btn {
+      display: flex; align-items: center; gap: 11px;
+      width: 100%; padding: 0 10px;
+      font: inherit; text-align: left;
+      background: transparent; border: 0; border-radius: var(--r-md);
+      color: var(--text-2); cursor: pointer;
+      box-shadow: none;
+      transition: background-color .14s ease, color .14s ease, box-shadow .14s ease;
+    }
+    .nav-parent { min-height: 38px; font-size: 13px; font-weight: 600; }
+    .nav-parent:hover, .nav-leaf:hover, .nav-foot-btn:hover {
+      background: var(--surface-3); color: var(--text);
+    }
+    .nav-parent:active, .nav-leaf:active { box-shadow: var(--neu-inset-sm); }
+    .nav-ico {
+      flex: 0 0 20px; width: 20px; height: 20px;
+      display: grid; place-items: center; color: var(--text-3);
+      transition: color .14s ease;
+    }
+    .nav-ico svg { width: 19px; height: 19px; display: block; }
+    .nav-ico-text {
+      font-size: 9px; font-weight: 800; letter-spacing: -.05em;
+      font-family: var(--mono);
+    }
+    .nav-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nav-caret {
+      flex: 0 0 14px; width: 14px; height: 14px; color: var(--text-3);
+      transition: transform .16s cubic-bezier(.4, 0, .2, 1);
+    }
+    .nav-caret svg { width: 14px; height: 14px; display: block; }
+    .nav-group.is-open > .nav-parent .nav-caret,
+    .nav-subgroup.is-open > .nav-subparent .nav-caret { transform: rotate(90deg); }
+
+    /* The module you are inside is named in darker ink; the exact view is the
+       raised pill. Two weights of one signal, so the rail reads at a glance
+       from across a desk. */
+    .nav-group.is-current > .nav-parent { color: var(--text); font-weight: 700; }
+    .nav-group.is-current > .nav-parent .nav-ico { color: var(--accent); }
+    .nav-group-flat.is-current > .nav-parent,
+    body.nav-collapsed .nav-group.is-current > .nav-parent {
+      color: var(--accent-strong);
+      background: var(--surface);
+      box-shadow: var(--neu-raised-sm);
+    }
+    .nav-group-flat.is-current > .nav-parent .nav-ico,
+    body.nav-collapsed .nav-group.is-current > .nav-parent .nav-ico { color: var(--accent-strong); }
+
+    .nav-children {
+      display: none; margin: 2px 0 6px 20px; padding-left: 10px;
+      border-left: 1px solid var(--border);
+    }
+    .nav-group.is-open > .nav-children,
+    .nav-subgroup.is-open > .nav-children { display: block; }
+    .nav-leaf { min-height: 31px; font-size: 12.5px; font-weight: 500; position: relative; }
+    .nav-leaf.is-active {
+      color: var(--accent-strong); font-weight: 700;
+      background: var(--surface);
+      box-shadow: var(--neu-raised-sm);
+    }
+    /* The marker rides the rail line the children hang from, so the active
+       row is tied to its group instead of floating free of it. */
+    .nav-leaf.is-active::before {
+      content: ''; position: absolute; left: -11px; top: 50%;
+      width: 3px; height: 16px; margin-top: -8px;
+      background: var(--accent); border-radius: 3px;
+    }
+    .nav-subparent { font-weight: 600; }
+    .nav-subgroup.is-current > .nav-subparent { color: var(--text); }
+    .nav-subgroup > .nav-children { margin-left: 9px; }
+    .nav-sublabel { padding: 12px 10px 4px; }
+
+    /* Favourites. Cloned leaves carrying the same data-* as the originals, so
+       they route through the same go() and inherit the same role gating. */
+    #nav-fav-group { margin-bottom: 6px; }
+    #nav-fav-group > .nav-parent { cursor: default; }
+    #nav-fav-group > .nav-parent:hover { background: transparent; color: var(--text-2); }
+    #nav-fav-group > .nav-parent .nav-ico { color: var(--accent); }
+    #nav-fav-list { display: block; margin-left: 20px; }
+    #nav-fav-group.is-open > #nav-fav-list { display: block; }
+
+    .nav-foot {
+      flex: 0 0 auto; padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #login-user-label {
+      display: block; padding: 0 4px; max-width: 100%;
+      font-size: 10.5px; font-weight: 600; color: var(--text-3);
+      background: transparent; border: 0; border-radius: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #login-user-label:empty { display: none; }
+    .nav-foot-actions { display: flex; align-items: center; gap: 7px; }
+    /* Two of these three controls came down from the top bar, where rules
+       address them by id; the class alone cannot outrank that, so the footer
+       size and material are restated at id weight. */
+    .nav-foot-btn,
+    #app-nav #night-toggle, #app-nav #btn-signout, #app-nav #nav-collapse-btn {
+      width: 36px; min-width: 36px; height: 36px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-3);
+      background: var(--surface);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-raised-sm);
+      cursor: pointer;
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    .nav-foot-btn:hover,
+    #app-nav #night-toggle:hover, #app-nav #nav-collapse-btn:hover {
+      color: var(--text); background: var(--surface); box-shadow: var(--neu-raised);
+    }
+    .nav-foot-btn:active,
+    #app-nav #night-toggle:active, #app-nav #btn-signout:active, #app-nav #nav-collapse-btn:active {
+      box-shadow: var(--neu-inset-sm);
+    }
+    .nav-foot-btn svg,
+    #app-nav #night-toggle svg, #app-nav #btn-signout svg, #app-nav #nav-collapse-btn svg { width: 17px; height: 17px; }
+    #app-nav #nav-collapse-btn { margin-left: auto; }
+    #app-nav #btn-signout:hover { color: var(--red); background: var(--surface); box-shadow: var(--neu-raised); }
+    body.nav-collapsed #nav-collapse-btn svg { transform: rotate(180deg); }
+
+    /* Collapsed: icons only, and the whole footer stacks so three 36px
+       controls still fit a 62px rail. */
+    body.nav-collapsed .nav-brand,
+    body.nav-collapsed .nav-label,
+    body.nav-collapsed .nav-caret,
+    body.nav-collapsed .nav-sublabel,
+    body.nav-collapsed #login-user-label { display: none; }
+    body.nav-collapsed .nav-children { display: none !important; }
+    body.nav-collapsed .nav-head { justify-content: center; padding: 0; }
+    body.nav-collapsed .nav-scroll { padding: 10px 8px 14px; }
+    body.nav-collapsed .nav-parent { justify-content: center; padding: 0; min-height: 42px; }
+    body.nav-collapsed .nav-foot { padding: 8px; }
+    body.nav-collapsed .nav-foot-actions { flex-direction: column; gap: 6px; }
+    body.nav-collapsed #app-nav #nav-collapse-btn { margin-left: 0; }
+
+    body.nav-collapsed .nav-group.is-flyout > .nav-children {
+      display: block !important;
+      position: fixed; left: calc(var(--nav-w-min) + 6px); top: var(--fly-top, 64px);
+      z-index: 1;
+      min-width: 224px; max-width: 274px;
+      max-height: min(74vh, 560px); overflow-y: auto;
+      margin: 0; padding: 10px;
+      background: var(--surface);
+      border: 0; border-left: 0;
+      border-radius: var(--r-lg);
+      box-shadow: var(--neu-floating);
+    }
+    body.nav-collapsed .nav-group.is-flyout > .nav-children::before {
+      content: var(--fly-title, '');
+      display: block; padding: 3px 10px 8px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+    body.nav-collapsed .nav-group.is-flyout > .nav-children .nav-label,
+    body.nav-collapsed .nav-group.is-flyout > .nav-children .nav-sublabel { display: block; }
+    /* The pointer has to cross the gap between rail and flyout; a transparent
+       apron on the flyout's left keeps that trip inside the group. */
+    body.nav-collapsed .nav-group.is-flyout > .nav-children::after {
+      content: ''; position: absolute; left: -14px; top: 0; bottom: 0; width: 14px;
+    }
+    body.nav-collapsed .nav-group.is-flyout .nav-subgroup > .nav-children {
+      display: block !important;
+      position: static; min-width: 0; max-height: none; overflow: visible;
+      margin: 2px 0 6px 9px; padding: 0 0 0 10px;
+      background: none; border-left: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+    }
+    body.nav-collapsed .nav-group.is-flyout .nav-subgroup > .nav-children::before { content: none; }
+    body.nav-collapsed .nav-group.is-flyout .nav-subparent .nav-caret { display: none; }
+
+    /* ── 5 · Topbar ───────────────────────────────────────────────────────*/
+    #menubar {
+      height: var(--chrome-h); min-height: var(--chrome-h);
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 18px 0 12px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      box-shadow: none; z-index: 20;
+    }
+    #module-nav { display: none !important; }
+
+    #topbar-lead { display: flex; align-items: center; gap: 4px; }
+    #snap-collapse-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 34px; height: 34px; padding: 0;
+      color: var(--text-3);
+      background: var(--surface);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-raised-sm);
+      cursor: pointer;
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    #snap-collapse-btn svg { width: 18px; height: 18px; }
+    #snap-collapse-btn:hover { color: var(--text); box-shadow: var(--neu-raised); }
+    body.snap-collapsed #snap-collapse-btn { color: var(--accent-strong); box-shadow: var(--neu-inset-sm); }
+    body.users-mode #snap-collapse-btn,
+    body.sms-mode:not(.sms-tab-balance) #snap-collapse-btn { display: none; }
+
+    #topbar-heading {
+      display: flex; align-items: baseline; gap: 8px;
+      min-width: 0; flex: 1 1 auto;
+    }
+    #topbar-crumb {
+      font-size: 11.5px; font-weight: 600; color: var(--text-3);
+      white-space: nowrap; letter-spacing: 0;
+    }
+    #topbar-crumb-sep { color: var(--border-strong); font-size: 11.5px; }
+    #topbar-view {
+      font-size: 15px; font-weight: 800; color: var(--text);
+      letter-spacing: -.025em; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    }
+
+    /* Destination search and favourites. The field is the one inset object in
+       the top bar, which is what tells you it takes typing. */
+    #nav-find { position: relative; display: flex; align-items: center; gap: 8px; flex: 0 1 340px; }
+    #nav-find-box {
+      display: flex; align-items: center; gap: 8px;
+      flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 12px;
+      background: var(--surface-2);
+      border-radius: var(--r-pill);
+      box-shadow: var(--neu-inset-sm);
+      transition: box-shadow .14s ease;
+    }
+    #nav-find-box:focus-within { box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent); }
+    #nav-find-box .nav-find-ico { flex: 0 0 15px; width: 15px; height: 15px; color: var(--text-3); }
+    #nav-search {
+      flex: 1 1 auto; min-width: 0; height: 100%;
+      font: 500 12.5px/1 var(--font); color: var(--text);
+      background: transparent; border: 0; outline: none; padding: 0;
+    }
+    #nav-search::placeholder { color: var(--text-3); font-weight: 500; }
+    #nav-search:focus-visible { outline: none !important; }
+    #fav-btn {
+      flex: 0 0 34px; width: 34px; height: 34px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3);
+      background: var(--surface);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-raised-sm);
+      cursor: pointer;
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    #fav-btn svg { width: 17px; height: 17px; }
+    #fav-btn:hover { color: var(--accent-strong); box-shadow: var(--neu-raised); }
+    #fav-btn[aria-pressed="true"] { color: var(--accent); box-shadow: var(--neu-inset-sm); }
+    #fav-btn[aria-pressed="true"] svg { fill: currentColor; }
+    #fav-btn:disabled { opacity: .4; cursor: default; box-shadow: var(--neu-raised-sm); }
+
+    #nav-search-panel {
+      position: absolute; top: calc(100% + 9px); right: 0; left: 0;
+      z-index: 2500;
+      max-height: min(62vh, 460px); overflow-y: auto;
+      padding: 9px;
+      background: var(--surface);
+      border-radius: var(--r-lg);
+      box-shadow: var(--neu-floating);
+      scrollbar-width: thin;
+    }
+    #nav-search-panel[hidden] { display: none; }
+    .nav-find-group { padding: 7px 9px 5px; }
+    .nav-find-row { display: flex; align-items: center; gap: 4px; }
+    .nfr-go {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; align-items: baseline; gap: 8px;
+      padding: 8px 10px;
+      font: inherit; font-size: 12.5px; font-weight: 600; text-align: left;
+      color: var(--text); background: transparent;
+      border: 0; border-radius: var(--r-sm); cursor: pointer;
+      transition: background-color .13s ease;
+    }
+    .nfr-go:hover, .nfr-go:focus-visible { background: var(--surface-2); }
+    .nfr-name { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nfr-path {
+      flex: 0 1 auto; min-width: 0;
+      font-size: 10.5px; font-weight: 500; color: var(--text-3);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nfr-star {
+      flex: 0 0 28px; width: 28px; height: 28px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: transparent;
+      border: 0; border-radius: var(--r-sm); cursor: pointer;
+      transition: color .13s ease, background-color .13s ease;
+    }
+    .nfr-star svg { width: 15px; height: 15px; }
+    .nfr-star:hover { color: var(--accent-strong); background: var(--surface-2); }
+    .nfr-star[aria-pressed="true"] { color: var(--accent); }
+    .nfr-star[aria-pressed="true"] svg { fill: currentColor; }
+    .nav-find-empty { padding: 14px 10px; font-size: 12px; color: var(--text-3); text-align: center; }
+
+    #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+    #ui-comfy-toggle {
+      width: 34px; height: 34px;
+      color: var(--text-3);
+      background: var(--surface);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-raised-sm);
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    #ui-comfy-toggle:hover { color: var(--text); background: var(--surface); box-shadow: var(--neu-raised); }
+    #ui-comfy-toggle svg { width: 17px; height: 17px; }
+    body.comfy #ui-comfy-toggle { color: var(--accent-strong); box-shadow: var(--neu-inset-sm); }
+
+    /* ── 6 · The one tab pattern ──────────────────────────────────────────
+       Every strip in the app now resolves to the same object: a recessed
+       track holding flat items, with the selected item raised out of it.
+       Nine different strips used to sit here in five different styles, which
+       is most of why the modules read as separate products. Filter strips
+       keep their status colours, but wear them as ink and a ring on the same
+       raised pill instead of inventing a second shape. */
+    #toolbar,
+    .tab-bar, .st-daily-tabs, .sms-cred-subtabs,
+    .daily-tab-segment, .sms-bal-subnav, .vos-primary-tabs,
+    .sms-bal-segmented, #alert-tabs .alert-tab-list {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 4px; padding: 5px;
+      background: var(--surface-2); background-image: none;
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+    #toolbar {
+      grid-area: sub;
+      justify-self: start;
+      max-width: calc(100% - 36px);
+      height: auto; min-height: 0;
+      margin: 16px 18px 0;
+      flex-wrap: nowrap;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
+    }
+    /* The Stats strip is re-homed inside its view container, where the older
+       rule for that case (transparent, square, underlined) is written at
+       #toolbar.is-nested weight and outranks the shared track rule above. The
+       track has to be restated here or Stats keeps a sub-menu that looks
+       nothing like the other five modules'. */
+    #toolbar.is-nested {
+      grid-area: auto;
+      width: fit-content; max-width: 100%;
+      margin: 0 0 16px; padding: 5px;
+      align-items: center;
+      background: var(--surface-2);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+    #toolbar > .tbtn[id^="tnav-"],
+    #toolbar > #voip-action-menu,
+    #toolbar > .tsep { display: none !important; }
+    body:not(.has-submenu) #toolbar { display: none !important; }
+
+    .tab, .st-daily-tab, .sms-cred-subtab,
+    .daily-tab-segment .st-daily-tab, .sms-bal-subnav .tbtn,
+    .vos-primary-tabs .st-daily-tab, .sms-bal-segmented .tbtn,
+    #alert-tabs .tab,
+    #toolbar > .tbtn, #toolbar > .app-action-menu > .tbtn,
+    body.stats-mode #toolbar.is-nested > .tbtn,
+    body.stats-mode #toolbar.is-nested > .tbtn.active {
+      min-height: 28px; height: auto; padding: 0 13px; margin: 0;
+      font-size: 12.5px; font-weight: 600; line-height: 1;
+      white-space: nowrap;
+      color: var(--text-2);
+      background: transparent !important; background-image: none;
+      border: 0 !important; border-radius: var(--r-sm) !important;
+      box-shadow: none !important;
+      transition: color .14s ease, background-color .14s ease, box-shadow .14s ease;
+    }
+    .tab:hover, .st-daily-tab:hover, .sms-cred-subtab:hover,
+    .daily-tab-segment .st-daily-tab:hover, .sms-bal-subnav .tbtn:hover,
+    .sms-bal-segmented .tbtn:hover, #alert-tabs .tab:hover,
+    #toolbar > .tbtn:hover, #toolbar > .app-action-menu > .tbtn:hover,
+    body.stats-mode #toolbar.is-nested > .tbtn:hover {
+      color: var(--text) !important;
+      background: var(--surface-3) !important;
+      box-shadow: none !important; transform: none;
+    }
+    .tab.active, .st-daily-tab.active, .sms-cred-subtab.active,
+    .daily-tab-segment .st-daily-tab.active, .sms-bal-subnav .tbtn.active,
+    .vos-primary-tabs .st-daily-tab.active, .sms-bal-segmented .tbtn.active,
+    #alert-tabs .tab.active, #toolbar .tbtn.active,
+    body.stats-mode #toolbar.is-nested > .tbtn.active {
+      color: var(--accent-strong) !important; font-weight: 700;
+      background: var(--surface) !important;
+      border-radius: var(--r-sm) !important;
+      box-shadow: var(--neu-raised-sm) !important;
+    }
+
+    /* Status filters: the tone is the ink and a ring on the same pill, so the
+       chips stay one family and the state still survives greyscale through
+       elevation plus weight. */
+    .sms-bal-segmented .tbtn[data-tone="critical"].active { color: var(--red) !important; box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--red) !important; }
+    .sms-bal-segmented .tbtn[data-tone="warning"].active { color: var(--orange) !important; box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important; }
+    .sms-bal-segmented .tbtn[data-tone="safe"].active { color: var(--green) !important; box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-critical.active,
+    body.stats-mode #toolbar.is-nested > #stnav-stats-stopped.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--red) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-low.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-ok.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--yellow) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-good.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
+
+    /* Actions that sit inside a track are objects, not destinations, so they
+       keep the raised button shape and a gap that separates them from it. */
+    #toolbar > .stats-column-picker, #toolbar.is-nested > .stats-column-picker { margin-left: 8px; align-self: center; padding: 0; }
+    .stats-column-picker > .tbtn,
+    #toolbar.is-nested > .stats-column-picker > .tbtn,
+    #toolbar > #snd-dismiss-btn,
+    #alert-tabs .alert-tab-actions .tbtn.icon-only,
+    .sms-bal-segmented .alert-tab-actions .tbtn.icon-only {
+      color: var(--text) !important;
+      background: var(--surface) !important;
+      border: 0 !important; border-radius: var(--r-md) !important;
+      box-shadow: var(--neu-raised-sm) !important;
+    }
+    #alert-tabs { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    #alert-tabs .alert-tab-actions { display: flex; align-items: center; gap: 7px; }
+    #users-toolbar-label { padding: 0 8px; }
+
+    /* Strips the rail owns outright. */
+    .sms-bal-subnav,
+    #view-sms > .groupbox > .tab-bar,
+    #sms-credentials-panel .sms-cred-subtabs { display: none !important; }
+
+    /* ── 7 · Panel 2 · Snapshot and upload ────────────────────────────────*/
+    #sidebar {
+      width: var(--snap-w);
+      display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+      color: var(--text); background: var(--surface-2);
+      border: 0; border-right: 1px solid var(--border);
+      border-radius: 0; box-shadow: none;
+    }
+    body.night-mode #sidebar { color: var(--text); background: var(--surface-2); border: 0; border-right: 1px solid var(--border); }
+    body.snap-collapsed #sidebar { display: none !important; }
+
+    .snap-head {
+      flex: 0 0 auto; height: var(--chrome-h);
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 14px 0 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .snap-head-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .snap-head-close {
+      flex: 0 0 30px; width: 30px; height: 30px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--text-3); background: var(--surface);
+      border: 0; border-radius: var(--r-sm);
+      box-shadow: var(--neu-raised-sm); cursor: pointer;
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    .snap-head-close svg { width: 15px; height: 15px; }
+    .snap-head-close:hover { color: var(--text); box-shadow: var(--neu-raised); }
+    .snap-head-close:active { box-shadow: var(--neu-inset-sm); }
+
+    #sidebar-snap, #stats-sidebar-snap { padding: 16px 15px 14px; gap: 18px; }
+    #snap-editor, #stats-sidebar-current, #stats-sidebar-daily,
+    #stats-post-controls, #stats-daily-post-controls { gap: 9px !important; }
+    .snap-source-row, .snap-action-row,
+    #snap-editor > div:has(> .tbtn.primary),
+    #stats-post-controls > div:has(> .tbtn.primary),
+    #stats-daily-post-controls > div:has(> .tbtn.primary) { gap: 7px !important; }
+    .snap-label, .sidebar-section-label { margin-bottom: 7px; }
+    #sidebar .snap-label, #sidebar .sidebar-section-label { color: var(--text-3); }
+    .required-hint {
+      font-size: 8.5px; font-weight: 700; letter-spacing: .07em;
+      color: var(--orange); text-transform: none;
+    }
+    /* Paste targets carry raw report text, so they are mono: a mis-copied
+       column shows as a broken edge before it is ever processed. */
+    #snap-ta, #stats-snap-ta, #stats-daily-ta,
+    .sms-bal-sidebar textarea, .win-ta {
+      font-family: var(--mono);
+      font-size: 11px; line-height: 1.55;
+    }
+    .top-usage-item {
+      padding: 6px 9px; font-size: 11px; line-height: 1.4;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-usage-empty, .empty-state, .premium-select-empty {
+      padding: 12px 10px; font-size: 11px; color: var(--text-3); text-align: center;
+      background: var(--surface-2);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+
+    #sidebar > .sms-bal-sidebar, #sidebar > .vos-side-rail {
+      display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      gap: 12px; padding: 16px 15px 14px;
+      background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    }
+    body.sms-mode #sidebar > .sms-bal-sidebar,
+    body.vos-mode #sidebar > .vos-side-rail { display: flex; }
+    body.sms-mode.sms-tab-balance #sidebar,
+    body.vos-mode #sidebar { display: flex !important; }
+    body.sms-mode:not(.sms-tab-balance) #sidebar { display: none !important; }
+    body.sms-mode #sidebar-snap, body.sms-mode #stats-sidebar-snap,
+    body.vos-mode #sidebar-snap, body.vos-mode #stats-sidebar-snap { display: none !important; }
+    body.snap-collapsed #sidebar,
+    body.sms-mode.sms-tab-balance.snap-collapsed #sidebar,
+    body.vos-mode.snap-collapsed #sidebar,
+    body.snap-collapsed #sidebar > .sms-bal-sidebar,
+    body.snap-collapsed #sidebar > .vos-side-rail { display: none !important; }
+    #sidebar > .vos-side-rail > .vos-primary-tabs { display: none !important; }
+    .sms-bal-note {
+      font-size: 10.5px; line-height: 1.5; color: var(--text-3);
+      padding: 10px 11px; background: var(--surface-2);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+
+    /* ── 8 · Panel 3 · Workspace ──────────────────────────────────────────*/
+    #content { min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
+    .view { padding: var(--ui-view-pad); gap: var(--ui-section-gap); }
+    .dash-shell { max-width: 1520px; }
+    #view-banner {
+      padding: 10px 18px; gap: 12px;
+      font-size: 12px; font-weight: 600; color: var(--yellow-deep);
+      background: var(--yellow-soft);
+      border: 0; border-bottom: 1px solid var(--border);
+    }
+
+    /* One panel: raised, generous corner, no outline. Panels never nest. */
+    .groupbox, .settings-page-panel, .sms-bal-panel, .vos-primary-panel,
+    .daily-workspace, .sms-bal-status-guide, .voip-alert-guide {
+      background: var(--surface);
+      background-image: none;
+      border: 0;
+      border-radius: var(--r-lg);
+      box-shadow: var(--neu-raised);
+    }
+    .groupbox, .settings-page-panel, .sms-bal-panel { padding: 18px; }
+    .groupbox-title {
+      margin-bottom: 14px;
+      font-size: 13px; font-weight: 800; letter-spacing: -.015em;
+      color: var(--text);
+    }
+    .settings-note, .settings-danger {
+      padding: 12px 14px; font-size: 11.5px; line-height: 1.55;
+      background: var(--surface-2);
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+    .settings-danger { color: var(--red); background: var(--red-soft); box-shadow: var(--neu-inset-sm), inset 0 0 0 1.5px color-mix(in srgb, var(--red) 40%, transparent); }
+
+    /* Metric tiles. The number is the largest text in the app on purpose;
+       status is a coloured inset edge on the same card, never a second shape. */
+    .stat-row { gap: 12px; padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+    .stat-box, .st-daily-card, .sum-card, .sms-bal-card,
+    .sms-bal-summary-card, .st-daily-rank-card, .sum-section {
+      background: var(--surface); background-image: none;
+      border: 0; border-radius: var(--r-lg);
+      box-shadow: var(--neu-raised-sm);
+      transition: box-shadow .15s ease;
+    }
+    .stat-box, .st-daily-card, .sum-card { padding: 15px 16px; }
+    .sms-bal-card { padding: 13px 12px; }
+    .sms-bal-summary-card { padding: 14px; }
+    .stat-box:hover, .st-daily-card:hover, .sum-card:hover {
+      background: var(--surface); box-shadow: var(--neu-raised); transform: none;
+    }
+    .stat-box .sv, .sms-bal-card .value, .st-daily-card .value {
+      font-family: var(--mono); font-size: 25px; font-weight: 600;
+      letter-spacing: -.035em; line-height: 1.12; color: var(--text);
+    }
+    .stat-box .sl, .sms-bal-card .label, .st-daily-card .label { margin-top: 6px; }
+    .stat-box.s-high, .sms-bal-card.critical { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--red); }
+    .stat-box.s-medium, .sms-bal-card.warning { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--orange); }
+    .sms-bal-card.overdraft { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--yellow); }
+    .sms-bal-card.safe { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--green); }
+    .sms-bal-card.is-active { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--accent); }
+    .stat-box.s-high .sv, .sms-bal-card.critical .value { color: var(--red); }
+    .stat-box.s-medium .sv, .sms-bal-card.warning .value { color: var(--orange); }
+    .sms-bal-card.safe .value { color: var(--green); }
+
+    /* ── 9 · Tables ───────────────────────────────────────────────────────
+       The table shell is the raised object; everything inside it is flat.
+       No zebra: most rows are already tinted by status and a striped ground
+       competes with that. Hairlines carry rhythm, hover carries the row you
+       are tracking. */
+    .lv-wrap, .sms-bal-table-wrap, .vos-stats-table-shell,
+    .vos-stats-timeline, #stats-timeline-list, #stats-daily-date-list {
+      background: var(--surface);
+      border: 0; border-radius: var(--r-lg);
+      box-shadow: var(--neu-raised-sm);
+      overflow: hidden;
+    }
+    table { border-collapse: collapse; }
+    th {
+      padding: 9px 12px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text-3);
+      background: var(--surface-2);
+      border: 0; border-bottom: 1px solid var(--border);
+      box-shadow: none; white-space: nowrap;
+    }
+    thead > tr:only-child > th { position: sticky; top: 0; z-index: 3; }
+    td {
+      padding: 7px 12px; font-size: 13px;
+      border: 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 62%, transparent);
+    }
+    tr:nth-child(even) td { background: transparent; }
+    tbody tr:hover td { background: var(--row-hover) !important; }
+    td.num, th.num {
+      text-align: right;
+      font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: -.025em;
+    }
+    #st-tbl-stopped tbody tr td { background: transparent !important; }
+    #st-tbl-stopped tbody tr.st-stopped-active td { background: var(--red-soft) !important; }
+    .pager { gap: 10px; padding-top: 12px; font-size: 11.5px; }
+
+    /* ── 9b · Material corrections ────────────────────────────────────────
+       Three places where an older pass gave one instance of a component a
+       different material from the other forty, addressed at the weight the
+       original rule was written at. This is the whole of the "every tab has
+       its own design" complaint in concrete form, so the rule is: a
+       component looks the same in every module, and a one-off restyle needs
+       a reason that is about meaning, not about the tab it happens to be on.
+
+       1 · The Alerts table was a well while all 43 other table shells were
+           raised objects, from a two-id selector that outranked the shared
+           rule. */
+    #view-alerts #alert-tbl-wrap,
+    #view-alerts #usage-hist-wrap {
+      background: var(--surface);
+      border-radius: var(--r-lg);
+      box-shadow: var(--neu-raised-sm);
+    }
+    /* 2 · Daily Traffic metric tiles were flat on a recessed ground while
+           every other tile in the app was raised. */
+    .daily-workspace .st-daily-card,
+    .vos-stats-workspace .st-daily-card {
+      background: var(--surface);
+      box-shadow: var(--neu-raised-sm);
+    }
+    .daily-workspace .st-daily-card:hover,
+    .vos-stats-workspace .st-daily-card:hover { box-shadow: var(--neu-raised); }
+    /* 3 · A table shell nested inside another shell was lifted twice. Only
+           the outer object carries elevation; stacking two raised surfaces is
+           what turns soft material to mush. */
+    .vos-stats-table-shell > .lv-wrap,
+    .sms-bal-table-wrap .lv-wrap,
+    .groupbox .lv-wrap .lv-wrap {
+      background: transparent;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    /* ── 10 · Controls ────────────────────────────────────────────────────
+       A button is raised and presses in; a field is a well and stays a well.
+       That is the whole affordance vocabulary, and it is why no control here
+       needs an outline to be read as a control. */
+    .tbtn, .fltbtn,
+    .clients-toolbar .tbtn, .clients-toolbar .fltbtn,
+    .daily-import-actions .tbtn, .daily-workspace-nav .st-daily-export-btn,
+    .premium-date-footer .tbtn, #sidebar .tbtn, #sidebar .fltbtn {
+      min-height: var(--ui-control-h); padding: 0 14px;
+      font-family: var(--font); font-size: 12.5px; font-weight: 600;
+      color: var(--text); background: var(--surface);
+      border: 0 !important;
+      border-radius: var(--ui-control-radius);
+      box-shadow: var(--neu-raised-sm);
+      transition: color .14s ease, background-color .14s ease, box-shadow .14s ease, transform .14s ease;
+    }
+    .tbtn:hover:not(:disabled), .fltbtn:hover:not(:disabled),
+    #sidebar .tbtn:hover:not(:disabled), #sidebar .fltbtn:hover:not(:disabled) {
+      color: var(--text); background: var(--surface);
+      box-shadow: var(--neu-raised); transform: none;
+    }
+    .tbtn:active:not(:disabled), .fltbtn:active:not(:disabled) {
+      background: var(--surface-2);
+      box-shadow: var(--neu-inset-sm); transform: translateY(1px);
+    }
+    .tbtn.primary, #sidebar .tbtn.primary, .fltbtn.active, #sidebar .fltbtn.active {
+      color: var(--on-accent); background: var(--accent);
+      border: 0 !important; font-weight: 700;
+      box-shadow: var(--neu-accent);
+    }
+    .tbtn.primary:hover:not(:disabled), .fltbtn.active:hover:not(:disabled),
+    #sidebar .tbtn.primary:hover:not(:disabled) {
+      background: var(--accent-strong); box-shadow: var(--neu-accent);
+    }
+    .tbtn.primary:active:not(:disabled), .fltbtn.active:active:not(:disabled) {
+      box-shadow: inset 3px 3px 7px rgba(0, 0, 0, .28), inset -2px -2px 6px rgba(255, 255, 255, .18);
+    }
+    .tbtn.danger, #sidebar .tbtn.danger {
+      color: var(--on-accent); background: var(--red);
+      border: 0 !important; font-weight: 700;
+      box-shadow: var(--neu-raised-sm);
+    }
+    .tbtn.danger:hover:not(:disabled) { background: var(--red-deep); box-shadow: var(--neu-raised); }
+    .tbtn:disabled { opacity: .45; box-shadow: var(--neu-inset-sm); }
+    .tbtn.icon-only { padding: 0; }
+    .row-del {
+      background: transparent; border: 0; border-radius: var(--r-sm); box-shadow: none;
+    }
+    .row-del:hover { color: var(--red); background: var(--red-soft); box-shadow: var(--neu-inset-sm); }
+    #sms-cancel-edit-btn { color: var(--on-accent); background: var(--orange); border: 0 !important; }
+    #sms-cancel-edit-btn:hover { background: var(--orange); box-shadow: var(--neu-raised); }
+
+    .win-inp, .win-sel, .win-search, #slot-sel,
+    .premium-select-trigger, .sms-combo-btn,
+    .sms-textarea, .win-ta, textarea.win-inp,
+    #snap-ta, #stats-snap-ta, #stats-daily-ta, #st-remark-ta, #sms-sender-id-comment,
+    #sidebar .win-inp, #sidebar .win-sel, #sidebar #slot-sel,
+    #sidebar #snap-ta, #sidebar #stats-snap-ta, #sidebar #stats-daily-ta {
+      min-height: var(--ui-control-h); padding: 7px 12px;
+      font-family: var(--font); font-size: 12.5px; font-weight: 500; color: var(--text);
+      background-color: var(--surface-2) !important; background-image: none;
+      border: 0 !important;
+      border-radius: var(--ui-control-radius);
+      box-shadow: var(--neu-inset-sm) !important;
+      transition: box-shadow .14s ease;
+    }
+    body.night-mode #sidebar .win-inp, body.night-mode #sidebar .win-sel,
+    body.night-mode #sidebar #slot-sel, body.night-mode #sidebar #snap-ta,
+    body.night-mode #sidebar #stats-snap-ta, body.night-mode #sidebar #stats-daily-ta {
+      color: var(--text); background-color: var(--surface-2) !important;
+    }
+    .win-inp:hover, .win-sel:hover, .win-search:hover, #slot-sel:hover,
+    .premium-select-trigger:hover { box-shadow: var(--neu-inset) !important; }
+    /* Restated because the layer above composed its focus ring from
+       var(--neu-inset); the ring has to survive that token changing shape. */
+    .win-inp:focus, .win-sel:focus, .win-search:focus, #slot-sel:focus,
+    .sms-textarea:focus, .win-ta:focus, textarea.win-inp:focus,
+    .premium-select-trigger:focus, .sms-combo-btn:focus,
+    #snap-ta:focus, #stats-snap-ta:focus, #stats-daily-ta:focus,
+    #st-remark-ta:focus, #sms-sender-id-comment:focus {
+      outline: none;
+      box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent) !important;
+    }
+    ::placeholder { color: var(--text-3); }
+
+    /* Left alone on purpose: the box is already 16px with an ::after tick
+       positioned for that box and a min-width beside it, so setting a size
+       here only makes it non-square. This restores the material and nothing
+       else, and the app-wide :focus-visible rule already covers it. */
+    input[type="checkbox"] {
+      background: var(--surface-2);
+      border: 0; border-radius: 5px;
+      box-shadow: var(--neu-inset-sm); accent-color: var(--accent);
+    }
+    input[type="checkbox"]:checked {
+      background: var(--accent); border: 0;
+      box-shadow: var(--neu-raised-sm);
+    }
+    .settings-check input[type="checkbox"] { border: 0; background: var(--surface-2); box-shadow: var(--neu-inset-sm); }
+    .settings-check input[type="checkbox"]:checked { background: var(--accent); box-shadow: var(--neu-raised-sm); }
+
+    .sms-field > label {
+      font-size: 10px; font-weight: 700; color: var(--text-2);
+      line-height: 1.3; letter-spacing: .02em;
+    }
+    .sms-field .win-inp, .sms-field .win-sel, .sms-field .premium-select-trigger,
+    .sms-combo-btn, .sms-comment-btn, .sms-sender-row .win-inp {
+      height: auto; min-height: var(--ui-control-h);
+      border-radius: var(--ui-control-radius);
+    }
+    .premium-date-trigger {
+      height: var(--ui-control-h); min-height: var(--ui-control-h);
+      border-radius: var(--ui-control-radius);
+    }
+    .sms-combo-btn, .sms-comment-btn {
+      height: var(--ui-control-h) !important;
+      width: var(--ui-control-h); min-width: var(--ui-control-h);
+      flex: 0 0 var(--ui-control-h); align-self: center;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0;
+    }
+
+    /* Filter and action bars are wells that hold controls, matching the tab
+       tracks: anything that groups controls is recessed, anything that acts
+       is raised. */
+    .fbar, .clients-toolbar, .sms-bal-alert-toolbar, .sms-bal-file-actions,
+    .daily-filterbar, .daily-import-strip, .sms-cred-form-body > .fbar {
+      gap: 9px; padding: 10px 12px;
+      background: var(--surface-2); background-image: none;
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-inset-sm);
+    }
+    .fbar, .clients-toolbar { margin-bottom: 14px; }
+    .daily-workspace-nav,
+    .vos-stats-workspace .daily-workspace-nav {
+      background: transparent; border: 0; padding: 0; box-shadow: none;
+      flex-wrap: nowrap; align-items: center; gap: 12px;
+      margin-bottom: 14px;
+    }
+    .daily-workspace-nav > .daily-tab-segment,
+    .daily-workspace-nav > .st-daily-tabs,
+    .vos-stats-workspace .daily-workspace-nav > .daily-tab-segment {
+      flex: 0 1 auto; min-width: 0;
+      flex-wrap: nowrap;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
+    }
+    .daily-workspace-nav > .st-daily-export-actions {
+      flex: 0 0 auto; margin-left: auto; align-self: center; padding-bottom: 0;
+    }
+    .sms-bal-status-guide-item, .sms-vendor-box, .sms-bal-delete-keep {
+      background: var(--surface-2); border: 0;
+      border-radius: var(--r-md); box-shadow: var(--neu-inset-sm);
+    }
+    .sms-vendor-chk { background: var(--surface); border: 0; border-radius: var(--r-sm); box-shadow: var(--neu-raised-sm); }
+    .sms-vendor-chk:has(input:checked) { background: var(--accent-soft); box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--accent); }
+
+    /* ── 11 · Status badges ───────────────────────────────────────────────
+       Tinted ground, matching ink, and a ring. Weight and edge survive
+       greyscale, so status never rests on hue alone. */
+    .badge, .stbadge, .st-daily-status, .sms-prio-badge, .sms-bal-badge {
+      box-shadow: none; border-radius: 8px;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .05em;
+      text-transform: uppercase; padding: 3px 8px;
+      border: 1px solid transparent;
+    }
+    .sms-bal-badge.critical, .sms-bal-badge.blocked { color: var(--red); background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 32%, transparent); }
+    .sms-bal-badge.warning, .sms-bal-badge.near { color: var(--orange); background: var(--orange-soft); border-color: color-mix(in srgb, var(--orange) 32%, transparent); }
+    .sms-bal-badge.overdraft { color: var(--yellow-deep); background: var(--yellow-soft); border-color: color-mix(in srgb, var(--yellow) 36%, transparent); }
+    .sms-bal-badge.safe { color: var(--green); background: var(--green-soft); border-color: color-mix(in srgb, var(--green) 32%, transparent); }
+    .sms-bal-badge.nothreshold { color: var(--text-2); background: var(--surface-3); border-color: var(--border); }
+    .u-badge { border-radius: var(--r-pill); font-size: 11px; }
+    .u-mod { border-radius: var(--r-pill); }
+    .leg-dot { width: 9px; height: 9px; border-radius: 3px; }
+    .legend { font-size: 11px; color: var(--text-3); gap: 16px; }
+
+    /* ── 12 · Floating layers ─────────────────────────────────────────────*/
+    .app-action-menu-panel, .premium-select-menu, .premium-date-menu,
+    .sms-combo-options, #sms-comment-popover, .col-dd {
+      background: var(--surface); background-image: none;
+      border: 0; border-radius: var(--r-lg);
+      box-shadow: var(--neu-floating);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    .premium-select-option, .sms-combo-option, .app-action-menu-panel .tbtn { border-radius: var(--r-sm); }
+    .app-action-menu-panel .tbtn { border: 0 !important; background: transparent; box-shadow: none; }
+    .app-action-menu-panel .tbtn:hover { background: var(--surface-2); box-shadow: none; }
+    .premium-select-option:hover, .sms-combo-option:hover, .premium-select-option.active { background: var(--accent-soft); }
+    .toast {
+      background: var(--surface); color: var(--text);
+      border: 0; border-left: 4px solid var(--accent);
+      border-radius: var(--r-md); box-shadow: var(--neu-floating);
+      font-size: 12px; font-weight: 600;
+    }
+    .toast.ok  { border-left-color: var(--green); }
+    .toast.err { border-left-color: var(--red); }
+
+    body > [id$="-overlay"]:not(#login-overlay) {
+      background: color-mix(in srgb, #0b1018 56%, transparent);
+      backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    }
+    body > [id$="-overlay"]:not(#login-overlay) > [id$="-box"],
+    .win-dialog {
+      color: var(--text); background: var(--surface);
+      border: 0; border-radius: var(--r-lg);
+      box-shadow: var(--neu-floating);
+    }
+    body > [id$="-overlay"] .dlg-tb {
+      min-height: 48px; padding: 14px 18px; gap: 10px;
+      background: transparent;
+      border: 0; border-bottom: 1px solid var(--border); box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-tb::before {
+      width: 4px; height: 16px; flex: 0 0 4px;
+      background: var(--accent); border-radius: 3px; box-shadow: none;
+    }
+    body > [id$="-overlay"] .dlg-tb span { font-size: 13px; font-weight: 800; letter-spacing: -.015em; }
+    body > [id$="-overlay"] .dlg-body { gap: 14px; padding: 16px 18px 18px; }
+    body > [id$="-overlay"] .dlg-ico {
+      width: 34px; height: 34px; flex: 0 0 34px;
+      font-size: 15px; font-weight: 700; border-radius: var(--r-md);
+      color: var(--accent-strong); background: var(--surface-2);
+      box-shadow: var(--neu-inset-sm);
+    }
+    body > [id$="-overlay"] .dlg-text { font-size: 12px; line-height: 1.6; color: var(--text-2); }
+    body > [id$="-overlay"] [style*="justify-content:flex-end"] { gap: 9px !important; padding: 0 18px 18px !important; }
+    .dlg-tb { border-bottom: 1px solid var(--border); box-shadow: none; }
+
+    /* ── 13 · Status bar ──────────────────────────────────────────────────*/
+    #statusbar {
+      height: 32px; padding: 0 14px;
+      font-size: 10.5px; color: var(--text-3);
+      background: var(--surface-2);
+      border: 0; border-top: 1px solid var(--border); box-shadow: none;
+    }
+    #statusbar .sb-pane {
+      flex: 0 0 auto; min-width: 0; padding: 0 12px;
+      border: 0; white-space: nowrap;
+      font-family: var(--mono); font-weight: 500; letter-spacing: -.015em;
+    }
+    #statusbar .sb-pane + .sb-pane { border-left: 1px solid var(--border); }
+    #statusbar #sb-status { color: var(--text-2); font-weight: 600; font-family: var(--font); letter-spacing: 0; }
+    #statusbar #sb-right { min-width: 0; margin-left: auto; padding-right: 0; }
+
+    /* ── 14 · Sign-in ─────────────────────────────────────────────────────*/
+    #login-overlay {
+      color: var(--text);
+      background-color: var(--bg) !important;
+      background-image: none !important;
+    }
+    #login-overlay::after { background: var(--accent); }
+    .login-brief, .login-brief h1 { color: var(--text); }
+    .login-brief > p, .login-signals { color: var(--text-2); }
+    .login-brief-mark {
+      color: var(--text-3); font-family: var(--mono);
+      font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    }
+    #login-overlay .premium-login-card {
+      color: var(--text); background: var(--surface);
+      border: 0; border-radius: var(--r-lg);
+      box-shadow: var(--neu-floating);
+    }
+    .premium-login-mark { color: var(--on-accent); background: var(--accent); border-radius: var(--r-md); box-shadow: var(--neu-accent); }
+    .premium-login-eyebrow {
+      color: var(--text-3); font-size: 9.5px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .premium-login-title { color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
+    .premium-login-subtitle, .premium-login-security { color: var(--text-2); font-size: 12px; }
+    .premium-login-field label { color: var(--text-2); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .premium-login-field .win-inp {
+      color: var(--text); background-color: var(--surface-2) !important;
+      border: 0 !important;
+      border-radius: var(--ui-control-radius); box-shadow: var(--neu-inset-sm) !important;
+    }
+    .premium-login-actions .tbtn {
+      min-height: 40px; background: var(--accent); color: var(--on-accent);
+      border: 0 !important; border-radius: var(--ui-control-radius); box-shadow: var(--neu-accent);
+    }
+
+    /* ── 14b · Night-mode leftovers ───────────────────────────────────────
+       An older theme hard-coded a teal night palette for the snapshot panel
+       at `body.night-mode #sidebar ...` weight, which outranks the
+       token-driven rules above. Those literals are returned to the tokens so
+       the dark theme stays one palette rather than two. */
+    body.night-mode #sidebar .snap-label,
+    body.night-mode #sidebar .sidebar-section-label { color: var(--text-3); }
+    body.night-mode #sidebar .top-usage-empty,
+    body.night-mode #sidebar .settings-note {
+      color: var(--text-3) !important; background: var(--surface-2); box-shadow: var(--neu-inset-sm);
+    }
+    body.night-mode #sidebar #tritel-status { color: var(--text-3) !important; background: transparent; }
+    body.night-mode #sidebar .tbtn,
+    body.night-mode #sidebar .fltbtn {
+      color: var(--text); background: var(--surface);
+      border: 0 !important; box-shadow: var(--neu-raised-sm);
+    }
+    body.night-mode #sidebar .tbtn:hover:not(:disabled),
+    body.night-mode #sidebar .fltbtn:hover:not(:disabled) {
+      background: var(--surface); box-shadow: var(--neu-raised);
+    }
+    body.night-mode #sidebar .tbtn.primary,
+    body.night-mode #sidebar .fltbtn.active {
+      color: var(--on-accent); background: var(--accent);
+      border: 0 !important; box-shadow: var(--neu-accent);
+    }
+    body.night-mode #sidebar .tbtn.primary:hover:not(:disabled) {
+      background: var(--accent-strong); box-shadow: var(--neu-accent);
+    }
+    body.night-mode #sidebar .tbtn.danger {
+      color: var(--on-accent); background: var(--red); border: 0 !important;
+    }
+    body.night-mode #sidebar textarea::placeholder,
+    body.night-mode #sidebar input::placeholder { color: var(--text-3); }
+    .sms-bal-usage-hot { color: var(--on-accent); background: var(--yellow) !important; }
+
+    /* ── 15 · Responsive ──────────────────────────────────────────────────*/
+    @media (max-width: 1360px) {
+      :root { --nav-w: 224px; --snap-w: 258px; }
+      #nav-find { flex-basis: 268px; }
+    }
+    @media (max-width: 1140px) {
+      :root { --snap-w: 240px; --ui-view-pad: 16px; --ui-section-gap: 13px; }
+      #app-body { gap: 0; padding: 0; }
+      .view { padding: 16px; }
+      #nav-find { flex-basis: 214px; }
+      #topbar-crumb, #topbar-crumb-sep { display: none; }
+    }
+    @media (max-width: 900px) {
+      :root { --nav-w: var(--nav-w-min); }
+      #app-nav .nav-brand, #app-nav .nav-label,
+      #app-nav .nav-caret, #app-nav .nav-sublabel,
+      #app-nav #login-user-label { display: none; }
+      #app-nav .nav-children { display: none !important; }
+      #app-nav .nav-head { justify-content: center; padding: 0; }
+      #app-nav .nav-parent { justify-content: center; padding: 0; }
+      #app-nav .nav-foot-actions { flex-direction: column; gap: 6px; }
+      #app-nav #nav-collapse-btn { margin-left: 0; }
+      #toolbar { margin: 12px 12px 0; }
+    }
+    @media (max-width: 700px) {
+      #sidebar { position: fixed; left: var(--nav-w-min); top: var(--chrome-h); bottom: 0; z-index: 40; box-shadow: var(--neu-floating); }
+      #menubar { padding: 0 10px; gap: 9px; }
+      #nav-find { flex-basis: 44px; }
+      #nav-find-box { padding: 0 10px; }
+      #nav-search { width: 0; }
+      #nav-search-panel { right: 0; left: auto; width: min(88vw, 340px); }
+      .view { padding: 12px; }
+    }
+
+    /* No reduced-motion block here on purpose: the app already ships a global
+       `*, *::before, *::after` catch-all that clamps every animation and
+       transition duration, and it covers this layer too. */
+
+    /* Print stays flat: soft shadows render as grey smears on paper. */
+    @media print {
+      #app-nav, #app-body > #sidebar, #nav-find, #toolbar { display: none !important; }
+      .groupbox, .lv-wrap, .stat-box, .sum-card, .st-daily-card,
+      .settings-page-panel, .sms-bal-panel, .daily-workspace {
+        box-shadow: none !important;
+        border: 1px solid #999 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -6328,6 +7608,18 @@
     </div>
 
     <div class="nav-scroll" id="nav-scroll">
+
+      <!-- Favourites. Populated by the shell controller with clones of the
+           leaves below, carrying the same data-module / data-view / data-src
+           attributes — so a starred destination routes through exactly the
+           same go() call and inherits the same role gating as the original. -->
+      <div class="nav-group nav-group-fav is-open" id="nav-fav-group" hidden>
+        <button type="button" class="nav-parent" id="nav-fav-parent" tabindex="-1" aria-hidden="true">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/></svg></span>
+          <span class="nav-label">Favourites</span>
+        </button>
+        <div class="nav-children" id="nav-fav-list"></div>
+      </div>
 
       <!-- Balance Monitor VOIP -->
       <div class="nav-group" data-module="balance" data-src="view-menu-balance">
@@ -6436,11 +7728,35 @@
 
     </div>
 
+    <!-- Account, theme and collapse. These are the same controls that used to
+         live in the top bar; they are addressed by id everywhere in the app,
+         never by position, so relocating them is invisible to existing code. -->
     <div class="nav-foot">
-      <button type="button" id="nav-collapse-btn" onclick="bmToggleNav()" aria-label="Collapse navigation" title="Collapse navigation (Ctrl+B)">
-        <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 8 10.5 12l4 4"/><path d="M4 5v14"/></svg></span>
-        <span class="nav-label">Collapse</span>
-      </button>
+      <span id="login-user-label"></span>
+      <div class="nav-foot-actions">
+        <button class="nav-foot-btn" id="night-toggle" onclick="toggleNightMode()" title="Toggle night mode" aria-label="Toggle night mode">
+          <svg class="ico-moon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
+            <path d="M13.3 10.1A5.6 5.6 0 0 1 5.9 2.7a5.6 5.6 0 1 0 7.4 7.4z"/>
+          </svg>
+          <svg class="ico-sun" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
+            <circle cx="8" cy="8" r="2.7"/>
+            <line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/>
+            <line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/>
+            <line x1="3.2" y1="3.2" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.8" y2="12.8"/>
+            <line x1="3.2" y1="12.8" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.8" y2="3.2"/>
+          </svg>
+        </button>
+        <button class="nav-foot-btn" id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" aria-label="Sign out" style="display:none">
+          <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.2 14H3.4A1.2 1.2 0 0 1 2.2 12.8V3.2A1.2 1.2 0 0 1 3.4 2H6.2"/>
+            <path d="M10.4 11 13.4 8l-3-3"/>
+            <line x1="13.4" y1="8" x2="6.2" y2="8"/>
+          </svg>
+        </button>
+        <button type="button" class="nav-foot-btn" id="nav-collapse-btn" onclick="bmToggleNav()" aria-label="Collapse navigation" title="Collapse navigation (Ctrl+B)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 8 10.5 12l4 4"/><path d="M4 5v14"/></svg>
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -6498,32 +7814,30 @@
       <span id="topbar-crumb-sep" aria-hidden="true">/</span>
       <span id="topbar-view">Summary</span>
     </div>
+    <!-- Destination search and favourites. Both read the navigation rail as
+         their index, so a tab added to the rail is searchable and starrable
+         with no second list to keep in step. -->
+    <div id="nav-find">
+      <div id="nav-find-box">
+        <svg class="nav-find-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.4"/><path d="m16 16 4 4"/>
+        </svg>
+        <input type="text" id="nav-search" placeholder="Search tabs" autocomplete="off" spellcheck="false"
+               aria-label="Search tabs" aria-expanded="false" aria-controls="nav-search-panel" />
+      </div>
+      <button type="button" id="fav-btn" aria-pressed="false" title="Add this view to Favourites" aria-label="Add this view to Favourites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/>
+        </svg>
+      </button>
+      <div id="nav-search-panel" role="group" aria-label="Tab search results" hidden></div>
+    </div>
     <div id="menubar-right">
-      <span id="login-user-label"></span>
       <button id="ui-comfy-toggle" onclick="toggleComfy()" title="Toggle comfortable density — larger data text and roomier rows">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
           <line x1="3" y1="4.5" x2="13" y2="4.5"/>
           <line x1="3" y1="8" x2="13" y2="8"/>
           <line x1="3" y1="11.5" x2="13" y2="11.5"/>
-        </svg>
-      </button>
-      <button id="night-toggle" onclick="toggleNightMode()" title="Toggle night mode">
-        <svg class="ico-moon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">
-          <path d="M13.3 10.1A5.6 5.6 0 0 1 5.9 2.7a5.6 5.6 0 1 0 7.4 7.4z"/>
-        </svg>
-        <svg class="ico-sun" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round">
-          <circle cx="8" cy="8" r="2.7"/>
-          <line x1="8" y1="1.2" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="14.8"/>
-          <line x1="1.2" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="14.8" y2="8"/>
-          <line x1="3.2" y1="3.2" x2="4.5" y2="4.5"/><line x1="11.5" y1="11.5" x2="12.8" y2="12.8"/>
-          <line x1="3.2" y1="12.8" x2="4.5" y2="11.5"/><line x1="11.5" y1="4.5" x2="12.8" y2="3.2"/>
-        </svg>
-      </button>
-      <button id="btn-signout" onclick="openSignoutConfirm()" title="Sign out of BalanceMonitor" style="display:none">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6.2 14H3.4A1.2 1.2 0 0 1 2.2 12.8V3.2A1.2 1.2 0 0 1 3.4 2H6.2"/>
-          <path d="M10.4 11 13.4 8l-3-3"/>
-          <line x1="13.4" y1="8" x2="6.2" y2="8"/>
         </svg>
       </button>
     </div>
@@ -6576,6 +7890,18 @@
     <div id="sidebar">
       <!-- Sidebar quick-nav removed (#3): these were display:none dead markup left
            over from the old theme. Navigation lives in the toolbar (tnav-* / .tab). -->
+
+      <!-- Panel header. Aligns with the rail head and the top bar so all three
+           columns start on the same line, and carries the panel's own hide
+           control beside the one in the top bar. -->
+      <div class="snap-head">
+        <span class="snap-head-title">Snapshot &amp; Upload</span>
+        <button type="button" class="snap-head-close" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m14 6-6 6 6 6"/>
+          </svg>
+        </button>
+      </div>
 
       <!-- Snapshot paste -->
       <div id="sidebar-snap">
@@ -25710,6 +27036,11 @@ if (auth) {
     var mod = currentModule();
     placeToolbar(mod);
 
+    // Favourites are rebuilt first so the two passes below reach the clones
+    // too: they carry the same data-src and data-active-src as the leaves
+    // they were made from, and are gated and highlighted by the same rules.
+    renderFavorites();
+
     // Role gating: inherit each item's visibility from the control it drives.
     nav.querySelectorAll('[data-src]').forEach(function (el) {
       el.style.display = sourceHidden(el.dataset.src) ? 'none' : '';
@@ -25717,9 +27048,13 @@ if (auth) {
 
     var activeLeaf = null;
     nav.querySelectorAll('.nav-group').forEach(function (g) {
-      var isCurrent = g.dataset.module === mod;
+      // Favourites hold clones from every module at once, so "are we here"
+      // is a per-leaf question in that group rather than a per-group one,
+      // and the group itself is always open.
+      var isFav = g.classList.contains('nav-group-fav');
+      var isCurrent = !isFav && g.dataset.module === mod;
       g.classList.toggle('is-current', isCurrent);
-      g.classList.toggle('is-open', isCurrent);
+      g.classList.toggle('is-open', isFav || isCurrent);
 
       g.querySelectorAll('.nav-leaf').forEach(function (leaf) {
         var src = leaf.dataset.activeSrc ? document.getElementById(leaf.dataset.activeSrc) : null;
@@ -25727,12 +27062,19 @@ if (auth) {
         // tab is on screen, so a leaf below an SMS tab only counts when that
         // tab is the one actually showing.
         var tabOk = !leaf.dataset.smstab || tabIsActive('sms-tab-' + leaf.dataset.smstab);
-        var on = isCurrent && tabOk && !!src && src.classList.contains('active');
+        var inModule = isFav ? leaf.dataset.module === mod : isCurrent;
+        // A favourited module with no deeper views (Stats, Daily Traffic,
+        // Admin) has no source control to mirror, so being in the module is
+        // the whole answer for it.
+        var on = src
+          ? (inModule && tabOk && src.classList.contains('active'))
+          : (inModule && !leaf.dataset.view && !leaf.dataset.smstab && !leaf.dataset.vostab);
         leaf.classList.toggle('is-active', on);
         leaf.setAttribute('aria-current', on ? 'page' : 'false');
         // Prefer the deepest match: a sub-group header is only the answer
-        // when nothing inside it is.
-        if (on && (!activeLeaf || activeLeaf.classList.contains('nav-subparent'))) activeLeaf = leaf;
+        // when nothing inside it is. A clone never answers, because it has no
+        // sub-group above it and would shorten the breadcrumb.
+        if (on && !isFav && (!activeLeaf || activeLeaf.classList.contains('nav-subparent'))) activeLeaf = leaf;
       });
 
       g.querySelectorAll('.nav-subgroup').forEach(function (sg) {
@@ -25780,6 +27122,16 @@ if (auth) {
     if (crumbEl) crumbEl.textContent = crumbParts.filter(Boolean).join(' / ');
     if (viewEl) viewEl.textContent = viewLabel;
     if (sepEl) sepEl.style.display = viewLabel ? '' : 'none';
+
+    // Where the star applies. A module with deeper views is favourited at the
+    // view; a flat one (Stats, Daily Traffic, Admin) at the module.
+    var here = activeLeaf;
+    if (!here) {
+      var g = nav.querySelector('.nav-group:not(.nav-group-fav)[data-module="' + mod + '"]');
+      here = g && g.querySelector(':scope > .nav-parent');
+    }
+    currentDest = here ? { key: destKey(here.dataset), label: labelOf(here) } : null;
+    syncFavButton();
 
     // An empty sub-menu strip is removed rather than left as a blank band.
     if (toolbar) {
@@ -25842,6 +27194,297 @@ if (auth) {
     });
   }
 
+  /* ── Destinations, search and favourites ─────────────────────────────────
+     The rail is the index. Search and favourites both read it rather than
+     keeping a list of their own, so a destination added to the rail is
+     searchable and starrable the moment it exists, and a destination hidden
+     by a role check disappears from both without either knowing why.
+
+     A favourite is stored as the destination's data-* signature, not as a
+     DOM reference or a label, so it survives a re-render and a rename. Each
+     favourite is rebuilt as a real .nav-leaf carrying the same attributes,
+     which is what routes it back through the same go() call. */
+  var DEST_KEYS = ['module', 'view', 'smstab', 'smsview', 'credtab', 'vostab'];
+  var FAV_MAX = 12;
+  var currentDest = null;
+  var findInput, findPanel, favBtn, favList, favGroup;
+
+  function destKey(d) {
+    return DEST_KEYS.map(function (k) { return d[k] || ''; }).join('|');
+  }
+
+  function favorites() {
+    var f = readPrefs().favorites;
+    return Array.isArray(f) ? f.filter(function (k) { return typeof k === 'string'; }) : [];
+  }
+
+  function isHidden(el) {
+    for (var n = el; n && n !== nav; n = n.parentElement) {
+      if (n.style && n.style.display === 'none') return true;
+    }
+    return false;
+  }
+
+  /* Every place the rail can take you, in rail order, with the trail that
+     leads there. Sub-group headers are included on purpose: "Credentials" is
+     a destination in its own right, not only a folder. */
+  function destinations() {
+    var out = [];
+    if (!nav) return out;
+    nav.querySelectorAll('#nav-scroll > .nav-group:not(.nav-group-fav)').forEach(function (g) {
+      if (isHidden(g)) return;
+      var parent = g.querySelector(':scope > .nav-parent');
+      var groupName = labelOf(parent);
+      var leaves = g.querySelectorAll('.nav-leaf');
+      if (!leaves.length) {
+        if (parent) out.push({ name: groupName, path: '', el: parent, group: g });
+        return;
+      }
+      leaves.forEach(function (leaf) {
+        if (isHidden(leaf)) return;
+        var name = labelOf(leaf);
+        var sg = leaf.closest('.nav-subgroup');
+        var sgName = sg ? labelOf(sg.querySelector(':scope > .nav-subparent')) : '';
+        var path = groupName + (sgName && sgName !== name ? ' / ' + sgName : '');
+        out.push({ name: name, path: path, el: leaf, group: g });
+      });
+    });
+    return out;
+  }
+
+  function destMap(all) {
+    var m = {};
+    (all || destinations()).forEach(function (d) { m[destKey(d.el.dataset)] = d; });
+    return m;
+  }
+  function findDest(key) { return destMap()[key] || null; }
+
+  function toggleFavorite(key) {
+    if (!key) return;
+    var list = favorites();
+    var at = list.indexOf(key);
+    if (at >= 0) list.splice(at, 1);
+    else {
+      list.push(key);
+      if (list.length > FAV_MAX) list.shift();
+    }
+    writePrefs({ favorites: list });
+    renderFavorites(true);
+    syncFavButton();
+    if (findPanel && !findPanel.hidden) renderFind(findInput ? findInput.value : '');
+  }
+
+  function syncFavButton() {
+    if (!favBtn) return;
+    var on = !!currentDest && favorites().indexOf(currentDest.key) >= 0;
+    favBtn.disabled = !currentDest;
+    favBtn.setAttribute('aria-pressed', String(on));
+    var what = currentDest ? '"' + currentDest.label + '"' : 'this view';
+    var text = on ? 'Remove ' + what + ' from Favourites' : 'Add ' + what + ' to Favourites';
+    favBtn.setAttribute('aria-label', text);
+    // The app migrates every title= into its own tooltip layer and strips the
+    // attribute, so write to whichever of the two this button is currently
+    // carrying instead of re-adding a title for it to remove on every pass.
+    if (favBtn.dataset.premiumTooltip !== undefined) favBtn.dataset.premiumTooltip = text;
+    else favBtn.title = text;
+  }
+
+  /* Rebuild a destination as a rail leaf. data-src is carried over so the
+     clone inherits role gating from the same source control; for a flat
+     module that flag lives on the group, not the button. */
+  function favLeaf(dest) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'nav-leaf';
+    DEST_KEYS.forEach(function (k) { if (dest.el.dataset[k]) b.dataset[k] = dest.el.dataset[k]; });
+    if (dest.el.dataset.activeSrc) b.dataset.activeSrc = dest.el.dataset.activeSrc;
+    var srcId = dest.el.dataset.src || (dest.group && dest.group.dataset.src);
+    if (srcId) b.dataset.src = srcId;
+    var label = document.createElement('span');
+    label.className = 'nav-label';
+    label.textContent = dest.name;
+    b.appendChild(label);
+    b.title = dest.path ? dest.path + ' / ' + dest.name : dest.name;
+    return b;
+  }
+
+  /* Rebuilt only when the resolvable set actually changes: this runs inside
+     every sync pass, and replacing a dozen buttons on each one would churn
+     the DOM (and the tooltip layer that adopts them) for nothing. A role
+     check that removes a destination changes the signature, so gating still
+     takes effect without a separate hook. */
+  var favRendered = null;
+  function renderFavorites(force) {
+    if (!favList || !favGroup) return;
+    var byKey = destMap();
+    var keys = favorites().filter(function (k) { return !!byKey[k]; });
+    var sig = keys.join('§');
+    if (!force && sig === favRendered) return;
+    favRendered = sig;
+    favList.textContent = '';
+    keys.forEach(function (k) { favList.appendChild(favLeaf(byKey[k])); });
+    favGroup.hidden = keys.length === 0;
+  }
+
+  /* ── The search panel ── */
+  function rank(dest, q) {
+    var name = dest.name.toLowerCase();
+    var path = dest.path.toLowerCase();
+    if (name === q) return 0;
+    if (name.indexOf(q) === 0) return 1;
+    if (name.indexOf(q) > 0) return 2;
+    if ((path + ' ' + name).indexOf(q) >= 0) return 3;
+    return -1;
+  }
+
+  function findRow(dest, favKeys) {
+    var key = destKey(dest.el.dataset);
+    var row = document.createElement('div');
+    row.className = 'nav-find-row';
+
+    var goBtn = document.createElement('button');
+    goBtn.type = 'button';
+    goBtn.className = 'nfr-go';
+    var name = document.createElement('span');
+    name.className = 'nfr-name';
+    name.textContent = dest.name;
+    goBtn.appendChild(name);
+    if (dest.path) {
+      var path = document.createElement('span');
+      path.className = 'nfr-path';
+      path.textContent = dest.path;
+      goBtn.appendChild(path);
+    }
+    goBtn.addEventListener('click', function () {
+      closeFind();
+      go(dest.el);
+      queueSync();
+    });
+
+    var star = document.createElement('button');
+    star.type = 'button';
+    star.className = 'nfr-star';
+    var starred = favKeys.indexOf(key) >= 0;
+    star.setAttribute('aria-pressed', String(starred));
+    var starText = (starred ? 'Remove ' : 'Add ') + '"' + dest.name + '"' + (starred ? ' from' : ' to') + ' Favourites';
+    star.title = starText;
+    star.setAttribute('aria-label', starText);
+    star.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/></svg>';
+    star.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      toggleFavorite(key);
+    });
+
+    row.appendChild(goBtn);
+    row.appendChild(star);
+    return row;
+  }
+
+  function sectionLabel(text) {
+    var el = document.createElement('div');
+    el.className = 'nav-find-group';
+    el.textContent = text;
+    return el;
+  }
+
+  function renderFind(query) {
+    if (!findPanel) return;
+    var q = (query || '').trim().toLowerCase();
+    var all = destinations();
+    var favKeys = favorites();
+    findPanel.textContent = '';
+
+    if (!q) {
+      // No query: favourites first, then everything, so the star is reachable
+      // for any destination without having to think of its name.
+      var favs = favKeys.map(findDest).filter(Boolean);
+      if (favs.length) {
+        findPanel.appendChild(sectionLabel('Favourites'));
+        favs.forEach(function (d) { findPanel.appendChild(findRow(d, favKeys)); });
+      }
+      findPanel.appendChild(sectionLabel('All tabs'));
+      all.forEach(function (d) { findPanel.appendChild(findRow(d, favKeys)); });
+      return;
+    }
+
+    var hits = all
+      .map(function (d) { return { d: d, r: rank(d, q) }; })
+      .filter(function (h) { return h.r >= 0; })
+      .sort(function (a, b) { return a.r - b.r; });
+
+    if (!hits.length) {
+      var empty = document.createElement('div');
+      empty.className = 'nav-find-empty';
+      empty.textContent = 'No tab matches "' + query.trim() + '"';
+      findPanel.appendChild(empty);
+      return;
+    }
+    hits.forEach(function (h) { findPanel.appendChild(findRow(h.d, favKeys)); });
+  }
+
+  function openFind() {
+    if (!findPanel) return;
+    renderFind(findInput ? findInput.value : '');
+    findPanel.hidden = false;
+    if (findInput) findInput.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeFind() {
+    if (!findPanel) return;
+    findPanel.hidden = true;
+    if (findInput) findInput.setAttribute('aria-expanded', 'false');
+  }
+
+  /* Roving focus down the result list, so the whole thing is reachable from
+     the keyboard without the panel stealing focus the moment it opens. */
+  function moveFindFocus(step) {
+    if (!findPanel || findPanel.hidden) return;
+    var rows = Array.prototype.slice.call(findPanel.querySelectorAll('.nfr-go'));
+    if (!rows.length) return;
+    var at = rows.indexOf(document.activeElement);
+    var next = at < 0 ? (step > 0 ? 0 : rows.length - 1) : at + step;
+    if (next < 0) { if (findInput) findInput.focus(); return; }
+    if (next >= rows.length) next = rows.length - 1;
+    rows[next].focus();
+  }
+
+  function initFind() {
+    findInput = document.getElementById('nav-search');
+    findPanel = document.getElementById('nav-search-panel');
+    favBtn = document.getElementById('fav-btn');
+    favList = document.getElementById('nav-fav-list');
+    favGroup = document.getElementById('nav-fav-group');
+    if (!findInput || !findPanel) return;
+
+    findInput.addEventListener('input', function () { openFind(); });
+    findInput.addEventListener('focus', function () { openFind(); });
+    findInput.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); openFind(); moveFindFocus(1); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); findInput.value = ''; closeFind(); }
+      else if (ev.key === 'Enter') {
+        var first = findPanel.querySelector('.nfr-go');
+        if (first && !findPanel.hidden) { ev.preventDefault(); first.click(); }
+      }
+    });
+    findPanel.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); moveFindFocus(1); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); moveFindFocus(-1); }
+      else if (ev.key === 'Escape') { ev.preventDefault(); closeFind(); findInput.focus(); }
+    });
+    document.addEventListener('mousedown', function (ev) {
+      var box = document.getElementById('nav-find');
+      if (box && !box.contains(ev.target)) closeFind();
+    });
+
+    if (favBtn) {
+      favBtn.addEventListener('click', function () {
+        if (currentDest) toggleFavorite(currentDest.key);
+      });
+    }
+    renderFavorites();
+    syncFavButton();
+  }
+
   /* ── Boot ────────────────────────────────────────────────────────────── */
   function boot() {
     nav = document.getElementById('app-nav');
@@ -25870,12 +27513,25 @@ if (auth) {
     });
     window.addEventListener('resize', closeFlyouts);
 
+    initFind();
+
     document.addEventListener('keydown', function (ev) {
       if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'b' || ev.key === 'B')) {
         var t = ev.target;
         if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
         ev.preventDefault();
         window.bmToggleNav();
+      }
+      // Ctrl+K reaches the tab search from anywhere, including out of a field:
+      // the app is full of paste areas, and having to mouse out of one to
+      // change view is the thing the search exists to avoid.
+      if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey && (ev.key === 'k' || ev.key === 'K')) {
+        if (findInput) {
+          ev.preventDefault();
+          findInput.focus();
+          findInput.select();
+          openFind();
+        }
       }
       if (ev.key === 'Escape') closeFlyouts();
     });
