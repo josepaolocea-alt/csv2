@@ -7124,12 +7124,16 @@
        No zebra: most rows are already tinted by status and a striped ground
        competes with that. Hairlines carry rhythm, hover carries the row you
        are tracking. */
+    /* No `overflow` here on purpose. These shells author their own — .lv-wrap
+       is `overflow: auto` and is the scroll container for every long table in
+       the app — and setting `hidden` to clip the rounded corners silently
+       took scrolling away from all of them. `auto` clips to the radius on its
+       own, so there was nothing to fix. */
     .lv-wrap, .sms-bal-table-wrap, .vos-stats-table-shell,
     .vos-stats-timeline, #stats-timeline-list, #stats-daily-date-list {
       background: var(--surface);
       border: 0; border-radius: var(--r-lg);
       box-shadow: var(--neu-raised-sm);
-      overflow: hidden;
     }
     table { border-collapse: collapse; }
     th {
@@ -7506,6 +7510,73 @@
     body.night-mode #sidebar textarea::placeholder,
     body.night-mode #sidebar input::placeholder { color: var(--text-3); }
     .sms-bal-usage-hot { color: var(--on-accent); background: var(--yellow) !important; }
+
+    /* ── 14c · Reported fixes ─────────────────────────────────────────────
+       Five things found in use after the first pass of this layer. Four of
+       them are one-line consequences of a shared rule meeting markup that had
+       been hand-tuned around the old sizes, which is the usual cost of a
+       preserve-mode restyle; they are corrected at the point of collision
+       rather than by loosening the shared rule. */
+
+    /* 1 · Every premium select reserves 32px on its right for the caret and
+       its divider, drawn as ::after / ::before at right: 11px / 25px. The
+       field rule in §10 replaced that with symmetrical 12px padding, so a
+       long option label ran underneath the caret and was clipped: "All
+       Account Managers" and "Current All Clients button" both lost their
+       last characters. The reserve is restored and the divider moved out to
+       match the wider inset. */
+    .premium-select-trigger { padding: 0 36px 0 13px !important; }
+    .premium-select-trigger::after { right: 13px; }
+    .premium-select-trigger::before { right: 28px; }
+
+    /* 2 · The SMS tab bar is hidden because the rail owns it now, but the
+       panel below kept the 1px rule that used to separate the two, leaving a
+       stray line across the top of every SMS Balance tab. The padding is left
+       alone: it comes from an inline style on the element, which no rule here
+       can reach, and 6px is right anyway once the rule is gone. */
+    #view-sms > .groupbox > .tab-content { border-top: 0; }
+
+    /* 3 · Report & Export. The label column was sized for an 11px control and
+       hung high against a 34px one, and the two checkbox rows collapsed to
+       half the height of the field rows, so the form had no rhythm. One row
+       height, and the labels adopt the same micro-label the rest of the app
+       uses for a field group. */
+    #view-export .exp-form { max-width: 640px; gap: 10px; }
+    #view-export .exp-row { gap: 10px; align-items: center; min-height: var(--ui-control-h); }
+    #view-export .exp-lbl {
+      display: flex; align-items: center; align-self: stretch;
+      min-width: 92px; min-height: var(--ui-control-h); padding: 0;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+    #view-export .exp-date-row { align-items: flex-start; }
+    #view-export .exp-row label {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-left: 0 !important; min-height: var(--ui-control-h);
+      font-size: 12.5px; font-weight: 500; color: var(--text-2);
+    }
+    #view-export .exp-row > .premium-select,
+    #view-export .exp-row > .win-sel { min-width: 210px; }
+    #view-export .exp-date-caption {
+      font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--text-3);
+    }
+
+    /* 4 · Daily Traffic and VOS carry their content full-bleed, so with the
+       panel radius at 20px the sub-tab track's own 14px corner landed one
+       pixel inside the panel's and the two corners fought. Only the nav row
+       is inset: the data bands below it are edge-to-edge by design, the way
+       a table header is, and padding the whole panel would strand their
+       separators short of the edge. The divider before the export buttons
+       goes with it, since those are raised objects and do not need a rule to
+       be told apart from a recessed track. */
+    .daily-workspace-nav,
+    .vos-stats-workspace .daily-workspace-nav {
+      padding: 14px 16px 0;
+      margin-bottom: 14px;
+    }
+    .daily-workspace-nav .st-daily-export-actions { padding-left: 0; border-left: 0; }
+    .sms-bal-status-guide, .voip-alert-guide { padding: 14px; }
 
     /* ── 15 · Responsive ──────────────────────────────────────────────────*/
     @media (max-width: 1360px) {
