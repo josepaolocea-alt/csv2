@@ -7388,6 +7388,38 @@
     }
     .fbar, .clients-toolbar { margin-bottom: 14px; }
 
+    /* Stats > All Clients uses one shared left edge for its heading, filter
+       well, and data-table shell. The generic tab-content inset was creating
+       a second indentation and its border rendered as a divider between the
+       filters and table. */
+    #view-stats-all .tab-content {
+      padding: 0 !important;
+      border-top: 0;
+    }
+
+    /* Alert state must win over the shared tab surface above. These selectors
+       intentionally live in the final theme layer because the unified tabs
+       use !important for their neutral and active backgrounds. */
+    #alert-tabs .tab.tab-blink-red,
+    #alert-tabs .tab.tab-blink-red.active,
+    .sms-bal-subnav .tbtn.has-new-critical,
+    .sms-bal-subnav .tbtn.has-new-critical.active,
+    .sms-bal-segmented .tbtn.has-new-critical,
+    .sms-bal-segmented .tbtn.has-new-critical.active {
+      color: #fff !important;
+      background-color: var(--red) !important;
+      background-image: none !important;
+      border-color: var(--red) !important;
+      box-shadow: var(--neu-raised-sm) !important;
+      animation: alertPulse 1.6s ease-in-out infinite;
+    }
+    #alert-tabs .tab.tab-blink-red:hover,
+    .sms-bal-subnav .tbtn.has-new-critical:hover,
+    .sms-bal-segmented .tbtn.has-new-critical:hover {
+      color: #fff !important;
+      background-color: color-mix(in srgb, var(--red) 88%, #fff) !important;
+    }
+
     /* The All Clients toolbar was a three-track grid whose breakpoints were
        written against the viewport (1180px / 760px). The workspace is not the
        viewport: the rail and snapshot panel take roughly 480px off it, so on a
@@ -8810,8 +8842,8 @@
                       <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted. Turns red while Critical clients exist.">Critical <span id="sms-bal-alert-count-critical"></span></button>
                       <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit, plus clients running on overdraft. When overdraft is available, the Balance Bar recalculates toward overdraft exhaustion; removing overdraft restores the configured Credit-to-Critical range. Turns red at 90% or more.">Warning <span id="sms-bal-alert-count-warning"></span></button>
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red only when a newly detected No Threshold client exists.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client reaches usage 50 or more.">Usage <span id="sms-bal-alert-count-usage"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red while a current client has neither Credit Limit nor Critical Balance set.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-usage" onclick="setSmsBalanceAlertFilter('usage',this)" data-premium-tooltip="All latest-snapshot clients with positive 30-minute usage. Turns red when any client has more than 50 usage in 30 minutes.">Usage <span id="sms-bal-alert-count-usage"></span></button>
                       <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client currently Critical or blocked, without adding them to Critical History. Clients that still have overdraft available remain in overdraft monitoring and are excluded.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing positive 30-minute usage. Payments and other negative balance adjustments are excluded. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
@@ -13435,12 +13467,12 @@ function spamChipInfo(row) {
     ? ['high',   `High spam · ${detail}`]
     : ['medium', `Watch · ${detail}`];
 }
-function updateSpamTab(count, highCount = 0) {
+function updateSpamTab(count) {
   const tab = document.getElementById('tab-spam');
   if (!tab) return;
   tab.textContent = count > 0 ? `Possible Spam (${count})` : 'Possible Spam';
-  // Blink red only when there's a High-tier suspect; Watch-only just shows the count.
-  tab.classList.toggle('tab-blink-red', highCount > 0);
+  // Any marked suspect needs attention, including Watch-tier findings.
+  tab.classList.toggle('tab-blink-red', count > 0);
 }
 // Load the persistent baseline once (lazily), then re-render so the Possible
 // Spam tab count/rows populate without blocking the initial paint.
@@ -17327,16 +17359,15 @@ function alertRows() {
   if      (alertFilter==='removed')       rows = visibleRemoved;
   else if (alertFilter==='inactiveusage') rows = inactiveUsageRows; // bypass Show-inactive toggle
   else                                    rows = visibleData;
-  // Usage tab blinks only for 30m usage ≥ 100 (usageAlertLevel medium/high).
-  const usageBlinkCount = visibleData.filter(r=>{const l=usageAlertLevel(r);return l==='high'||l==='medium';}).length;
+  // Attention rules are independent of the selected filter: a tab turns red
+  // whenever the current data matches the operational threshold requested for it.
+  const usageBlinkCount = visibleData.filter(r=>amountNumber(r.usage_30min)>50).length;
   const noThreshCount  = visibleData.filter(r=>!r._hasThreshold).length;
-  // Warning tab blinks when a Warning (light) client has usage AND its balance
-  // bar is 90–99.9% (nearly critical). A light client's bar is always <100, so
-  // ≥90 captures the 90–99.9% band. Clears next snapshot if none stay ≥90%.
-  const warnBlinkCount = visibleData.filter(r=>r._level==='light' && amountNumber(r.usage_30min)!==0 && balanceBarPct(r)>=90).length;
+  // Warning turns red at 90% progress toward Critical Balance. Usage is not a
+  // prerequisite: balance proximity alone is the warning condition.
+  const warnBlinkCount = visibleData.filter(r=>r._level==='light' && balanceBarPct(r)>=90).length;
   const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, z:r._spamInfo?.z }));
   const spamCount      = spamSuspects.length;
-  const spamHighCount  = spamSuspects.filter(s=>s.tier==='high').length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
   if(alertFilter==='spam')     rows=rows.filter(r=>r._spam);
@@ -17358,7 +17389,7 @@ function alertRows() {
       return((av??0)-(bv??0))*alertSortDir;
     });
   }
-  return { rows, newCount, removedCount, prevCritSet, usageBlinkCount, warnBlinkCount, noThreshCount, inactiveUsageCount, spamCount, spamHighCount, spamSuspects };
+  return { rows, newCount, removedCount, prevCritSet, usageBlinkCount, warnBlinkCount, noThreshCount, inactiveUsageCount, spamCount, spamSuspects };
 }
 
 // Refresh every Alert sub-tab's blink/label state, then blink the top-level
@@ -17373,9 +17404,9 @@ function refreshAlertTabIndicators() {
   setTabBlink('tab-usage',    c.usageBlinkCount > 0);
   setTabBlink('tab-nothresh', c.noThreshCount > 0);
   updateInactiveUsageTab(c.inactiveUsageCount);
-  updateSpamTab(c.spamCount, c.spamHighCount);
+  updateSpamTab(c.spamCount);
   const anyBlink = c.newCount > 0 || c.removedCount > 0 || c.usageBlinkCount > 0
-    || c.warnBlinkCount > 0 || c.noThreshCount > 0 || c.inactiveUsageCount > 0 || c.spamHighCount > 0;
+    || c.warnBlinkCount > 0 || c.noThreshCount > 0 || c.inactiveUsageCount > 0 || c.spamCount > 0;
   updateAlertTabFlash(anyBlink);
   return c;
 }
@@ -19384,11 +19415,12 @@ function updateSmsBalanceAlertCounts() {
     if (el) el.textContent = count ? `(${count})` : '';
   });
   const newCriticalCount = countFor('new');
+  const currentRows = rowsFor('all');
   const redTabs={
     critical:countFor('critical')>0,
     warning:rowsFor('warning').some(smsBalanceWarningIsHot),
-    nothreshold:countFor('newnothreshold')>0,
-    usage:rowsFor('usage').some(row=>smsBalanceNumber(row.usage_30min)>=50),
+    nothreshold:currentRows.some(row=>row._status?.credit===null&&row._status?.critical===null),
+    usage:rowsFor('usage').some(row=>smsBalanceNumber(row.usage_30min)>50),
     new:newCriticalCount>0,
     removed:countFor('removed')>0,
     inactiveusage:countFor('inactiveusage')>0
