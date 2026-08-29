@@ -28047,6 +28047,17 @@ if (auth) {
     vos: 'VOS',
     users: 'Admin'
   };
+  /* The same word for the breadcrumb's module, short enough to sit in front of
+     a view name inside the rail. Used only to tell two same-named favourites
+     apart — see favLabel(). */
+  var MODULE_TAG = {
+    balance: 'VOIP',
+    sms: 'SMS',
+    stats: 'Stats',
+    traffic: 'Daily Traffic',
+    vos: 'VOS',
+    users: 'Admin'
+  };
 
   var nav, navScroll, toolbar, syncQueued = false, syncing = false, flyoutTimer = null;
   var favoriteLoadToken = 0, favoriteSaveTimer = null;
@@ -28530,10 +28541,35 @@ if (auth) {
     else favBtn.title = text;
   }
 
+  /* Names repeat across the rail — VOS carries its own Stats and Daily Traffic
+     beside the top-level ones, and SMS repeats most of the VOIP view names.
+     Under their own group each reads fine, but Favourites stacks them out of
+     that context, where two rows both saying "Stats" is a coin toss. So a name
+     shared with another reachable destination is prefixed with its module, and
+     a name that already leads with it (the flat Stats and Daily Traffic
+     modules) is left alone rather than doubled. */
+  function sharedNames(all) {
+    var seen = {}, shared = {};
+    (all || []).forEach(function (d) {
+      var n = d.name.toLowerCase();
+      if (seen[n]) shared[n] = true;
+      seen[n] = true;
+    });
+    return shared;
+  }
+
+  function favLabel(dest, shared) {
+    var name = dest.name;
+    if (!shared || !shared[name.toLowerCase()]) return name;
+    var tag = MODULE_TAG[dest.el.dataset.module || (dest.group && dest.group.dataset.module)] || '';
+    if (!tag || name.toLowerCase().indexOf(tag.toLowerCase()) === 0) return name;
+    return tag + ' ' + name;
+  }
+
   /* Rebuild a destination as a rail leaf. data-src is carried over so the
      clone inherits role gating from the same source control; for a flat
      module that flag lives on the group, not the button. */
-  function favLeaf(dest) {
+  function favLeaf(dest, shared) {
     var b = document.createElement('button');
     b.type = 'button';
     b.className = 'nav-leaf';
@@ -28543,7 +28579,7 @@ if (auth) {
     if (srcId) b.dataset.src = srcId;
     var label = document.createElement('span');
     label.className = 'nav-label';
-    label.textContent = dest.name;
+    label.textContent = favLabel(dest, shared);
     b.appendChild(label);
     b.title = dest.path ? dest.path + ' / ' + dest.name : dest.name;
     return b;
@@ -28557,13 +28593,19 @@ if (auth) {
   var favRendered = null;
   function renderFavorites(force) {
     if (!favList || !favGroup) return;
-    var byKey = destMap();
+    var all = destinations();
+    var byKey = destMap(all);
+    // Ambiguity is judged against every destination the rail can reach, not
+    // only the starred ones: a lone "Stats" favourite is just as unclear while
+    // a second Stats sits in the rail below it. Gating one of the two away
+    // takes the prefix off again, so the label rides in the signature.
+    var shared = sharedNames(all);
     var keys = favorites().filter(function (k) { return !!byKey[k]; });
-    var sig = keys.join('§');
+    var sig = keys.map(function (k) { return k + '»' + favLabel(byKey[k], shared); }).join('§');
     if (!force && sig === favRendered) return;
     favRendered = sig;
     favList.textContent = '';
-    keys.forEach(function (k) { favList.appendChild(favLeaf(byKey[k])); });
+    keys.forEach(function (k) { favList.appendChild(favLeaf(byKey[k], shared)); });
     favGroup.hidden = keys.length === 0;
   }
 
