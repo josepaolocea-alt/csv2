@@ -10256,11 +10256,11 @@
                     <div style="margin-bottom:6px">Delete one date's VOS Daily Traffic report. This removes the date for every operator, not just this browser.</div>
                     <div class="stats-daily-archive-row">
                       <select id="vos-daily-delete-date" class="win-sel" aria-label="VOS Daily Traffic date to delete"><option value="">No saved dates</option></select>
-                      <button type="button" class="tbtn" id="vos-daily-delete-date-btn" onclick="deleteVosDailyReportFromSettings()" title="Delete the selected date's VOS Daily Traffic report">Delete Date</button>
+                      <button type="button" class="tbtn" id="vos-daily-delete-date-btn" onclick="deleteVosDailyReportFromSettings()" title="Delete the selected date's VOS Daily Traffic report" data-count-collection="vos_daily_traffic" data-count-filter="selected-date" data-count-date-control="vos-daily-delete-date" data-count-label="VOS Daily Traffic report">Delete Date</button>
                     </div>
                     <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
                     <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator.</div>
-                    <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()">Delete All VOS Daily Traffic</button>
+                    <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()" data-count-collection="vos_daily_traffic" data-count-label="VOS Daily Traffic report">Delete All VOS Daily Traffic</button>
                   </div>
                 </div>
               </div>
@@ -10584,7 +10584,7 @@
           <div style="margin-bottom:6px">Delete one date's Daily Traffic data. The report and its import log are removed together, and the date leaves every comparison.</div>
           <div class="stats-daily-archive-row">
             <select id="stats-daily-delete-date" class="win-sel" aria-label="Daily Traffic date to delete"><option value="">No saved dates</option></select>
-            <button type="button" class="tbtn" id="stats-daily-delete-date-btn" onclick="deleteStatsDailyReportFromSettings()" title="Delete the selected date's Daily Traffic data">Delete Date</button>
+            <button type="button" class="tbtn" id="stats-daily-delete-date-btn" onclick="deleteStatsDailyReportFromSettings()" title="Delete the selected date's Daily Traffic data" data-count-collection="stats_daily_traffic" data-count-filter="selected-date" data-count-date-control="stats-daily-delete-date" data-count-label="Daily Traffic report">Delete Date</button>
           </div>
           <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
           <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once.</div>
@@ -16309,10 +16309,13 @@ function applyModuleAccess(){
 }
 
 /* Settings danger-button counts are fetched lazily so ordinary app startup does
-   not scan or download destructive collections. The premium tooltip updates in
-   place while the pointer remains on the button. */
-function localSettingsDataCount(collectionName, filterName = '') {
+   not scan destructive collections. While hovered, each button temporarily
+   replaces its normal action label with the number of records it will affect. */
+function localSettingsDataCount(collectionName, filterName = '', button = null) {
   const todayOnly = list => (list || []).filter(item => !filterName || item?.session_date === todayStr()).length;
+  const selectedDate = filterName === 'selected-date'
+    ? document.getElementById(button?.dataset.countDateControl || '')?.value || ''
+    : '';
   const counts = {
     snapshots: () => todayOnly(todaySnaps),
     tritel_snapshots: () => todayOnly(tritelSnaps),
@@ -16325,51 +16328,105 @@ function localSettingsDataCount(collectionName, filterName = '') {
     sms_balance_no_threshold: () => (smsBalanceNoThreshold || []).length,
     sms_balance_inactive_usage: () => (smsBalanceInactiveUsageHistory || []).length,
     stats_snapshots: () => filterName === 'previous-stats-day' ? (statsPreviousDaySnaps || []).length : (statsTodaySnaps || []).length,
-    stats_daily_traffic: () => (statsDailyHistory || []).length,
+    stats_daily_traffic: () => selectedDate ? (statsDailyHistory || []).filter(day => day?.session_date === selectedDate).length : (statsDailyHistory || []).length,
     vos_stats_snapshots: () => (vosStatsSnapshots || []).length,
+    vos_daily_traffic: () => selectedDate ? (vosDailyHistory || []).filter(day => day?.session_date === selectedDate).length : (vosDailyHistory || []).length,
   };
   return counts[collectionName]?.() ?? 0;
 }
 
-function settingsCountTooltipText(button, count, exact = true) {
+function settingsCountButtonText(button, count) {
   const unit = button.dataset.countLabel || 'record';
-  return `${exact ? 'Contains' : 'Known in this browser'}: ${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'}.`;
+  return `Delete ${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'}`;
 }
 
-async function refreshSettingsCountTooltip(button) {
-  if (!button || button.dataset.countLoading === 'true') return;
+function showSettingsCountButtonText(button) {
+  if (button?.dataset.countPointerInside !== 'true') return;
+  const cachedCount = Number(button.dataset.countValue);
+  button.textContent = Number.isFinite(cachedCount)
+    ? settingsCountButtonText(button, cachedCount)
+    : 'Checking record count…';
+}
+
+function restoreSettingsCountButtonText(button) {
+  if (!button) return;
+  button.dataset.countPointerInside = 'false';
+  button.textContent = button.dataset.countDefaultLabel || button.textContent;
+}
+
+function settingsCountQueryKey(button) {
+  const filterName = button?.dataset.countFilter || '';
+  const selectedDate = filterName === 'selected-date'
+    ? document.getElementById(button.dataset.countDateControl || '')?.value || ''
+    : '';
+  return `${button?.dataset.countCollection || ''}|${filterName}|${selectedDate}`;
+}
+
+async function refreshSettingsCountButton(button) {
+  if (!button) return;
+  const queryKey = settingsCountQueryKey(button);
+  if (button.dataset.countQueryKey !== queryKey) {
+    button.dataset.countQueryKey = queryKey;
+    delete button.dataset.countValue;
+    delete button.dataset.countAt;
+  }
+  showSettingsCountButtonText(button);
+  if (button.dataset.countLoading === 'true') return;
   const last = Number(button.dataset.countAt || 0);
-  if (last && Date.now() - last < 5000) return;
+  if (last && Date.now() - last < 5000 && Number.isFinite(Number(button.dataset.countValue))) return;
   button.dataset.countLoading = 'true';
-  button.dataset.premiumTooltip = 'Checking how many records are stored…';
   const collectionName = button.dataset.countCollection;
   const filterName = button.dataset.countFilter || '';
+  let count;
   try {
     if (filterName === 'previous-stats-day') {
-      const count = localSettingsDataCount(collectionName, filterName);
-      button.dataset.premiumTooltip = settingsCountTooltipText(button, count, true);
+      count = localSettingsDataCount(collectionName, filterName, button);
     } else if (fbOk) {
       let target = collection(db, collectionName);
       if (filterName === 'today') target = query(target, where('session_date', '==', todayStr()));
-      const result = await getCountFromServer(target);
-      button.dataset.premiumTooltip = settingsCountTooltipText(button, result.data().count, true);
+      if (filterName === 'selected-date') {
+        const selectedDate = document.getElementById(button.dataset.countDateControl || '')?.value || '';
+        if (!selectedDate) {
+          count = 0;
+        } else {
+          target = query(target, where('session_date', '==', selectedDate));
+        }
+      }
+      if (count === undefined) {
+        const result = await getCountFromServer(target);
+        count = result.data().count;
+      }
     } else {
-      button.dataset.premiumTooltip = settingsCountTooltipText(button, localSettingsDataCount(collectionName, filterName), false);
+      count = localSettingsDataCount(collectionName, filterName, button);
     }
   } catch (error) {
-    button.dataset.premiumTooltip = settingsCountTooltipText(button, localSettingsDataCount(collectionName, filterName), false);
+    count = localSettingsDataCount(collectionName, filterName, button);
   } finally {
-    button.dataset.countAt = String(Date.now());
     delete button.dataset.countLoading;
+    if (button.dataset.countQueryKey !== queryKey) {
+      if (button.dataset.countPointerInside === 'true') refreshSettingsCountButton(button);
+      return;
+    }
+    button.dataset.countValue = String(count ?? 0);
+    button.dataset.countAt = String(Date.now());
+    showSettingsCountButtonText(button);
   }
 }
 
 document.querySelectorAll('button[data-count-collection]').forEach(button => {
-  button.dataset.premiumTooltip = 'Hover to check how many records this action affects.';
+  button.dataset.countDefaultLabel = button.textContent.trim();
+  delete button.dataset.premiumTooltip;
 });
 document.addEventListener('pointerover', event => {
   const button = event.target.closest?.('button[data-count-collection]');
-  if (button && !button.contains(event.relatedTarget)) refreshSettingsCountTooltip(button);
+  if (button && !button.contains(event.relatedTarget)) {
+    button.dataset.countPointerInside = 'true';
+    refreshSettingsCountButton(button);
+  }
+}, true);
+document.addEventListener('pointerout', event => {
+  const button = event.target.closest?.('button[data-count-collection]');
+  if (button && !button.contains(event.relatedTarget)) restoreSettingsCountButtonText(button);
 }, true);
 
 function fmtDur(min){
