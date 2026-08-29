@@ -8084,6 +8084,31 @@
       margin-inline: -6px;
     }
 
+    /* SMS Settings delete actions match the raised Settings-button treatment
+       instead of using the flat filled-danger variant. */
+    .sms-bal-danger .tbtn.danger {
+      color: var(--red);
+      -webkit-text-fill-color: var(--red);
+      background: var(--surface);
+      border: 0 !important;
+      border-radius: var(--ui-control-radius);
+      box-shadow: var(--neu-raised-sm);
+    }
+    .sms-bal-danger .tbtn.danger:hover:not(:disabled),
+    .sms-bal-danger .tbtn.danger:focus-visible {
+      color: var(--red);
+      -webkit-text-fill-color: var(--red);
+      background: var(--surface);
+      box-shadow: var(--neu-raised);
+    }
+    .sms-bal-danger .tbtn.danger:active:not(:disabled) {
+      color: var(--red);
+      -webkit-text-fill-color: var(--red);
+      background: var(--surface-2);
+      box-shadow: var(--neu-inset-sm);
+      transform: translateY(1px);
+    }
+
     /* No reduced-motion block here on purpose: the app already ships a global
        `*, *::before, *::after` catch-all that clamps every animation and
        transition duration, and it covers this layer too. */
