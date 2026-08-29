@@ -8087,6 +8087,17 @@
     #sidebar #stats-daily-post-controls { flex: 1 1 auto !important; min-height: 0; }
     #sidebar #stats-daily-ta { flex: 1 1 auto; min-height: 148px; }
 
+    /* The hourly Stats side had the mirror image of that: its post controls
+       size to their content, so the paste box sat on its 60px floor while
+       Today's Snapshots — the only child carrying flex — took the rest of the
+       column (558px of 861px on a 945px screen) to list at most one day of
+       hourly entries at 20px each. The paste box is the working surface, so it
+       takes the free height; the list is capped at a band it can scroll and
+       still shows eight slots without moving. */
+    #sidebar #stats-post-controls { flex: 1 1 auto !important; min-height: 0; }
+    #sidebar #stats-snap-ta { flex: 1 1 auto; min-height: 148px; }
+    #sidebar #stats-snap-list { flex: 0 1 auto; max-height: 168px; }
+
     /* ── 17 · Focus rings sliced off by scrolling form bodies ─────────────
        §7 fixed this for the snapshot panel, but it fixed it on the inner
        wrapper, and the same defect exists in three other forms with a
