@@ -7657,6 +7657,39 @@
     .toast.ok  { border-left-color: var(--green); }
     .toast.err { border-left-color: var(--red); }
 
+    /* Tooltips are the smallest floating layer, so they take the same material
+       as the menus and the toast above: one raised body on --surface, lifted by
+       --neu-floating, with no hairline and no glass. All three — the shared
+       title layer, the client-row remarks and the stats remarks — were still
+       carrying the previous pass's blurred, accent-edged card, which left them
+       the last surfaces in the app with a hard edge and a drop shadow. */
+    #premium-tooltip, #remarks-tip, #st-remark-tip {
+      color: var(--text);
+      background: var(--surface); background-image: none;
+      border: 0; border-radius: var(--r-md);
+      box-shadow: var(--neu-floating);
+      backdrop-filter: none; -webkit-backdrop-filter: none;
+    }
+    #premium-tooltip {
+      padding: 9px 12px;
+      font: 600 11px/1.5 var(--font); letter-spacing: -.004em;
+    }
+    /* The arrow is that same surface poking out, not a second shape: no edge,
+       and no shadow of its own — the lit rim only reads on the rectangle it is
+       cast from. Both sides are restated because the base pass sets their
+       border-width at a higher specificity than the shorthand above. */
+    #premium-tooltip::after {
+      width: 10px; height: 10px;
+      background: var(--surface); border: 0; border-radius: 2px;
+    }
+    #premium-tooltip[data-side="below"]::after { top: -4px; border-width: 0; }
+    #premium-tooltip[data-side="above"]::after { bottom: -4px; border-width: 0; }
+    #remarks-tip, #st-remark-tip { padding: 10px 12px; font-size: 11px; line-height: 1.5; }
+    #remarks-tip .rt-head {
+      font-size: 9.5px; font-weight: 700; letter-spacing: .13em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 5px;
+    }
+
     body > [id$="-overlay"]:not(#login-overlay) {
       background: color-mix(in srgb, #0b1018 56%, transparent);
       backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
