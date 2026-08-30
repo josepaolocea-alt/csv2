@@ -16572,23 +16572,34 @@ function localSettingsDataCount(collectionName, filterName = '', button = null) 
   return counts[collectionName]?.() ?? 0;
 }
 
-function settingsCountButtonText(button, count) {
+/* The count is reported in the hover tooltip, never in the label. A button in
+   the Danger Zone has to keep saying what it deletes at all times: a label that
+   rewrites itself under the pointer is the one moment you are reading it before
+   clicking, and "Delete 0 SMS snapshots" also reads as a different action from
+   "Delete Today's SMS Snapshots". The tooltip layer watches
+   data-premium-tooltip on the hovered element, so the count can land late and
+   still appear without reopening the tooltip. */
+function settingsCountPhrase(button, count) {
   const unit = button.dataset.countLabel || 'record';
-  return `Delete ${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'}`;
+  return `${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'} will be deleted.`;
+}
+
+function setSettingsCountTooltip(button, phrase) {
+  const description = button.dataset.countDescription || '';
+  button.dataset.premiumTooltip = description ? `${description} — ${phrase}` : phrase;
 }
 
 function showSettingsCountButtonText(button) {
   if (button?.dataset.countPointerInside !== 'true') return;
   const cachedCount = Number(button.dataset.countValue);
-  button.textContent = Number.isFinite(cachedCount)
-    ? settingsCountButtonText(button, cachedCount)
-    : 'Checking record count…';
+  setSettingsCountTooltip(button, Number.isFinite(cachedCount)
+    ? settingsCountPhrase(button, cachedCount)
+    : 'Checking record count…');
 }
 
 function restoreSettingsCountButtonText(button) {
   if (!button) return;
   button.dataset.countPointerInside = 'false';
-  button.textContent = button.dataset.countDefaultLabel || button.textContent;
 }
 
 function settingsCountQueryKey(button) {
@@ -16651,8 +16662,17 @@ async function refreshSettingsCountButton(button) {
 }
 
 document.querySelectorAll('button[data-count-collection]').forEach(button => {
-  button.dataset.countDefaultLabel = button.textContent.trim();
-  delete button.dataset.premiumTooltip;
+  // Whatever the button already explains about itself is kept as the first half
+  // of the tooltip and the live count is appended to it, so a button that had a
+  // description does not lose it to the count.
+  const description = String(button.dataset.premiumTooltip || '').trim();
+  if (description) button.dataset.countDescription = description;
+  // Seeded now, not on hover: the tooltip layer registers its own pointerover
+  // listener before this one, so it decides whether an element is a tooltip
+  // target before the handler below can add the attribute. A button without it
+  // at that moment is skipped and never shows a tooltip at all. The placeholder
+  // is replaced synchronously on hover, well inside the layer's open delay.
+  setSettingsCountTooltip(button, 'Checking record count…');
 });
 document.addEventListener('pointerover', event => {
   const button = event.target.closest?.('button[data-count-collection]');
