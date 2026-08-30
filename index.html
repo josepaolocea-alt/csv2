@@ -7270,6 +7270,42 @@
     .stat-box.s-medium .sv, .sms-bal-card.warning .value { color: var(--orange); }
     .sms-bal-card.safe .value { color: var(--green); }
 
+    /* Shift Summary blocks. They are one set of findings, so they read as the
+       same two-up card grid the SMS highlights use rather than as a stack of
+       480px-wide strips running down the left of a full-width panel. The
+       inherited max-width and stacking margin are cleared here — inside the
+       grid the track sets the width and the gap sets the rhythm. An odd last
+       block takes the whole row instead of leaving half of one empty. */
+    .sum-section-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+      margin-top: 10px;
+    }
+    .sum-section-grid > .sum-section {
+      min-width: 0; max-width: none; margin: 0; padding: 14px;
+    }
+    /* Status edge restated as the inset rule every other card in the app uses,
+       instead of the 3px hard border left over from the flat layer. */
+    .sum-section.ss-red, .sum-section.ss-green { border: 0; }
+    .sum-section.ss-red { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--red); }
+    .sum-section.ss-green { box-shadow: var(--neu-raised-sm), inset 4px 0 0 var(--green); }
+    .sum-section-grid > .sum-section:nth-child(odd):last-child { grid-column: 1 / -1; }
+    .sum-section-grid .sum-movers { max-width: none; }
+    /* The coverage table carries four fixed columns and no longer has the full
+       panel width to spread into, so it keeps its natural width inside the
+       card and scrolls sideways rather than squeezing Status to nothing. The
+       inline width:100% it is rendered with is what has to be beaten here. */
+    .sum-section-grid .voip-critical-coverage-table { width: auto !important; min-width: 100%; }
+    .sum-section .ss-title {
+      font-size: 11px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 8px;
+    }
+    @media (max-width: 900px) {
+      .sum-section-grid { grid-template-columns: 1fr; }
+      .sum-section-grid > .sum-section:nth-child(odd):last-child { grid-column: auto; }
+    }
+
     /* ── 9 · Tables ───────────────────────────────────────────────────────
        The table shell is the raised object; everything inside it is flat.
        No zebra: most rows are already tinted by status and a striped ground
@@ -7423,6 +7459,44 @@
     .row-del:hover { color: var(--red); background: var(--red-soft); box-shadow: var(--neu-inset-sm); }
     #sms-cancel-edit-btn { color: var(--on-accent); background: var(--orange); border: 0 !important; }
     #sms-cancel-edit-btn:hover { background: var(--orange); box-shadow: var(--neu-raised); }
+
+    /* Section show/hide. Same vocabulary as every other button — raised at
+       rest, pressed in when it is holding a section shut — so the collapsed
+       state reads as a latched control and not only as a rotated caret. The
+       older layer drew it as a bordered gradient chip; the border and that
+       gradient are cleared here so only the material speaks. */
+    .summary-visibility-toggle {
+      width: 26px; height: 26px; min-width: 26px;
+      color: var(--text-3);
+      background: var(--surface); background-image: none;
+      border: 0 !important; border-radius: var(--r-pill);
+      box-shadow: var(--neu-raised-sm);
+      transition: color .14s ease, box-shadow .14s ease, transform .14s ease;
+    }
+    .summary-visibility-toggle .caret {
+      font-size: 9px; color: currentColor;
+      transition: transform .16s ease-out;
+    }
+    .summary-visibility-toggle:hover {
+      color: var(--text); background: var(--surface);
+      border-color: transparent;
+      box-shadow: var(--neu-raised);
+    }
+    .summary-visibility-toggle:active { box-shadow: var(--neu-inset-sm); transform: translateY(1px); }
+    .summary-visibility-toggle[aria-expanded="false"] {
+      color: var(--accent-strong);
+      background: var(--surface-2);
+      box-shadow: var(--neu-inset-sm);
+      transform: none;
+    }
+    .summary-visibility-toggle[aria-expanded="false"]:hover { box-shadow: var(--neu-inset); }
+    .summary-visibility-toggle:focus-visible {
+      outline: none;
+      box-shadow: var(--neu-raised-sm), 0 0 0 2px var(--accent);
+    }
+    .summary-visibility-toggle[aria-expanded="false"]:focus-visible {
+      box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent);
+    }
 
     .win-inp, .win-sel, .win-search, #slot-sel,
     .premium-select-trigger, .sms-combo-btn,
@@ -23871,6 +23945,7 @@ function renderShiftSummary() {
     </div>
     <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
     ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
+    <div class="sum-section-grid">
     <div class="sum-section ss-red">
       <div class="ss-title">New Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
       ${criticalHits.length?`<div class="voip-critical-coverage-scroll"><table class="sum-movers voip-critical-coverage-table" style="width:100%">
@@ -23889,7 +23964,8 @@ function renderShiftSummary() {
       <table class="sum-movers" style="width:100%">
         ${movers.map((m,i)=>`<tr><td style="color:var(--text-2);width:20px">${i+1}.</td><td>${esc(m.name)}</td><td class="num" style="color:var(--red);font-family:var(--mono)">+${fmt(m.change)}</td></tr>`).join('')}
       </table>
-    </div>` : ''}`;
+    </div>` : ''}
+    </div>`;
 }
 
 
