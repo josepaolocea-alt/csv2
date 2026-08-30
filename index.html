@@ -6980,15 +6980,15 @@
       overflow-x: auto; overflow-y: hidden;
       scrollbar-width: thin;
     }
-    /* The Stats strip is re-homed inside its view container, where the older
-       rule for that case (transparent, square, underlined) is written at
-       #toolbar.is-nested weight and outranks the shared track rule above. The
-       track has to be restated here or Stats keeps a sub-menu that looks
-       nothing like the other five modules'. */
+    /* Stats uses one workspace-level subnav anchor. It keeps the Summary
+       gutter on every Stats view instead of inheriting padding or max-width
+       from whichever table/settings container happens to be active. */
     #toolbar.is-nested {
       grid-area: auto;
-      width: fit-content; max-width: 100%;
-      margin: 0 0 16px; padding: 5px;
+      flex: 0 0 auto;
+      width: fit-content;
+      max-width: calc(100% - var(--ui-view-pad) - var(--ui-view-pad));
+      margin: var(--ui-view-pad) var(--ui-view-pad) 0; padding: 5px;
       align-items: center;
       background: var(--surface-2);
       border: 0; border-radius: var(--r-md);
@@ -28635,10 +28635,10 @@ if (auth) {
   }
 
   /* Daily Traffic keeps its tab strip inside the panel it belongs to
-     (.groupbox > .daily-workspace-nav). Stats had its strip up in the app
-     chrome instead, so the two modules disagreed about where a sub-menu
-     lives. In Stats the strip is re-homed into whichever view container is
-     showing, and put back in the shell for every other module. */
+     (.groupbox > .daily-workspace-nav). Stats uses one stable workspace-level
+     anchor before every Stats view, and returns to the shell for other
+     modules. Never mount it in the active view: Summary, tables, and Settings
+     intentionally have different inner widths. */
   function placeToolbar(mod) {
     if (!toolbar) return;
     if (mod !== 'stats') {
@@ -28648,13 +28648,13 @@ if (auth) {
       toolbar.classList.remove('is-nested');
       return;
     }
-    var view = document.querySelector('#content .view.active');
-    // .groupbox for the table views, .dash-shell for Summary,
-    // .settings-page-shell for Settings.
-    var host = view && view.firstElementChild;
+    var host = document.getElementById('content');
     if (!host) return;
     toolbar.classList.add('is-nested');
-    if (toolbar.parentElement !== host) host.insertBefore(toolbar, host.firstChild);
+    if (toolbar.parentElement !== host) {
+      var firstView = host.querySelector(':scope > .view');
+      host.insertBefore(toolbar, firstView || null);
+    }
   }
 
   /* ── Sync: rail highlight, breadcrumb, sub-menu presence ─────────────── */
