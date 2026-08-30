@@ -7270,6 +7270,21 @@
     .stat-box.s-medium .sv, .sms-bal-card.warning .value { color: var(--orange); }
     .sms-bal-card.safe .value { color: var(--green); }
 
+    /* A raised object needs room inside its scroll container for the shadow to
+       land on. Every .sms-bal-view is `overflow: auto` at padding 0, with its
+       panels, cards and table shells flush to that clip — so each one's
+       shadow and rim light were sliced off flat down both sides, drawing a
+       hard vertical edge and a square corner behind every container. It shows
+       worst in dark, where the drop shadow is rgba(6,9,14,.64) against
+       rgba(163,173,193,.40) in light.
+
+       The inline padding is the shadow's reach: 6px offset + 14px blur = 20px.
+       Bottom matches it so the last panel is not cut when scrolled to the end.
+       Top is left at 0 on purpose — it keeps the first panel aligned with the
+       sub-nav column beside it, and only the weak rim light reaches that edge,
+       where a scroll boundary is expected to cut anyway. */
+    .sms-bal-view.active { padding: 0 20px 20px; }
+
     /* Shift Summary blocks. They are one set of findings, so they read as the
        same two-up card grid the SMS highlights use rather than as a stack of
        480px-wide strips running down the left of a full-width panel. The
@@ -7530,6 +7545,85 @@
       box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent) !important;
     }
     ::placeholder { color: var(--text-3); }
+
+    /* Controls the flat layer left behind. Each of these still carried a 1px
+       hairline, a vertical gradient or a hard drop shadow, so beside the wells
+       and raised buttons around them they read as pasted in from a different
+       interface. They are sorted by the affordance rule above — what you type
+       into or pick from is a well, what you act on is raised — and nothing but
+       the material changes: sizes, tints and status colours are kept.
+
+       The date trigger is the case that shows the split: the sidebar copy was
+       already converted to a well, the ten in the views were not. */
+    .premium-date-trigger,
+    #sms-bulk-panel .bulk-field input, #sms-bulk-panel .bulk-field select,
+    .sms-comment-btn {
+      color: var(--text);
+      background-color: var(--surface-2); background-image: none;
+      border: 0;
+      border-radius: var(--ui-control-radius);
+      box-shadow: var(--neu-inset-sm);
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    .premium-date-trigger:hover:not(:disabled),
+    #sms-bulk-panel .bulk-field input:hover, #sms-bulk-panel .bulk-field select:hover,
+    .sms-comment-btn:hover {
+      border: 0; background-color: var(--surface-2);
+      box-shadow: var(--neu-inset);
+    }
+    .premium-date-trigger:focus-visible:not(:disabled),
+    .premium-date.open .premium-date-trigger:not(:disabled),
+    #sms-bulk-panel .bulk-field input:focus, #sms-bulk-panel .bulk-field select:focus {
+      outline: none; border: 0;
+      box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent);
+    }
+    /* A well does not move when pressed; the scale it inherited was button
+       behaviour on a field. */
+    .premium-date-trigger:active:not(:disabled) { transform: none; }
+    .premium-date-trigger:disabled { background-color: var(--surface-2); box-shadow: var(--neu-inset-sm); }
+    /* Staged-edit fields keep their amber fill — that is the signal that a
+       value is pending — and lose only the outline. */
+    .bulk-edit-inp {
+      border: 0; border-radius: var(--r-sm);
+      background: var(--yellow-soft);
+      box-shadow: var(--neu-inset-sm);
+    }
+    .bulk-edit-inp:focus { box-shadow: var(--neu-inset-sm), 0 0 0 2px var(--accent); }
+    .sms-comment-btn.has-comment {
+      color: var(--yellow-deep); background-color: var(--yellow-soft);
+      box-shadow: var(--neu-inset-sm);
+    }
+
+    /* Raised half: things you act on. */
+    button.sms-toolbar-clear, button.sms-toolbar-bulk {
+      border: 0 !important; box-shadow: var(--neu-raised-sm);
+    }
+    button.sms-toolbar-clear:hover, button.sms-toolbar-bulk:hover {
+      box-shadow: var(--neu-raised); filter: none;
+    }
+    button.sms-toolbar-bulk.active {
+      color: var(--on-accent); background: var(--accent); box-shadow: var(--neu-accent);
+    }
+    .stats-view-guide-close, .st-hr-focus-clear {
+      color: var(--text-2); background: var(--surface);
+      border: 0; border-radius: var(--r-sm);
+      box-shadow: var(--neu-raised-sm);
+      transition: color .14s ease, box-shadow .14s ease;
+    }
+    .stats-view-guide-close:hover, .st-hr-focus-clear:hover {
+      color: var(--text); border: 0; box-shadow: var(--neu-raised);
+    }
+    .stats-view-guide-close:active, .st-hr-focus-clear:active { box-shadow: var(--neu-inset-sm); }
+    /* The OTP read-out is a value you copy, not a button that acts, so it is a
+       well. The tinted gradient and its glow went with the flat layer; the
+       accent digits already carry the emphasis. */
+    #sms-otp-code, #sms-credential-otp-code {
+      border: 0; border-radius: var(--r-md);
+      background: var(--surface-2); background-image: none;
+      box-shadow: var(--neu-inset);
+      text-shadow: none;
+    }
+    #sms-credential-otp-code:hover { background: var(--surface-2); box-shadow: var(--neu-inset), 0 0 0 2px var(--accent-soft); }
 
     /* Left alone on purpose: the box is already 16px with an ::after tick
        positioned for that box and a min-width beside it, so setting a size
