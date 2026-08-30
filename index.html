@@ -884,7 +884,7 @@
     .badge-spam.watch { background: var(--orange); }
     .spam-max-ref {
       display: block; margin-top: 2px; font-size: 9px; line-height: 1.15;
-      color: var(--text-2); font-family: 'Courier New', monospace; white-space: nowrap;
+      color: var(--text-2); font-family: var(--mono); white-space: nowrap;
     }
     .spam-max-when { display:block; margin-top:1px; color:var(--text-3); font-size:8px; font-weight:400; }
     .spam-max-ref.over {
@@ -1284,12 +1284,6 @@
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok { background: var(--yellow-soft); color: var(--yellow-deep); border-color: color-mix(in srgb, var(--yellow-deep) 38%, var(--border)); font-weight: 700; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-good { background: var(--green-soft); color: var(--green); border-color: color-mix(in srgb, var(--green) 42%, var(--border)); font-weight: 700; }
     body.stats-mode:not(.stats-daily-mode) #stnav-stats-stopped { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 42%, var(--border)); font-weight: 700; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-critical.active { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-low.active { background: var(--orange) !important; color: #fff !important; border-color: var(--orange) !important; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-watch.active { background: var(--text-2) !important; color: var(--surface) !important; border-color: var(--text-2) !important; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-ok.active { background: var(--yellow-deep) !important; color: #fff !important; border-color: var(--yellow-deep) !important; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-good.active { background: var(--green) !important; color: #fff !important; border-color: var(--green) !important; }
-    body.stats-mode:not(.stats-daily-mode) #stnav-stats-stopped.active { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
     body.stats-mode #toolbar .tbtn[id^="tnav-"],
     body.stats-mode #tnav-settings,
     body.stats-mode #snd-dismiss-btn,
@@ -3216,42 +3210,6 @@
       .premium-login-body { padding: 24px; }
       .sms-vendor-box { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
-    /* ── Legacy inline-style remaps (JS-generated markup uses old hex colors) ── */
-    [style*="color:#000080"], [style*="color: #000080"] { color: var(--accent) !important; }
-    [style*="color:#cc0000"], [style*="color: #cc0000"],
-    [style*="color:#880000"], [style*="color: #880000"],
-    [style*="color:#660000"], [style*="color: #660000"] { color: var(--red) !important; }
-    [style*="color:#006600"], [style*="color: #006600"],
-    [style*="color:#003300"], [style*="color: #003300"] { color: var(--green) !important; }
-    [style*="color:#884400"], [style*="color: #884400"],
-    [style*="color:#cc6600"], [style*="color: #cc6600"],
-    [style*="color:#cc4400"], [style*="color: #cc4400"],
-    [style*="color:#aa2200"], [style*="color: #aa2200"],
-    [style*="color:#aa6600"], [style*="color: #aa6600"] { color: var(--orange) !important; }
-    [style*="color:#888800"], [style*="color: #888800"] { color: var(--yellow-deep) !important; }
-    [style*="color:#444"], [style*="color: #444"],
-    [style*="color:#555"], [style*="color: #555"],
-    [style*="color:#666"], [style*="color: #666"] { color: var(--text-2) !important; }
-    [style*="color:#888"], [style*="color: #888"],
-    [style*="color:#999"], [style*="color: #999"],
-    [style*="color:#808080"], [style*="color: #808080"] { color: var(--text-3) !important; }
-    [style*="background:#006600"] { background: var(--green) !important; }
-    [style*="background:#cccc00"] { background: var(--yellow) !important; }
-    [style*="background:#cc0000"] { background: var(--red) !important; }
-    [style*="background:#cc5500"] { background: var(--orange) !important; }
-    [style*="background:#888800"] { background: var(--yellow-deep) !important; }
-    [style*="background:#888888"] { background: var(--text-3) !important; }
-    [style*="Courier New"] { font-family: var(--mono) !important; }
-
-    /* Sparkline SVG legacy colors */
-    .sparkline-wrap polyline[stroke="#000080"] { stroke: var(--accent); }
-    .sparkline-wrap circle[fill="#000080"] { fill: var(--accent); }
-    .sparkline-wrap text[fill="#888"] { fill: var(--text-3); }
-    .sparkline-wrap line[stroke="#cc0000"] { stroke: var(--red); }
-    .sparkline-wrap text[fill="#cc0000"] { fill: var(--red); }
-    .sparkline-wrap line[stroke="#cc6600"] { stroke: var(--orange); }
-    .sparkline-wrap text[fill="#cc6600"] { fill: var(--orange); }
 
     /* ── SMS Balance Monitor ─────────────────────────────────────────────── */
     #sms-balance-panel { display:none; flex:1; min-height:0; flex-direction:column; gap:6px; }
@@ -6402,6 +6360,12 @@
       --ui-section-gap: 16px;
       --ui-view-pad: 20px;
 
+      --fs-micro: 11px;
+      --fs-ctl: 12.5px;
+      --fs-body: 13px;
+      --fs-title: 15px;
+      --fs-value: 22px;
+
       --nav-w: 244px;
       --nav-w-min: 62px;
       --snap-w: 282px;
@@ -6482,10 +6446,14 @@
     .snap-label, .sidebar-section-label, .nav-sublabel,
     #users-toolbar-label, .snap-head-title, .nav-find-group,
     .stat-box .sl, .sms-bal-card .label, .st-daily-card .label {
-      font-size: 9.5px; font-weight: 700;
+      font-size: var(--fs-micro); font-weight: 700;
       letter-spacing: .13em; text-transform: uppercase;
       color: var(--text-3);
     }
+    .ui-text-micro { font-size: var(--fs-micro) !important; }
+    .ui-text-control { font-size: var(--fs-ctl) !important; }
+    .ui-text-body { font-size: var(--fs-body) !important; }
+    .ui-text-title { font-size: var(--fs-title) !important; }
 
     /* ── 3 · Shell ────────────────────────────────────────────────────────
        Three columns, unchanged from the previous pass: navigation, snapshot
@@ -7074,10 +7042,26 @@
     .sms-bal-segmented .tbtn[data-tone="warning"].active { color: var(--orange) !important; box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important; }
     .sms-bal-segmented .tbtn[data-tone="safe"].active { color: var(--green) !important; box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
     body.stats-mode #toolbar.is-nested > #stnav-stats-critical.active,
-    body.stats-mode #toolbar.is-nested > #stnav-stats-stopped.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--red) !important; }
-    body.stats-mode #toolbar.is-nested > #stnav-stats-low.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important; }
-    body.stats-mode #toolbar.is-nested > #stnav-stats-ok.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--yellow) !important; }
-    body.stats-mode #toolbar.is-nested > #stnav-stats-good.active { box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important; }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-stopped.active {
+      color: var(--red) !important; background: var(--red-soft) !important;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--red) !important;
+    }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-low.active {
+      color: var(--orange) !important; background: var(--orange-soft) !important;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--orange) !important;
+    }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-watch.active {
+      color: var(--text) !important; background: var(--surface-3) !important;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--border-strong) !important;
+    }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-ok.active {
+      color: var(--yellow-deep) !important; background: var(--yellow-soft) !important;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--yellow) !important;
+    }
+    body.stats-mode #toolbar.is-nested > #stnav-stats-good.active {
+      color: var(--green) !important; background: var(--green-soft) !important;
+      box-shadow: var(--neu-raised-sm), inset 0 0 0 1.5px var(--green) !important;
+    }
 
     /* VOS Stats classification tabs carry the same status colours as the Stats
        module's, so a route that is Critical reads the same wherever it is seen.
@@ -7160,7 +7144,7 @@
     .snap-label, .sidebar-section-label { margin-bottom: 7px; }
     #sidebar .snap-label, #sidebar .sidebar-section-label { color: var(--text-3); }
     .required-hint {
-      font-size: 8.5px; font-weight: 700; letter-spacing: .07em;
+      font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
       color: var(--orange); text-transform: none;
     }
     /* Paste targets carry raw report text, so they are mono: a mis-copied
@@ -7340,7 +7324,7 @@
     table { border-collapse: collapse; }
     th {
       padding: 9px 12px;
-      font-size: 9.5px; font-weight: 700; letter-spacing: .1em;
+      font-size: var(--fs-micro); font-weight: 700; letter-spacing: .08em;
       text-transform: uppercase; color: var(--text-3);
       background: var(--surface-2);
       border: 0; border-bottom: 1px solid var(--border);
@@ -7384,6 +7368,8 @@
       color: var(--text-3) !important;
       font-size: 12px;
       font-weight: 500;
+      position: sticky;
+      left: 0;
     }
 
     /* ── 9b · Material corrections ────────────────────────────────────────
@@ -7790,7 +7776,7 @@
        greyscale, so status never rests on hue alone. */
     .badge, .stbadge, .st-daily-status, .sms-prio-badge, .sms-bal-badge {
       box-shadow: none; border-radius: 8px;
-      font-size: 9.5px; font-weight: 700; letter-spacing: .05em;
+      font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
       text-transform: uppercase; padding: 3px 8px;
       border: 1px solid transparent;
     }
@@ -7930,7 +7916,9 @@
     }
     .premium-login-title { color: var(--text); font-size: 22px; font-weight: 800; letter-spacing: -.03em; }
     .premium-login-subtitle, .premium-login-security { color: var(--text-2); font-size: 12px; }
-    .premium-login-field label { color: var(--text-2); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .premium-login-field label { color: var(--text-2); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .login-signals span::before,
+    .premium-login-security::before { content: none !important; }
     .premium-login-field .win-inp {
       color: var(--text); background-color: var(--surface-2) !important;
       border: 0 !important;
@@ -8152,6 +8140,98 @@
       box-shadow: none;
     }
 
+    /* UI audit completion: keep the monitoring desk compact, legible and
+       predictable across modules without changing its established material. */
+    .tab {
+      appearance: none;
+      -webkit-appearance: none;
+      font-family: inherit;
+    }
+    th.client-sortable, th.st-sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    th.client-sortable:focus-visible, th.st-sortable:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: -2px;
+    }
+    #alert-tabs .alert-tab-list {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    #alert-tabs .alert-tab-group {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-box, .sms-bal-card, .st-daily-card {
+      min-height: 88px;
+      padding: 14px 16px;
+      text-align: left;
+    }
+    .stat-box .sv, .sms-bal-card .value, .st-daily-card .value,
+    .live-stat-row .stat-box:first-child .sv {
+      font-size: var(--fs-value);
+    }
+    .stat-box .sl, .sms-bal-card .label, .st-daily-card .label {
+      font-size: var(--fs-micro);
+    }
+    .live-stat-row {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 170px));
+      justify-content: start;
+    }
+
+    #view-settings .settings-page-shell,
+    #view-stats-settings .settings-page-shell,
+    #view-export .settings-page-shell {
+      max-width: 720px;
+    }
+    #view-settings .settings-row,
+    #view-stats-settings .settings-row {
+      grid-template-columns: minmax(150px, 210px) minmax(90px, 180px) auto;
+      justify-content: start;
+    }
+    #view-settings .settings-check,
+    #view-stats-settings .settings-check {
+      grid-template-columns: minmax(150px, 210px) 38px auto;
+      justify-content: start;
+    }
+    #view-settings .settings-check > label,
+    #view-stats-settings .settings-check > label {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    #view-settings .settings-check > input,
+    #view-stats-settings .settings-check > input {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: start;
+    }
+    #view-settings .settings-check > :nth-child(n + 3),
+    #view-stats-settings .settings-check > :nth-child(n + 3) {
+      grid-column: 3;
+      grid-row: 1;
+    }
+    .history-count {
+      margin-top: 4px;
+      color: var(--text-3);
+      font-size: var(--fs-micro);
+    }
+
+    @media (forced-colors: active), (prefers-contrast: more) {
+      .groupbox, .lv-wrap, .sms-bal-table-wrap, .vos-stats-table-shell,
+      .stat-box, .sms-bal-card, .st-daily-card,
+      .tbtn, .fltbtn, .tab, .st-daily-tab, .sms-cred-subtab,
+      input, textarea, select, .premium-select-trigger {
+        border: 1px solid var(--border-strong) !important;
+      }
+    }
+
     /* ── 15 · Responsive ──────────────────────────────────────────────────*/
     @media (max-width: 1360px) {
       :root { --nav-w: 224px; --snap-w: 258px; }
@@ -8184,6 +8264,17 @@
       #nav-search { width: 0; }
       #nav-search-panel { right: 0; left: auto; width: min(88vw, 340px); }
       .view { padding: 12px; }
+      #view-settings .settings-row,
+      #view-stats-settings .settings-row,
+      #view-settings .settings-check,
+      #view-stats-settings .settings-check {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      #view-settings .settings-check > *,
+      #view-stats-settings .settings-check > * {
+        grid-column: 1;
+        grid-row: auto;
+      }
     }
 
     /* ── 16 · Snapshot-panel fields ───────────────────────────────────────
@@ -8469,12 +8560,28 @@
         </div>
       </div>
 
-      <!-- Stats -->
-      <div class="nav-group nav-group-flat" data-module="stats" data-src="view-menu-stats">
-        <button type="button" class="nav-parent" data-module="stats" title="Stats">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-7"/><path d="M12 20V4"/><path d="M19 20v-5"/></svg></span>
+      <!-- Stats. Leaves proxy the existing #stnav-* controls so the rail
+           mirrors state without owning a second navigation model. -->
+      <div class="nav-group" data-module="stats" data-src="view-menu-stats">
+        <button type="button" class="nav-parent" data-module="stats" data-statsview="all" title="Stats">
+          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 19V12M12 19V5M19 19V9"/></svg></span>
           <span class="nav-label">Stats</span>
+          <span class="nav-caret" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 4 4-4 4"/></svg></span>
         </button>
+        <div class="nav-children">
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="summary" data-active-src="stnav-stats-summary">Summary</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="all" data-active-src="stnav-stats-all">All Clients</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="hourly" data-active-src="stnav-stats-hourly">Hourly</button>
+          <div class="nav-sublabel">Status</div>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="critical" data-active-src="stnav-stats-critical">Critical</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="low" data-active-src="stnav-stats-low">Low</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="watch" data-active-src="stnav-stats-watch">Watch</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="ok" data-active-src="stnav-stats-ok">Ok</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="good" data-active-src="stnav-stats-good">Good</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="stopped" data-active-src="stnav-stats-stopped">Stopped</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="logs" data-active-src="stnav-stats-logs">Logs</button>
+          <button type="button" class="nav-leaf" data-module="stats" data-statsview="settings" data-active-src="stnav-stats-settings">Stats Settings</button>
+        </div>
       </div>
 
       <!-- Daily Traffic -->
@@ -8723,7 +8830,7 @@
         </div>
         <div class="snap-action-row" id="snap-tritel-actions" style="margin-top:4px;display:none;align-items:center">
           <button class="tbtn" onclick="removeTritelSnapshot()" title="Undo the Tritel entry for the time slot selected above">Undo Tritel</button>
-          <span id="tritel-status" style="font-size:10px;color:var(--text-2);margin-left:6px">No Tritel data</span>
+          <span class="ui-text-micro" id="tritel-status" style="color:var(--text-2);margin-left:6px">No Tritel data</span>
         </div>
       </div>
     </div>
@@ -8755,7 +8862,7 @@
         <div id="stats-sidebar-daily">
           <div id="stats-daily-post-controls" style="display:flex;flex:1;min-height:0;flex-direction:column;gap:4px">
             <div class="snap-label">Daily Traffic Import <span class="required-hint">Paste required</span></div>
-            <label for="stats-daily-import-date" class="required-label" style="font-size:11px;color:var(--muted);margin-top:2px">Traffic Date</label>
+            <label for="stats-daily-import-date" class="required-label ui-text-micro" style="color:var(--muted);margin-top:2px">Traffic Date</label>
             <input id="stats-daily-import-date" class="win-inp" type="date" data-premium-date aria-label="Traffic Date" style="width:100%" required aria-required="true">
             <textarea id="stats-daily-ta" placeholder="Paste the Client Wise Traffic report for the selected date…" required aria-required="true" data-premium-tooltip="Required: paste the Client Wise Traffic report for the selected date here before processing."></textarea>
             <div style="display:flex;gap:2px">
@@ -8803,9 +8910,9 @@
               <div class="stat-box">         <div class="sv" id="st-none">—</div><div class="sl">No threshold</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
-              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Safe — balance below Credit Limit</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cccc00"></div>Warning — balance reached Credit Limit</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — balance reached/passed Critical Balance (allowable limit)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Safe — balance below Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>Warning — balance reached Credit Limit</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Critical — balance reached/passed Critical Balance (allowable limit)</div>
             </div>
           </div>
         </div>
@@ -8828,7 +8935,7 @@
             <button type="button" class="summary-visibility-toggle" onclick="toggleCollapse(this)" aria-expanded="true" aria-controls="shift-summary-body" aria-label="Hide Today's Shift Summary section" title="Hide Today's Shift Summary section"><span class="caret" aria-hidden="true">▼</span></button>
           </div>
           <div class="caret-body" id="shift-summary-body">
-            <div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>
+            <div class="ui-text-micro" style="color:var(--text-2);padding:6px">No snapshots yet today.</div>
           </div>
         </div>
        </div>
@@ -8839,18 +8946,22 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">VOIP Alerts</div>
           <div class="tab-bar" id="alert-tabs">
-            <div class="alert-tab-list" role="group" aria-label="VOIP alert filters">
-              <div class="tab active" onclick="setAlertFilter('all',this)">All</div>
-              <div class="tab" onclick="setAlertFilter('high',this)">Critical</div>
-              <div class="tab" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</div>
-              <div class="tab" onclick="setAlertFilter('none',this)">Safe</div>
-              <div class="tab" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</div>
-              <div class="tab" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</div>
-              <div class="tab" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose sustained 30-min usage is statistically unusual and exceeds their previously observed maximum — possible spam. Month-start days (1–2) and wide-gap catch-up readings (e.g. an 11pm→11am resume) are excluded because their usage is naturally high.">Possible Spam</div>
-              <div class="tab" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</div>
-              <div class="tab" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</div>
-              <div class="tab" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</div>
-              <div class="tab" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage — usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</div>
+            <div class="alert-tab-list" role="tablist" aria-label="VOIP alert filters">
+              <div class="alert-tab-group" aria-label="Current status filters">
+                <button type="button" class="tab active" role="tab" aria-selected="true" onclick="setAlertFilter('all',this)">All</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" onclick="setAlertFilter('high',this)">Critical</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-warning" onclick="setAlertFilter('light',this)">Warning</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" onclick="setAlertFilter('none',this)">Safe</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-nothresh" onclick="setAlertFilter('nothresh',this)">No threshold</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-usage" onclick="setAlertFilter('usage',this)">Usage &gt;50</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-spam" onclick="setAlertFilter('spam',this)" title="Clients whose sustained 30-min usage is statistically unusual and exceeds their previously observed maximum - possible spam. Month-start days (1-2) and wide-gap catch-up readings are excluded because their usage is naturally high.">Possible Spam <span id="tab-spam-count"></span></button>
+              </div>
+              <div class="alert-tab-group" aria-label="Change and history filters">
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</button>
+              </div>
             </div>
             <div class="alert-tab-actions" id="alert-actions">
               <div class="app-action-menu" id="voip-alert-action-menu">
@@ -8914,7 +9025,7 @@
                 <tbody id="usage-hist-tbody"></tbody>
               </table>
             </div>
-            <div id="usage-hist-foot" style="display:none;font-size:10px;color:#666;margin-top:4px"></div>
+            <div class="ui-text-micro" id="usage-hist-foot" style="display:none;color:var(--text-2);margin-top:4px"></div>
           </div>
         </div>
       </div>
@@ -8955,7 +9066,7 @@
                   <button class="tbtn" id="btn-show-inactive" onclick="toggleShowInactive();closeAppActionMenus()" role="menuitem">Hide inactive</button>
                   <button class="tbtn" onclick="exportCurrentClientView();closeAppActionMenus()" title="Export the current All Clients button/filter" role="menuitem">Export View</button>
                   <div class="col-wrap">
-                    <button class="tbtn" onclick="toggleColDD()" aria-haspopup="true" aria-controls="col-dd" role="menuitem">Cols</button>
+                    <button class="tbtn" id="clients-columns-btn" onclick="toggleColDD()" aria-haspopup="true" aria-expanded="false" aria-controls="col-dd" role="menuitem">Columns</button>
                     <div class="col-dd" id="col-dd"></div>
                   </div>
                   <button class="tbtn" id="btn-bulk-edit" onclick="toggleBulkEdit();closeAppActionMenus()" title="Edit Credit Limit &amp; Critical Balance for multiple clients at once" role="menuitem">Bulk Edit</button>
@@ -9025,6 +9136,7 @@
 
       <!-- ═══ EXPORT ════════════════════════════════ -->
       <div class="view" id="view-export">
+        <div class="settings-page-shell">
         <div class="groupbox">
           <div class="groupbox-title">Report &amp; Export</div>
           <div class="exp-form">
@@ -9082,6 +9194,7 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       <!-- ═══ LOGS ══════════════════════════════════ -->
@@ -9089,12 +9202,12 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Snapshot Logs</div>
           <div class="fbar">
-            <span style="font-size:11px;color:#444">Audit trail of every snapshot posted — scheduled slot time vs. the time it was actually posted.</span>
+            <span class="ui-text-micro" style="color:var(--text-2)">Audit trail of every snapshot posted — scheduled slot time vs. the time it was actually posted.</span>
             <span id="logs-admin-tools" style="display:none;margin-left:auto;gap:4px">
               <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>Delete Selected</button>
-              <button class="tbtn" style="color:#880000" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
+              <button class="tbtn" style="color:var(--red)" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
             </span>
-            <span id="logs-viewonly-note" style="display:none;margin-left:auto;font-size:10px;color:#888;font-style:italic">View only — deleting logs is restricted to admins.</span>
+            <span class="ui-text-micro" id="logs-viewonly-note" style="display:none;margin-left:auto;color:var(--text-3);font-style:italic">View only — deleting logs is restricted to admins.</span>
           </div>
           <div class="lv-wrap">
             <table id="logs-tbl">
@@ -9112,7 +9225,7 @@
               <tbody id="logs-tbody"></tbody>
             </table>
           </div>
-          <div style="font-size:10px;color:#888;margin-top:4px" id="logs-count">No logs yet.</div>
+          <div class="history-count" id="logs-count" aria-live="polite">0 logs</div>
         </div>
       </div>
 
@@ -9125,9 +9238,9 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Critical History</div>
           <div class="fbar">
-            <span style="font-size:11px;color:#444">Every client that reached the Critical Balance set on them — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
+            <span class="ui-text-micro" style="color:var(--text-2)">Every client that reached the Critical Balance set on them — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
             <input class="win-search" id="crithist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="critHistSearchInput(this.value)" style="margin-left:auto">
-            <button class="tbtn" id="crithist-restore-btn" onclick="restoreDismissedCritHist()" title="Clients you removed while they were still critical are hidden until they recover. Restore them all now." style="display:none;color:#555">Dismissed: 0</button>
+            <button class="tbtn" id="crithist-restore-btn" onclick="restoreDismissedCritHist()" title="Clients you removed while they were still critical are hidden until they recover. Restore them all now." style="display:none;color:var(--text-2)">Dismissed: 0</button>
             <button class="tbtn" onclick="exportCritHistory()" title="Export the Critical History table to CSV">Export</button>
           </div>
           <div class="lv-wrap">
@@ -9144,7 +9257,7 @@
               <tbody id="crithist-tbody"></tbody>
             </table>
           </div>
-          <div style="font-size:10px;color:#888;margin-top:4px" id="crithist-count">Loading…</div>
+          <div class="history-count" id="crithist-count" aria-live="polite"></div>
         </div>
       </div>
 
@@ -9155,7 +9268,7 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Flagged Spam History</div>
           <div class="fbar">
-            <span style="font-size:11px;color:#444">Every Possible Spam flag is retained here, including readings later marked Not Spam.</span>
+            <span class="ui-text-micro" style="color:var(--text-2)">Every Possible Spam flag is retained here, including readings later marked Not Spam.</span>
             <input class="win-search" id="spamhist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="spamHistSearchInput(this.value)" style="margin-left:auto">
             <button class="tbtn" onclick="exportSpamHistory()" title="Export the Flagged Spam History table to CSV">Export</button>
             <button class="tbtn" style="color:var(--red)" onclick="openSpamHistWipeConfirm()" title="Delete all Flagged Spam History records">Delete All</button>
@@ -9177,7 +9290,7 @@
               <tbody id="spamhist-tbody"></tbody>
             </table>
           </div>
-          <div style="font-size:10px;color:#888;margin-top:4px" id="spamhist-count">Loading…</div>
+          <div class="history-count" id="spamhist-count" aria-live="polite"></div>
         </div>
       </div>
 
@@ -9193,7 +9306,7 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">No-Threshold Clients</div>
           <div class="fbar">
-            <span style="font-size:11px;color:#444">Every client that showed up in a snapshot with no Critical Balance / Credit Limit set — compiled in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
+            <span class="ui-text-micro" style="color:var(--text-2)">Every client that showed up in a snapshot with no Critical Balance / Credit Limit set — compiled in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span>
             <input class="win-search" id="nothresh-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="noThreshSearchInput(this.value)" style="margin-left:auto">
             <button class="tbtn" onclick="exportNoThreshHistory()" title="Export the No-Threshold list to CSV">Export</button>
           </div>
@@ -9211,18 +9324,18 @@
               <tbody id="nothresh-tbody"></tbody>
             </table>
           </div>
-          <div style="font-size:10px;color:#888;margin-top:4px" id="nothresh-count">Loading…</div>
+          <div class="history-count" id="nothresh-count" aria-live="polite"></div>
         </div>
       </div>
 
       <!-- SMS MODULE -->
       <div class="view" id="view-sms">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="tab-bar">
-            <div class="tab active" id="sms-tab-balance" onclick="switchSmsTab('balance')">SMS Balance</div>
-            <div class="tab" id="sms-tab-client" onclick="switchSmsTab('client')">V3</div>
-            <div class="tab" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">Phoenix Platform</div>
-            <div class="tab" id="sms-tab-credentials" onclick="switchSmsTab('credentials')">Credentials</div>
+          <div class="tab-bar" role="tablist" aria-label="SMS sections">
+            <button type="button" class="tab active" role="tab" aria-selected="true" id="sms-tab-balance" onclick="switchSmsTab('balance')">SMS Balance</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" id="sms-tab-client" onclick="switchSmsTab('client')">V3</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" id="sms-tab-phoenix" onclick="switchSmsTab('phoenix')">Phoenix Platform</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" id="sms-tab-credentials" onclick="switchSmsTab('credentials')">Credentials</button>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:6px">
             <div id="sms-balance-panel">
@@ -9539,7 +9652,7 @@
                 <span class="sms-muted">Download selected:</span>
                 <button class="tbtn sms-selected-export csv" onclick="exportSmsSelected('csv')" title="Download the ticked routes as a CSV file">↓ CSV</button>
                 <button class="tbtn sms-selected-export excel" onclick="exportSmsSelected('xlsx')" title="Download the ticked routes as an Excel (.xlsx) file">↓ Excel</button>
-                <button class="tbtn" id="sms-delete-selected-btn" style="color:#880000" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
+                <button class="tbtn" id="sms-delete-selected-btn" style="color:var(--red)" onclick="deleteSmsSelected()" title="Delete the ticked routes">Delete selected</button>
                 <button class="tbtn" onclick="clearSmsSelection()" title="Clear the current selection">Clear selection</button>
               </span>
             </div>
@@ -9755,7 +9868,7 @@
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Users &amp; Roles</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:10px 12px;overflow:auto">
-            <div style="font-size:11.5px;color:var(--text-2);margin-bottom:10px;line-height:1.5">
+            <div class="ui-text-control" style="color:var(--text-2);margin-bottom:10px;line-height:1.5">
               <strong>Role</strong> is what a person can do. <strong>Modules</strong> is which tabs they can open.
               The two combine: a semi-admin with only VOIP keeps full semi-admin rights inside VOIP and cannot open the rest.<br>
               <span style="color:var(--text-3)">New logins start as Viewer with every module. Create the login in Firebase Console → Authentication → Users; it appears here after the first sign-in.</span>
@@ -9797,11 +9910,11 @@
               <div class="stat-box"><div class="sv" id="st-sum-new">—</div><div class="sl">New clients</div></div>
             </div>
             <div class="legend" style="margin-top:4px">
-              <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt; 10 (more than 30 attempts)</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#888800"></div>Ok — ASR 10–20</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
-              <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — low ASR but ≤30 attempts (often just new)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>Low — ASR &lt; 10 (more than 30 attempts)</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--yellow-deep)"></div>Ok — ASR 10–20</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Good — ASR 21+</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--text-3)"></div>Watch — low ASR but ≤30 attempts (often just new)</div>
             </div>
           </div>
         </div>
@@ -9955,7 +10068,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -9982,7 +10095,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10009,7 +10122,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10036,7 +10149,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10063,7 +10176,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10090,7 +10203,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
           <div class="fbar">
             <button class="tbtn" id="st-stopped-toggle-did" onclick="toggleStatsStoppedDID()" title="Show stopped account codes containing -DID">Show -DID</button>
             <span class="sms-muted" id="st-stopped-filter-note" style="margin-left:auto"></span>
@@ -10123,7 +10236,7 @@
               </div>
             </div>
           </div>
-          <div style="font-size:10px;color:#555;padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
+          <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">One column per hour that has a posted snapshot today. Each cell is that client's stat for the hour.</div>
           <div class="fbar">
             <input id="st-hr-search" class="win-inp" placeholder="Search client…" oninput="onStatsHourlySearchInput()" style="width:160px">
             <select id="st-hr-metric" class="win-sel" onchange="setStatsHourlyMetric(this.value)" title="Metric shown in each hourly cell" style="width:205px">
@@ -10272,7 +10385,7 @@
           </div>
 
           <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
-            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-logs-wipe-btn" style="color:#880000" onclick="openDeleteModuleLogsConfirm('daily-traffic','Daily Traffic')">Delete All Logs</button></div>
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('daily-traffic','Daily Traffic')">Delete All Logs</button></div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
               <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th><th>Actions</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
@@ -10368,11 +10481,11 @@
                   <div class="groupbox-title">1-hour Snapshot Timeline — <span id="vos-stats-summary-slot">no snapshot</span></div>
                   <div class="vos-stats-timeline" id="vos-stats-timeline" aria-label="VOS one-hour snapshot timeline"></div>
                   <div class="legend" style="margin-top:8px">
-                    <div class="leg-item"><div class="leg-dot" style="background:#cc0000"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 Total Calls</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#cc5500"></div>Low — ASR &lt;10 with &gt;30 Total Calls</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#888888"></div>Watch — ASR &lt;10 with ≤30 Total Calls</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#888800"></div>Ok — ASR 10–20</div>
-                    <div class="leg-item"><div class="leg-dot" style="background:#006600"></div>Good — ASR 21+</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 Total Calls</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:var(--orange)"></div>Low — ASR &lt;10 with &gt;30 Total Calls</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:var(--text-3)"></div>Watch — ASR &lt;10 with ≤30 Total Calls</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:var(--yellow-deep)"></div>Ok — ASR 10–20</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Good — ASR 21+</div>
                   </div>
                 </div>
 
@@ -10401,7 +10514,7 @@
                 <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
-                <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin and semi-admin only.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:#880000" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
+                <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin and semi-admin only.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
               </div>
             </div>
 
@@ -10468,7 +10581,7 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-logs" role="tabpanel" aria-labelledby="vos-daily-tab-logs" style="display:none">
-                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button type="button" class="tbtn" id="vos-daily-logs-wipe-btn" style="color:#880000" onclick="openDeleteModuleLogsConfirm('vos-daily-traffic','VOS Daily Traffic')">Delete All Logs</button></div>
+                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button type="button" class="tbtn" id="vos-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('vos-daily-traffic','VOS Daily Traffic')">Delete All Logs</button></div>
                 <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
                 <div class="sms-muted" id="vos-daily-logs-count">No VOS Daily Traffic logs yet.</div>
               </div>
@@ -10488,7 +10601,7 @@
                   </div>
                   <!-- Same split as Daily Traffic: the Logs tab records the
                        imports, this is where a date's data is removed. -->
-                  <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:var(--red)">Danger Zone</div>
+                  <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
                   <div class="settings-danger">
                     <div style="margin-bottom:6px">Delete one date's VOS Daily Traffic report. This removes the date for every operator, not just this browser.</div>
                     <div class="stats-daily-archive-row">
@@ -10497,7 +10610,7 @@
                     </div>
                     <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
                     <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator.</div>
-                    <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:#880000" onclick="clearVosDailyHistory()" data-count-collection="vos_daily_traffic" data-count-label="VOS Daily Traffic report">Delete All VOS Daily Traffic</button>
+                    <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:var(--red)" onclick="clearVosDailyHistory()" data-count-collection="vos_daily_traffic" data-count-label="VOS Daily Traffic report">Delete All VOS Daily Traffic</button>
                   </div>
                 </div>
               </div>
@@ -10524,7 +10637,7 @@
 <div id="sms-confirm-overlay">
   <div id="sms-confirm-box">
     <div class="dlg-tb"><span id="sms-confirm-title">Confirm Action</span></div>
-    <div style="padding:12px;font-size:11px">
+    <div class="ui-text-micro" style="padding:12px">
       <div id="sms-confirm-text" style="margin-bottom:12px;line-height:1.35">Confirm action?</div>
       <div style="display:flex;justify-content:flex-end;gap:6px">
         <button class="tbtn" id="sms-confirm-cancel" onclick="closeSmsConfirm()">Cancel</button>
@@ -10624,54 +10737,54 @@
         <div class="settings-check">
           <input type="checkbox" id="set-notif" onchange="saveSettings()" style="margin:0">
           <label>Browser notification on critical</label>
-          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
+          <button class="tbtn ui-text-micro" style="padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Balance Check Reminder</div>
-        <div style="font-size:10px;color:#666;margin-bottom:4px">Desktop reminder a few minutes after each snapshot slot, while this app is open. Follows the Default shift above, and stays quiet for a slot you already posted.</div>
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px">Balance Check Reminder</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Desktop reminder a few minutes after each snapshot slot, while this app is open. Follows the Default shift above, and stays quiet for a slot you already posted.</div>
         <div class="settings-check">
           <input type="checkbox" id="set-remind" onchange="saveVoipReminderSettings()" style="margin:0">
           <label>Remind me to check the balance</label>
-          <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="requestNotifPermission()">Allow</button>
+          <button class="tbtn ui-text-micro" style="padding:0 6px" onclick="requestNotifPermission()">Allow</button>
         </div>
         <div class="settings-band">
           <div class="settings-row">
             <label style="min-width:140px">Remind at slot +:</label>
             <input class="win-inp" id="set-remind-offset" type="number" min="1" max="29" value="10" style="width:70px" onchange="saveVoipReminderSettings()" title="Minutes after each :00 / :30 slot to remind you. 10 → 10:10, 10:40, 11:10 …">
-            <span style="font-size:10px;color:#666;margin-left:4px">min after :00 / :30</span>
+            <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">min after :00 / :30</span>
           </div>
           <div class="settings-row">
-            <label style="min-width:140px;color:#666" id="set-remind-preview">&nbsp;</label>
-            <button class="tbtn" style="font-size:10px;padding:0 6px" onclick="testSlotReminder()">Test</button>
+            <label style="min-width:140px;color:var(--text-2)" id="set-remind-preview">&nbsp;</label>
+            <button class="tbtn ui-text-micro" style="padding:0 6px" onclick="testSlotReminder()">Test</button>
           </div>
         </div>
         <div class="settings-admin-section" id="voip-settings-no-threshold-section">
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">No Threshold Balance Alerts</div>
-        <div style="font-size:10px;color:#666;margin-bottom:4px">For clients without Credit Limit or Critical Balance. Uses Amnt Receivable.</div>
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px">No Threshold Balance Alerts</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">For clients without Credit Limit or Critical Balance. Uses Amnt Receivable.</div>
         <div class="settings-check">
           <input type="checkbox" id="set-usebands" onchange="saveSettings()" style="margin:0">
           <label>Enable no-threshold balance alerts</label>
         </div>
         <div class="settings-band">
           <div class="settings-row">
-            <label style="min-width:140px;color:#884400">Medium starts at:</label>
+            <label style="min-width:140px;color:var(--orange)">Medium starts at:</label>
             <input class="win-inp" id="set-band-medium" type="number" value="-50" style="width:70px" onchange="saveSettings()" title="Balance at or below this → Medium warning">
           </div>
           <div class="settings-row">
-            <label style="min-width:140px;color:#cc0000">High starts at:</label>
+            <label style="min-width:140px;color:var(--red)">High starts at:</label>
             <input class="win-inp" id="set-band-high" type="number" value="-101" style="width:70px" onchange="saveSettings()" title="Balance at or below this → High (red critical)">
           </div>
           <div class="settings-row">
-            <label style="min-width:140px;color:#cc0000;font-weight:700">Blink starts at:</label>
+            <label style="min-width:140px;color:var(--red);font-weight:700">Blink starts at:</label>
             <input class="win-inp" id="set-band-crit" type="number" value="-151" style="width:70px" onchange="saveSettings()" title="Balance at or below this → row blinks red">
           </div>
         </div>
         </div>
         <div class="settings-admin-section" id="voip-settings-spam-section">
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Spam Detection (30m Usage)</div>
-        <div style="font-size:10px;color:#666;margin-bottom:4px">Flags a client only when its 30-min usage jumps well above its own <em>recent</em> usual, measured in the client's own noise (robust std-devs), so a naturally spiky or steadily-growing client doesn't false-flag. Wide-gap catch-up readings are excluded.</div>
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px">Spam Detection (30m Usage)</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Flags a client only when its 30-min usage jumps well above its own <em>recent</em> usual, measured in the client's own noise (robust std-devs), so a naturally spiky or steadily-growing client doesn't false-flag. Wide-gap catch-up readings are excluded.</div>
         <div class="settings-row">
           <label style="min-width:150px;font-weight:700">Preset:</label>
           <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags at 3σ (more flags); Balanced at 3.5σ; Relaxed at 4.5σ (only big jumps). Each preset sets Watch-at, High-at and Ignore-below below. Custom = manually tuned values.">
@@ -10684,17 +10797,17 @@
         <div class="settings-row">
           <label style="min-width:150px">Watch at (σ):</label>
           <input class="win-inp" id="set-spam-kwatch" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="Flag a client Watch when its (sustained) 30-min usage is this many robust std-devs above its own recent median. Lower = more sensitive (more flags). 3.5 ≈ a clear anomaly beyond the client's normal spread.">
-          <span style="font-size:10px;color:#666;margin-left:4px">std-devs above usual</span>
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">std-devs above usual</span>
         </div>
         <div class="settings-row">
           <label style="min-width:150px">High tier at (σ):</label>
           <input class="win-inp" id="set-spam-khigh" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="A flag at or above this many std-devs above usual is ranked High (loud alarm); below it is Watch. Must be ≥ Watch-at.">
-          <span style="font-size:10px;color:#666;margin-left:4px">std-devs above usual</span>
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">std-devs above usual</span>
         </div>
         <div class="settings-row">
           <label style="min-width:150px">Sustain (slots):</label>
           <input class="win-inp" id="set-spam-sustain" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="Require the usage to stay elevated for this many consecutive 30-min slots before flagging (the current + preceding same-day readings are averaged). 1 = flag on a single reading; 2 = a lone one-slot blip won't trip, a burst that holds for an hour will.">
-          <span style="font-size:10px;color:#666;margin-left:4px">1 = single reading</span>
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">1 = single reading</span>
         </div>
         <div class="settings-row">
           <label style="min-width:150px">Min samples:</label>
@@ -10718,46 +10831,46 @@
         <div class="settings-row">
           <label style="min-width:150px">Max gap:</label>
           <input class="win-inp" id="set-spam-gap" type="number" step="5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Snapshots are meant to be 30 min apart. If the scheduled-slot gap to the previous snapshot exceeds this many minutes (i.e. a slot was skipped or it's the first post after a long break), that reading accumulated more than one interval: it is neither flagged as spam nor added to the baseline, and posting it prompts a confirmation. A normal consecutive 30-min reading still counts. 0 disables the guard.">
-          <span style="font-size:10px;color:#666;margin-left:4px">min (0 = off)</span>
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">min (0 = off)</span>
         </div>
         </div>
         <div class="settings-admin-section" id="voip-settings-access-section">
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px">Access</div>
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px">Access</div>
         <div class="settings-note">
           Login is managed via <strong>Firebase Authentication</strong>.<br>
           Add or remove users in the Firebase Console → Authentication → Users.
         </div>
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
         </div>
         </div>
-        <div id="voip-settings-danger-title" style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
+        <div class="ui-text-micro" id="voip-settings-danger-title" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
         <div class="settings-danger" id="voip-settings-danger-zone">
           <div style="margin-bottom:5px">Delete snapshots saved from 12:00 AM through 11:59 PM today for one source. This can affect New Critical comparisons.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-today-snapshots-btn" style="color:#880000" onclick="openDeleteTodayConfirm('snapshots')" data-count-collection="snapshots" data-count-filter="today" data-count-label="VOIP snapshot">Delete Today Snapshots for All Clients</button>
-            <button class="tbtn" id="voip-delete-today-tritel-btn" style="color:#880000" onclick="openDeleteTodayConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-filter="today" data-count-label="Tritel snapshot">Delete Today Snapshots for Tritel</button>
+            <button class="tbtn" id="voip-delete-today-snapshots-btn" style="color:var(--red)" onclick="openDeleteTodayConfirm('snapshots')" data-count-collection="snapshots" data-count-filter="today" data-count-label="VOIP snapshot">Delete Today Snapshots for All Clients</button>
+            <button class="tbtn" id="voip-delete-today-tritel-btn" style="color:var(--red)" onclick="openDeleteTodayConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-filter="today" data-count-label="Tritel snapshot">Delete Today Snapshots for Tritel</button>
           </div>
           <div style="margin:8px 0 5px">Wipe an entire Firestore collection — every stored day, not just today. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-all-snapshots-btn" style="color:#880000" onclick="openWipeAllConfirm('snapshots')" data-count-collection="snapshots" data-count-label="VOIP snapshot">Delete ALL Snapshots</button>
-            <button class="tbtn" id="voip-delete-all-tritel-btn" style="color:#880000" onclick="openWipeAllConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-label="Tritel snapshot">Delete ALL Tritel Snapshots</button>
+            <button class="tbtn" id="voip-delete-all-snapshots-btn" style="color:var(--red)" onclick="openWipeAllConfirm('snapshots')" data-count-collection="snapshots" data-count-label="VOIP snapshot">Delete ALL Snapshots</button>
+            <button class="tbtn" id="voip-delete-all-tritel-btn" style="color:var(--red)" onclick="openWipeAllConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-label="Tritel snapshot">Delete ALL Tritel Snapshots</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Critical History</strong> tab — the separate record of every client that hit Critical Balance. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-critical-history-btn" style="color:#880000" onclick="openCritHistWipeConfirm()" data-count-collection="critical_history" data-count-label="critical-history record">Delete ALL Critical History</button>
+            <button class="tbtn" id="voip-delete-critical-history-btn" style="color:var(--red)" onclick="openCritHistWipeConfirm()" data-count-collection="critical_history" data-count-label="critical-history record">Delete ALL Critical History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>Flagged Spam History</strong> tab. Possible Spam detection and its baseline are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-delete-spam-history-btn" style="color:#880000" onclick="openSpamHistWipeConfirm()" data-count-collection="spam_history" data-count-label="flagged-spam client record">Delete ALL Flagged Spam History</button>
+            <button class="tbtn" id="voip-delete-spam-history-btn" style="color:var(--red)" onclick="openSpamHistWipeConfirm()" data-count-collection="spam_history" data-count-label="flagged-spam client record">Delete ALL Flagged Spam History</button>
           </div>
           <div style="margin:8px 0 5px">Clear the <strong>No-Threshold Clients</strong> tab — the separate log of every client seen in a snapshot with no threshold set. Snapshots are not affected. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-clear-no-threshold-btn" style="color:#880000" onclick="openNoThreshWipeConfirm()" data-count-collection="no_threshold_history" data-count-label="no-threshold client record">Clear No-Threshold List</button>
+            <button class="tbtn" id="voip-clear-no-threshold-btn" style="color:var(--red)" onclick="openNoThreshWipeConfirm()" data-count-collection="no_threshold_history" data-count-label="no-threshold client record">Clear No-Threshold List</button>
           </div>
           <div style="margin:8px 0 5px">Reset the <strong>Spam Baseline</strong> — wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from existing snapshots, skipping wide-gap (e.g. overnight) readings. Use this to clear a baseline polluted by accumulated usage. Snapshots and manual exclusions are not affected. You can optionally keep a date/time range so its samples are preserved as-is. Admin only.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="voip-reset-spam-baseline-btn" style="color:#880000" onclick="openSpamResetConfirm()" data-count-collection="usage_profiles" data-count-label="client usage profile">Reset Spam Baseline</button>
+            <button class="tbtn" id="voip-reset-spam-baseline-btn" style="color:var(--red)" onclick="openSpamResetConfirm()" data-count-collection="usage_profiles" data-count-label="client usage profile">Reset Spam Baseline</button>
           </div>
         </div>
       </div>
@@ -10779,15 +10892,15 @@
         <div class="settings-danger" id="stats-clear-previous-day-setting">
           <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Prev Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
           <div class="danger-btns">
-            <button class="tbtn" id="stats-clear-previous-day-btn" style="color:#880000" onclick="clearStatsPreviousDaySnapshots()" data-count-collection="stats_snapshots" data-count-filter="previous-stats-day" data-count-label="previous-day Stats snapshot">Clear Previous-Day Stats Comparison</button>
+            <button class="tbtn" id="stats-clear-previous-day-btn" style="color:var(--red)" onclick="clearStatsPreviousDaySnapshots()" data-count-collection="stats_snapshots" data-count-filter="previous-stats-day" data-count-label="previous-day Stats snapshot">Clear Previous-Day Stats Comparison</button>
           </div>
         </div>
-        <hr style="border:none;border-top:1px solid #808080;margin:6px 0">
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:#880000">Danger Zone</div>
+        <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
         <div class="settings-danger">
           <div style="margin-bottom:5px">Wipe the entire <strong>stats_snapshots</strong> Firestore collection — every stored day, not just today. Balance snapshots, New Critical comparison and spam baseline are not affected. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
-            <button class="tbtn" id="stats-delete-all-snapshots-btn" style="color:#880000" onclick="openWipeAllConfirm('stats')" data-count-collection="stats_snapshots" data-count-label="Stats snapshot">Delete ALL Stats Snapshots</button>
+            <button class="tbtn" id="stats-delete-all-snapshots-btn" style="color:var(--red)" onclick="openWipeAllConfirm('stats')" data-count-collection="stats_snapshots" data-count-label="Stats snapshot">Delete ALL Stats Snapshots</button>
           </div>
         </div>
       </div>
@@ -10816,7 +10929,7 @@
              audit trail, so it lives here rather than in the Logs tab. The
              Delete All control keeps its original id so the existing role
              gating in applyModuleAccess continues to reach it. -->
-        <div style="font-weight:700;font-size:11px;margin-bottom:4px;color:var(--red)">Danger Zone</div>
+        <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
         <div class="settings-danger">
           <div style="margin-bottom:6px">Delete one date's Daily Traffic data. The report and its import log are removed together, and the date leaves every comparison.</div>
           <div class="stats-daily-archive-row">
@@ -10825,7 +10938,7 @@
           </div>
           <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
           <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once.</div>
-          <button class="tbtn" id="stats-daily-wipe-btn" style="color:#880000" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All Daily Traffic</button>
+          <button class="tbtn" id="stats-daily-wipe-btn" style="color:var(--red)" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All Daily Traffic</button>
         </div>
       </div>
     </div>
@@ -10892,7 +11005,7 @@
       <div class="dlg-text" id="delete-today-text">
         <strong>Permanently delete today's All Clients snapshots?</strong><br><br>
         This removes All Clients snapshots saved from 12:00 AM through 11:59 PM today and can remove the history needed by New Critical.<br><br>
-        <span style="color:#880000">Tritel snapshots are not affected.</span>
+        <span style="color:var(--red)">Tritel snapshots are not affected.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -10911,10 +11024,10 @@
       <div class="dlg-text" id="wipe-all-text"></div>
     </div>
     <div id="wipe-keep-block" style="display:none;margin:0 12px 4px;padding:8px;border:0;background:var(--surface-2);color:var(--text);text-align:left">
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer">
+      <label class="ui-text-micro" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
         <input type="checkbox" id="wipe-keep-enable" onclick="toggleWipeKeep(this)"> Keep a range (don't delete these)
       </label>
-      <div id="wipe-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
+      <div class="ui-text-micro" id="wipe-keep-inputs" style="display:none;margin-top:6px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
           <span style="width:34px">From</span>
           <input type="datetime-local" id="wipe-keep-from" step="1800" data-premium-date aria-label="Keep range from" style="flex:1">
@@ -10923,7 +11036,7 @@
           <span style="width:34px">To</span>
           <input type="datetime-local" id="wipe-keep-to" step="1800" data-premium-date aria-label="Keep range to" style="flex:1">
         </div>
-        <div style="color:var(--text-2);margin-top:5px;font-size:10px">Snapshots inside this window (inclusive) are preserved; everything else in the collection is deleted.</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-top:5px">Snapshots inside this window (inclusive) are preserved; everything else in the collection is deleted.</div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -10942,7 +11055,7 @@
       <div class="dlg-text">
         <strong>Permanently delete ALL Critical History?</strong><br><br>
         This wipes the entire <strong>critical_history</strong> collection — every client record of hitting Critical Balance. Your stored snapshots are <strong>not</strong> affected.<br><br>
-        <span style="color:#880000">This cannot be undone.</span>
+        <span style="color:var(--red)">This cannot be undone.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -10961,7 +11074,7 @@
       <div class="dlg-text">
         <strong>Permanently delete ALL Flagged Spam History?</strong><br><br>
         This removes every stored Possible Spam event, including entries marked Not Spam. Spam detection, baselines, exclusions, and snapshots are <strong>not</strong> affected.<br><br>
-        <span style="color:#880000">This cannot be undone.</span>
+        <span style="color:var(--red)">This cannot be undone.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -10980,7 +11093,7 @@
       <div class="dlg-text">
         <strong>Clear the entire No-Threshold Clients list?</strong><br><br>
         This wipes the entire <strong>no_threshold_history</strong> collection — every client logged as appearing with no threshold set. Your stored snapshots are <strong>not</strong> affected, and clients will be re-logged as they show up in future snapshots.<br><br>
-        <span style="color:#880000">This cannot be undone.</span>
+        <span style="color:var(--red)">This cannot be undone.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -11015,14 +11128,14 @@
       <div class="dlg-text">
         <strong>Reset the spam-detection baseline?</strong><br><br>
         This wipes the <strong>usage_profiles</strong> collection and rebuilds each client's baseline from your existing snapshots, <strong>skipping wide-gap readings</strong> (e.g. an overnight resume) so accumulated usage no longer pollutes it. Your stored snapshots and manual recurring-charge exclusions are <strong>not</strong> affected.<br><br>
-        <span style="color:#880000">The old profiles cannot be recovered, but detection stays working using the rebuilt baseline.</span>
+        <span style="color:var(--red)">The old profiles cannot be recovered, but detection stays working using the rebuilt baseline.</span>
       </div>
     </div>
     <div id="spamreset-keep-block" style="margin:0 12px 4px;padding:8px;border:0;background:var(--surface-2);color:var(--text);text-align:left">
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;cursor:pointer">
+      <label class="ui-text-micro" style="display:flex;align-items:center;gap:6px;font-weight:700;cursor:pointer">
         <input type="checkbox" id="spamreset-keep-enable" onclick="toggleSpamResetKeep(this)"> Keep a range (don't delete these)
       </label>
-      <div id="spamreset-keep-inputs" style="display:none;font-size:11px;margin-top:6px">
+      <div class="ui-text-micro" id="spamreset-keep-inputs" style="display:none;margin-top:6px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
           <span style="width:34px">From</span>
           <input type="datetime-local" id="spamreset-keep-from" step="1800" data-premium-date aria-label="Baseline keep range from" style="flex:1">
@@ -11031,7 +11144,7 @@
           <span style="width:34px">To</span>
           <input type="datetime-local" id="spamreset-keep-to" step="1800" data-premium-date aria-label="Baseline keep range to" style="flex:1">
         </div>
-        <div style="color:var(--text-2);margin-top:5px;font-size:10px">Baseline samples inside this window (inclusive) are preserved as-is; everything else is rebuilt from snapshots.</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-top:5px">Baseline samples inside this window (inclusive) are preserved as-is; everything else is rebuilt from snapshots.</div>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -11076,7 +11189,7 @@
   <div class="win-dialog" style="min-width:300px">
     <div class="dlg-tb"><span>Operator Identity</span></div>
     <div style="padding:14px">
-      <div style="font-size:11px;margin-bottom:8px">Enter your name so other operators can see when you're online:</div>
+      <div class="ui-text-micro" style="margin-bottom:8px">Enter your name so other operators can see when you're online:</div>
       <input class="win-inp" id="operator-name-inp" type="text" placeholder="Your name…" style="width:100%;margin-bottom:12px" maxlength="30"
         onkeydown="if(event.key==='Enter')setOperatorName()">
       <div style="display:flex;justify-content:flex-end;gap:4px">
@@ -11109,15 +11222,15 @@
   <div class="win-dialog" style="min-width:340px;max-width:460px">
     <div class="dlg-tb"><span>Client Remarks</span></div>
     <div style="padding:14px">
-      <div id="st-remark-target" style="font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text);word-break:break-word"></div>
-      <div style="font-size:10px;color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
+      <div class="ui-text-control" id="st-remark-target" style="font-weight:600;margin-bottom:4px;color:var(--text);word-break:break-word"></div>
+      <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
       <textarea class="win-inp" id="st-remark-ta" maxlength="2000" placeholder="Why does this client have low stats? Previous findings, vendor status, dates…" style="width:100%;min-height:90px;max-height:60vh;resize:none;overflow-y:auto;line-height:1.5;margin-bottom:6px;font-family:inherit"
         oninput="stRemarkAutoGrow(this)"
         onkeydown="if(event.key==='Escape'){closeStatsRemark();}else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){saveStatsRemark();}"></textarea>
-      <div id="st-remark-meta" style="font-size:10px;color:var(--text-3);margin-bottom:10px;min-height:12px"></div>
-      <div id="st-remark-viewonly" style="display:none;font-size:10px;color:var(--text-3);margin-bottom:10px;font-style:italic">View only — remarks are managed by admins.</div>
+      <div class="ui-text-micro" id="st-remark-meta" style="color:var(--text-3);margin-bottom:10px;min-height:12px"></div>
+      <div class="ui-text-micro" id="st-remark-viewonly" style="display:none;color:var(--text-3);margin-bottom:10px;font-style:italic">View only — remarks are managed by admins.</div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
-        <button class="tbtn" id="st-remark-clear" onclick="clearStatsRemark()" style="color:var(--danger,#cc0000)">Clear</button>
+        <button class="tbtn" id="st-remark-clear" onclick="clearStatsRemark()" style="color:var(--danger,var(--red))">Clear</button>
         <div style="display:flex;gap:4px">
           <button class="tbtn primary" id="st-remark-save" style="min-width:60px" onclick="saveStatsRemark()">Save</button>
           <button class="tbtn" id="st-remark-cancel" style="min-width:60px" onclick="closeStatsRemark()">Cancel</button>
@@ -11136,7 +11249,7 @@
       <div class="dlg-text">
         <strong>Undo Last Snapshot?</strong><br><br>
         This will remove the most recently saved snapshot and roll back to the previous one.<br><br>
-        <span style="color:#880000">This cannot be undone.</span>
+        <span style="color:var(--red)">This cannot be undone.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -11155,7 +11268,7 @@
       <div class="dlg-text">
         <strong>Undo this import?</strong><br><br>
         <span id="rollback-dlg-info"></span><br><br>
-        <span style="color:#880000">Client data will be restored to its state before this import. This cannot be undone.</span>
+        <span style="color:var(--red)">Client data will be restored to its state before this import. This cannot be undone.</span>
       </div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
@@ -11202,7 +11315,7 @@
 
 <!-- Sender ID Comment Popover (anchored to the button) -->
 <div id="sms-comment-popover" onclick="event.stopPropagation()">
-  <div class="pop-head">Sender ID Comment <span style="color:#888;font-weight:400">— preserved on CSV export</span></div>
+  <div class="pop-head">Sender ID Comment <span style="color:var(--text-3);font-weight:400">— preserved on CSV export</span></div>
   <textarea id="sms-sender-id-comment" placeholder="e.g. SID flagged for review by Smart Suite — pending re-approval"></textarea>
   <div class="pop-actions">
     <button class="tbtn" type="button" onclick="clearSmsCommentPopover()">Clear</button>
@@ -11242,7 +11355,6 @@
       <div class="premium-login-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/><circle cx="12" cy="12" r="9"/></svg>
       </div>
-      <div class="premium-login-eyebrow">Secure operations workspace</div>
       <div class="premium-login-title">Sign in to the live desk</div>
       <div class="premium-login-subtitle">Use your authorized account to open balances, traffic, and active route alerts.</div>
       <div class="premium-login-field">
@@ -11280,7 +11392,7 @@ window.addEventListener('error', function(e) {
   const thead = document.getElementById('clients-thead');
   if (!tbody || !document.getElementById('view-all-clients')?.classList.contains('active')) return;
   if (thead && !thead.innerHTML) thead.innerHTML = '<th>Runtime Error</th>';
-  tbody.innerHTML = '<tr><td style="padding:16px;color:#880000;text-align:center">Runtime error: ' +
+  tbody.innerHTML = '<tr><td style="padding:16px;color:var(--red);text-align:center">Runtime error: ' +
     String(e.message || e.error || e).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) +
     '</td></tr>';
 });
@@ -11290,7 +11402,7 @@ window.addEventListener('unhandledrejection', function(e) {
   if (!tbody || !document.getElementById('view-all-clients')?.classList.contains('active')) return;
   const reason = e.reason?.message || e.reason || 'Promise rejected';
   if (thead && !thead.innerHTML) thead.innerHTML = '<th>Runtime Error</th>';
-  tbody.innerHTML = '<tr><td style="padding:16px;color:#880000;text-align:center">Runtime error: ' +
+  tbody.innerHTML = '<tr><td style="padding:16px;color:var(--red);text-align:center">Runtime error: ' +
     String(reason).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) +
     '</td></tr>';
 });
@@ -11548,21 +11660,29 @@ let SBS = { nearPct:10, retentionDays:30, soundAlert:true, requireClientThreshol
 
 let wStep = 1, wCsvData = null, wHeaders = [], wMapping = {}, wChanges = [], wChecked = {}, wDiffF = 'all', wFilename = '';
 
+const CLIENT_DEFAULT_COLUMNS = ['carrier_name','amnt_receivable','_meta_critbal','usage_30min','_level'];
+function savedClientColumns() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem('bm_ui_prefs') || '{}');
+    return Array.isArray(prefs.clientColumns) && prefs.clientColumns.length ? prefs.clientColumns : null;
+  } catch (error) { return null; }
+}
+const CLIENT_INITIAL_COLUMNS = savedClientColumns() || CLIENT_DEFAULT_COLUMNS;
 const COLS = [
-  { key:'idx',             lbl:'#',               vis:true },
-  { key:'_eta',            lbl:'ETA',             vis:true },
-  { key:'carrier_name',    lbl:'Carrier Name',    vis:true },
-  { key:'account_manager', lbl:'Account Manager', vis:true },
-  { key:'notes',           lbl:'Notes',           vis:true },
-  { key:'_meta_credlim',   lbl:'Credit Limit',    vis:true },
-  { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:true },
-  { key:'prev_balance',    lbl:'Prev Balance',    vis:false },
-  { key:'pay_adj',         lbl:'Pay & Adj',       vis:true },
-  { key:'current_usage',   lbl:'Current Usage',   vis:true },
-  { key:'amnt_receivable', lbl:'Amnt Receivable', vis:true },
-  { key:'usage_30min',     lbl:'30m Usage',       vis:true },
-  { key:'total_usage',     lbl:'Total Usage',     vis:true },
-  { key:'_level',          lbl:'Status',          vis:true },
+  { key:'idx',             lbl:'#',               vis:CLIENT_INITIAL_COLUMNS.includes('idx') },
+  { key:'_eta',            lbl:'ETA',             vis:CLIENT_INITIAL_COLUMNS.includes('_eta') },
+  { key:'carrier_name',    lbl:'Carrier Name',    vis:CLIENT_INITIAL_COLUMNS.includes('carrier_name') },
+  { key:'account_manager', lbl:'Account Manager', vis:CLIENT_INITIAL_COLUMNS.includes('account_manager') },
+  { key:'notes',           lbl:'Notes',           vis:CLIENT_INITIAL_COLUMNS.includes('notes') },
+  { key:'_meta_credlim',   lbl:'Credit Limit',    vis:CLIENT_INITIAL_COLUMNS.includes('_meta_credlim') },
+  { key:'_meta_critbal',   lbl:'Crit Bal (file)', vis:CLIENT_INITIAL_COLUMNS.includes('_meta_critbal') },
+  { key:'prev_balance',    lbl:'Prev Balance',    vis:CLIENT_INITIAL_COLUMNS.includes('prev_balance') },
+  { key:'pay_adj',         lbl:'Pay & Adj',       vis:CLIENT_INITIAL_COLUMNS.includes('pay_adj') },
+  { key:'current_usage',   lbl:'Current Usage',   vis:CLIENT_INITIAL_COLUMNS.includes('current_usage') },
+  { key:'amnt_receivable', lbl:'Amnt Receivable', vis:CLIENT_INITIAL_COLUMNS.includes('amnt_receivable') },
+  { key:'usage_30min',     lbl:'30m Usage',       vis:CLIENT_INITIAL_COLUMNS.includes('usage_30min') },
+  { key:'total_usage',     lbl:'Total Usage',     vis:CLIENT_INITIAL_COLUMNS.includes('total_usage') },
+  { key:'_level',          lbl:'Status',          vis:CLIENT_INITIAL_COLUMNS.includes('_level') },
 ];
 const NUM_KEYS = new Set(['_meta_critbal','prev_balance','pay_adj','current_usage','amnt_receivable','usage_30min','total_usage']);
 const SMS_VENDORS = ['IBAZAAR','M360','SMART SUITE','TM','MONTY','MCT','VTS','NGT','NEW BUY','8X8'];
@@ -13151,10 +13271,10 @@ function fmtEta(mins) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 function etaColor(mins) {
-  if (mins === null) return '#999';
-  if (mins < 60)  return '#cc0000';
-  if (mins < 120) return '#cc6600';
-  return '#886600';
+  if (mins === null) return 'var(--text-3)';
+  if (mins < 60)  return 'var(--red)';
+  if (mins < 120) return 'var(--orange)';
+  return 'var(--yellow-deep)';
 }
 
 /* ════════════════════════════════════════════════
@@ -13944,10 +14064,19 @@ function spamChipInfo(row) {
 function updateSpamTab(count) {
   const tab = document.getElementById('tab-spam');
   if (!tab) return;
-  tab.textContent = count > 0 ? `Possible Spam (${count})` : 'Possible Spam';
+  const countEl = document.getElementById('tab-spam-count');
+  if (countEl) countEl.textContent = `(${count})`;
+  tab.setAttribute('aria-label', `Possible Spam, ${count} client${count === 1 ? '' : 's'}`);
   // Any marked suspect needs attention, including Watch-tier findings.
   tab.classList.toggle('tab-blink-red', count > 0);
 }
+
+document.addEventListener('keydown', event => {
+  const tab = event.target.closest?.('button.tab[role="tab"]');
+  if (!tab || (event.key !== 'Enter' && event.key !== ' ')) return;
+  event.preventDefault();
+  tab.click();
+});
 // Load the persistent baseline once (lazily), then re-render so the Possible
 // Spam tab count/rows populate without blocking the initial paint.
 let _spamKicked = false;
@@ -14276,7 +14405,7 @@ function renderSpamHistory() {
   const count = document.getElementById('spamhist-count');
   if (count) count.textContent = !_spamFlagHistoryLoaded ? 'Loading…'
     : rows.length ? `${rows.length} client(s) · ${rows.reduce((sum,row) => sum + row.count, 0)} flag event(s)`
-    : (spamHistSearch ? 'No matching clients.' : 'No Possible Spam flags logged yet.');
+    : '0 clients · 0 flag events';
   tbody.innerHTML = rows.map(row => `
     <tr ondblclick="openClientPopup('${escAttr(row.name)}')" style="cursor:pointer" title="Double-click for client details">
       <td><strong>${esc(row.name)}</strong></td><td class="num">${row.count}</td>
@@ -14286,7 +14415,7 @@ function renderSpamHistory() {
       <td style="white-space:nowrap">${esc(row.firstD)}${row.firstS ? ` · ${esc(fmt12(row.firstS))}` : ''}</td>
       <td style="white-space:nowrap">${esc(row.lastD)}${row.lastS ? ` · ${esc(fmt12(row.lastS))}` : ''}</td>
       ${spamHistAdminActions(row)}
-    </tr>`).join('') || `<tr><td colspan="10" style="text-align:center;padding:16px;color:#666">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--text-2)">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
 }
 
 function spamHistAdminActions(row) {
@@ -14769,19 +14898,19 @@ function renderCriticalHistory() {
   if (countEl) {
     countEl.textContent = !_critHistLoaded ? 'Loading…'
       : rows.length ? `${rows.length} client(s) have hit Critical Balance`
-      : (critHistSearch ? 'No matching clients.' : 'No clients have hit Critical Balance yet.');
+      : '0 clients';
   }
   tbody.innerHTML = rows.map(r => `
     <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
       <td>${esc(r.name)}</td>
       <td class="num">${r.count}</td>
       <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
-      <td class="num" style="color:#884400">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
+      <td class="num" style="color:var(--orange)">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
       <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
       <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
       ${rowDelCell('deleteCritHistEntry', r.name)}
     </tr>`).join('') ||
-    `<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">${critHistSearch ? 'No clients match your search.' : 'No clients have hit Critical Balance yet.'}</td></tr>`;
+    `<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-2)">${critHistSearch ? 'No clients match your search.' : 'No clients have hit Critical Balance yet.'}</td></tr>`;
 }
 
 window.exportCritHistory = () => {
@@ -15120,21 +15249,21 @@ function renderNoThreshHistory() {
     const pend = rows.filter(r => !r.resolved).length;
     countEl.textContent = !_noThreshLoaded ? 'Loading…'
       : rows.length ? `${rows.length} client(s) seen with no threshold — ${pend} still without one`
-      : (noThreshSearch ? 'No matching clients.' : 'No no-threshold clients logged yet.');
+      : '0 clients';
   }
   tbody.innerHTML = rows.map(r => `
     <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
       <td>${esc(r.name)}</td>
       <td>${r.resolved
         ? '<span style="color:var(--green);font-weight:600">Threshold set</span>'
-        : '<span style="color:#884400;font-weight:600">No threshold</span>'}</td>
+        : '<span style="color:var(--orange);font-weight:600">No threshold</span>'}</td>
       <td class="num">${r.count}</td>
       <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
       <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
       <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
       ${rowDelCell('deleteNoThreshEntry', r.name)}
     </tr>`).join('') ||
-    `<tr><td colspan="7" style="text-align:center;padding:16px;color:#666">${noThreshSearch ? 'No clients match your search.' : 'No no-threshold clients logged yet.'}</td></tr>`;
+    `<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-2)">${noThreshSearch ? 'No clients match your search.' : 'No no-threshold clients logged yet.'}</td></tr>`;
 }
 
 window.exportNoThreshHistory = () => {
@@ -15559,7 +15688,7 @@ function openSourceMismatch(mm) {
   document.getElementById('source-mismatch-text').innerHTML =
     `<strong>This looks like ${guessLbl} data, but the source is set to ${selLbl}.</strong><br><br>` +
     `${mm.detail}<br><br>` +
-    `<span style="color:#880000">Posting to the wrong source can corrupt ${risk}.</span>`;
+    `<span style="color:var(--red)">Posting to the wrong source can corrupt ${risk}.</span>`;
   document.getElementById('source-mismatch-switch').textContent = `Switch to ${guessLbl}`;
   document.getElementById('source-mismatch-keep').textContent   = `Post as ${selLbl} anyway`;
   document.getElementById('source-mismatch-overlay').classList.add('open');
@@ -15664,7 +15793,7 @@ window.processSnapshot = async() => {
       `<strong>The ${fmt12(timeSlot)} slot already has a snapshot today.</strong><br><br>`+
       `Saving now will <strong>overwrite</strong> it (${existing.data?.length||0} client row(s)). `+
       `The earlier data and its New Critical comparison reference will be lost.<br><br>`+
-      `<span style="color:#880000">Cancel and pick a different time slot if you meant to keep both.</span>`;
+      `<span style="color:var(--red)">Cancel and pick a different time slot if you meant to keep both.</span>`;
     document.getElementById('overwrite-confirm-overlay')?.classList.add('open');
     return;
   }
@@ -16572,34 +16701,26 @@ function localSettingsDataCount(collectionName, filterName = '', button = null) 
   return counts[collectionName]?.() ?? 0;
 }
 
-/* The count is reported in the hover tooltip, never in the label. A button in
-   the Danger Zone has to keep saying what it deletes at all times: a label that
-   rewrites itself under the pointer is the one moment you are reading it before
-   clicking, and "Delete 0 SMS snapshots" also reads as a different action from
-   "Delete Today's SMS Snapshots". The tooltip layer watches
-   data-premium-tooltip on the hovered element, so the count can land late and
-   still appear without reopening the tooltip. */
-function settingsCountPhrase(button, count) {
+/* Destructive settings controls reveal the exact scope while hovered, then
+   return to their concise action labels. Keeping the original label in data
+   also makes an asynchronous count safe when the pointer has already left. */
+function settingsCountButtonText(button, count) {
   const unit = button.dataset.countLabel || 'record';
-  return `${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'} will be deleted.`;
-}
-
-function setSettingsCountTooltip(button, phrase) {
-  const description = button.dataset.countDescription || '';
-  button.dataset.premiumTooltip = description ? `${description} — ${phrase}` : phrase;
+  return `Delete ${count.toLocaleString()} ${unit}${count === 1 ? '' : 's'}`;
 }
 
 function showSettingsCountButtonText(button) {
   if (button?.dataset.countPointerInside !== 'true') return;
   const cachedCount = Number(button.dataset.countValue);
-  setSettingsCountTooltip(button, Number.isFinite(cachedCount)
-    ? settingsCountPhrase(button, cachedCount)
-    : 'Checking record count…');
+  button.textContent = Number.isFinite(cachedCount)
+    ? settingsCountButtonText(button, cachedCount)
+    : 'Checking record count…';
 }
 
 function restoreSettingsCountButtonText(button) {
   if (!button) return;
   button.dataset.countPointerInside = 'false';
+  if (button.dataset.countDefaultLabel) button.textContent = button.dataset.countDefaultLabel;
 }
 
 function settingsCountQueryKey(button) {
@@ -16662,17 +16783,7 @@ async function refreshSettingsCountButton(button) {
 }
 
 document.querySelectorAll('button[data-count-collection]').forEach(button => {
-  // Whatever the button already explains about itself is kept as the first half
-  // of the tooltip and the live count is appended to it, so a button that had a
-  // description does not lose it to the count.
-  const description = String(button.dataset.premiumTooltip || '').trim();
-  if (description) button.dataset.countDescription = description;
-  // Seeded now, not on hover: the tooltip layer registers its own pointerover
-  // listener before this one, so it decides whether an element is a tooltip
-  // target before the handler below can add the attribute. A button without it
-  // at that moment is skipped and never shows a tooltip at all. The placeholder
-  // is replaced synchronously on hover, well inside the layer's open delay.
-  setSettingsCountTooltip(button, 'Checking record count…');
+  button.dataset.countDefaultLabel = button.textContent.trim();
 });
 document.addEventListener('pointerover', event => {
   const button = event.target.closest?.('button[data-count-collection]');
@@ -16693,18 +16804,18 @@ function fmtDur(min){
 }
 function logLateness(log){
   if (!log.processed_at || !log.time_slot || !log.session_date)
-    return { min:null, label:'—', color:'#888' };
+    return { min:null, label:'—', color:'var(--text-3)' };
   const sched = new Date(`${log.session_date}T${log.time_slot}:00`);
-  if (isNaN(sched.getTime())) return { min:null, label:'—', color:'#888' };
+  if (isNaN(sched.getTime())) return { min:null, label:'—', color:'var(--text-3)' };
   const min = Math.round((log.processed_at - sched) / 60000);
-  if (!Number.isFinite(min)) return { min:null, label:'—', color:'#888' };
+  if (!Number.isFinite(min)) return { min:null, label:'—', color:'var(--text-3)' };
   // Negative = posted before the slot. A few minutes early is fine, but posting
   // well ahead of the scheduled slot is a data-entry problem, not "on time".
-  if (min < -15) return { min, label:`${fmtDur(-min)} early`,    color:'#cc0000' };
-  if (min < -5)  return { min, label:`${fmtDur(-min)} early`,    color:'#aa6600' };
-  if (min <= 5)  return { min, label:'✓ On time',                 color:'#006600' };
-  if (min <= 15) return { min, label:`${fmtDur(min)} late`,      color:'#aa6600' };
-  return            { min, label:`${fmtDur(min)} late`,        color:'#cc0000' };
+  if (min < -15) return { min, label:`${fmtDur(-min)} early`, color:'var(--red)' };
+  if (min < -5)  return { min, label:`${fmtDur(-min)} early`, color:'var(--orange)' };
+  if (min <= 5)  return { min, label:'✓ On time', color:'var(--green)' };
+  if (min <= 15) return { min, label:`${fmtDur(min)} late`, color:'var(--orange)' };
+  return { min, label:`${fmtDur(min)} late`, color:'var(--red)' };
 }
 
 const SNAPSHOT_LOG_MODULE_LABELS = {
@@ -16794,13 +16905,13 @@ function renderLogs(){
   document.getElementById('logs-th-action').style.display     = admin ? '' : 'none';
 
   if (!fbOk){
-    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:#888">Logs require Firestore — unavailable in demo mode.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">Logs require Firestore — unavailable in demo mode.</td></tr>`;
     countEl.textContent = '';
     return;
   }
   if (!logsData.length){
-    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:#888">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
-    countEl.textContent = 'No logs yet.';
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
+    countEl.textContent = '0 logs';
     updateLogsSelUI();
     return;
   }
@@ -16810,7 +16921,7 @@ function renderLogs(){
     const postedStr = d ? d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
     const checked   = logsSelected.has(log.id) ? 'checked' : '';
     const checkCell  = admin ? `<td style="text-align:center"><input type="checkbox" ${checked} onclick="toggleLogSelect('${escAttr(log.id)}',this)"></td>` : '';
-    const actionCell = admin ? `<td><button class="tbtn" style="color:#880000;padding:0 6px;font-size:10px" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}')">Delete</button></td>` : '';
+    const actionCell = admin ? `<td><button class="tbtn ui-text-micro" style="color:var(--red);padding:0 6px" onclick="openDeleteOneLogConfirm('${escAttr(log.id)}')">Delete</button></td>` : '';
     return `<tr>
       ${checkCell}
       <td>${esc(log.session_date || '—')}</td>
@@ -16875,7 +16986,7 @@ window.openDeleteAllLogsConfirm = () => {
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete ALL snapshot log entries?</strong><br><br>` +
     `Only the log records are removed — snapshot data and New Critical comparisons are not affected.<br><br>` +
-    `<span style="color:#880000">This cannot be undone.</span>`;
+    `<span style="color:var(--red)">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
 window.closeLogsConfirm = () => {
@@ -16912,7 +17023,7 @@ window.openDeleteModuleLogsConfirm = (module, label) => {
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete all ${esc(label)} log entries?</strong><br><br>` +
     `Only the log records are removed. The traffic data for those dates is not affected — that is deleted from Settings → Danger Zone.<br><br>` +
-    `<span style="color:#880000">This cannot be undone.</span>`;
+    `<span style="color:var(--red)">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
 window.confirmDeleteLogs = async () => {
@@ -16971,7 +17082,7 @@ window.openDeleteTodayConfirm = (kind = 'snapshots') => {
   if (text) text.innerHTML =
     `<strong>Permanently delete today's ${sourceLabel} snapshots?</strong><br><br>` +
     `This removes ${sourceLabel} snapshots saved from <strong>12:00 AM through 11:59 PM today</strong> (${todayStr()}) from Firestore.<br><br>` +
-    `<span style="color:#880000">${isTritel ? 'All Clients snapshots are not affected.' : 'Tritel snapshots are not affected. This can remove history needed by New Critical.'}</span>`;
+    `<span style="color:var(--red)">${isTritel ? 'All Clients snapshots are not affected.' : 'Tritel snapshots are not affected. This can remove history needed by New Critical.'}</span>`;
   if (ok) ok.textContent = `Delete ${sourceLabel}`;
   document.getElementById('delete-today-overlay').classList.add('open');
 };
@@ -17060,7 +17171,7 @@ function renderClientDetailBody(editMode) {
         valHtml = `<input class="win-inp" id="cde-${f.key}" type="text" value="${esc(String(f.value))}" style="width:220px">`;
       }
     } else {
-      valHtml = `<span style="color:${f.key==='is_active'&&f.value==='Inactive'?'#888':'inherit'}">${esc(String(f.value??'—'))}</span>`;
+      valHtml = `<span style="color:${f.key==='is_active'&&f.value==='Inactive'?'var(--text-3)':'inherit'}">${esc(String(f.value??'—'))}</span>`;
     }
     return `<div class="detail-row"><div class="detail-lbl">${esc(f.label)}</div><div class="detail-val">${valHtml}</div></div>`;
   });
@@ -17348,22 +17459,22 @@ window.openWipeAllConfirm = kind => {
       `<strong>Permanently delete ALL stats snapshots?</strong><br><br>` +
       `This wipes the entire <strong>stats_snapshots</strong> collection in Firestore — every stored day, not just today. ` +
       `Your balance snapshots, New Critical comparison and spam baseline are <strong>not</strong> affected.<br><br>` +
-      `<span style="color:#880000">This cannot be undone.</span>`,
+      `<span style="color:var(--red)">This cannot be undone.</span>`,
     'stats-daily':
       `<strong>Permanently delete ALL daily traffic history?</strong><br><br>` +
       `This wipes the entire <strong>stats_daily_traffic</strong> collection in Firestore. Increase, decrease, stopped, new-traffic and decline-streak history will be lost.<br><br>` +
-      `<span style="color:#880000">This cannot be undone.</span>`,
+      `<span style="color:var(--red)">This cannot be undone.</span>`,
     tritel:
       `<strong>Permanently delete ALL Tritel snapshots?</strong><br><br>` +
       `This wipes the entire <strong>tritel_snapshots</strong> collection in Firestore — every stored day and time slot, not just today.<br><br>` +
-      `<span style="color:#880000">This cannot be undone.</span>`,
+      `<span style="color:var(--red)">This cannot be undone.</span>`,
   };
   document.getElementById('wipe-all-title').textContent = titles[kind] || 'Delete All Snapshots';
   document.getElementById('wipe-all-text').innerHTML = texts[kind] ||
     `<strong>Permanently delete ALL balance snapshots?</strong><br><br>` +
     `This wipes the entire <strong>snapshots</strong> collection in Firestore — every stored day, not just today. ` +
     `New Critical comparisons and trend history will be lost.<br><br>` +
-    `<span style="color:#880000">This cannot be undone.</span>`;
+    `<span style="color:var(--red)">This cannot be undone.</span>`;
   // "Keep a range" applies to the snapshots, stats and Tritel wipes; reset it each open.
   const keepBlock = document.getElementById('wipe-keep-block');
   if (keepBlock) {
@@ -17881,8 +17992,12 @@ window.setAlertFilter = (f,btn) => {
   if (f === 'light') { alertSortCol = '_bw'; alertSortDir = -1; }
   if (f === 'usage') { alertSortCol = 'usage_30min'; alertSortDir = -1; }
   if (f === 'spam')  { alertSortCol = 'usage_30min'; alertSortDir = -1; ensureSpamHistory(); }
-  document.querySelectorAll('#alert-tabs .tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#alert-tabs .tab').forEach(b=>{
+    b.classList.remove('active');
+    b.setAttribute('aria-selected','false');
+  });
   btn.classList.add('active');
+  btn.setAttribute('aria-selected','true');
   const isHist = (f === 'usagehistory');
   const histWrap = document.getElementById('usage-hist-wrap');
   const histFoot = document.getElementById('usage-hist-foot');
@@ -18068,7 +18183,7 @@ function renderAlerts() {
     const spamBadge = (r._spam && alertFilter!=='spam')
       ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's baseline">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
       : '';
-    const spamIgnore = (alertFilter==='spam' && canPostBalance()) ? `<button class="tbtn" style="margin-left:6px;font-size:9px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
+    const spamIgnore = (alertFilter==='spam' && canPostBalance()) ? `<button class="tbtn ui-text-micro" style="margin-left:6px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
     const profileMax = r._spamInfo?.profileMax;
     const hasProfileMax = alertFilter==='spam' && profileMax !== null && profileMax !== undefined && Number.isFinite(amountNumber(profileMax));
     const maxWhen = hasProfileMax && r._spamInfo?.profileMaxDate
@@ -18082,23 +18197,23 @@ function renderAlerts() {
       ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="Highest 30m usage stored in this client's usage profile${escAttr(maxWhen)}">profile max ${fmt(profileMax)}${maxWhenLabel ? `<span class="spam-max-when">hit ${esc(maxWhenLabel)}</span>` : ''}</span>`
       : '';
     const etaMins  = r._eta;
-    const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:#cc0000;font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
+    const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:var(--red);font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
       <td>${esc(r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
       <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}${usageTrendArrow(r)}${spamMaxRef}</td>
-      <td class="num" style="color:#666">${fmt(r.credit_limit)}</td>
-      <td class="num" style="color:#884400">${fmt(r.critical_balance)}</td>
+      <td class="num" style="color:var(--text-2)">${fmt(r.credit_limit)}</td>
+      <td class="num" style="color:var(--orange)">${fmt(r.critical_balance)}</td>
       <td><div class="ubar-wrap">
         <div class="ubar"><div class="ubar-fill ${r._level}" style="width:${bwDisplay}%"></div></div>
-        <span class="${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:'Courier New',monospace;font-size:10px">${bwDisplay}%</span>
+        <span class="ui-text-micro ${alertFilter==='light' && bw>=90 ? 'bar-pct-danger' : ''}" style="font-family:var(--mono)">${bwDisplay}%</span>
       </div></td>
       <td><span class="badge ${cls}">${lbl}</span>${newBadge}${spamBadge}${spamIgnore}</td>
-      <td style="text-align:center;font-family:'Courier New',monospace;font-size:10px">${etaTxt}</td>
-      <td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
+      <td class="ui-text-micro" style="text-align:center;font-family:var(--mono)">${etaTxt}</td>
+      <td style="color:var(--text-2);max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes)}</td>
     </tr>`;
-  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:#666">No clients in this category</td></tr>`;
+  }).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--text-2)">No clients in this category</td></tr>`;
   renderPager('alert-pager',alertPage,pages,'alertPageTo');
 }
 
@@ -18135,7 +18250,7 @@ function renderUsageHistory() {
   const tritelToday = (tritelSnaps || []).filter(t => t.session_date === todayStr());
   if (!todaySnaps.length && !tritelToday.length) {
     thead.innerHTML = `<tr><th>Client</th></tr>`;
-    tbody.innerHTML = `<tr><td style="text-align:center;padding:16px;color:#666">No snapshots yet today.</td></tr>`;
+    tbody.innerHTML = `<tr><td style="text-align:center;padding:16px;color:var(--text-2)">No snapshots yet today.</td></tr>`;
     if (foot) foot.textContent = '';
     return;
   }
@@ -18204,7 +18319,7 @@ function renderUsageHistory() {
   ).join('');
   tbody.innerHTML = (clients.length || tritelCarriers.length)
     ? clientRowsHtml + tritelRowsHtml
-    : `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:#666">No clients with 30-min usage today.</td></tr>`;
+    : `<tr><td colspan="${slotKeys.length + 1}" style="text-align:center;padding:16px;color:var(--text-2)">No clients with 30-min usage today.</td></tr>`;
   if (foot) foot.textContent = `${qualifyingClients.size} client(s)${tritelCarriers.length ? ' + Tritel' : ''} · ${snaps.length} snapshot(s)`;
 }
 
@@ -18441,6 +18556,13 @@ window.sortClients=col=>{
   clientSortDir=clientSortCol===col?clientSortDir*-1:1;
   clientSortCol=col;window.renderClients();
 };
+function clientSortHeader(c) {
+  const active = clientSortCol === c.key;
+  const ariaSort = active ? (clientSortDir < 0 ? 'descending' : 'ascending') : 'none';
+  const arrow = active ? (clientSortDir < 0 ? ' ▼' : ' ▲') : '';
+  const align = NUM_KEYS.has(c.key) ? ' style="text-align:right"' : '';
+  return `<th class="client-sortable" role="columnheader" tabindex="0" aria-sort="${ariaSort}" onclick="sortClients('${c.key}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();sortClients('${c.key}')}"${align}>${esc(c.lbl)}${arrow}</th>`;
+}
 window.clientPageTo=p=>{clientPage=p;window.renderClients();};
 
 window.toggleShowInactive=()=>{
@@ -18514,52 +18636,52 @@ function renderClientsLegacy(){
   clientPage=Math.min(clientPage,pages-1);
   const page=rows.slice(clientPage*PG,(clientPage+1)*PG);
   const vc=COLS.filter(c=>c.vis);
-  document.getElementById('clients-thead').innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
+  document.getElementById('clients-thead').innerHTML=vc.map(clientSortHeader).join('');
   const legacyBody=page.map((r,ri)=>{
     const rowStyle=r._inactive?'opacity:0.45;':'';
     const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
-      if(c.key==='idx') return `<td style="color:#888">${clientPage*PG+ri+1}</td>`;
-      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
+      if(c.key==='idx') return `<td style="color:var(--text-3)">${clientPage*PG+ri+1}</td>`;
+      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}</td>`;
       if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
-      if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
+      if(c.key==='notes') return `<td style="color:var(--text-2);max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
       if(c.key==='_meta_credlim'){
         if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.credit_limit;const v=pv!==undefined?pv:(r._meta_credlim!==null?r._meta_credlim:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','credit_limit',this.value)"></td>`;}
-        return `<td class="num" style="color:#666">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
+        return `<td class="num" style="color:var(--text-2)">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
       }
       if(c.key==='_meta_critbal'){
         if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.critical_balance;const v=pv!==undefined?pv:(r._meta_critbal!==null?r._meta_critbal:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','critical_balance',this.value)"></td>`;}
-        return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+        return `<td class="num" style="color:var(--orange)">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
       }
-      if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
+      if(c.key==='_eta'){const em=etaMinutes(r);return `<td class="ui-text-micro" style="text-align:center;font-family:var(--mono);color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
       const v=r[c.key],isN=typeof v==='number';
       const tone=isN&&['amnt_receivable','pay_adj'].includes(c.key)?debitCreditClass(v):(isN&&v<0?'neg':'');
       return `<td class="${isN?'num':''} ${tone}">${isN?fmt(v):esc(String(v??''))}</td>`;
     }).join('')}</tr>`;
   }).join('');
   document.getElementById('clients-tbody').innerHTML=rows.length ? legacyBody + renderClientTotalRow(vc, clientTotalSourceRows(rows, search)) : (sourceRows.length===0
-    ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
-    : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
+    ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--text-2)">No data yet. Paste a snapshot in the left panel.</td></tr>`
+    : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--text-2)">No clients match the current filter. <a href="#" onclick="resetClientsFilter();return false;" style="color:var(--accent)">Reset filters</a></td></tr>`);
   renderPager('clients-pager',clientPage,pages,'clientPageTo');
   buildColDD();
 }
 
 function clientCell(r,c,rowNum){
-  if(c.key==='idx') return `<td style="color:#888">${rowNum}</td>`;
-  if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span style="font-size:9px;color:#999;font-weight:400">(inactive)</span>':''}</td>`;
+  if(c.key==='idx') return `<td style="color:var(--text-3)">${rowNum}</td>`;
+  if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}</td>`;
   if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
-  if(c.key==='notes') return `<td style="color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
+  if(c.key==='notes') return `<td style="color:var(--text-2);max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
   if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
   if(c.key==='_meta_credlim'){
     if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.credit_limit;const v=pv!==undefined?pv:(r._meta_credlim!==null?r._meta_credlim:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','credit_limit',this.value)"></td>`;}
-    return `<td class="num" style="color:#666">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
+    return `<td class="num" style="color:var(--text-2)">${r._meta_credlim!==null?fmt(r._meta_credlim):'—'}</td>`;
   }
   if(c.key==='_meta_critbal'){
     if(bulkEditMode){const pv=bulkEdits[r.carrier_name]?.critical_balance;const v=pv!==undefined?pv:(r._meta_critbal!==null?r._meta_critbal:'');return `<td class="${pv!==undefined?'bulk-changed':''}"><input class="bulk-edit-inp" type="number" step="0.01" value="${esc(String(v))}" oninput="setBulkEdit('${escAttr(r.carrier_name)}','critical_balance',this.value)"></td>`;}
-    return `<td class="num" style="color:#884400">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
+    return `<td class="num" style="color:var(--orange)">${r._meta_critbal!==null?fmt(r._meta_critbal):'—'}</td>`;
   }
-  if(c.key==='_eta'){const em=etaMinutes(r);return `<td style="text-align:center;font-family:'Courier New',monospace;font-size:10px;color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
+  if(c.key==='_eta'){const em=etaMinutes(r);return `<td class="ui-text-micro" style="text-align:center;font-family:var(--mono);color:${etaColor(em)};font-weight:${em!==null&&em<120?'700':'400'}">${fmtEta(em)}</td>`; }
   const v=r[c.key],isN=typeof v==='number';
   const tone=isN&&['amnt_receivable','pay_adj'].includes(c.key)?debitCreditClass(v):(isN&&v<0?'neg':'');
   return `<td class="${isN?'num':''} ${tone}">${isN?fmt(v):esc(String(v??''))}</td>`;
@@ -18609,19 +18731,19 @@ function renderDebitOnlyClientsTable() {
       const managerTitle = clientManagerFilter === 'all' ? '' : ` - ${managerFilterLabel(clientManagerFilter)}`;
       title.textContent = `All Clients - Debit Only${managerTitle} (${rows.length})`;
     }
-    thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
+    thead.innerHTML=vc.map(clientSortHeader).join('');
     const bodyRows=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
       return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>clientCell(r,c,clientPage*PG+ri+1)).join('')}</tr>`;
     }).join('');
-    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, rows) : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No debit clients found. Debit only uses Amnt Receivable from 0.00000001 to 999999999. Loaded ${sourceRows.length} client(s).</td></tr>`;
+    tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, rows) : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--text-2)">No debit clients found. Debit only uses Amnt Receivable from 0.00000001 to 999999999. Loaded ${sourceRows.length} client(s).</td></tr>`;
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
     buildColDD();
   } catch(e) {
     console.error('renderDebitOnlyClientsTable failed:', e);
     thead.innerHTML=vc.map(c=>`<th>${c.lbl}</th>`).join('');
-    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#880000">Debit only render error: ${esc(e.message||e)}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--red)">Debit only render error: ${esc(e.message||e)}</td></tr>`;
   }
 }
 
@@ -18692,7 +18814,7 @@ window.renderClients=()=>{
     if(debug) {
       debug.innerHTML += ` Â· afterFilter=${rows.length} page=${page.length} cols=${vc.length} search="${esc(search)}" filter=${clientFilter} manager="${esc(managerFilterLabel(clientManagerFilter))}"`;
     }
-    thead.innerHTML=vc.map(c=>`<th onclick="sortClients('${c.key}')" ${NUM_KEYS.has(c.key)?'style="text-align:right"':''}>${c.lbl}</th>`).join('');
+    thead.innerHTML=vc.map(clientSortHeader).join('');
     const bodyRows=page.map((r,ri)=>{
       const rowStyle=r._inactive?'opacity:0.45;':'';
       const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
@@ -18703,27 +18825,54 @@ window.renderClients=()=>{
     const showTritel = clientFilter==='all' && !search && clientManagerFilter==='all';
     const tritelRows = showTritel ? renderTritelRows(vc, rows.length+1) : '';
     tbody.innerHTML=rows.length ? bodyRows + renderClientTotalRow(vc, clientTotalSourceRows(rows, search)) + tritelRows : (sourceRows.length===0
-      ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No data yet. Paste a snapshot in the left panel.</td></tr>`
-      : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#666">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:#000080">Reset filters</a></td></tr>`);
+      ? `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--text-2)">No data yet. Paste a snapshot in the left panel.</td></tr>`
+      : `<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--text-2)">No clients match the current filter. Loaded ${sourceRows.length} client(s). <a href="#" onclick="resetClientsFilter();return false;" style="color:var(--accent)">Reset filters</a></td></tr>`);
     renderPager('clients-pager',clientPage,pages,'clientPageTo');
     buildColDD();
   } catch(e) {
     console.error('renderClients failed:', e);
     thead.innerHTML=vc.map(c=>`<th>${c.lbl}</th>`).join('');
-    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:#880000">All Clients render error: ${esc(e.message||e)}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="${vc.length}" style="text-align:center;padding:16px;color:var(--red)">All Clients render error: ${esc(e.message||e)}</td></tr>`;
   }
 };
 
 function buildColDD(){
-  document.getElementById('col-dd').innerHTML=COLS.map((c,i)=>
-    `<div class="col-item" onclick="toggleCol(${i})"><input type="checkbox" ${c.vis?'checked':''} onclick="event.stopPropagation();toggleCol(${i})"> ${esc(c.lbl)}</div>`
+  const dd = document.getElementById('col-dd');
+  if (!dd) return;
+  dd.innerHTML=COLS.map((c,i)=>
+    `<label class="col-item"><input type="checkbox" ${c.vis?'checked':''} onchange="toggleCol(${i})"> <span>${esc(c.lbl)}</span></label>`
   ).join('');
 }
-window.toggleCol=i=>{COLS[i].vis=!COLS[i].vis;window.renderClients();};
-window.toggleColDD=()=>document.getElementById('col-dd').classList.toggle('open');
+function persistClientColumns() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem('bm_ui_prefs') || '{}') || {};
+    prefs.clientColumns = COLS.filter(c => c.vis).map(c => c.key);
+    localStorage.setItem('bm_ui_prefs', JSON.stringify(prefs));
+  } catch (error) {}
+}
+window.toggleCol=i=>{
+  if (!COLS[i]) return;
+  if (COLS[i].vis && COLS.filter(c=>c.vis).length === 1) {
+    toast('Keep at least one All Clients column visible.', 'err');
+    buildColDD();
+    return;
+  }
+  COLS[i].vis=!COLS[i].vis;
+  persistClientColumns();
+  window.renderClients();
+};
+window.toggleColDD=()=>{
+  const dd=document.getElementById('col-dd');
+  const btn=document.getElementById('clients-columns-btn');
+  const open=dd?.classList.toggle('open') || false;
+  btn?.setAttribute('aria-expanded',String(open));
+};
 document.addEventListener('click',e=>{
   const dd=document.getElementById('col-dd');
-  if(dd&&!dd.contains(e.target)&&!e.target.closest('.col-wrap')) dd.classList.remove('open');
+  if(dd&&!dd.contains(e.target)&&!e.target.closest('.col-wrap')) {
+    dd.classList.remove('open');
+    document.getElementById('clients-columns-btn')?.setAttribute('aria-expanded','false');
+  }
 });
 
 /* ════════════════════════════════════════════════
@@ -18764,7 +18913,7 @@ window.renderWizard=()=>{
         ondragleave="this.classList.remove('over')" ondrop="handleDrop(event)">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:6px"><path d="M12 16V4"/><path d="m8 8 4-4 4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
         <div style="font-weight:700;margin-bottom:3px">Drop a CSV file here, or click to browse</div>
-        <div style="font-size:10px;color:#808080">.csv files only</div>
+        <div class="ui-text-micro" style="color:var(--text-3)">.csv files only</div>
       </div>
       <input type="file" id="fcsv" accept=".csv" style="display:none" onchange="handleFile(this.files[0])">
       <div id="csv-sum" style="margin-top:6px"></div>`;
@@ -18772,7 +18921,7 @@ window.renderWizard=()=>{
   if(wStep===2&&wCsvData){
     const OPTS=['carrier_name','account_manager','allow_balance','credit_limit','critical_balance','billing_cycle','is_prepay','inv_upto','prev_balance','pay_adj','current_usage','amnt_receivable','notes','target_balance','is_active','(skip)'];
     c.innerHTML=`
-      <p style="margin-bottom:6px;color:#444">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
+      <p style="margin-bottom:6px;color:var(--text-2)">Map CSV columns → Firestore fields. Only <b>carrier_name</b> is required. Set others to <b>(skip)</b> to leave them unchanged.</p>
       <div class="map-grid">
         ${wHeaders.map((h,i)=>{
           const auto=autoMap(h);
@@ -18797,10 +18946,10 @@ window.renderWizard=()=>{
     const tabs=[['all','All',wChanges.length],['new','New',counts.new],['changed','Changed',counts.changed],['missing','Missing',counts.missing]]
       .map(([f,l,n])=>`<button class="fltbtn ${wDiffF===f?'active':''}" onclick="setWDiffF('${f}')">${l} (${n})</button>`).join('');
     const unchangedNote=wUnchanged.length
-      ? `<span style="color:#006600;margin-left:8px">✓ ${wUnchanged.length} already up-to-date in Firestore (no changes needed)</span>`
+      ? `<span style="color:var(--green);margin-left:8px">✓ ${wUnchanged.length} already up-to-date in Firestore (no changes needed)</span>`
       : '';
     c.innerHTML=`
-      <p style="margin-bottom:4px;color:#444">${wChanges.length} changes detected.${unchangedNote}</p>
+      <p style="margin-bottom:4px;color:var(--text-2)">${wChanges.length} changes detected.${unchangedNote}</p>
       <div class="fbar">${tabs}</div>
       <div class="lv-wrap" style="max-height:250px">
         <table>
@@ -18814,11 +18963,11 @@ window.renderWizard=()=>{
               <td><input type="checkbox" ${wChecked[ch._id]!==false?'checked':''} onchange="setWChecked('${ch._id}',this.checked)"></td>
               <td>${esc(ch.client)}</td>
               <td><span class="badge ${bc}">${ch.type}</span></td>
-              <td style="font-family:'Courier New',monospace;font-size:10px">${esc(ch.field)}</td>
-              <td style="font-family:'Courier New',monospace;font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${ch.field==='is_active'?`${fmtBool(ch.before)} → ${fmtBool(ch.after)}`:esc(String(ch.before??'—'))+' → '+esc(String(ch.after??'—'))}</td>
-              <td><button class="tbtn" style="padding:0 6px;font-size:10px" onclick="skipChange('${ch._id}')">Skip</button></td>
+              <td class="ui-text-micro" style="font-family:var(--mono)">${esc(ch.field)}</td>
+              <td class="ui-text-micro" style="font-family:var(--mono);max-width:200px;overflow:hidden;text-overflow:ellipsis">${ch.field==='is_active'?`${fmtBool(ch.before)} → ${fmtBool(ch.after)}`:esc(String(ch.before??'—'))+' → '+esc(String(ch.after??'—'))}</td>
+              <td><button class="tbtn ui-text-micro" style="padding:0 6px" onclick="skipChange('${ch._id}')">Skip</button></td>
             </tr>`;
-          }).join('')||`<tr><td colspan="6" style="text-align:center;padding:12px;color:#666">None in this category</td></tr>`}</tbody>
+          }).join('')||`<tr><td colspan="6" style="text-align:center;padding:12px;color:var(--text-2)">None in this category</td></tr>`}</tbody>
         </table>
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
@@ -18832,7 +18981,7 @@ window.renderWizard=()=>{
       <div style="text-align:center;padding:24px">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/></svg>
         <div style="font-weight:700;margin-bottom:4px">${n} changes ready to save</div>
-        <div style="font-size:10px;color:#444;margin-bottom:16px">This will update the Firestore clients collection.</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:16px">This will update the Firestore clients collection.</div>
         <div style="display:flex;gap:6px;justify-content:center">
           <button class="tbtn" onclick="wizGo(3)">Back</button>
           <button class="tbtn primary" onclick="saveWizard()">Save ${n} changes</button>
@@ -18857,7 +19006,7 @@ window.handleFile=file=>{
     document.getElementById('csv-sum').innerHTML=`
       <div class="csv-summary-card">
         <b>${esc(file.name)}</b> — ${res.data.length} rows · ${wHeaders.length} cols · ${(file.size/1024).toFixed(1)} KB<br>
-        <span style="color:#000080">${isNew} new clients</span>${matched?` · <span style="color:#006600">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
+        <span style="color:var(--accent)">${isNew} new clients</span>${matched?` · <span style="color:var(--green)">✓ ${matched} already in Firestore (will check for updates)</span>`:''}
       </div>
       <div style="margin-top:6px"><button class="tbtn primary" onclick="wizGo(2)">Next: Map Columns</button></div>`;
   },error:e=>toast('CSV error: '+e.message,'err')});
@@ -18964,10 +19113,10 @@ function renderImpHistList(list) {
     const canRollback=imp.before_state?.length>0&&!imp.rolled_back;
     return `<div class="imp-row">
       <span class="imp-fn">${esc(imp.filename||'(unknown)')}</span>
-      <span style="color:#666">${dt.toLocaleDateString()} ${fmt12(dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0'))}</span>
-      <span style="color:#006600">${imp.new_clients||0}↑ ${imp.updated_clients||0}✎ ${imp.removed||0}✗</span>
+      <span style="color:var(--text-2)">${dt.toLocaleDateString()} ${fmt12(dt.getHours().toString().padStart(2,'0')+':'+dt.getMinutes().toString().padStart(2,'0'))}</span>
+      <span style="color:var(--green)">${imp.new_clients||0}↑ ${imp.updated_clients||0}✎ ${imp.removed||0}✗</span>
       ${imp.rolled_back?'<span class="badge none">Rolled back</span>':'<span class="badge target">Applied ✓</span>'}
-      ${canRollback?`<button class="tbtn" style="font-size:10px;padding:0 6px;color:#880000" onclick="promptRollback(${i})">Rollback</button>`:''}
+      ${canRollback?`<button class="tbtn ui-text-micro" style="padding:0 6px;color:var(--red)" onclick="promptRollback(${i})">Rollback</button>`:''}
     </div>`;
   }).join('');
 }
@@ -19353,19 +19502,19 @@ window.exportSnapshotSheet = async () => {
  xmlns:x="urn:schemas-microsoft-com:office:excel"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-  <Style ss:ID="time"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  <Style ss:ID="hdr"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="time"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="hdr"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="num"><NumberFormat ss:Format="0.00"/></Style>
-  <Style ss:ID="total"><Font ss:Bold="1"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  <Style ss:ID="totalNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="total"><Font ss:Bold="1"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="totalNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#D8E4BC" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="useHi"><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFFF00" ss:Pattern="Solid"/></Style>
   <Style ss:ID="criticalBal"><Font ss:Bold="1" ss:Color="#9C0006"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="tri"><Font ss:Bold="1"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="tri"><Font ss:Bold="1"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/><Borders><Border ss:Position="Top" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="triNum"><Font ss:Bold="1"/><NumberFormat ss:Format="0.00"/><Interior ss:Color="#EA9999" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Size="14" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumSub"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:Italic="1" ss:Color="#44546A"/><Interior ss:Color="#D9EAF7" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumSection"><Alignment ss:Horizontal="Left" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#17336F" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sumHdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sumHdr"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#274A83" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="sumCritical"><Font ss:Bold="1" ss:Color="#9C0006"/><Interior ss:Color="#FFC7CE" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumRecovered"><Font ss:Bold="1" ss:Color="#006100"/><Interior ss:Color="#C6EFCE" ss:Pattern="Solid"/></Style>
   <Style ss:ID="sumNum"><NumberFormat ss:Format="0.00"/></Style>
@@ -19669,7 +19818,7 @@ function smsBalanceWarningBar(rowOrStatus) {
   if(progress===null)return '<span class="sms-muted">—</span>';
   const hot=progress>=90;
   const displayProgress=progress>=100?'100.00':Math.min(progress,99.99).toFixed(2);
-  return `<div class="ubar-wrap" role="progressbar" aria-label="Balance progress toward Critical Balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${displayProgress}"><div class="ubar"><div class="ubar-fill ${hot?'high':'light'}" style="width:${displayProgress}%"></div></div><span class="${hot?'bar-pct-danger':''}" style="font-family:var(--mono);font-size:10px">${displayProgress}%</span></div>`;
+  return `<div class="ubar-wrap" role="progressbar" aria-label="Balance progress toward Critical Balance" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${displayProgress}"><div class="ubar"><div class="ubar-fill ${hot?'high':'light'}" style="width:${displayProgress}%"></div></div><span class="${hot?'bar-pct-danger':''} ui-text-micro" style="font-family:var(--mono)">${displayProgress}%</span></div>`;
 }
 function smsBalanceIsCritical(row) {
   if (!row) return false;
@@ -22490,7 +22639,7 @@ window.renderSmsCredentials = () => {
     <td>${clipped(row.notes)}</td>
     <td>${otpCell(row)}</td>
     <td class="sms-cred-actions">${row.otp_secret ? `<button class="tbtn primary" onclick="generateSmsCredentialOtp('${escAttr(row.id)}', this)">Generate OTP</button> ` : ''}<button class="tbtn" onclick="editSmsCredential('${escAttr(row.id)}')">Edit</button>${canDeleteSmsRegisters()?` <button class="tbtn" onclick="deleteSmsCredential('${escAttr(row.id)}')">Delete</button>`:''}</td>
-  </tr>`).join('') : '<tr><td colspan="16" style="text-align:center;padding:16px;color:#666">No credential records found.</td></tr>';
+  </tr>`).join('') : '<tr><td colspan="16" style="text-align:center;padding:16px;color:var(--text-2)">No credential records found.</td></tr>';
   refreshSmsOtpCredentialOptions();
 };
 
@@ -22753,7 +22902,7 @@ function updateSmsComboOptions(kind, filter='') {
   }
   menu.innerHTML = values.length
     ? values.map(v => `<div class="sms-combo-option" data-value="${esc(v)}" onclick="pickSmsCombo('${kind}',this.dataset.value)">${esc(v)}</div>`).join('')
-    : `<div class="sms-combo-option" style="color:#666;cursor:default">No saved options</div>`;
+    : `<div class="sms-combo-option" style="color:var(--text-2);cursor:default">No saved options</div>`;
 }
 
 function closeSmsCombos() {
@@ -22908,8 +23057,11 @@ function updateSmsTabUi() {
   const isCredentials = smsActiveTab === 'credentials';
   const isRoutes = !!SMS_TAB_CONFIG[smsActiveTab];
   const cfg = isCredentials ? { label:'Credentials' } : isBalance ? { label:'SMS Balance' } : smsTabCfg();
-  document.querySelectorAll('#view-sms .tab-bar .tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`sms-tab-${smsActiveTab}`)?.classList.add('active');
+  document.querySelectorAll('#view-sms .tab-bar .tab').forEach(t => {
+    const active = t.id === `sms-tab-${smsActiveTab}`;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+  });
   const balancePanel = document.getElementById('sms-balance-panel');
   const routesPanel = document.getElementById('sms-routes-panel');
   const credentialsPanel = document.getElementById('sms-credentials-panel');
@@ -23261,7 +23413,7 @@ window.deleteAllSmsClients = () => {
   const n = smsClients.length;
   openSmsConfirm(
     `Delete <strong>all ${n}</strong> SMS client route(s)?<br><br>` +
-    `<span style="color:#880000">This clears the entire SMS client list.</span>`,
+    `<span style="color:var(--red)">This clears the entire SMS client list.</span>`,
     'Delete All',
     () => {
       const backup = smsClients.slice();
@@ -23290,7 +23442,7 @@ function showUndoToast(msg, onUndo, seconds=5) {
   const t = document.createElement('div');
   t.className = 'toast undo-toast';
   t.innerHTML = `<span class="undo-msg">${esc(msg)}</span>` +
-    `<button class="tbtn" style="font-size:10px;padding:1px 6px">Undo (<span class="undo-count">${remaining}</span>)</button>`;
+    `<button class="tbtn ui-text-micro" style="padding:1px 6px">Undo (<span class="undo-count">${remaining}</span>)</button>`;
   const countEl = t.querySelector('.undo-count');
   const btn = t.querySelector('button');
   const dismiss = () => { t.classList.add('leaving'); setTimeout(() => t.remove(), 180); };
@@ -23368,7 +23520,7 @@ window.showSmsDetail = id => {
   if (body) body.innerHTML = fields.map(([l, v, multiline]) =>
     `<div class="detail-row ${multiline ? 'sms-detail-row-multiline' : ''}"><div class="detail-lbl">${esc(l)}</div>` +
     `<div class="detail-val ${multiline ? 'sms-detail-multiline' : ''}" style="flex:1;min-width:0;word-break:break-word">` +
-    `${String(v ?? '').trim() ? esc(v) : '<span style="color:#999">—</span>'}</div></div>`
+    `${String(v ?? '').trim() ? esc(v) : '<span style="color:var(--text-3)">—</span>'}</div></div>`
   ).join('');
   document.getElementById('sms-detail-overlay')?.classList.add('open');
 };
@@ -23578,7 +23730,7 @@ window.renderSmsClients = () => {
     <td><div class="sms-cell-clip sms-cell-preview" title="${esc(r.notes)}">${esc(r.notes)}</div></td>
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button>${canDeleteSmsRegisters()?`<button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button>`:''}</span></td>
   </tr>`;
-  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?16:15}" style="text-align:center;padding:16px;color:#666">No SMS client routes found.</td></tr>`;
+  }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?16:15}" style="text-align:center;padding:16px;color:var(--text-2)">No SMS client routes found.</td></tr>`;
   // Keep "select all" checkbox in sync (checked only if every visible row is selected)
   const allCb = document.getElementById('sms-bulk-all');
   if (allCb) {
@@ -23688,7 +23840,7 @@ window.deleteSmsSelected = () => {
   const n = ids.size;
   openSmsConfirm(
     `Delete <strong>${n}</strong> selected SMS route(s)?<br><br>` +
-    `<span style="color:#880000">This removes the ticked routes.</span>`,
+    `<span style="color:var(--red)">This removes the ticked routes.</span>`,
     'Delete',
     () => {
       const backup = smsClients.slice();
@@ -23928,8 +24080,8 @@ function buildSparkline(name) {
     if (Number.isFinite(v)) points.push({ date: snap.session_date, slot: snap.time_slot, val: v });
   });
   if (points.length < 2) {
-    if (!_historyLoaded) return `<div style="font-size:10px;color:#888;padding:4px">Loading trend history…</div>`;
-    return `<div style="font-size:10px;color:#888;padding:4px">Not enough snapshot history for a trend chart.</div>`;
+    if (!_historyLoaded) return `<div class="ui-text-micro" style="color:var(--text-3);padding:4px">Loading trend history…</div>`;
+    return `<div class="ui-text-micro" style="color:var(--text-3);padding:4px">Not enough snapshot history for a trend chart.</div>`;
   }
 
   const W=360, H=70, PL=4, PR=44, PT=8, PB=16;
@@ -23958,7 +24110,7 @@ function buildSparkline(name) {
   const polyline = points.map((p,i) => `${xS(i).toFixed(1)},${yS(p.val).toFixed(1)}`).join(' ');
   const lastX = xS(points.length-1), lastY = yS(points[points.length-1].val);
   const lastVal = points[points.length-1].val;
-  const dotColor = lastVal >= (!isNaN(critBal)?critBal:Infinity) ? '#cc0000' : lastVal >= (!isNaN(credLim)?credLim:Infinity) ? '#cc6600' : '#006600';
+  const dotColor = lastVal >= (!isNaN(critBal)?critBal:Infinity) ? 'var(--red)' : lastVal >= (!isNaN(credLim)?credLim:Infinity) ? 'var(--orange)' : 'var(--green)';
 
   // On-chart thresholds get a dashed line + short label at the line. Off-chart
   // thresholds get a value label pinned to the top/bottom edge. When more than
@@ -23972,8 +24124,8 @@ function buildSparkline(name) {
   };
   const offTop = [], offBot = [];
   let thresh = '';
-  [ { val: critBal, color: '#cc0000', label: 'Crit', dash: '3,2' },
-    { val: credLim, color: '#cc6600', label: 'Warn', dash: '2,3' } ].forEach(t => {
+  [ { val: critBal, color: 'var(--red)', label: 'Crit', dash: '3,2' },
+    { val: credLim, color: 'var(--orange)', label: 'Warn', dash: '2,3' } ].forEach(t => {
     if (!Number.isFinite(t.val)) return;
     if (t.val >= lo && t.val <= hi) thresh += onChartThresh(t.val, t.color, t.label, t.dash);
     else (t.val > hi ? offTop : offBot).push(t);
@@ -23988,8 +24140,8 @@ function buildSparkline(name) {
     const [, m, da] = String(d).split('-');
     return m && da ? `${+m}/${+da}` : d;
   };
-  const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="#888">${fmtDateShort(points[0].date)}</text>
-    <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="#888" text-anchor="end">${fmtDateShort(points[points.length-1].date)}</text>`;
+  const xLabels = `<text x="${PL}" y="${H}" font-size="8" fill="var(--text-3)">${fmtDateShort(points[0].date)}</text>
+    <text x="${(W-PR).toFixed(0)}" y="${H}" font-size="8" fill="var(--text-3)" text-anchor="end">${fmtDateShort(points[points.length-1].date)}</text>`;
 
   // When many points are packed in, drop intermediate circles so the line reads cleanly.
   const dense = points.length > 40;
@@ -23997,12 +24149,12 @@ function buildSparkline(name) {
     const isLast = i === points.length - 1;
     const isFirst = i === 0;
     if (dense && !isLast && !isFirst) return '';
-    return `<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${isLast?3:1.5}" fill="${isLast?dotColor:'#000080'}"><title>${esc(p.date)} ${esc(fmt12(p.slot||''))} — ${esc(fmt(p.val))}</title></circle>`;
+    return `<circle cx="${xS(i).toFixed(1)}" cy="${yS(p.val).toFixed(1)}" r="${isLast?3:1.5}" fill="${isLast?dotColor:'var(--accent)'}"><title>${esc(p.date)} ${esc(fmt12(p.slot||''))} — ${esc(fmt(p.val))}</title></circle>`;
   }).join('');
 
   return `<svg width="${W}" height="${H}" style="display:block;overflow:visible">
     ${thresh}
-    <polyline points="${polyline}" fill="none" stroke="#000080" stroke-width="1.5" stroke-linejoin="round"/>
+    <polyline points="${polyline}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
     ${circles}
     <text x="${(lastX+4).toFixed(0)}" y="${(lastY+3).toFixed(0)}" font-size="8" fill="${dotColor}" font-weight="bold">${fmt(lastVal)}</text>
     ${xLabels}
@@ -24014,7 +24166,7 @@ function buildSparkline(name) {
 ════════════════════════════════════════════════ */
 function renderShiftSummary() {
   const el = document.getElementById('shift-summary-body'); if (!el) return;
-  if (!todaySnaps.length) { el.innerHTML = '<div style="color:#666;padding:6px;font-size:11px">No snapshots yet today.</div>'; return; }
+  if (!todaySnaps.length) { el.innerHTML = '<div class="ui-text-micro" style="color:var(--text-2);padding:6px">No snapshots yet today.</div>'; return; }
 
   // First non-critical → critical transition for every client within the
   // configured day/night coverage. Clients already critical in the first
@@ -24057,8 +24209,8 @@ function renderShiftSummary() {
       <div class="sum-card ${recovered.length?'sc-green':''}"><div class="sc-val">${recovered.length}</div><div class="sc-lbl">Recovered</div></div>
       <div class="sum-card ${currentWarn?'sc-orange':''}"><div class="sc-val">${currentWarn}</div><div class="sc-lbl">Currently warning</div></div>
     </div>
-    <div style="font-size:10px;color:#666;margin-bottom:4px">Range: ${rangeStr}</div>
-    ${recovered.length ? `<div style="font-size:11px;margin-bottom:6px"><span style="color:#006600;font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
+    <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Range: ${rangeStr}</div>
+    ${recovered.length ? `<div class="ui-text-micro" style="margin-bottom:6px"><span style="color:var(--green);font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
     <div class="sum-section-grid">
     <div class="sum-section ss-red">
       <div class="ss-title">New Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
@@ -26525,7 +26677,7 @@ function renderStatsDailyTraffic() {
       + `<td><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
       + `<td style="text-align:right">${row.decrease_streak ? `${row.decrease_streak} day${row.decrease_streak === 1 ? '' : 's'}` : '—'}</td>`
       + `<td style="text-align:right">${stN0(row.completed)}</td><td style="text-align:right">${stN2(row.asr)}</td></tr>`;
-  }).join('') : '<tr><td colspan="13" style="text-align:center;padding:16px;color:#666">No daily traffic rows match the current filters.</td></tr>';
+  }).join('') : `<tr><td colspan="13" style="text-align:center;padding:16px;color:var(--text-2)">${allRows.length ? 'No daily traffic rows match the current filters.' : 'No daily traffic data yet. Paste a daily report to begin.'}</td></tr>`;
   renderStatsDailySidebar();
   if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
@@ -26840,7 +26992,7 @@ function statsFlags(r) {
   else if (r.badStreak >= 2) h.push(`<span class="stbadge watch">bad ${r.badStreak}×</span>`);
   if (r.trend === 'improving') h.push('<span class="stbadge improving">▲ improving</span>');
   if (r.trend === 'declining') h.push('<span class="stbadge declining">▼ declining</span>');
-  return h.join(' ') || '<span style="color:#888">—</span>';
+  return h.join(' ') || '<span style="color:var(--text-3)">—</span>';
 }
 
 function updateStatsModeButtons() {
@@ -27009,12 +27161,25 @@ window.sortStats = col => {
   renderStatsTables();
 };
 
+function enableSortableHeaderKeyboard(th) {
+  th.classList.add('st-sortable');
+  th.setAttribute('role', 'columnheader');
+  th.setAttribute('tabindex', '0');
+  if (th.dataset.keyboardSortBound === 'true') return;
+  th.dataset.keyboardSortBound = 'true';
+  th.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    th.click();
+  });
+}
+
 function updateStatsAllSortHeaders() {
   document.querySelectorAll('#st-tbl-all thead th[onclick^="sortStats"]').forEach(th => {
     const field = th.getAttribute('onclick')?.match(/sortStats\('([^']+)'\)/)?.[1] || '';
     const label = th.dataset.sortLabel || th.textContent.replace(/\s*[▲▼]\s*$/,'').trim();
     th.dataset.sortLabel = label;
-    th.classList.add('st-sortable');
+    enableSortableHeaderKeyboard(th);
     th.textContent = field === statsSortCol ? `${label} ${statsSortDir < 0 ? '▼' : '▲'}` : label;
     th.setAttribute('aria-sort', field === statsSortCol ? (statsSortDir < 0 ? 'descending' : 'ascending') : 'none');
   });
@@ -27073,6 +27238,8 @@ function updateStatsSummarySortHeaders() {
     const [section, col] = String(th.dataset.stSumSort || '').split(':');
     const active = statsSummarySort && statsSummarySort.section === section && statsSummarySort.col === col;
     th.textContent = active ? `${label} ${statsSummarySort.dir > 0 ? '▲' : '▼'}` : label;
+    th.setAttribute('aria-sort', active ? (statsSummarySort.dir > 0 ? 'ascending' : 'descending') : 'none');
+    enableSortableHeaderKeyboard(th);
   });
 }
 
@@ -27090,7 +27257,7 @@ function processStatsRows(rows, tbodyId, full) {
   if (!tb) return;
   if (!rows.length) {
     const span = full ? 13 : 12;
-    tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:#888;text-align:center">No clients in this category.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:var(--text-3);text-align:center">No clients in this category.</td></tr>`;
     return;
   }
   const currentSnap = statsCurrentSnap();
@@ -27176,7 +27343,7 @@ function renderStatsStopped() {
     : `${rows.length} route(s) · sorted by Attempts (highest first)`;
   if (!tbody) return;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:10px;color:#888;text-align:center">No stopped traffic detected in today\'s Stats snapshots.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:10px;color:var(--text-3);text-align:center">No stopped traffic detected in today\'s Stats snapshots.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(row => {
@@ -27300,9 +27467,9 @@ function renderStatsSummary() {
     const tb = document.getElementById(id);
     if (!tb) return;
     tb.innerHTML = list.length ? list.map(builder).join('')
-      : `<tr><td colspan="7" style="padding:8px;color:#888;text-align:center">${empty}</td></tr>`;
+      : `<tr><td colspan="7" style="padding:8px;color:var(--text-3);text-align:center">${empty}</td></tr>`;
   };
-  const clientCell = r => `${stEsc(r.customer_name)}<div style="font-size:10px;color:#666">${stEsc(r.destination || '')}</div>`;
+  const clientCell = r => `${stEsc(r.customer_name)}<div class="ui-text-micro" style="color:var(--text-2)">${stEsc(r.destination || '')}</div>`;
 
   const persist = statsSummarySortRows('persist', rows.filter(r => r.persistent),
     list => list.sort((a,b) => b.badStreak - a.badStreak || a.asr - b.asr));
@@ -27484,11 +27651,11 @@ function renderStatsHourly() {
     + ((search || statsHideDID || statsHourlyFocusKey) ? ' (filtered)' : '');
 
   if (!slots.length) {
-    tbody.innerHTML = '<tr><td class="st-hr-client">—</td><td style="padding:8px;color:#888;text-align:center">No stats snapshots posted today yet.</td></tr>';
+    tbody.innerHTML = '<tr><td class="st-hr-client">—</td><td style="padding:8px;color:var(--text-3);text-align:center">No stats snapshots posted today yet.</td></tr>';
     return;
   }
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td class="st-hr-client">—</td><td colspan="${slots.length + 1}" style="padding:8px;color:#888;text-align:center">No clients match the current filter.</td></tr>`;
+    tbody.innerHTML = `<tr><td class="st-hr-client">—</td><td colspan="${slots.length + 1}" style="padding:8px;color:var(--text-3);text-align:center">No clients match the current filter.</td></tr>`;
     return;
   }
 
@@ -27663,10 +27830,10 @@ window.exportStatsSheet = () => {
  xmlns:x="urn:schemas-microsoft-com:office:excel"
  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
 <Styles>
-  <Style ss:ID="sttime"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#A9D08E" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  <Style ss:ID="ststats"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1F4E79"/><Interior ss:Color="#BDD7EE" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  <Style ss:ID="sthdr"><Font ss:Bold="1"/><Interior ss:Color="#F2F2F2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-  <Style ss:ID="sthdrG"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#C6E0B4" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sttime"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#A9D08E" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="ststats"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Bold="1" ss:Color="#1F4E79"/><Interior ss:Color="#BDD7EE" ss:Pattern="Solid"/><Borders><Border ss:Position="Left" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:Linestyle="Continuous" ss:Weight="1"/><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sthdr"><Font ss:Bold="1"/><Interior ss:Color="#F2F2F2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="sthdrG"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#1B5E20"/><Interior ss:Color="#C6E0B4" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:Linestyle="Continuous" ss:Weight="1"/></Borders></Style>
   <Style ss:ID="stnum"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="0"/></Style>
   <Style ss:ID="stdec"><Alignment ss:Horizontal="Right"/><NumberFormat ss:Format="0.00"/></Style>
   <Style ss:ID="stcCrit"><Alignment ss:Horizontal="Center"/><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#FF0000" ss:Pattern="Solid"/></Style>
@@ -28261,6 +28428,7 @@ if (auth) {
   };
 
   var nav, navScroll, toolbar, syncQueued = false, syncing = false, flyoutTimer = null;
+  var snapPreferenceExplicit = false;
   var favoriteLoadToken = 0, favoriteSaveTimer = null;
 
   /* ── Preferences ─────────────────────────────────────────────────────── */
@@ -28384,13 +28552,18 @@ if (auth) {
     writePrefs({ navCollapsed: on });
   };
 
-  window.bmToggleSnap = function () {
-    var on = document.body.classList.toggle('snap-collapsed');
-    var btn = document.getElementById('snap-collapse-btn');
-    if (btn) {
+  function syncSnapshotToggle(on) {
+    document.querySelectorAll('#snap-collapse-btn, .snap-head-close').forEach(function (btn) {
       btn.setAttribute('aria-label', on ? 'Show the snapshot panel' : 'Hide the snapshot panel');
       btn.title = on ? 'Show the snapshot panel' : 'Hide the snapshot panel';
-    }
+      if (btn.id === 'snap-collapse-btn') btn.setAttribute('aria-expanded', String(!on));
+    });
+  }
+
+  window.bmToggleSnap = function () {
+    var on = document.body.classList.toggle('snap-collapsed');
+    snapPreferenceExplicit = true;
+    syncSnapshotToggle(on);
     writePrefs({ snapCollapsed: on });
   };
 
@@ -28445,6 +28618,11 @@ if (auth) {
         if (d.smstab === 'credentials' && d.credtab && w.switchSmsCredentialSubtab) w.switchSmsCredentialSubtab(d.credtab);
         return;
       }
+      if (mod === 'stats') {
+        if (currentModule() !== 'stats' && w.switchModule) w.switchModule('stats');
+        if (d.statsview && w.switchStatsView) w.switchStatsView(d.statsview);
+        return;
+      }
       if (mod === 'vos') {
         if (currentModule() !== 'vos' && w.switchModule) w.switchModule('vos');
         if (d.vostab && w.switchVosPrimaryTab) w.switchVosPrimaryTab(d.vostab);
@@ -28489,6 +28667,15 @@ if (auth) {
   function syncBody() {
     var mod = currentModule();
     placeToolbar(mod);
+
+    if (!snapPreferenceExplicit) {
+      var keepSnapshotOpen = mod === 'vos' || mod === 'stats'
+        || (mod === 'balance' && tabIsActive('tnav-summary'))
+        || (mod === 'traffic' && document.body.classList.contains('stats-daily-today-tab'))
+        || (mod === 'sms' && tabIsActive('sms-tab-balance') && tabIsActive('sms-bal-nav-summary'));
+      document.body.classList.toggle('snap-collapsed', !keepSnapshotOpen);
+      syncSnapshotToggle(!keepSnapshotOpen);
+    }
 
     // Favourites are rebuilt first so the two passes below reach the clones
     // too: they carry the same data-src and data-active-src as the leaves
@@ -28997,7 +29184,9 @@ if (auth) {
 
     var prefs = readPrefs();
     if (prefs.navCollapsed) document.body.classList.add('nav-collapsed');
-    if (prefs.snapCollapsed) document.body.classList.add('snap-collapsed');
+    snapPreferenceExplicit = Object.prototype.hasOwnProperty.call(prefs, 'snapCollapsed');
+    document.body.classList.toggle('snap-collapsed', snapPreferenceExplicit && !!prefs.snapCollapsed);
+    syncSnapshotToggle(document.body.classList.contains('snap-collapsed'));
 
     adoptRails();
 
