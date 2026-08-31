@@ -16306,13 +16306,6 @@ function subscribeMyRole() {
         // Re-render any view whose contents depend on edit rights.
         try { if (typeof statsRender === 'function') statsRender(); } catch(e) {}
       }
-    }, err => {
-      // Without this the listener fails silently and the account is stuck on the
-      // email seed — a semi-admin then sees the view-only UI (no posting panels)
-      // with nothing to explain why. The usual cause is deployed firestore.rules
-      // that predate the user_roles collection, so say so.
-      console.warn('user_roles listener failed — role stays at the email seed ' +
-                   `("${currentRole}"). Deploy firestore.rules if this is permission-denied.`, err);
     });
   } catch(e) {}
 }
@@ -16553,13 +16546,6 @@ const SEMI_ADMIN_SEED_EMAILS = [
   'customersupport@cynsolutions.ph'
 ];
 let currentRole = 'viewer';   // resolved live from user_roles (see subscribeMyRole)
-// Which account the role above was seeded for. onAuthStateChanged fires again for
-// an account that is already signed in (token refresh, user.reload(), a second
-// tab handing over the session), and re-seeding on those repeats would knock a
-// resolved semi-admin back down to 'viewer' — hiding every posting panel until
-// the user_roles listener happened to fire again. Seeding is therefore keyed to
-// the email, so only a genuine account change resets the role.
-let roleSeededForEmail = '';
 
 function seedRoleForEmail(email){
   const e = (email || '').toLowerCase();
@@ -16633,25 +16619,6 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // Wiping the snapshots / stats_snapshots / tritel_snapshots collections —
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
-
-/* Everything above is module-scoped, so when an account sees the view-only UI
-   there is no way from the console to tell whether the role resolved wrong or a
-   panel is genuinely mis-gated. Read-only, no side effects: run bmWhoAmI() in
-   the browser console while signed in as the account in question. */
-window.bmWhoAmI = () => ({
-  email: currentUserEmail || '(signed out)',
-  seededFrom: seedRoleForEmail(currentUserEmail),   // what the email alone implies
-  resolvedRole: isAdmin() ? 'admin' : currentRole,  // what user_roles resolved to
-  modules: currentModules || 'all',
-  canPostBalance: canPostBalance(),
-  canPostStats: canPostStats(),
-  postingPanels: {
-    voip:        !!document.getElementById('snap-editor') && getComputedStyle(document.getElementById('snap-editor')).display !== 'none',
-    statsHourly: !!document.getElementById('stats-post-controls') && getComputedStyle(document.getElementById('stats-post-controls')).display !== 'none',
-    dailyTraffic:!!document.getElementById('stats-daily-post-controls') && getComputedStyle(document.getElementById('stats-daily-post-controls')).display !== 'none',
-  }
-});
-
 const VOIP_ADMIN_DANGER_BUTTONS = [
   'voip-delete-critical-history-btn',
   'voip-delete-spam-history-btn',
@@ -28459,13 +28426,9 @@ if (auth) {
       announceFavoriteUser();
       // Seed the role from the email immediately (admin pinned, Customer Support
       // seeded as semi-admin) so the UI is correct before the live user_roles
-      // snapshot arrives; subscribeMyRole() refines it from Firestore. Only a
-      // real account change re-seeds — see roleSeededForEmail.
-      if (currentUserEmail !== roleSeededForEmail) {
-        roleSeededForEmail = currentUserEmail;
-        currentRole = seedRoleForEmail(currentUserEmail);
-        currentModules = null;   // unrestricted until the user_roles snapshot says otherwise
-      }
+      // snapshot arrives; subscribeMyRole() refines it from Firestore.
+      currentRole = seedRoleForEmail(currentUserEmail);
+      currentModules = null;   // unrestricted until the user_roles snapshot says otherwise
       applyModuleAccess();
       if (overlay)    overlay.style.display = 'none';
       if (userLabel)  userLabel.textContent = user.email;
@@ -28494,7 +28457,6 @@ if (auth) {
       renderStatsDailyDashboardColumnPicker();
       currentRole = 'viewer';
       currentModules = null;
-      roleSeededForEmail = '';   // next sign-in seeds from scratch
       if (myRoleUnsub) { try { myRoleUnsub(); } catch(e) {} myRoleUnsub = null; }
       if (userLabel)  userLabel.textContent = '';
       if (signOutBtn) signOutBtn.style.display = 'none';
