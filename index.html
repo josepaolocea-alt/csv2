@@ -8999,7 +8999,7 @@
                 <button type="button" class="tab" role="tab" aria-selected="false" id="tab-new-critical" onclick="setAlertFilter('new',this)">New Critical</button>
                 <button type="button" class="tab" role="tab" aria-selected="false" id="tab-removed-critical" onclick="setAlertFilter('removed',this)">Removed from Critical</button>
                 <button type="button" class="tab" role="tab" aria-selected="false" id="tab-inactive-usage" onclick="setAlertFilter('inactiveusage',this)" title="Inactive clients that still have 30-min usage">Inactive w/ Usage</button>
-                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage and Amnt Receivable per snapshot today">30m Usage / Snapshot</button>
+                <button type="button" class="tab" role="tab" aria-selected="false" id="tab-usage-history" onclick="setAlertFilter('usagehistory',this)" title="Clients with 30-min usage and Amnt Receivable per snapshot today">30m Usage</button>
               </div>
             </div>
             <div class="alert-tab-actions" id="alert-actions">
@@ -9473,7 +9473,7 @@
                       <button class="tbtn" id="sms-bal-alert-new" onclick="setSmsBalanceAlertFilter('new',this)" data-premium-tooltip="Normally shows clients newly entering Critical. After all SMS snapshots are cleared, the first fresh baseline shows every active client currently Critical or blocked, without adding them to Critical History. Clients that still have overdraft available remain in overdraft monitoring and are excluded.">New Critical <span id="sms-bal-alert-count-new"></span></button>
                       <button class="tbtn" id="sms-bal-alert-removed" onclick="setSmsBalanceAlertFilter('removed',this)" data-premium-tooltip="Clients that were critical in the previous snapshot and have now recovered. Turns red when entries exist.">Removed from Critical <span id="sms-bal-alert-count-removed"></span></button>
                       <button class="tbtn" id="sms-bal-alert-inactiveusage" onclick="setSmsBalanceAlertFilter('inactiveusage',this)" data-premium-tooltip="Clients configured Inactive but still showing positive 30-minute usage. Payments and other negative balance adjustments are excluded. Turns red when entries exist.">Inactive w/ Usage <span id="sms-bal-alert-count-inactiveusage"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage / Snapshot</button>
+                      <button class="tbtn" id="sms-bal-alert-usagehistory" onclick="setSmsBalanceAlertFilter('usagehistory',this)" data-premium-tooltip="One row per client and one column per posted 30-minute snapshot today.">30m Usage</button>
                       <div class="alert-tab-actions" id="sms-bal-alert-actions">
                         <div class="app-action-menu" id="sms-alert-action-menu">
                           <button type="button" class="tbtn icon-only app-action-menu-trigger alert-action-menu-trigger" id="sms-alert-action-menu-trigger" onclick="toggleAppActionMenu('sms-alert',event)" aria-haspopup="true" aria-expanded="false" aria-controls="sms-alert-action-menu-panel" aria-label="Open SMS Balance alert actions" data-premium-tooltip="Open SMS Balance alert actions">
