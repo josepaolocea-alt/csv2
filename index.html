@@ -8730,7 +8730,7 @@
     </div>
     <!-- Panel toggles + breadcrumb. Purely chrome: no data or handler here. -->
     <div id="topbar-lead">
-      <button type="button" id="snap-collapse-btn" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel">
+      <button type="button" id="snap-collapse-btn" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel (Alt+S)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16"/></svg>
       </button>
     </div>
@@ -8841,7 +8841,7 @@
            control beside the one in the top bar. -->
       <div class="snap-head">
         <span class="snap-head-title">Snapshot &amp; Upload</span>
-        <button type="button" class="snap-head-close" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel">
+        <button type="button" class="snap-head-close" onclick="bmToggleSnap()" aria-label="Hide the snapshot panel" title="Hide the snapshot panel (Alt+S)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m14 6-6 6 6 6"/>
           </svg>
@@ -28637,7 +28637,7 @@ if (auth) {
   function syncSnapshotToggle(on) {
     document.querySelectorAll('#snap-collapse-btn, .snap-head-close').forEach(function (btn) {
       btn.setAttribute('aria-label', on ? 'Show the snapshot panel' : 'Hide the snapshot panel');
-      btn.title = on ? 'Show the snapshot panel' : 'Hide the snapshot panel';
+      btn.title = (on ? 'Show' : 'Hide') + ' the snapshot panel (Alt+S or F2)';
       if (btn.id === 'snap-collapse-btn') btn.setAttribute('aria-expanded', String(!on));
     });
   }
@@ -29308,6 +29308,24 @@ if (auth) {
           findInput.select();
           openFind();
         }
+      }
+      // Snapshot & Upload panel — the sibling to Ctrl+B on the nav rail.
+      // Two bindings, because this panel is the one holding the paste
+      // textareas and the shortcut has to survive a cursor sitting in one:
+      //   Alt+S  — mnemonic. Ctrl+Alt+S counts too: on US-International and
+      //            most non-US layouts the right Alt is AltGr, which reports
+      //            itself as Ctrl+Alt, so requiring a bare Alt silently drops
+      //            the keypress for anyone who reaches for the right thumb.
+      //   F2     — layout- and modifier-proof fallback. No browser or OS
+      //            claims it (unlike F1/F3/F5/F6/F11/F12) and it emits no
+      //            character, so it is safe to honour inside a field.
+      // Neither types anything, so unlike Ctrl+B there is no need to stand
+      // down when an INPUT/TEXTAREA has focus.
+      var altS = ev.altKey && !ev.metaKey && !ev.shiftKey
+                 && (ev.code === 'KeyS' || ev.key === 's' || ev.key === 'S');
+      if (altS || (ev.key === 'F2' && !ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey)) {
+        ev.preventDefault();
+        window.bmToggleSnap();
       }
       if (ev.key === 'Escape') closeFlyouts();
     });
