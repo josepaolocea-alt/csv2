@@ -6653,14 +6653,17 @@
     .nav-subgroup > .nav-children { margin-left: 9px; }
     .nav-sublabel { padding: 12px 10px 4px; }
 
-    /* Favourites. Cloned leaves carrying the same data-* as the originals, so
-       they route through the same go() and inherit the same role gating. */
-    #nav-fav-group { margin-bottom: 6px; }
-    #nav-fav-group > .nav-parent { cursor: default; }
-    #nav-fav-group > .nav-parent:hover { background: transparent; color: var(--text-2); }
-    #nav-fav-group > .nav-parent .nav-ico { color: var(--accent); }
-    #nav-fav-list { display: block; margin-left: 20px; }
-    #nav-fav-group.is-open > #nav-fav-list { display: block; }
+    /* Favourites are marked on the row itself rather than copied into a second
+       list above the rail: the star sits where you already navigate, and the
+       full list lives behind the star button beside the search field. */
+    .nav-fav-mark {
+      flex: 0 0 13px; width: 13px; height: 13px; margin-left: auto;
+      display: grid; place-items: center; color: var(--accent);
+    }
+    .nav-fav-mark svg { width: 13px; height: 13px; display: block; fill: currentColor; }
+    /* A collapsed rail is 58px of icon; the parent has no room for a second
+       glyph. Leaves keep theirs, since they are only visible in a flyout. */
+    body.nav-collapsed .nav-group:not(.is-flyout) > .nav-parent .nav-fav-mark { display: none; }
 
     /* Right-click menu for a rail destination. It carries the app's own
        .app-action-menu-panel class rather than restating that material, so
@@ -6980,17 +6983,14 @@
       font-size: 10.5px; font-weight: 500; color: var(--text-3);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+    /* Present only on a starred row, and only to say so: favourites are added
+       and removed from the row's right-click menu, never from here. */
     .nfr-star {
-      flex: 0 0 28px; width: 28px; height: 28px; padding: 0;
+      flex: 0 0 28px; width: 28px; height: 28px;
       display: inline-flex; align-items: center; justify-content: center;
-      color: var(--text-3); background: transparent;
-      border: 0; border-radius: var(--r-sm); cursor: pointer;
-      transition: color .13s ease, background-color .13s ease;
+      color: var(--accent); pointer-events: none;
     }
-    .nfr-star svg { width: 15px; height: 15px; }
-    .nfr-star:hover { color: var(--accent-strong); background: var(--surface-2); }
-    .nfr-star[aria-pressed="true"] { color: var(--accent); }
-    .nfr-star[aria-pressed="true"] svg { fill: currentColor; }
+    .nfr-star svg { width: 15px; height: 15px; fill: currentColor; }
     .nav-find-empty { padding: 14px 10px; font-size: 12px; color: var(--text-3); text-align: center; }
 
     #menubar-right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
@@ -8535,17 +8535,9 @@
 
     <div class="nav-scroll" id="nav-scroll">
 
-      <!-- Favourites. Populated by the shell controller with clones of the
-           leaves below, carrying the same data-module / data-view / data-src
-           attributes — so a starred destination routes through exactly the
-           same go() call and inherits the same role gating as the original. -->
-      <div class="nav-group nav-group-fav is-open" id="nav-fav-group" hidden>
-        <button type="button" class="nav-parent" id="nav-fav-parent" tabindex="-1" aria-hidden="true">
-          <span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/></svg></span>
-          <span class="nav-label">Favourites</span>
-        </button>
-        <div class="nav-children" id="nav-fav-list"></div>
-      </div>
+      <!-- Favourites are not a group here. Each starred destination is marked
+           on its own row by the shell controller, and the list of them opens
+           from the star button beside the search field. -->
 
       <!-- Balance Monitor VOIP -->
       <div class="nav-group" data-module="balance" data-src="view-menu-balance">
@@ -8772,7 +8764,7 @@
           </svg>
         </button>
       </div>
-      <button type="button" id="fav-btn" aria-pressed="false" title="Add this view to Favourites" aria-label="Add this view to Favourites">
+      <button type="button" id="fav-btn" aria-pressed="false" aria-haspopup="true" aria-controls="nav-search-panel" title="Show Favourites" aria-label="Show Favourites">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
           <path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/>
         </svg>
@@ -28551,8 +28543,12 @@ if (auth) {
   }
   function normalizeFavorites(value) {
     if (!Array.isArray(value)) return [];
-    return value.filter(function (key, index, list) {
-      return typeof key === 'string' && key.length <= 240 && list.indexOf(key) === index;
+    return value.map(function (key) {
+      // Trailing empties are trimmed so a key survives DEST_KEYS gaining a
+      // field: everything stored before statsview existed still resolves.
+      return typeof key === 'string' ? key.replace(/\|+$/, '') : key;
+    }).filter(function (key, index, list) {
+      return typeof key === 'string' && key.length && key.length <= 240 && list.indexOf(key) === index;
     }).slice(0, 12);
   }
   function cacheFavorites(uid, value, updatedAt) {
@@ -28612,7 +28608,7 @@ if (auth) {
     var token = ++favoriteLoadToken;
     var uid = favoriteUserUid();
     var local = favoriteCache(uid);
-    favRendered = null;
+    favMarked = null;
     renderFavorites(true);
     syncFavButton();
     if (!uid || typeof window.bmLoadUserFavorites !== 'function') return;
@@ -28627,7 +28623,7 @@ if (auth) {
         window.bmSaveUserFavorites(uid, local.favorites, local.updatedAt);
       } else {
         cacheFavorites(uid, result.favorites, remoteUpdatedAt);
-        favRendered = null;
+        favMarked = null;
         renderFavorites(true);
         syncFavButton();
         if (findPanel && !findPanel.hidden) renderFind(findInput ? findInput.value : '');
@@ -28863,14 +28859,8 @@ if (auth) {
     if (viewEl) viewEl.textContent = viewLabel;
     if (sepEl) sepEl.style.display = viewLabel ? '' : 'none';
 
-    // Where the star applies. A module with deeper views is favourited at the
-    // view; a flat one (Stats, Daily Traffic, Admin) at the module.
-    var here = activeLeaf;
-    if (!here) {
-      var g = nav.querySelector('.nav-group:not(.nav-group-fav)[data-module="' + mod + '"]');
-      here = g && g.querySelector(':scope > .nav-parent');
-    }
-    currentDest = here ? { key: destKey(here.dataset), label: labelOf(here) } : null;
+    // The star button no longer acts on wherever you happen to be standing —
+    // it opens the list — so all it needs from a sync pass is the count.
     syncFavButton();
 
     // An empty sub-menu strip is removed rather than left as a blank band.
@@ -28949,13 +28939,20 @@ if (auth) {
      DOM reference or a label, so it survives a re-render and a rename. Each
      favourite is rebuilt as a real .nav-leaf carrying the same attributes,
      which is what routes it back through the same go() call. */
-  var DEST_KEYS = ['module', 'view', 'smstab', 'smsview', 'credtab', 'vostab'];
+  /* Every data-* the rail uses to tell one destination from another. statsview
+     belongs here: without it all eleven Stats leaves share one key, so they
+     cannot be told apart — a favourite saved on "Hourly" resolved to whichever
+     Stats row won the map, and starring one now marks all of them. */
+  var DEST_KEYS = ['module', 'view', 'smstab', 'smsview', 'credtab', 'vostab', 'statsview'];
   var FAV_MAX = 12;
-  var currentDest = null;
-  var findInput, findPanel, findClear, favBtn, favList, favGroup;
+  // Set while the search panel is showing Favourites instead of search hits.
+  var favOnly = false;
+  var findInput, findPanel, findClear, favBtn;
 
   function destKey(d) {
-    return DEST_KEYS.map(function (k) { return d[k] || ''; }).join('|');
+    // Trailing empties are dropped so adding a field to DEST_KEYS does not
+    // invalidate every favourite already saved against the shorter shape.
+    return DEST_KEYS.map(function (k) { return d[k] || ''; }).join('|').replace(/\|+$/, '');
   }
 
   function favorites() {
@@ -29018,13 +29015,19 @@ if (auth) {
     if (findPanel && !findPanel.hidden) renderFind(findInput ? findInput.value : '');
   }
 
+  /* The star beside the search field is a viewer, not a switch: it opens the
+     favourites list in the search panel. Starring is done from the row's own
+     right-click menu, so this button never changes what is in the list —
+     aria-pressed here means "the list is on screen". */
   function syncFavButton() {
     if (!favBtn) return;
-    var on = !!currentDest && favorites().indexOf(currentDest.key) >= 0;
-    favBtn.disabled = !currentDest;
+    var map = destMap();
+    var n = favorites().filter(function (k) { return !!map[k]; }).length;
+    var on = favOnly && !!findPanel && !findPanel.hidden;
     favBtn.setAttribute('aria-pressed', String(on));
-    var what = currentDest ? '"' + currentDest.label + '"' : 'this view';
-    var text = on ? 'Remove ' + what + ' from Favourites' : 'Add ' + what + ' to Favourites';
+    var text = n
+      ? 'Show Favourites (' + n + ')'
+      : 'No favourites yet — right-click a tab to add one';
     favBtn.setAttribute('aria-label', text);
     // The app migrates every title= into its own tooltip layer and strips the
     // attribute, so write to whichever of the two this button is currently
@@ -29034,13 +29037,13 @@ if (auth) {
   }
 
   /* ── Right-click a rail row to star it ────────────────────────────────
-     The star beside the search field can only ever act on the destination
-     you are already standing in, so filling Favourites meant visiting each
-     one first. The rail already lists every destination and keys them the
-     same way, so the same toggleFavorite() is reachable straight from the
-     row — including the cloned rows under Favourites, which unstar. */
+     This is the only way in or out of Favourites. It answers on a rail row
+     and on a row of the search/favourites panel alike: both carry the same
+     destination data, so both resolve through the same key. */
   var ctxMenu = null, ctxOpen = false;
-  var STAR_PATH = 'm12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z';
+  var STAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
+    + 'stroke-linejoin="round" aria-hidden="true"><path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3'
+    + '-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/></svg>';
 
   function closeNavCtx() {
     if (!ctxOpen) return;
@@ -29078,8 +29081,7 @@ if (auth) {
     item.type = 'button';
     item.className = 'tbtn' + (on ? ' is-on' : '');
     item.setAttribute('role', 'menuitem');
-    item.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
-      + 'stroke-linejoin="round" aria-hidden="true"><path d="' + STAR_PATH + '"/></svg>';
+    item.innerHTML = STAR_SVG;
     item.appendChild(document.createTextNode(on ? 'Remove from Favourites' : 'Add to Favourites'));
     item.addEventListener('click', function () {
       toggleFavorite(key);
@@ -29126,47 +29128,32 @@ if (auth) {
     return tag + ' ' + name;
   }
 
-  /* Rebuild a destination as a rail leaf. data-src is carried over so the
-     clone inherits role gating from the same source control; for a flat
-     module that flag lives on the group, not the button. */
-  function favLeaf(dest, shared) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'nav-leaf';
-    DEST_KEYS.forEach(function (k) { if (dest.el.dataset[k]) b.dataset[k] = dest.el.dataset[k]; });
-    if (dest.el.dataset.activeSrc) b.dataset.activeSrc = dest.el.dataset.activeSrc;
-    var srcId = dest.el.dataset.src || (dest.group && dest.group.dataset.src);
-    if (srcId) b.dataset.src = srcId;
-    var label = document.createElement('span');
-    label.className = 'nav-label';
-    label.textContent = favLabel(dest, shared);
-    b.appendChild(label);
-    b.title = dest.path ? dest.path + ' / ' + dest.name : dest.name;
-    return b;
-  }
-
-  /* Rebuilt only when the resolvable set actually changes: this runs inside
-     every sync pass, and replacing a dozen buttons on each one would churn
-     the DOM (and the tooltip layer that adopts them) for nothing. A role
-     check that removes a destination changes the signature, so gating still
-     takes effect without a separate hook. */
-  var favRendered = null;
+  /* Stamp the star straight onto the rail row a favourite points at, instead
+     of cloning it into a list of its own. Reapplied only when the starred set
+     or the reachable set actually changes: this runs inside every sync pass,
+     and touching forty rows on each one would churn the DOM for nothing. A
+     role check that removes a destination changes the signature, so gating
+     still takes effect without a separate hook. */
+  var favMarked = null;
   function renderFavorites(force) {
-    if (!favList || !favGroup) return;
+    if (!nav) return;
     var all = destinations();
-    var byKey = destMap(all);
-    // Ambiguity is judged against every destination the rail can reach, not
-    // only the starred ones: a lone "Stats" favourite is just as unclear while
-    // a second Stats sits in the rail below it. Gating one of the two away
-    // takes the prefix off again, so the label rides in the signature.
-    var shared = sharedNames(all);
-    var keys = favorites().filter(function (k) { return !!byKey[k]; });
-    var sig = keys.map(function (k) { return k + '»' + favLabel(byKey[k], shared); }).join('§');
-    if (!force && sig === favRendered) return;
-    favRendered = sig;
-    favList.textContent = '';
-    keys.forEach(function (k) { favList.appendChild(favLeaf(byKey[k], shared)); });
-    favGroup.hidden = keys.length === 0;
+    var keys = favorites();
+    var sig = all.map(function (d) {
+      return keys.indexOf(destKey(d.el.dataset)) >= 0 ? destKey(d.el.dataset) : '';
+    }).join('§');
+    if (!force && sig === favMarked) return;
+    favMarked = sig;
+
+    nav.querySelectorAll('.nav-fav-mark').forEach(function (m) { m.remove(); });
+    all.forEach(function (d) {
+      if (keys.indexOf(destKey(d.el.dataset)) < 0) return;
+      var mark = document.createElement('span');
+      mark.className = 'nav-fav-mark';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.innerHTML = STAR_SVG;
+      d.el.appendChild(mark);
+    });
   }
 
   /* ── The search panel ── */
@@ -29184,6 +29171,9 @@ if (auth) {
     var key = destKey(dest.el.dataset);
     var row = document.createElement('div');
     row.className = 'nav-find-row';
+    // Carry the destination data so the row answers the same right-click menu
+    // the rail rows do — that is the only place favourites are changed.
+    DEST_KEYS.forEach(function (k) { if (dest.el.dataset[k]) row.dataset[k] = dest.el.dataset[k]; });
 
     var goBtn = document.createElement('button');
     goBtn.type = 'button';
@@ -29204,22 +29194,15 @@ if (auth) {
       queueSync();
     });
 
-    var star = document.createElement('button');
-    star.type = 'button';
-    star.className = 'nfr-star';
-    var starred = favKeys.indexOf(key) >= 0;
-    star.setAttribute('aria-pressed', String(starred));
-    var starText = (starred ? 'Remove ' : 'Add ') + '"' + dest.name + '"' + (starred ? ' from' : ' to') + ' Favourites';
-    star.title = starText;
-    star.setAttribute('aria-label', starText);
-    star.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z"/></svg>';
-    star.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      toggleFavorite(key);
-    });
-
+    // An indicator, not a control — same meaning as the star on the rail row.
     row.appendChild(goBtn);
-    row.appendChild(star);
+    if (favKeys.indexOf(key) >= 0) {
+      var star = document.createElement('span');
+      star.className = 'nfr-star';
+      star.setAttribute('aria-hidden', 'true');
+      star.innerHTML = STAR_SVG;
+      row.appendChild(star);
+    }
     return row;
   }
 
@@ -29237,9 +29220,25 @@ if (auth) {
     var favKeys = favorites();
     findPanel.textContent = '';
 
+    // Opened from the star button: the favourites list on its own, with the
+    // empty state naming the one way in, since there is no add control here.
+    if (favOnly) {
+      var starred = favKeys.map(findDest).filter(Boolean);
+      findPanel.appendChild(sectionLabel('Favourites'));
+      if (!starred.length) {
+        var none = document.createElement('div');
+        none.className = 'nav-find-empty';
+        none.textContent = 'No favourites yet. Right-click a tab in the rail to add one.';
+        findPanel.appendChild(none);
+        return;
+      }
+      starred.forEach(function (d) { findPanel.appendChild(findRow(d, favKeys)); });
+      return;
+    }
+
     if (!q) {
-      // No query: favourites first, then everything, so the star is reachable
-      // for any destination without having to think of its name.
+      // No query: favourites first, then everything, so a starred destination
+      // is one keystroke away without having to think of its name.
       var favs = favKeys.map(findDest).filter(Boolean);
       if (favs.length) {
         findPanel.appendChild(sectionLabel('Favourites'));
@@ -29279,7 +29278,9 @@ if (auth) {
   function closeFind() {
     if (!findPanel) return;
     findPanel.hidden = true;
+    favOnly = false;
     if (findInput) findInput.setAttribute('aria-expanded', 'false');
+    syncFavButton();
   }
 
   /* Roving focus down the result list, so the whole thing is reachable from
@@ -29300,8 +29301,6 @@ if (auth) {
     findPanel = document.getElementById('nav-search-panel');
     findClear = document.getElementById('nav-search-clear');
     favBtn = document.getElementById('fav-btn');
-    favList = document.getElementById('nav-fav-list');
-    favGroup = document.getElementById('nav-fav-group');
     if (!findInput || !findPanel) return;
 
     if (findClear) {
@@ -29317,8 +29316,9 @@ if (auth) {
       });
     }
 
-    findInput.addEventListener('input', function () { syncClear(); openFind(); });
-    findInput.addEventListener('focus', function () { openFind(); });
+    // Touching the field is a search, so it drops the favourites-only view.
+    findInput.addEventListener('input', function () { favOnly = false; syncClear(); openFind(); });
+    findInput.addEventListener('focus', function () { favOnly = false; openFind(); });
     findInput.addEventListener('keydown', function (ev) {
       if (ev.key === 'ArrowDown') { ev.preventDefault(); openFind(); moveFindFocus(1); }
       else if (ev.key === 'Escape') { ev.preventDefault(); findInput.value = ''; syncClear(); closeFind(); }
@@ -29333,13 +29333,23 @@ if (auth) {
       else if (ev.key === 'Escape') { ev.preventDefault(); closeFind(); findInput.focus(); }
     });
     document.addEventListener('mousedown', function (ev) {
+      // The right-click menu lives on <body>, so without this a press on
+      // "Remove from Favourites" would read as a click outside and shut the
+      // very list you are pruning.
+      if (ctxMenu && ctxMenu.contains(ev.target)) return;
       var box = document.getElementById('nav-find');
       if (box && !box.contains(ev.target)) closeFind();
     });
 
     if (favBtn) {
       favBtn.addEventListener('click', function () {
-        if (currentDest) toggleFavorite(currentDest.key);
+        // Second press closes it again, so the button works as its own toggle.
+        if (favOnly && !findPanel.hidden) { closeFind(); syncFavButton(); return; }
+        favOnly = true;
+        findInput.value = '';
+        syncClear();
+        openFind();
+        syncFavButton();
       });
     }
     renderFavorites();
@@ -29377,12 +29387,15 @@ if (auth) {
     });
     window.addEventListener('resize', closeFlyouts);
 
-    // Right-click a rail row — original or favourite clone — to star it.
-    // A row the rail cannot resolve to a destination is left to the browser's
-    // own menu rather than swallowed for nothing.
-    nav.addEventListener('contextmenu', function (ev) {
-      var row = ev.target.closest('.nav-leaf, .nav-parent');
-      if (!row || !nav.contains(row)) return;
+    // Right-click to star: on a rail row, or on a row of the search and
+    // favourites panel — the latter being the only way to unstar something
+    // from the list that shows it. A row that does not resolve to a
+    // destination keeps the browser's own menu rather than losing it for
+    // nothing.
+    document.addEventListener('contextmenu', function (ev) {
+      var row = ev.target.closest('.nav-leaf, .nav-parent, .nav-find-row');
+      if (!row) return;
+      if (!nav.contains(row) && !(findPanel && findPanel.contains(row))) return;
       var dest = findDest(destKey(row.dataset));
       if (!dest) return;
       ev.preventDefault();
