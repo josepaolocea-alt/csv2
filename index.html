@@ -16633,6 +16633,25 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // Wiping the snapshots / stats_snapshots / tritel_snapshots collections —
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
+
+/* Everything above is module-scoped, so when an account sees the view-only UI
+   there is no way from the console to tell whether the role resolved wrong or a
+   panel is genuinely mis-gated. Read-only, no side effects: run bmWhoAmI() in
+   the browser console while signed in as the account in question. */
+window.bmWhoAmI = () => ({
+  email: currentUserEmail || '(signed out)',
+  seededFrom: seedRoleForEmail(currentUserEmail),   // what the email alone implies
+  resolvedRole: isAdmin() ? 'admin' : currentRole,  // what user_roles resolved to
+  modules: currentModules || 'all',
+  canPostBalance: canPostBalance(),
+  canPostStats: canPostStats(),
+  postingPanels: {
+    voip:        !!document.getElementById('snap-editor') && getComputedStyle(document.getElementById('snap-editor')).display !== 'none',
+    statsHourly: !!document.getElementById('stats-post-controls') && getComputedStyle(document.getElementById('stats-post-controls')).display !== 'none',
+    dailyTraffic:!!document.getElementById('stats-daily-post-controls') && getComputedStyle(document.getElementById('stats-daily-post-controls')).display !== 'none',
+  }
+});
+
 const VOIP_ADMIN_DANGER_BUTTONS = [
   'voip-delete-critical-history-btn',
   'voip-delete-spam-history-btn',
