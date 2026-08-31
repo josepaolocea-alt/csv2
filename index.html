@@ -8162,11 +8162,13 @@
       gap: 8px;
       min-width: 0;
     }
+    /* The two groups stay in the markup for their aria labels and ordering,
+       but they must not be laid out as unbreakable blocks: as flex items the
+       whole second group dropped to a new row while the first row still had
+       room for two more pills. display:contents hands every pill directly to
+       the wrapping list, so each row fills before the next one starts. */
     #alert-tabs .alert-tab-group {
-      display: inline-flex;
-      flex: 0 0 auto;
-      align-items: center;
-      gap: 4px;
+      display: contents;
     }
 
     .stat-box, .sms-bal-card, .st-daily-card {
