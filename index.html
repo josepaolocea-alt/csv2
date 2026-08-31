@@ -6662,6 +6662,23 @@
     #nav-fav-list { display: block; margin-left: 20px; }
     #nav-fav-group.is-open > #nav-fav-list { display: block; }
 
+    /* Right-click menu for a rail destination. It carries the app's own
+       .app-action-menu-panel class rather than restating that material, so
+       the three theme blocks that restyle action menus reach it too; only the
+       caption above the action is new here. */
+    .nav-ctx-menu { min-width: 178px; }
+    .nav-ctx-cap {
+      padding: 2px 10px 6px; margin-bottom: 2px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--text-3);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nav-ctx-menu .tbtn { gap: 9px; }
+    .nav-ctx-menu .tbtn svg { width: 16px; height: 16px; flex: 0 0 16px; }
+    .nav-ctx-menu .tbtn.is-on { color: var(--accent); }
+    .nav-ctx-menu .tbtn.is-on svg { fill: currentColor; }
+
     .nav-foot {
       flex: 0 0 auto; padding: 10px;
       border-top: 1px solid var(--border);
@@ -28901,7 +28918,12 @@ if (auth) {
      re-entry) makes that trip survivable instead of a game of skill. */
   function scheduleClose(group) {
     clearTimeout(flyoutTimer);
-    flyoutTimer = setTimeout(function () { group.classList.remove('is-flyout'); }, 260);
+    flyoutTimer = setTimeout(function () {
+      // Reaching the right-click menu means leaving the group it was opened
+      // from, so hold the flyout until that menu is dismissed.
+      if (ctxOpen) return;
+      group.classList.remove('is-flyout');
+    }, 260);
   }
 
   /* ── Relocate the SMS and VOS paste rails into the snapshot panel ─────
@@ -29009,6 +29031,74 @@ if (auth) {
     // carrying instead of re-adding a title for it to remove on every pass.
     if (favBtn.dataset.premiumTooltip !== undefined) favBtn.dataset.premiumTooltip = text;
     else favBtn.title = text;
+  }
+
+  /* ── Right-click a rail row to star it ────────────────────────────────
+     The star beside the search field can only ever act on the destination
+     you are already standing in, so filling Favourites meant visiting each
+     one first. The rail already lists every destination and keys them the
+     same way, so the same toggleFavorite() is reachable straight from the
+     row — including the cloned rows under Favourites, which unstar. */
+  var ctxMenu = null, ctxOpen = false;
+  var STAR_PATH = 'm12 4.2 2.3 4.9 5.2.7-3.8 3.7 1 5.3-4.7-2.6-4.7 2.6 1-5.3L4.5 9.8l5.2-.7z';
+
+  function closeNavCtx() {
+    if (!ctxOpen) return;
+    ctxOpen = false;
+    ctxMenu.classList.remove('open');
+    ctxMenu.hidden = true;
+    // The flyout was held open underneath while the menu stood on it.
+    closeFlyouts();
+  }
+
+  function openNavCtx(dest, x, y) {
+    if (!ctxMenu) {
+      ctxMenu = document.createElement('div');
+      ctxMenu.id = 'nav-ctx';
+      ctxMenu.className = 'app-action-menu-panel nav-ctx-menu';
+      ctxMenu.setAttribute('role', 'menu');
+      ctxMenu.hidden = true;
+      document.body.appendChild(ctxMenu);
+    }
+
+    var key = destKey(dest.el.dataset);
+    var on = favorites().indexOf(key) >= 0;
+
+    ctxMenu.textContent = '';
+    // Caption the row with the name the favourite will actually carry, not
+    // its full rail path: the path is long enough to ellipsise away exactly
+    // the half that identifies it, and favLabel is what Favourites will show
+    // — including the module prefix it adds when the name is ambiguous.
+    var cap = document.createElement('div');
+    cap.className = 'nav-ctx-cap';
+    cap.textContent = favLabel(dest, sharedNames(destinations()));
+    ctxMenu.appendChild(cap);
+
+    var item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'tbtn' + (on ? ' is-on' : '');
+    item.setAttribute('role', 'menuitem');
+    item.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '
+      + 'stroke-linejoin="round" aria-hidden="true"><path d="' + STAR_PATH + '"/></svg>';
+    item.appendChild(document.createTextNode(on ? 'Remove from Favourites' : 'Add to Favourites'));
+    item.addEventListener('click', function () {
+      toggleFavorite(key);
+      closeNavCtx();
+    });
+    ctxMenu.appendChild(item);
+
+    // Park it on the pointer before revealing, then pull it back inside the
+    // viewport once it has a measurable box — placing it at 0,0 first would
+    // flash the menu in the corner on every open.
+    ctxMenu.style.left = x + 'px';
+    ctxMenu.style.top = y + 'px';
+    ctxMenu.hidden = false;
+    ctxMenu.classList.add('open');
+    ctxOpen = true;
+    var box = ctxMenu.getBoundingClientRect();
+    ctxMenu.style.left = Math.max(8, Math.min(x, window.innerWidth - box.width - 8)) + 'px';
+    ctxMenu.style.top = Math.max(8, Math.min(y, window.innerHeight - box.height - 8)) + 'px';
+    item.focus();
   }
 
   /* Names repeat across the rail — VOS carries its own Stats and Daily Traffic
@@ -29287,6 +29377,23 @@ if (auth) {
     });
     window.addEventListener('resize', closeFlyouts);
 
+    // Right-click a rail row — original or favourite clone — to star it.
+    // A row the rail cannot resolve to a destination is left to the browser's
+    // own menu rather than swallowed for nothing.
+    nav.addEventListener('contextmenu', function (ev) {
+      var row = ev.target.closest('.nav-leaf, .nav-parent');
+      if (!row || !nav.contains(row)) return;
+      var dest = findDest(destKey(row.dataset));
+      if (!dest) return;
+      ev.preventDefault();
+      openNavCtx(dest, ev.clientX, ev.clientY);
+    });
+    document.addEventListener('mousedown', function (ev) {
+      if (ctxOpen && !ctxMenu.contains(ev.target)) closeNavCtx();
+    });
+    window.addEventListener('resize', closeNavCtx);
+    window.addEventListener('scroll', closeNavCtx, true);
+
     initFind();
     window.addEventListener('bm-favorite-user-changed', loadFavoritesForCurrentUser);
     loadFavoritesForCurrentUser();
@@ -29327,7 +29434,9 @@ if (auth) {
         ev.preventDefault();
         window.bmToggleSnap();
       }
-      if (ev.key === 'Escape') closeFlyouts();
+      // closeNavCtx already drops the flyout it was standing on, so the
+      // second call only matters when no right-click menu is open.
+      if (ev.key === 'Escape') { closeNavCtx(); closeFlyouts(); }
     });
 
     /* Watch the controls the rail mirrors. Attribute-only, so the large table
