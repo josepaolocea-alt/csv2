@@ -25100,6 +25100,23 @@ window.importVosTrafficFile = async file => {
   if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
   const dateInput=document.getElementById('vos-traffic-date'),sessionDate=String(dateInput?.value||'');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)){setRequiredFieldState('vos-traffic-date',true);dateInput?.focus();toast('Select the VOS Traffic Date before uploading.','err',7000);return;}
+  // Same rule as the Daily Traffic paste: a day's traffic is only complete once
+  // the day has ended, so the newest date worth uploading is yesterday. Asked
+  // before the file is read, so a wrong date costs nothing.
+  {
+    const vosToday=todayStr();
+    if(sessionDate>=vosToday){
+      const vosYesterday=statsDailyDateRange(vosToday,2)[0],future=sessionDate>vosToday;
+      const approved=await confirmPremiumAction({
+        title:future?'Traffic Date Is in the Future':'That Is Today’s Date',
+        html:`This report is dated <strong>${stEsc(sessionDate)}</strong>.`
+          +`<br><br>VOS Daily Traffic runs a day behind, so the latest date to upload today is <strong>${stEsc(vosYesterday)}</strong> (yesterday). `
+          +(future?'A date after today cannot have any traffic yet.':'Today’s traffic is still running, so the report is incomplete.')
+          +`<br><br>Check the <strong>Traffic Date</strong> box and the uploaded file before continuing. Upload it anyway?`,
+        label:'Upload Anyway'});
+      if(!approved)return;
+    }
+  }
   setLoading(true,'Reading VOS traffic file…');
   try{const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate;sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');
@@ -25321,6 +25338,23 @@ window.importVosStatsFile=async file=>{
   if(!file)return;if(!canPostStats()){toast('Posting VOS Stats snapshots is restricted for this account.','err');return;}if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
   const slot=String(document.getElementById('vos-stats-slot')?.value||'');if(!statsSlots().includes(slot)){toast('Select a valid VOS Stats hour.','err');return;}const existing=vosStatsSortedSnaps().find(s=>s.time_slot===slot);
   if(existing){const approved=await confirmPremiumAction({title:'Replace VOS Stats Hour',html:`Replace the saved <strong>${stEsc(fmt12(slot))}</strong> VOS Stats snapshot with <strong>${stEsc(file.name||'this file')}</strong>?`,label:'Replace'});if(!approved)return;}
+  else{
+    // Hourly like the Stats feed, so it shares that threshold. Only for a new
+    // hour: replacing a saved one is a correction, not a skipped slot.
+    const prevVos=vosStatsSortedSnaps().slice(-1)[0]||null;
+    const vosGap=prevVos?snapGapMinutes({session_date:todayStr(),time_slot:slot},prevVos):0;
+    if(vosGap>STATS_MAX_GAP_MINUTES){
+      const approved=await confirmPremiumAction({
+        title:'Snapshot Doesn’t Follow the Last',
+        html:`<strong>This VOS Stats snapshot doesn’t follow the last one.</strong><br><br>`
+          +`Last VOS Stats snapshot: <strong>${stEsc(fmtSnapWhen(prevVos))}</strong><br>`
+          +`Uploading now: <strong>${stEsc(fmtSnapWhen({session_date:todayStr(),time_slot:slot}))}</strong><br>`
+          +`Gap: <strong>${stEsc(fmtGap(vosGap))}</strong> — normal is 1 hour.<br><br>`
+          +`An hour looks skipped, or the hour box is on the wrong slot. Upload anyway?`,
+        label:'Upload Anyway'});
+      if(!approved)return;
+    }
+  }
   setLoading(true,'Reading hourly VOS Stats file…');try{
     const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate.map(vosStatsNormalizeRow);sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');const snapshot={session_date:todayStr(),time_slot:slot,filename:file.name||'VOS report',sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed};snapshot.id=vosStatsSnapshotDocId(snapshot.session_date,slot);
@@ -26818,6 +26852,29 @@ window.processStatsDailyTraffic = async () => {
   ], 'Complete the Daily Traffic Import.')) return;
   const parsedDays = parseStatsDailyTraffic(textarea?.value || '', importDate);
   if (!parsedDays.length) { toast('No valid Client Wise Traffic rows found. Expected Account Code, Customer Name, Destination, Attempts, Completed, ASR, ACD, Raw Dur, Rnd Dur, Revenue.', 'err', 8000); return; }
+  // A day's traffic is only complete once that day has ended, so the newest
+  // date worth posting is yesterday. A paste dated today is still accumulating
+  // and usually means the Traffic Date box or the pasted file is wrong — which
+  // is how a duplicate of yesterday ends up saved under today's date, leaving
+  // the dashboard with nothing to compare. Warn, but let an operator who means
+  // it through: back-fills and corrections are legitimate.
+  const today = todayStr();
+  const aheadDates = [...new Set(parsedDays.map(day => day.session_date).filter(date => date >= today))];
+  if (aheadDates.length) {
+    const yesterday = statsDailyDateRange(today, 2)[0];
+    const future = aheadDates.some(date => date > today);
+    const approved = await confirmPremiumAction({
+      title:future ? 'Traffic Date Is in the Future' : 'That Is Today’s Date',
+      html:`This paste is dated <strong>${aheadDates.map(esc).join(', ')}</strong>.`
+        + `<br><br>Daily Traffic runs a day behind, so the latest date to post today is <strong>${esc(yesterday)}</strong> (yesterday). `
+        + (future
+            ? 'A date after today cannot have any traffic yet.'
+            : 'Today’s traffic is still running, so the report is incomplete.')
+        + `<br><br>Check the <strong>Traffic Date</strong> box and the pasted report before continuing. Post it anyway?`,
+      label:'Post Anyway'
+    });
+    if (!approved) return;
+  }
   const changedDates = parsedDays.filter(day => {
     const saved = statsDailyHistory.find(entry => entry.session_date === day.session_date);
     return saved && statsDailyDaySignature(saved) !== statsDailyDaySignature(day);
@@ -27781,6 +27838,24 @@ function statsRender() {
   refreshImportantNotifications();
 }
 
+/* ── Non-consecutive Stats post guard ───────────────────────────────────────
+   The VOIP and SMS feeds both warn when the slot being posted doesn't follow
+   the last one; Stats and VOS Stats had no such check, so skipping an hour (or
+   leaving the box on the wrong slot) posted silently. Both run hourly, so that
+   cadence is the threshold rather than the 30 min the two balance feeds use,
+   and both read this constant. Measured from the scheduled slot times, so
+   uploading an hour late is not a gap. */
+const STATS_MAX_GAP_MINUTES = 60;
+function latestStatsSnapForGap() {
+  const bySlot = list => [...list].sort((a, b) => String(a.time_slot).localeCompare(String(b.time_slot))).slice(-1)[0];
+  const today = bySlot(statsTodaySnaps || []);
+  if (today) return { session_date:today.session_date || todayStr(), time_slot:today.time_slot };
+  // First post of the day still has a predecessor — the last slot of the most
+  // recent saved day — which is how an overnight skip gets caught.
+  const prev = bySlot(statsPreviousDaySnaps || []);
+  return prev && statsPreviousDayDate ? { session_date:statsPreviousDayDate, time_slot:prev.time_slot } : null;
+}
+
 window.processStatsSnapshot = async () => {
   if (!canPostStats()) { toast('Posting stats snapshots is restricted for this account.', 'err'); return; }
   const ta = document.getElementById('stats-snap-ta');
@@ -27797,6 +27872,23 @@ window.processStatsSnapshot = async () => {
       label:'Replace'
     });
     if (!approved) return;
+  } else {
+    // Only when the slot is new: replacing a slot that already exists is a
+    // correction, not a skip, and back-filling an earlier slot reads as gap 0.
+    const prevStats = latestStatsSnapForGap();
+    const statsGap = prevStats ? snapGapMinutes({ session_date:todayStr(), time_slot:slot }, prevStats) : 0;
+    if (statsGap > STATS_MAX_GAP_MINUTES) {
+      const approved = await confirmPremiumAction({
+        title:'Snapshot Doesn’t Follow the Last',
+        html:`<strong>This Stats snapshot doesn’t follow the last one.</strong><br><br>`
+          + `Last Stats snapshot: <strong>${esc(fmtSnapWhen(prevStats))}</strong><br>`
+          + `Posting now: <strong>${esc(fmtSnapWhen({ session_date:todayStr(), time_slot:slot }))}</strong><br>`
+          + `Gap: <strong>${esc(fmtGap(statsGap))}</strong> — normal is 1 hour.<br><br>`
+          + `A slot looks skipped, or the hour box is on the wrong slot. Post this snapshot anyway?`,
+        label:'Post Anyway'
+      });
+      if (!approved) return;
+    }
   }
   const snap = { timestamp:new Date(), session_date:todayStr(), time_slot:slot, data:rows, total:pastedTotal, operator:operatorName||'', user_email:currentUserEmail||'' };
   statsTodaySnaps = [...statsTodaySnaps.filter(s => s.time_slot !== slot), snap];
