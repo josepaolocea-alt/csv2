@@ -1414,7 +1414,10 @@
     #vos-traffic-table { min-width:1840px; }
     #vos-traffic-table th { white-space:nowrap; cursor:pointer; }
     #vos-history-table { min-width:980px; font-variant-numeric:tabular-nums; }
-    #vos-history-table th:not(:first-child):not(:nth-child(2)), #vos-history-table td:not(:first-child):not(:nth-child(2)) { text-align:right; }
+    /* Everything past the identity columns is a number and reads right — Status
+       is the exception, so it opts out and stays with Area Name. */
+    #vos-history-table th:not(:first-child):not(:nth-child(2)):not(.st-daily-history-status),
+    #vos-history-table td:not(:first-child):not(:nth-child(2)):not(.st-daily-history-status) { text-align:right; }
     #vos-traffic-table td.num, #vos-traffic-table th.num { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
     #vos-traffic-table tbody tr.vos-total-row td { position:sticky; bottom:0; z-index:1; background:var(--surface-3); border-top:2px solid var(--border-strong); font-weight:700; }
     @media (max-width:1000px) { .vos-summary { grid-template-columns:repeat(2,minmax(130px,1fr)); } .vos-import-card { align-items:flex-start; flex-wrap:wrap; } }
@@ -1698,12 +1701,13 @@
     #st-daily-history-table td.st-daily-history-attempt { text-align: right; }
     #st-daily-history-table td.st-daily-history-missing { text-align: center; color: var(--text-3); }
     #st-daily-history-table td.st-daily-history-zero { color: var(--red); font-weight: 600; }
-    /* Status is the last column in both Last 2 Weeks tables, so the badge sits
-       under its own heading instead of drifting left of it. */
+    /* Status closes the identity block in both Last 2 Weeks tables — beside
+       Destination / Area Name — so heading and badge share its left edge
+       instead of the badge drifting away from the heading. */
     #st-daily-history-table th.st-daily-history-status,
     #st-daily-history-table td.st-daily-history-status,
     #vos-history-table th.st-daily-history-status,
-    #vos-history-table td.st-daily-history-status { text-align: right; white-space: nowrap; }
+    #vos-history-table td.st-daily-history-status { text-align: left; white-space: nowrap; }
     /* Date headings carry the weekday, and Saturday/Sunday columns are tinted,
        so a weekend dip is not mistaken for a weekday one. */
     .st-daily-date-hd .st-daily-dow {
@@ -1721,12 +1725,7 @@
     #vos-history-table th.st-daily-weekend { color: var(--accent-strong); }
     #st-daily-history-table th.st-daily-weekend .st-daily-dow,
     #vos-history-table th.st-daily-weekend .st-daily-dow { color: var(--accent); }
-    #vos-history-table { font-variant-numeric: tabular-nums; }
-    #vos-history-table th { text-align: right; }
-    #vos-history-table th:first-child,
-    #vos-history-table th:nth-child(2) { text-align: left; }
-    #vos-history-table td.st-daily-history-attempt { text-align: right; }
-    #vos-history-table td.st-daily-history-missing { text-align: center; color: var(--text-3); }
+    #vos-history-table td.st-daily-history-missing { color: var(--text-3); }
     .st-traffic-trend { display: inline-flex; align-items: center; white-space: nowrap; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
     .st-traffic-trend.increase { background: var(--green-soft); color: var(--green); }
     .st-traffic-trend.decrease, .st-traffic-trend.stopped { background: var(--red-soft); color: var(--red); }
@@ -24978,9 +24977,9 @@ function renderVosDailyHistory(){
   const identities=new Map();days.forEach(day=>day.rows.forEach(row=>identities.set(vosRowKey(row),row)));
   const searchElement=document.getElementById('vos-history-search'),search=String(searchElement?.value||'').trim().toLowerCase(),routeKey=String(searchElement?.dataset.routeKey||''); const rows=[...identities.entries()].filter(([key,row])=>routeKey?key===routeKey:!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
   // Status is the same latest-versus-previous verdict the Today table and the
-  // Last 2 Weeks export already carry, parked in the last column.
+  // Last 2 Weeks export already carry, parked beside Area Name.
   const latestStatus=new Map(vosDailyComparison(days.slice(-1)[0]?.session_date||'').rows.map(row=>[vosRowKey(row),row.status]));
-  const head=document.getElementById('vos-history-head'),body=document.getElementById('vos-history-body');if(head)head.innerHTML=`<tr><th>Mapping Gateway</th><th>Area Name</th>${dates.map(date=>statsDailyDateHeaderCell(date,date)).join('')}<th class="st-daily-history-status">Status</th></tr>`;if(body)body.innerHTML=rows.map(([key,row])=>{const status=latestStatus.get(key)||'';return `<tr><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td>${dates.map(date=>{const cell=maps.get(date)?.get(key),weekend=statsDailyWeekendClass(date);return cell?`<td class="st-daily-history-attempt${weekend}">${stN2(cell.total_call_time_seconds)}</td>`:`<td class="st-daily-history-missing${weekend}" title="No report saved for this date">—</td>`;}).join('')}<td class="st-daily-history-status">${status?`<span class="st-daily-status ${status}">${ST_DAILY_STATUS_LABELS[status]||stEsc(status)}</span>`:'—'}</td></tr>`;}).join('')||`<tr><td colspan="${dates.length+3}" style="text-align:center;color:var(--text-3)">No VOS history rows.</td></tr>`;
+  const head=document.getElementById('vos-history-head'),body=document.getElementById('vos-history-body');if(head)head.innerHTML=`<tr><th>Mapping Gateway</th><th>Area Name</th><th class="st-daily-history-status">Status</th>${dates.map(date=>statsDailyDateHeaderCell(date,date)).join('')}</tr>`;if(body)body.innerHTML=rows.map(([key,row])=>{const status=latestStatus.get(key)||'';return `<tr><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="st-daily-history-status">${status?`<span class="st-daily-status ${status}">${ST_DAILY_STATUS_LABELS[status]||stEsc(status)}</span>`:'—'}</td>${dates.map(date=>{const cell=maps.get(date)?.get(key),weekend=statsDailyWeekendClass(date);return cell?`<td class="st-daily-history-attempt${weekend}">${stN2(cell.total_call_time_seconds)}</td>`:`<td class="st-daily-history-missing${weekend}" title="No report saved for this date">—</td>`;}).join('')}</tr>`;}).join('')||`<tr><td colspan="${dates.length+3}" style="text-align:center;color:var(--text-3)">No VOS history rows.</td></tr>`;
   vosSetText('vos-history-count',`${rows.length} route${rows.length===1?'':'s'}`);vosSetText('vos-history-meta',dates.length?`Total Call Time in seconds across ${dates.length} saved date${dates.length===1?'':'s'}, newest date first. Weekend columns are tinted. Status compares the latest saved date with the one before it.`:'The latest 14 saved dates of Total Call Time appear here.');
 }
 window.renderVosDailyHistory=renderVosDailyHistory;
@@ -25121,9 +25120,9 @@ function vosExportDataset(tab=vosDailyTab){
     const latestDate=days.slice(-1)[0]?.session_date||'',latestStatus=new Map(vosDailyComparison(latestDate).rows.map(row=>[vosRowKey(row),row.status]));
     const searchElement=document.getElementById('vos-history-search'),search=String(searchElement?.value||'').trim().toLowerCase(),routeKey=String(searchElement?.dataset.routeKey||'');
     const rows=[...identities.entries()].filter(([key,row])=>routeKey?key===routeKey:!search||`${row.mapping_gateway} ${row.area_name}`.toLowerCase().includes(search)).sort((a,b)=>String(a[1].mapping_gateway).localeCompare(String(b[1].mapping_gateway))||String(a[1].area_name).localeCompare(String(b[1].area_name)));
-    // Same column order as the table: newest date first, Status last.
-    const values=rows.map(([key,row])=>[row.mapping_gateway,row.area_name,...dates.map(date=>maps.get(date)?.get(key)?.total_call_time_seconds??''),latestStatus.get(key)||'']);
-    return{sheet:'Last 2 Weeks',suffix:`last_2_weeks_${latestDate||todayStr()}`,headers:['Mapping Gateway','Area Name',...dates,'Status'],rows:values,rowMeta:values.map(row=>({status:String(row[row.length-1]||'').toLowerCase()}))};
+    // Same column order as the table: Status beside Area Name, newest date first.
+    const values=rows.map(([key,row])=>[row.mapping_gateway,row.area_name,latestStatus.get(key)||'',...dates.map(date=>maps.get(date)?.get(key)?.total_call_time_seconds??'')]);
+    return{sheet:'Last 2 Weeks',suffix:`last_2_weeks_${latestDate||todayStr()}`,headers:['Mapping Gateway','Area Name','Status',...dates],rows:values,rowMeta:values.map(row=>({status:String(row[2]||'').toLowerCase()}))};
   }
   if(tab==='dashboard'){
     const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||''),groups={
@@ -26182,16 +26181,16 @@ function renderStatsDailyHistory() {
   // so the latest report leads the table instead of the two-week-old one.
   const columns = snapshot.dates.map((date, index) => ({ date, index })).reverse();
   const head = document.getElementById('st-daily-history-head');
-  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th><th>Destination</th>${columns.map(column => statsDailyDateHeaderCell(column.date)).join('')}<th class="st-daily-history-status">Status</th></tr>`;
+  if (head) head.innerHTML = `<tr><th>Client</th><th>Account Code</th><th>Destination</th><th class="st-daily-history-status">Status</th>${columns.map(column => statsDailyDateHeaderCell(column.date)).join('')}</tr>`;
   const body = document.getElementById('st-daily-history-body');
   if (body) body.innerHTML = rows.length ? rows.map(row => `<tr><td><strong>${stEsc(row.customer_name)}</strong></td><td>${stEsc(row.account_codes)}</td><td>${stEsc(row.destination || '—')}</td>`
+    + `<td class="st-daily-history-status"><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td>`
     + columns.map(column => {
       const point = row.timeline[column.index], weekend = statsDailyWeekendClass(column.date);
       return point?.has_report
         ? `<td class="st-daily-history-attempt${weekend}${point.raw_dur === 0 ? ' st-daily-history-zero' : ''}">${stN2(point.raw_dur)}</td>`
         : `<td class="st-daily-history-missing${weekend}" title="No report saved for this date">—</td>`;
-    }).join('')
-    + `<td class="st-daily-history-status"><span class="st-daily-status ${row.status}">${ST_DAILY_STATUS_LABELS[row.status]}</span></td></tr>`).join('')
+    }).join('') + '</tr>').join('')
     : `<tr><td colspan="${columns.length + 4}" style="padding:18px;text-align:center;color:var(--text-3)">${snapshot.latestDay ? 'No routes match this search.' : 'No daily traffic reports saved yet.'}</td></tr>`;
   const count = document.getElementById('st-daily-history-count');
   if (count) count.textContent = `${rows.length} route${rows.length === 1 ? '' : 's'} · ${snapshot.reportCount} saved report${snapshot.reportCount === 1 ? '' : 's'}`;
@@ -26415,12 +26414,12 @@ function statsDailyExportDataset(tab = statsDailyTab) {
     const rows = snapshot.rows
       .filter(row => !query || `${row.customer_name} ${row.account_codes} ${row.destination}`.toLowerCase().includes(query))
       .sort((a,b) => a.customer_name.localeCompare(b.customer_name) || a.account_codes.localeCompare(b.account_codes) || a.destination.localeCompare(b.destination));
-    // Same column order as the table: newest date first, Status last.
+    // Same column order as the table: Status beside Destination, newest date first.
     const columns = snapshot.dates.map((date, index) => ({ date, index })).reverse();
     return {
       sheet:'Last 2 Weeks', suffix:`last_2_weeks_${snapshot.latestDay?.session_date || todayStr()}`,
-      headers:['Client','Account Code','Destination',...columns.map(column => column.date),'Status'],
-      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,...columns.map(column => row.timeline[column.index]?.has_report ? row.timeline[column.index].raw_dur : ''),row.status]),
+      headers:['Client','Account Code','Destination','Status',...columns.map(column => column.date)],
+      rows:rows.map(row => [row.customer_name,row.account_codes,row.destination,row.status,...columns.map(column => row.timeline[column.index]?.has_report ? row.timeline[column.index].raw_dur : '')]),
     };
   }
   const rows = statsDailyTodayRowsForExport();
