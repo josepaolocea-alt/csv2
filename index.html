@@ -25117,6 +25117,23 @@ window.importVosTrafficFile = async file => {
       if(!approved)return;
     }
   }
+  {
+    // A skipped day, e.g. last saved is the 28th and this is the 30th.
+    const vosLatestSaved=vosSortedHistory().slice(-1)[0]?.session_date||'';
+    const vosMissing=missingDailyDatesBefore(sessionDate,vosLatestSaved,
+      new Set([...vosDailyHistory.map(day=>day.session_date),sessionDate]));
+    if(vosMissing.length){
+      const approved=await confirmPremiumAction({
+        title:'A Day Is Missing',
+        html:`The last saved date is <strong>${stEsc(vosLatestSaved)}</strong> and this report is dated <strong>${stEsc(sessionDate)}</strong>.`
+          +`<br><br>Nothing is saved for <strong>${missingDatesSentence(vosMissing,stEsc)}</strong>. `
+          +`VOS Daily Traffic is meant to be uploaded one day at a time, and the dashboard compares each report with the calendar day before it — so with that day missing, `
+          +`Increases, Decreases and Stopped will all come up empty for ${stEsc(sessionDate)}.`
+          +`<br><br>Upload it out of order anyway?`,
+        label:'Upload Anyway'});
+      if(!approved)return;
+    }
+  }
   setLoading(true,'Reading VOS traffic file…');
   try{const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name], {header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate;sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');
@@ -25966,6 +25983,30 @@ function statsDailyExpandDestinationRows(row, client) {
   const destinations = statsDailyResolvedDestinations(client);
   if (!destinations.length) return [{ ...row, destination:'' }];
   return destinations.map(destination => ({ ...row, destination }));
+}
+
+/* Calendar days with no report between the newest saved date and the one being
+   posted. Daily reports are meant to land one day at a time, and a hole is not
+   cosmetic: the dashboard's "yesterday" is a calendar lookup, so with no report
+   for it every client reads as `new` rather than up or down, and the Increases,
+   Decreases and Stopped cards come up empty. `covered` carries the dates
+   supplied by this same post, so a multi-day paste that fills the hole itself
+   is not flagged. Back-fills — posting a date at or before the newest saved
+   one — return nothing, since that is the fix, not the problem. */
+function missingDailyDatesBefore(newestDate, latestSavedDate, covered) {
+  if (!newestDate || !latestSavedDate || newestDate <= latestSavedDate) return [];
+  const span = Math.round((Date.parse(`${newestDate}T00:00:00Z`) - Date.parse(`${latestSavedDate}T00:00:00Z`)) / 86400000);
+  if (!Number.isFinite(span) || span < 2) return [];
+  return statsDailyDateRange(newestDate, Math.min(span, 400))
+    .slice(0, -1)
+    .filter(date => date > latestSavedDate && !covered.has(date));
+}
+
+/* "Aug 29, Aug 30" — or "…and 4 more" once the list stops being readable. */
+function missingDatesSentence(dates, escape) {
+  return dates.length > 5
+    ? `${dates.slice(0, 5).map(escape).join(', ')} and ${dates.length - 5} more`
+    : dates.map(escape).join(', ');
 }
 
 function statsDailyDateRange(endDate, count = 14) {
@@ -26871,6 +26912,26 @@ window.processStatsDailyTraffic = async () => {
             ? 'A date after today cannot have any traffic yet.'
             : 'Today’s traffic is still running, so the report is incomplete.')
         + `<br><br>Check the <strong>Traffic Date</strong> box and the pasted report before continuing. Post it anyway?`,
+      label:'Post Anyway'
+    });
+    if (!approved) return;
+  }
+  // A skipped day, e.g. last saved is the 28th and this is the 30th.
+  const latestSavedDate = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
+  const postedDates = parsedDays.map(day => day.session_date);
+  const newestPosted = postedDates.slice().sort().slice(-1)[0] || '';
+  const missingDates = missingDailyDatesBefore(
+    newestPosted, latestSavedDate,
+    new Set([...statsDailyHistory.map(day => day.session_date), ...postedDates])
+  );
+  if (missingDates.length) {
+    const approved = await confirmPremiumAction({
+      title:'A Day Is Missing',
+      html:`The last saved date is <strong>${esc(latestSavedDate)}</strong> and this paste is dated <strong>${esc(newestPosted)}</strong>.`
+        + `<br><br>Nothing is saved for <strong>${missingDatesSentence(missingDates, esc)}</strong>. `
+        + `Daily Traffic is meant to be posted one day at a time, and the dashboard compares each report with the calendar day before it — so with that day missing, `
+        + `Increases, Decreases and Stopped will all come up empty for ${esc(newestPosted)}.`
+        + `<br><br>Post it out of order anyway?`,
       label:'Post Anyway'
     });
     if (!approved) return;
