@@ -26444,8 +26444,11 @@ function statsDailyExportRowFill(data, values, rowIndex) {
 
 window.exportStatsDailyTab = async format => {
   // Read the visibly active tab at click time so export can never fall back to
-  // Today/Paste when Dashboard or Last 2 Weeks is on screen.
-  const activeTab = document.querySelector('.st-daily-tab.active')?.id?.replace('st-daily-tab-', '') || statsDailyTab;
+  // Today/Paste when Dashboard or Last 2 Weeks is on screen. Scope the lookup to
+  // this workspace: the VOS side rail reuses the .st-daily-tab class and is
+  // relocated into #sidebar at runtime, so an unscoped query matched
+  // vos-primary-tab-daily first and every export silently became Today/Paste.
+  const activeTab = document.querySelector('#traffic-source-voip .daily-tab-segment .st-daily-tab.active')?.id?.replace('st-daily-tab-', '') || statsDailyTab;
   const data = statsDailyExportDataset(activeTab);
   if (!data.rows.length) { toast('No Daily Traffic rows to export', 'err'); return; }
   const base = `daily_traffic_${data.suffix}`;
@@ -26509,7 +26512,7 @@ function updateStatsDailyTabUI() {
   document.body.classList.toggle('stats-daily-today-tab', statsDailyTab === 'today');
   const columnPicker = document.getElementById('st-daily-column-picker');
   if (columnPicker) columnPicker.hidden = statsDailyTab !== 'dashboard';
-  const exportActions=document.querySelector('.st-daily-export-actions');
+  const exportActions=document.querySelector('#traffic-source-voip .st-daily-export-actions');
   if(exportActions)exportActions.style.display=['logs','settings'].includes(statsDailyTab)?'none':'flex';
   if (statsDailyTab !== 'dashboard') closeStatsDailyColumnPicker();
   ['dashboard','today','history','logs','settings'].forEach(tab => {
