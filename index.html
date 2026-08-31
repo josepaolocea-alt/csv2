@@ -24944,6 +24944,9 @@ window.switchVosDailyTab = tab => {
   document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily');
   const exports=document.getElementById('vos-daily-export-actions'); if(exports)exports.style.display=['logs','settings'].includes(vosDailyTab)?'none':'flex';
   if(vosDailyTab==='today')renderVosTraffic();else if(vosDailyTab==='dashboard')renderVosDailyDashboard();else if(vosDailyTab==='history')renderVosDailyHistory();else if(vosDailyTab==='logs')renderVosDailyLogs();
+  // Same as the Daily Traffic picker: populateVosDeleteDates only ran from the
+  // Logs render, so Settings showed an empty list until Logs had been opened.
+  else if(vosDailyTab==='settings')populateVosDeleteDates();
   setSbStatus(`Viewing: VOS — Daily Traffic — ${vosDailyTab.replace(/\b\w/g,c=>c.toUpperCase())}`);
 };
 function vosSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
@@ -26542,6 +26545,10 @@ window.switchStatsDailyTab = tab => {
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
   else if (statsDailyTab === 'today') renderStatsDailyTraffic();
   else if(statsDailyTab==='logs'){subscribeLogs();renderStatsDailyLogs();}
+  // The Danger Zone date picker is filled by renderStatsDailyLogs, so opening
+  // Settings without having visited Logs first left it saying "No saved dates"
+  // however many reports were stored. Fill it on the way in.
+  else if(statsDailyTab==='settings')populateDailyDeleteDates();
   if(statsDailyTab!=='logs'&&document.body.classList.contains('traffic-mode'))unsubscribeLogs();
   setSbStatus(statsDailyTab === 'settings' ? 'Viewing: Daily Traffic Settings' : `Viewing: Daily Traffic — ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
 };
