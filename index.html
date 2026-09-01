@@ -24547,6 +24547,7 @@ let vosTrafficRows = [];
 let vosTrafficFilename = '';
 let vosDailyHistory = [];
 let vosSelectedDate = '';
+let vosTrafficImportDateAutoTrack = true;
 let vosPrimaryTab = 'daily';
 let vosDailyTab = 'today';
 let vosTrafficSortCol = 'mapping_gateway', vosTrafficSortDir = 1;
@@ -25001,6 +25002,27 @@ function vosDailyCloudPayload(day, extra={}) {
     ...extra,
   };
 }
+/* Same rule as the Billcall Daily Traffic box (statsDailySuggestedImportDate):
+   the Traffic Date follows the saved history, so finishing 2026-08-29 leaves the
+   box on 2026-08-30 ready for the next upload. Anchored to the last saved date
+   rather than the wall clock, so it survives reloads and keeps you in sequence
+   when catching up late. Never runs past today — a future date has no traffic. */
+function vosDailySuggestedImportDate() {
+  const latest = vosSortedHistory().slice(-1)[0]?.session_date || '';
+  if (!latest) return todayStr();
+  const date = new Date(`${latest}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return todayStr();
+  date.setUTCDate(date.getUTCDate() + 1);
+  const next = date.toISOString().slice(0, 10);
+  return next > todayStr() ? todayStr() : next;
+}
+/* A hand-picked date sticks until the next upload; force ignores that. */
+function syncVosDailyImportDate(force = false) {
+  const input = document.getElementById('vos-traffic-date');
+  if (!input || (!force && !vosTrafficImportDateAutoTrack && input.value)) return;
+  input.value = vosDailySuggestedImportDate();
+  setRequiredFieldState('vos-traffic-date', false);
+}
 function renderAllVosDailyTrafficViews() {
   renderVosTraffic();
   renderVosDailyDashboard();
@@ -25094,7 +25116,7 @@ function renderVosDateOptions() {
   if (select) select.innerHTML = dates.length ? dates.map(day => `<option value="${stEsc(day.session_date)}"${day.session_date===vosSelectedDate?' selected':''}>${stEsc(day.session_date)}</option>`).join('') : '<option value="">No saved dates</option>';
   const selected = dates.find(day => day.session_date === vosSelectedDate);
   vosTrafficRows = selected?.rows || []; vosTrafficFilename = selected?.filename || '';
-  const importDate = document.getElementById('vos-traffic-date'); if (importDate && !importDate.value) importDate.value = todayStr();
+  syncVosDailyImportDate();
 }
 function renderVosTraffic() {
   const tbody = document.getElementById('vos-traffic-tbody'); if (!tbody) return;
@@ -25219,6 +25241,7 @@ window.deleteVosDailyReport=async sessionDate=>{
     if(fbOk)await deleteDoc(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(sessionDate)));
     vosDailyHistory=vosDailyHistory.filter(day=>day.session_date!==sessionDate);vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';saveVosTrafficLocal();
     const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+    vosTrafficImportDateAutoTrack=true;syncVosDailyImportDate(true);
     renderAllVosDailyTrafficViews();toast(`Deleted VOS Daily Traffic report for ${sessionDate}.`,'ok');
   }catch(error){toast('VOS Daily Traffic report could not be deleted: '+error.message,'err',8000);}
   finally{setLoading(false);}
@@ -25269,6 +25292,7 @@ window.archiveVosDailyMonth=async()=>{
     vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';
     saveVosTrafficLocal();
     const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+    vosTrafficImportDateAutoTrack=true;syncVosDailyImportDate(true);
     renderAllVosDailyTrafficViews();
     toast(`Archived ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}.`,'ok',7000);
   }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
@@ -25287,6 +25311,7 @@ window.clearVosDailyHistory=async()=>{
     vosDailyHistory=[];vosTrafficRows=[];vosTrafficFilename='';vosSelectedDate='';
     try{localStorage.removeItem(VOS_TRAFFIC_LOCAL_KEY);}catch(e){}
     const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
+    vosTrafficImportDateAutoTrack=true;syncVosDailyImportDate(true);
     renderAllVosDailyTrafficViews();toast('VOS Daily Traffic history deleted for every operator.','ok');
   }catch(error){toast('VOS Daily Traffic history could not be deleted: '+error.message,'err',8000);}
   finally{setLoading(false);}
@@ -25340,7 +25365,9 @@ window.importVosTrafficFile = async file => {
     const removedDates=nextHistory.slice(0,Math.max(0,nextHistory.length-VOS_DAILY_MAX_DATES)).map(day=>day.session_date);
     vosDailyHistory=nextHistory.slice(-VOS_DAILY_MAX_DATES);vosTrafficSortCol='mapping_gateway';vosTrafficSortDir=1;
     const search=document.getElementById('vos-traffic-search');if(search)search.value='';const status=document.getElementById('vos-file-status');if(status){status.dataset.current='1';status.textContent=`${vosTrafficFilename} · ${sheetName} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}
-    const persisted=saveVosTrafficLocal();renderAllVosDailyTrafficViews();
+    // This date is done, so step the box to the day after it for the next upload.
+    vosTrafficImportDateAutoTrack=true;
+    const persisted=saveVosTrafficLocal();syncVosDailyImportDate(true);renderAllVosDailyTrafficViews();
     let synced=false,syncError=null;
     if(fbOk){
       try{
@@ -28423,6 +28450,8 @@ async function initStats() {
   const vosArchiveMonth = document.getElementById('vos-daily-archive-month');
   if (vosArchiveMonth && !vosArchiveMonth.value) vosArchiveMonth.value = vosDailyDefaultArchiveMonth();
   dailyImportDate?.addEventListener('change', () => { statsDailyImportDateAutoTrack = false; });
+  // Same for the VOS Traffic Date: a hand-pick holds until the next upload re-anchors it.
+  document.getElementById('vos-traffic-date')?.addEventListener('change', () => { vosTrafficImportDateAutoTrack = false; });
   populateStatsSlots();
   // A hand-pick of the stats time box stops it auto-following the last post; the next post re-enables it.
   document.getElementById('stats-slot-sel')?.addEventListener('change', () => { statsSlotAutoTrack = false; });
