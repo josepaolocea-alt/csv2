@@ -16919,6 +16919,12 @@ function renderActiveSnapshotLogViews(){
   if(document.getElementById('sms-bal-view-logs')?.classList.contains('active'))renderSmsBalanceLogs();
   if(document.getElementById('view-stats-logs')?.classList.contains('active'))renderStatsSnapshotLogs();
   if(document.getElementById('st-daily-panel-logs')?.hidden===false)renderStatsDailyLogs();
+  // VOS panels are shown/hidden with style.display only — switchVosDailyTab
+  // never sets `hidden` — so this one is tested the way that switch leaves it.
+  // Without this branch a VOS Daily Traffic delete removed the Firestore
+  // records but the table kept painting the rows it already had, which read as
+  // "Delete All Logs does nothing".
+  if(document.getElementById('vos-daily-panel-logs')?.style.display==='flex')renderVosDailyLogs();
 }
 function subscribeLogs(){
   if (!fbOk || logsUnsub) return;
@@ -17109,7 +17115,14 @@ window.confirmDeleteLogs = async () => {
       if (++count >= 400){ await batch.commit(); batch = writeBatch(db); count = 0; }
     }
     if (count > 0) await batch.commit();
+    const deletedIds = new Set(ids);
     ids.forEach(id => logsSelected.delete(id));
+    // The live listener normally repaints the Logs tabs, but it carries only
+    // the newest SNAPSHOT_LOG_LIVE_LIMIT records and a tab can be open with no
+    // listener attached at all. Drop what was just deleted from the cached rows
+    // and repaint, so a Logs table can never keep showing a deleted record.
+    logsData = logsData.filter(log => !deletedIds.has(log.id));
+    renderActiveSnapshotLogViews();
     toast(`✓ Deleted ${ids.length} log entr${ids.length===1?'y':'ies'}`, 'ok');
   } catch(e){ toast('Delete failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
@@ -24943,10 +24956,17 @@ window.switchVosDailyTab = tab => {
   ['today','dashboard','history','logs','settings'].forEach(name=>{const active=name===vosDailyTab;const button=document.getElementById(`vos-daily-tab-${name}`),panel=document.getElementById(`vos-daily-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));if(panel)panel.style.display=active?'flex':'none';});
   document.getElementById('vos-side-upload-daily')?.classList.toggle('active',vosPrimaryTab==='daily');
   const exports=document.getElementById('vos-daily-export-actions'); if(exports)exports.style.display=['logs','settings'].includes(vosDailyTab)?'none':'flex';
-  if(vosDailyTab==='today')renderVosTraffic();else if(vosDailyTab==='dashboard')renderVosDailyDashboard();else if(vosDailyTab==='history')renderVosDailyHistory();else if(vosDailyTab==='logs')renderVosDailyLogs();
+  if(vosDailyTab==='today')renderVosTraffic();else if(vosDailyTab==='dashboard')renderVosDailyDashboard();else if(vosDailyTab==='history')renderVosDailyHistory();
+  // Entering the VOS module drops the shared snapshot_logs listener, and this
+  // tab never took it back: it painted whatever logsData was left over from an
+  // earlier module and then never saw a change, so deletes appeared to do
+  // nothing. Subscribe on the way in and release on the way out, exactly like
+  // Daily Traffic's Logs tab.
+  else if(vosDailyTab==='logs'){subscribeLogs();renderVosDailyLogs();}
   // Same as the Daily Traffic picker: populateVosDeleteDates only ran from the
   // Logs render, so Settings showed an empty list until Logs had been opened.
   else if(vosDailyTab==='settings')populateVosDeleteDates();
+  if(vosDailyTab!=='logs'&&document.body.classList.contains('vos-mode'))unsubscribeLogs();
   setSbStatus(`Viewing: VOS — Daily Traffic — ${vosDailyTab.replace(/\b\w/g,c=>c.toUpperCase())}`);
 };
 function vosSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
