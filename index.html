@@ -1300,18 +1300,21 @@
     #stats-sidebar-daily { display: none; }
     body.stats-mode.stats-daily-mode #stats-sidebar-current { display: none; }
     body.stats-mode.stats-daily-mode #stats-sidebar-daily { display: flex; }
-    body.stats-mode.stats-daily-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
+    body.stats-mode.stats-daily-mode:not(.stats-daily-today-tab):not(.snap-user-open) #sidebar { display: none; }
 
     /* ── Traffic module ──
        Daily Traffic is a top-level module with its existing Today, Dashboard
-       and Last 2 Weeks tabs. Only Today needs the import/date sidebar. */
+       and Last 2 Weeks tabs. Only Today needs the import/date sidebar, so it
+       is the only tab that shows it by default — but `snap-user-open` lets
+       Alt+S / F2 and the toggle button open it from any tab, since the import
+       panel works the same whichever tab is being viewed. */
     body.traffic-mode #toolbar,
     body.traffic-mode #view-banner,
     body.traffic-mode #sidebar-snap { display: none !important; }
     body.traffic-mode #stats-sidebar-snap { display: flex; }
     body.traffic-mode #stats-sidebar-current { display: none; }
     body.traffic-mode #stats-sidebar-daily { display: flex; }
-    body.traffic-mode:not(.stats-daily-today-tab) #sidebar { display: none; }
+    body.traffic-mode:not(.stats-daily-today-tab):not(.snap-user-open) #sidebar { display: none; }
     body.vos-mode #toolbar,
     body.vos-mode #view-banner,
     body.vos-mode #sidebar { display:none !important; }
@@ -29001,7 +29004,16 @@ if (auth) {
     writePrefs({ navCollapsed: on });
   };
 
+  /* `snap-user-open` marks an explicit request to see the snapshot panel, as
+     opposed to the per-tab default layout. Daily Traffic — and the Stats Daily
+     sub-view sharing the same panel — hide the sidebar on every tab except
+     Today, and that rule ignored snap-collapsed entirely: pressing Alt+S / F2
+     or the toggle button from Dashboard, History, Logs or Settings flipped the
+     state invisibly, so the panel never appeared, and returning to Today then
+     found it in the opposite state. Every place that changes the collapsed
+     state calls through here, so this class stays in step with it. */
   function syncSnapshotToggle(on) {
+    document.body.classList.toggle('snap-user-open', snapPreferenceExplicit && !on);
     document.querySelectorAll('#snap-collapse-btn, .snap-head-close').forEach(function (btn) {
       btn.setAttribute('aria-label', on ? 'Show the snapshot panel' : 'Hide the snapshot panel');
       btn.title = (on ? 'Show' : 'Hide') + ' the snapshot panel (Alt+S or F2)';
