@@ -2750,10 +2750,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #spamhist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #spamhist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay, #sms-source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #spamhist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #spamhist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #spamhist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open, #sms-source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #spamhist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box, #sms-source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -2915,6 +2915,7 @@
     #spamreset-overlay.open #spamreset-box,
     #gap-confirm-overlay.open #gap-confirm-box,
     #source-mismatch-overlay.open #source-mismatch-box,
+    #sms-source-mismatch-overlay.open #sms-source-mismatch-box,
     #client-detail-overlay.open #client-detail-box,
     #sms-bal-client-detail-overlay.open #sms-bal-client-detail-box,
     #sms-detail-overlay.open #sms-detail-box,
@@ -11039,6 +11040,23 @@
       <button class="tbtn primary" id="source-mismatch-switch" style="min-width:120px;padding:5px 16px" onclick="mismatchSwitch()">Switch</button>
       <button class="tbtn danger" id="source-mismatch-keep" style="min-width:120px;padding:5px 16px" onclick="mismatchKeep()">Post anyway</button>
       <button class="tbtn" style="min-width:72px;padding:5px 16px" onclick="closeSourceMismatch()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- SMS Balance counterpart of the wrong-source dialog above. Swap is only
+     offered when each box genuinely holds the other's report. -->
+<div id="sms-source-mismatch-overlay">
+  <div id="sms-source-mismatch-box" style="width:400px">
+    <div class="dlg-tb"><span>Possible Swapped Reports</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text" id="sms-source-mismatch-text"></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:0 12px 12px">
+      <button class="tbtn primary" id="sms-source-mismatch-swap" style="min-width:120px;padding:5px 16px" onclick="smsBalanceMismatchSwap()">Swap and post</button>
+      <button class="tbtn danger" id="sms-source-mismatch-keep" style="min-width:120px;padding:5px 16px" onclick="smsBalanceMismatchKeep()">Post anyway</button>
+      <button class="tbtn" style="min-width:72px;padding:5px 16px" onclick="closeSmsBalanceMismatch()">Cancel</button>
     </div>
   </div>
 </div>
@@ -19817,6 +19835,120 @@ function validateSmsBalancePaste(text, source) {
   }
   return { valid:true };
 }
+
+/* ── Reseller / Wholesale swap guard ─────────────────────────────────────────
+   validateSmsBalancePaste checks the report SHAPE only, and both Phoenix
+   exports are seven columns sharing the same first five, so pasting Wholesale
+   into the Reseller box (or the reverse) passes it cleanly. The damage is
+   silent: positionally the two differ only in the last two columns — Reseller
+   is BALANCE then Over Draft, Wholesale is OD then BALANCE — so a swap
+   transposes them, and because smsBalanceNormalizeRow clamps overdraft at zero
+   a client sitting deep in overdraft is stored looking fully funded and never
+   raises Critical. Even a headered paste (which maps by column name, so the
+   numbers survive) still stamps every row with the wrong source, and
+   thresholds, route keys and history are all keyed by source.
+
+   This is the SMS counterpart of snapshotSourceMismatch: three signals,
+   strongest first. Advisory only — it never blocks a post. */
+function smsBalancePasteShape(text) {
+  const lines = String(text || '').split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  if (!lines.length) return null;
+  const delim = lines.some(line => line.includes('\t')) ? '\t' : ',';
+  const first = splitDelimitedLine(lines[0], delim).map(value => value.trim());
+  const mapped = first.map(smsBalanceHeaderField);
+  const hasHeader = mapped.includes('client') && mapped.includes('balance');
+  return { delim, mapped, hasHeader, dataLines:hasHeader ? lines.slice(1) : lines };
+}
+/* Signal 1 — the header names settle it outright: whichever of BALANCE / OD
+   comes first is the layout, whatever the headers happen to be called. */
+function smsBalanceHeaderLayout(shape) {
+  if (!shape?.hasHeader) return null;
+  const balance = shape.mapped.indexOf('balance'), overdraft = shape.mapped.indexOf('overdraft');
+  if (balance < 0 || overdraft < 0) return null;
+  return balance < overdraft ? 'reseller' : 'wholesale';
+}
+/* Signal 2 — which type each pasted client is already saved as. Mirrors the
+   roster check the VOIP guard runs against clientsMeta. */
+function smsBalanceKnownClients() {
+  const roster = { reseller:new Set(), wholesale:new Set() };
+  Object.keys(smsBalanceMeta || {}).forEach(key => {
+    const parts = String(key).split('|');
+    const source = smsBalanceSource(parts.shift());
+    const name = smsBalanceCleanText(parts.join('|')).toUpperCase();
+    if (name) roster[source].add(name);
+  });
+  ['reseller','wholesale'].forEach(source => {
+    (smsBalanceLatest?.[source] || []).forEach(row => {
+      const name = smsBalanceCleanText(row?.client).toUpperCase();
+      if (name) roster[source].add(name);
+    });
+  });
+  return roster;
+}
+function smsBalancePastedClients(shape) {
+  const index = shape.hasHeader ? shape.mapped.indexOf('client') : 1;
+  if (index < 0) return [];
+  return shape.dataLines
+    .map(line => smsBalanceCleanText(splitDelimitedLine(line, shape.delim)[index] || '').toUpperCase())
+    .filter(name => name && !/^(TOTAL|GRAND TOTAL)$/.test(name));
+}
+/* Signal 3 — headerless fallback. Overdraft is a limit and is never negative;
+   a balance is. So whichever of the last two columns carries the negatives is
+   the balance column, which names the layout. Silent when both or neither
+   column has negatives, so an all-positive report raises nothing. */
+function smsBalanceSignLayout(shape) {
+  let negativeSixth = 0, negativeSeventh = 0, seen = 0;
+  shape.dataLines.forEach(line => {
+    const vals = splitDelimitedLine(line, shape.delim).map(value => value.trim());
+    if (vals.length !== 7) return;
+    seen++;
+    if (amountNumber(vals[5]) < 0) negativeSixth++;
+    if (amountNumber(vals[6]) < 0) negativeSeventh++;
+  });
+  if (seen < 3 || (negativeSixth > 0) === (negativeSeventh > 0)) return null;
+  return negativeSixth ? 'reseller' : 'wholesale';
+}
+/* Returns { guess, detail } when this text looks like the other type's report,
+   otherwise null. */
+function smsBalancePasteMismatch(text, expected) {
+  expected = smsBalanceSource(expected);
+  const other = expected === 'reseller' ? 'wholesale' : 'reseller';
+  const shape = smsBalancePasteShape(text);
+  if (!shape || !shape.dataLines.length) return null;
+
+  const header = smsBalanceHeaderLayout(shape);
+  if (header) return header === expected ? null : { guess:header, detail:
+    `Its header puts ${header === 'wholesale' ? 'OD before BALANCE' : 'BALANCE before Over Draft'}, which is the ${smsBalanceSourceLabel(header)} column order.` };
+
+  const names = smsBalancePastedClients(shape);
+  const roster = smsBalanceKnownClients();
+  if (names.length >= 2 && roster[other].size >= 5) {
+    const hitOther = names.filter(name => roster[other].has(name)).length;
+    const hitExpected = names.filter(name => roster[expected].has(name)).length;
+    if (hitOther >= Math.max(2, Math.ceil(names.length * 0.6)) && hitOther > hitExpected) {
+      return { guess:other, detail:
+        `${hitOther} of ${names.length} pasted client(s) are saved as ${smsBalanceSourceLabel(other)}; ${hitExpected} are saved as ${smsBalanceSourceLabel(expected)}.` };
+    }
+  }
+
+  const sign = smsBalanceSignLayout(shape);
+  if (sign && sign !== expected) return { guess:sign, detail: sign === 'wholesale'
+    ? 'Negative amounts sit in the last column, where Wholesale keeps BALANCE. Reseller keeps Over Draft there, which is never negative.'
+    : 'Negative amounts sit in the sixth column, where Reseller keeps BALANCE. Wholesale keeps OD there, which is never negative.' };
+  return null;
+}
+/* Both boxes are judged together: only a genuine crossover — each box holding
+   the other's report — can be fixed by swapping them, so the Swap button is
+   offered for that case alone. */
+function smsBalancePasteMismatchReport(resellerText, wholesaleText) {
+  const items = [];
+  const inReseller = smsBalancePasteMismatch(resellerText, 'reseller');
+  const inWholesale = smsBalancePasteMismatch(wholesaleText, 'wholesale');
+  if (inReseller) items.push({ ...inReseller, expected:'reseller' });
+  if (inWholesale) items.push({ ...inWholesale, expected:'wholesale' });
+  if (!items.length) return null;
+  return { items, swapped:inReseller?.guess === 'wholesale' && inWholesale?.guess === 'reseller' };
+}
 function smsBalanceMetaFor(row) { return smsBalanceMeta[smsBalanceMetaKey(row)] || {}; }
 function smsBalanceThreshold(meta, field) {
   const v = meta?.[field];
@@ -20882,6 +21014,41 @@ function focusSmsBalanceNewCriticalView() {
   window.switchSmsBalanceView('alerts');
   window.setSmsBalanceAlertFilter('new',document.getElementById('sms-bal-alert-new'));
 }
+let pendingSmsBalanceMismatch = null;   // { items, swapped } while the swap dialog is open
+let bypassSmsBalanceSourceGuard = false; // set once the operator has answered the dialog
+function openSmsBalanceMismatch(report) {
+  pendingSmsBalanceMismatch = report;
+  const lines = report.items.map(item =>
+    `<strong>The ${esc(smsBalanceSourceLabel(item.expected))} box looks like ${esc(smsBalanceSourceLabel(item.guess))} data.</strong><br>${esc(item.detail)}`);
+  document.getElementById('sms-source-mismatch-text').innerHTML =
+    lines.join('<br><br>') +
+    `<br><br><span style="color:var(--red)">Posting a swapped report stores Balance and Over Draft in each other's column, so a client already in overdraft can be saved looking fully funded and never raise Critical.</span>`;
+  const swap = document.getElementById('sms-source-mismatch-swap');
+  // Swapping only repairs a true crossover; when just one box is suspect the
+  // operator has to sort out which report belongs there.
+  if (swap) swap.style.display = report.swapped ? '' : 'none';
+  document.getElementById('sms-source-mismatch-overlay').classList.add('open');
+}
+window.closeSmsBalanceMismatch = () => {
+  document.getElementById('sms-source-mismatch-overlay').classList.remove('open');
+  pendingSmsBalanceMismatch = null;
+};
+window.smsBalanceMismatchSwap = () => {
+  const swapped = pendingSmsBalanceMismatch?.swapped;
+  window.closeSmsBalanceMismatch();
+  if (!swapped) return;
+  const reseller = document.getElementById('sms-bal-reseller-ta');
+  const wholesale = document.getElementById('sms-bal-wholesale-ta');
+  if (!reseller || !wholesale) return;
+  [reseller.value, wholesale.value] = [wholesale.value, reseller.value];
+  bypassSmsBalanceSourceGuard = true; // the guard is settled for this paste
+  window.processSmsBalanceSnapshot();
+};
+window.smsBalanceMismatchKeep = () => {
+  window.closeSmsBalanceMismatch();
+  bypassSmsBalanceSourceGuard = true; // keep the boxes as pasted, skip the guard
+  window.processSmsBalanceSnapshot();
+};
 window.processSmsBalanceSnapshot = async () => {
   if(!canPostBalance()){toast('Posting SMS balance snapshots is restricted for this account.','err');return;}
   const resellerText=document.getElementById('sms-bal-reseller-ta')?.value||'';
@@ -20893,6 +21060,13 @@ window.processSmsBalanceSnapshot = async () => {
   if(!resellerValidation.valid){showPasteValidationAlert(resellerValidation.message,'sms-bal-reseller-ta');return;}
   const wholesaleValidation=validateSmsBalancePaste(wholesaleText,'wholesale');
   if(!wholesaleValidation.valid){showPasteValidationAlert(wholesaleValidation.message,'sms-bal-wholesale-ta');return;}
+  // Both reports are the same seven-column shape, so the validations above
+  // cannot catch a Reseller/Wholesale swap. Ask before it is stored.
+  if(!bypassSmsBalanceSourceGuard){
+    const mismatch=smsBalancePasteMismatchReport(resellerText,wholesaleText);
+    if(mismatch){openSmsBalanceMismatch(mismatch);return;}
+  }
+  bypassSmsBalanceSourceGuard=false;
   const reseller=parseSmsBalanceText(resellerText,'reseller');
   const wholesale=parseSmsBalanceText(wholesaleText,'wholesale');
   if(!reseller.length||!wholesale.length){toast(`Could not parse both reports — Reseller ${reseller.length} row(s), Wholesale ${wholesale.length} row(s).`,'err',7000);return;}
