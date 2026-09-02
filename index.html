@@ -15946,6 +15946,9 @@ window.processSnapshot = async() => {
   bypassSourceGuard=false;
   if(snapSource==='tritel'){
     const tSlot=document.getElementById('slot-sel').value;
+    // Refused before any dialog and before the textarea is touched, so the paste
+    // survives and the operator can just pick the right slot.
+    if(blockBackfilledSlot(tSlot, tritelSnaps.filter(t=>t.session_date===todayStr()), 'Tritel'))return;
     // Warn before overwriting an existing Tritel entry for this slot (parity with
     // the All-Clients and Stats feeds, which already confirm before overwriting).
     let tEx=tritelSnaps.find(t=>t.time_slot===tSlot);
@@ -15969,6 +15972,7 @@ window.processSnapshot = async() => {
     return;
   }
   const timeSlot=document.getElementById('slot-sel').value;
+  if(blockBackfilledSlot(timeSlot, todaySnaps, 'All Clients'))return;
   let existing=todaySnaps.find(s=>s.time_slot===timeSlot);
   if(!existing && fbOk){
     // Authoritative check: the in-memory list may be empty right after a reload
@@ -16028,6 +16032,39 @@ function fmtSnapWhen(s) {
   if (s.session_date === dateStrDaysAgo(1)) return `Yesterday ${t}`;
   return `${s.session_date} ${t}`;
 }
+/* ── Slots are posted in order ──────────────────────────────────────────────
+   usage_30min is a difference against the preceding snapshot, and a snapshot's
+   usage is computed once at post time — nothing recalculates a saved one. So a
+   slot can no longer be filled in once a later slot exists for that feed: the
+   backfilled reading would be diffed against the wrong snapshot, and the slot
+   after it would keep a usage figure that still spans the gap. Miss a slot and
+   the gap stays a gap; the reading after it is already stamped with its real
+   span and excluded from the spam baseline.
+
+   Re-posting the newest slot is an overwrite, not a backfill, and stays allowed —
+   only a STRICTLY later slot blocks. Each feed is judged on its own snapshots:
+   All Clients and Tritel run independently and can sit on different slots.
+   The check reads the live-synced in-memory list, the same list the overwrite
+   confirm consults. */
+function latestSlotPostedAfter(snaps, slot) {
+  const order = shiftSlots('24H'), index = order.indexOf(slot);
+  if (index < 0) return '';
+  return (snaps || [])
+    .map(entry => String(entry?.time_slot || ''))
+    .filter(value => order.indexOf(value) > index)
+    .sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] || '';
+}
+function blockBackfilledSlot(slot, snaps, label) {
+  const later = latestSlotPostedAfter(snaps, slot);
+  if (!later) return false;
+  openSmsConfirm(
+    `<strong>Today's ${esc(label)} snapshots already reach ${esc(fmt12(later))}, so ${esc(fmt12(slot))} can no longer be posted.</strong><br><br>`
+    + `Usage is measured against the previous snapshot, and a saved snapshot is never recalculated — filling this slot in now would report the wrong usage for it and leave ${esc(fmt12(later))} still covering the gap.<br><br>`
+    + `Pick <strong>${esc(fmt12(later))}</strong> to overwrite it, or a later slot. Your pasted data has been kept.`,
+    'Got it', null, 'Slot Already Passed', null, 'notice'
+  );
+  return true;
+}
 // The snapshot a new post for the given feed will be diffed against.
 function gapPrevSnap(kind) { return kind === 'tritel' ? latestTritel() : (latestSnap || priorSnap); }
 function runGapProcess(kind, rows, timeSlot) {
@@ -16075,7 +16112,9 @@ async function doProcessSnapshot(inputRows, timeSlot){
   // Tritel-only paste (no real client rows): route straight to the Tritel feed
   // rather than overwriting this slot's all-client snapshot with empty data.
   if(!rows.length){
-    if(inlineTritel.length){ document.getElementById('snap-ta').value=''; await processTritelSnapshot(inlineTritel, timeSlot); }
+    // Clear only once the Tritel post is actually accepted — a slot refused for
+    // being out of order must leave the paste in the box.
+    if(inlineTritel.length){ await processTritelSnapshot(inlineTritel, timeSlot); }
     else toast('No client rows to process.','err');
     return;
   }
@@ -16204,6 +16243,10 @@ function loadTritelSnap() {
 
 async function processTritelSnapshot(rows, timeSlot) {
   if (timeSlot == null) timeSlot = document.getElementById('slot-sel').value;
+  // Backstop for the two inline routes below, where a Tritel row rides along in an
+  // All-Clients paste: those never pass through processSnapshot's Tritel branch,
+  // and the Tritel feed can be sitting on a later slot than All Clients.
+  if (blockBackfilledSlot(timeSlot, tritelSnaps.filter(t => t.session_date === todayStr()), 'Tritel')) return;
   rows = normalizeTritelRows(rows);   // collapse Tritel casing so it never splits into two rows
   // Compute 30-min usage against the most recent existing Tritel entry (same-carrier match).
   const prev = latestTritel();
@@ -21262,6 +21305,9 @@ window.processSmsBalanceSnapshot = async () => {
   const wholesale=parseSmsBalanceText(wholesaleText,'wholesale');
   if(!reseller.length||!wholesale.length){toast(`Could not parse both reports — Reseller ${reseller.length} row(s), Wholesale ${wholesale.length} row(s).`,'err',7000);return;}
   const slot=document.getElementById('sms-bal-slot')?.value||nextSlot();
+  // Refused before the overwrite lookup, so a blocked slot costs no read and both
+  // pasted reports stay in their boxes.
+  if(blockBackfilledSlot(slot, smsBalanceTodaySnaps, 'SMS Balance'))return;
   let existing=smsBalanceTodaySnaps.find(s=>s.time_slot===slot);
   if(!existing&&fbOk){
     try{
