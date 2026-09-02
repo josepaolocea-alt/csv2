@@ -9622,9 +9622,13 @@
                     <div class="sms-bal-panel sms-bal-danger">
                       <div class="groupbox-title">SMS Danger Zone</div>
                       <div class="sms-bal-note">These actions affect only SMS Balance Monitor data. VOIP snapshots, V3, Phoenix Platform, Credentials, and Flagged Spam are not touched.</div>
-                      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+                      <div class="sms-bal-note" style="margin-top:9px">Delete SMS Balance snapshots — today's readings, or the whole collection. Admin &amp; semi-admin.</div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
                         <button class="tbtn danger" id="sms-bal-delete-today-btn" onclick="deleteTodaySmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-filter="today" data-count-label="SMS snapshot">Delete Today's SMS Snapshots</button>
                         <button class="tbtn danger" id="sms-bal-delete-all-btn" onclick="deleteAllSmsBalanceSnapshots()" data-count-collection="sms_balance_snapshots" data-count-label="SMS snapshot">Delete ALL SMS Snapshots</button>
+                      </div>
+                      <div class="sms-bal-note" style="margin-top:9px">Clear a persistent SMS history log. Each survives snapshot deletion and is rebuilt from future readings. Snapshots are not affected. Admin only.</div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
                         <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()" data-count-collection="sms_balance_history" data-count-label="SMS critical-history record">Clear SMS Critical History</button>
                         <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()" data-count-collection="sms_balance_no_threshold" data-count-label="SMS no-threshold record">Clear SMS No-Threshold List</button>
                         <button class="tbtn danger" id="sms-bal-clear-inactive-usage-history-btn" onclick="clearSmsBalanceInactiveUsageHistory()" data-count-collection="sms_balance_inactive_usage" data-count-label="SMS inactive-usage history record">Clear Inactive Usage History</button>
@@ -10565,7 +10569,7 @@
                 <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
-                <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin and semi-admin only.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
+                <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin &amp; semi-admin.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
               </div>
             </div>
 
@@ -10654,13 +10658,13 @@
                        imports, this is where a date's data is removed. -->
                   <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
                   <div class="settings-danger">
-                    <div style="margin-bottom:6px">Delete one date's VOS Daily Traffic report. This removes the date for every operator, not just this browser.</div>
+                    <div style="margin-bottom:6px">Delete one date's VOS Daily Traffic report. This removes the date for every operator, not just this browser. Admin &amp; semi-admin.</div>
                     <div class="stats-daily-archive-row">
                       <select id="vos-daily-delete-date" class="win-sel" aria-label="VOS Daily Traffic date to delete"><option value="">No saved dates</option></select>
                       <button type="button" class="tbtn" id="vos-daily-delete-date-btn" onclick="deleteVosDailyReportFromSettings()" title="Delete the selected date's VOS Daily Traffic report" data-count-collection="vos_daily_traffic" data-count-filter="selected-date" data-count-date-control="vos-daily-delete-date" data-count-label="VOS Daily Traffic report">Delete Date</button>
                     </div>
-                    <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
-                    <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator.</div>
+                    <div class="stats-daily-archive-note" style="margin-bottom:8px">This cannot be undone. The import log entry stays in the Logs tab.</div>
+                    <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator. Admin only.</div>
                     <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:var(--red)" onclick="clearVosDailyHistory()" data-count-collection="vos_daily_traffic" data-count-label="VOS Daily Traffic report">Delete All VOS Daily Traffic</button>
                   </div>
                 </div>
@@ -10897,7 +10901,7 @@
         </div>
         <div class="ui-text-micro" id="voip-settings-danger-title" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
         <div class="settings-danger" id="voip-settings-danger-zone">
-          <div style="margin-bottom:5px">Delete snapshots saved from 12:00 AM through 11:59 PM today for one source. This can affect New Critical comparisons.</div>
+          <div style="margin-bottom:5px">Delete snapshots saved from 12:00 AM through 11:59 PM today for one source. This can affect New Critical comparisons. Admin &amp; semi-admin.</div>
           <div class="danger-btns">
             <button class="tbtn" id="voip-delete-today-snapshots-btn" style="color:var(--red)" onclick="openDeleteTodayConfirm('snapshots')" data-count-collection="snapshots" data-count-filter="today" data-count-label="VOIP snapshot">Delete Today Snapshots for All Clients</button>
             <button class="tbtn" id="voip-delete-today-tritel-btn" style="color:var(--red)" onclick="openDeleteTodayConfirm('tritel')" data-count-collection="tritel_snapshots" data-count-filter="today" data-count-label="Tritel snapshot">Delete Today Snapshots for Tritel</button>
@@ -10941,7 +10945,7 @@
           Settings for the <strong>Stats Monitor</strong>. Balance-monitor snapshots, alerts and spam baseline are managed separately in the main Settings.
         </div>
         <div class="settings-danger" id="stats-clear-previous-day-setting">
-          <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Prev Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. <strong>Admin only.</strong></div>
+          <div style="margin-bottom:5px">Delete every Stats snapshot from the prior day currently used by <strong>Traffic vs Prev Day</strong>, then clear the comparison cache so today starts with <strong>No prior slot</strong>. Admin only.</div>
           <div class="danger-btns">
             <button class="tbtn" id="stats-clear-previous-day-btn" style="color:var(--red)" onclick="clearStatsPreviousDaySnapshots()" data-count-collection="stats_snapshots" data-count-filter="previous-stats-day" data-count-label="previous-day Stats snapshot">Clear Previous-Day Stats Comparison</button>
           </div>
@@ -10982,13 +10986,13 @@
              gating in applyModuleAccess continues to reach it. -->
         <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
         <div class="settings-danger">
-          <div style="margin-bottom:6px">Delete one date's Daily Traffic data. The report and its import log are removed together, and the date leaves every comparison.</div>
+          <div style="margin-bottom:6px">Delete one date's Daily Traffic data. The date leaves every comparison. Admin &amp; semi-admin.</div>
           <div class="stats-daily-archive-row">
             <select id="stats-daily-delete-date" class="win-sel" aria-label="Daily Traffic date to delete"><option value="">No saved dates</option></select>
             <button type="button" class="tbtn" id="stats-daily-delete-date-btn" onclick="deleteStatsDailyReportFromSettings()" title="Delete the selected date's Daily Traffic data" data-count-collection="stats_daily_traffic" data-count-filter="selected-date" data-count-date-control="stats-daily-delete-date" data-count-label="Daily Traffic report">Delete Date</button>
           </div>
-          <div class="stats-daily-archive-note" style="margin-bottom:8px">Admin only. This cannot be undone.</div>
-          <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once.</div>
+          <div class="stats-daily-archive-note" style="margin-bottom:8px">This cannot be undone. An admin's delete also removes the date's import log; a semi-admin's leaves it in the Logs tab.</div>
+          <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once. Admin only.</div>
           <button class="tbtn" id="stats-daily-wipe-btn" style="color:var(--red)" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All Daily Traffic</button>
         </div>
       </div>
@@ -16649,6 +16653,12 @@ function canEditStats(){ return isAdmin() || isSemiAdmin(); }
 // Wiping the snapshots / stats_snapshots / tritel_snapshots collections —
 // admin & semi-admin. Other Danger-Zone actions stay admin only.
 function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
+// Deleting ONE date's Daily Traffic / VOS Daily Traffic report — admin &
+// semi-admin, the same roles that post those reports (firestore.rules already
+// allows canPost() to write both collections). The Delete All wipes stay
+// admin-only, and so does snapshot_logs, so only an admin's delete also clears
+// the paired import log — see deleteStatsDailyReport.
+function canDeleteDailyTrafficDate(){ return isAdmin() || isSemiAdmin(); }
 const VOIP_ADMIN_DANGER_BUTTONS = [
   'voip-delete-critical-history-btn',
   'voip-delete-spam-history-btn',
@@ -16703,6 +16713,8 @@ function applyModuleAccess(){
   show('sms-bal-delete-all-btn', canDeleteSnapshots());
   show('sms-bal-clear-history-btn', admin);
   show('sms-bal-clear-nothreshold-btn', admin);
+  // Same admin-only handler as the two history clears above, so it hides with them.
+  show('sms-bal-clear-inactive-usage-history-btn', admin);
   // VOIP settings are visible to operational roles. The shared critical,
   // near-target and retention controls remain admin-owned; reminder settings
   // are stored separately for each authenticated account.
@@ -16719,12 +16731,14 @@ function applyModuleAccess(){
   VOIP_ADMIN_DANGER_BUTTONS.forEach(id => disable(id, !admin));
   disable('stats-daily-wipe-btn', !admin);
   disable('vos-daily-clear-btn', !admin);
-  // Per-date deletes moved out of the Logs tabs into each module's Danger Zone;
-  // they are admin-only for the same reason the wipes are.
-  disable('stats-daily-delete-date', !admin);
-  disable('stats-daily-delete-date-btn', !admin);
-  disable('vos-daily-delete-date', !admin);
-  disable('vos-daily-delete-date-btn', !admin);
+  // Per-date deletes moved out of the Logs tabs into each module's Danger Zone.
+  // Removing one date is part of correcting a day's upload, so it follows the
+  // posting roles; wiping the whole history stays admin-only above.
+  const dailyDateDeleter = canDeleteDailyTrafficDate();
+  disable('stats-daily-delete-date', !dailyDateDeleter);
+  disable('stats-daily-delete-date-btn', !dailyDateDeleter);
+  disable('vos-daily-delete-date', !dailyDateDeleter);
+  disable('vos-daily-delete-date-btn', !dailyDateDeleter);
   // Clearing an audit trail is admin-only too, even though it destroys no data.
   disable('stats-daily-logs-wipe-btn', !admin);
   disable('vos-daily-logs-wipe-btn', !admin);
@@ -20850,18 +20864,24 @@ function renderStatsDailyLogs(){
 }
 window.renderStatsDailyLogs=renderStatsDailyLogs;
 window.deleteStatsDailyReport=async sessionDate=>{
-  if(!isAdmin()){toast('Only admins can delete Daily Traffic reports.','err');return;}
-  const approved=await confirmPremiumAction({title:'Delete Daily Traffic Report',html:`Delete the report and import log for <strong>${esc(sessionDate)}</strong>?<br><br>This date will be removed from comparisons and cannot be undone.`,label:'Delete'});
+  if(!canDeleteDailyTrafficDate()){toast('Only admins and semi-admins can delete Daily Traffic reports.','err');return;}
+  // snapshot_logs deletion is admin-only in firestore.rules and a batch commits
+  // all-or-nothing, so a semi-admin removes the date's data and leaves the
+  // import log standing — the same audit trail VOS Daily Traffic already keeps.
+  const clearsLog=isAdmin();
+  const approved=await confirmPremiumAction({title:'Delete Daily Traffic Report',html:`Delete the report${clearsLog?' and import log':''} for <strong>${esc(sessionDate)}</strong>?<br><br>This date will be removed from comparisons and cannot be undone.${clearsLog?'':'<br><br>The import log entry stays in the Logs tab.'}`,label:'Delete'});
   if(!approved)return;
   setLoading(true,'Deleting Daily Traffic report…');
   try{
     if(fbOk){
-      const matchingLogs=await getDocs(query(collection(db,'snapshot_logs'),where('session_date','==',sessionDate)));
       let batch=writeBatch(db);batch.delete(doc(db,'stats_daily_traffic',sessionDate));
-      matchingLogs.docs.filter(entry=>entry.data()?.module==='daily-traffic').forEach(entry=>batch.delete(doc(db,'snapshot_logs',entry.id)));
+      if(clearsLog){
+        const matchingLogs=await getDocs(query(collection(db,'snapshot_logs'),where('session_date','==',sessionDate)));
+        matchingLogs.docs.filter(entry=>entry.data()?.module==='daily-traffic').forEach(entry=>batch.delete(doc(db,'snapshot_logs',entry.id)));
+      }
       await batch.commit();
     }
-    statsDailyHistory=statsDailyHistory.filter(day=>day.session_date!==sessionDate);logsData=logsData.filter(log=>!(log.module==='daily-traffic'&&log.session_date===sessionDate));
+    statsDailyHistory=statsDailyHistory.filter(day=>day.session_date!==sessionDate);if(clearsLog)logsData=logsData.filter(log=>!(log.module==='daily-traffic'&&log.session_date===sessionDate));
     statsDailySelectedDate=statsDailySortedHistory().slice(-1)[0]?.session_date||'';saveStatsDailyLocal();syncStatsDailyImportDate(true);renderStatsDailyTraffic();renderStatsDailyLogs();renderStatsTables();
     toast(`Deleted Daily Traffic report for ${sessionDate}.`,'ok');
   }catch(e){toast('Daily Traffic delete failed: '+e.message,'err',8000);}finally{setLoading(false);}
@@ -25255,8 +25275,10 @@ function renderVosDailyLogs(){
 }
 window.renderVosDailyLogs=renderVosDailyLogs;
 window.deleteVosDailyReport=async sessionDate=>{
-  if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic reports.','err');return;}
-  const approved=await confirmPremiumAction({title:'Delete VOS Daily Traffic Report',html:`Delete the shared report and import log for <strong>${stEsc(sessionDate)}</strong>?<br><br>This date will be removed from every operator's dashboard comparison and cannot be undone.`,label:'Delete'});
+  if(!canDeleteDailyTrafficDate()){toast('Only admins and semi-admins can delete VOS Daily Traffic reports.','err');return;}
+  // Only the day document goes: the import log is a separate audit record and is
+  // cleared from the Logs tab, so the dialog no longer promises to remove it.
+  const approved=await confirmPremiumAction({title:'Delete VOS Daily Traffic Report',html:`Delete the shared report for <strong>${stEsc(sessionDate)}</strong>?<br><br>This date will be removed from every operator's dashboard comparison and cannot be undone.<br><br>The import log entry stays in the Logs tab.`,label:'Delete'});
   if(!approved)return;
   setLoading(true,'Deleting VOS Daily Traffic report…');
   try{
