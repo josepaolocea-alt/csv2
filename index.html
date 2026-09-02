@@ -21476,12 +21476,20 @@ function subscribeSmsBalanceData() {
       // Firestore is authoritative while connected. In particular, an empty
       // result after an intentional deletion must clear the browser cache;
       // cached rows must never be uploaded again merely because the query is empty.
+      // That empty must come from the server though: an empty cache event only
+      // means we went offline before the first response, and acting on it would
+      // wipe the mirror saved below. A deleted-on-server empty has fromCache false.
+      if(s.metadata?.fromCache&&!s.docs.length)return;
       smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots(s.docs.map(d=>({id:d.id,...d.data(),timestamp:d.data().timestamp?.toDate?.()})));
       smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||null;saveSmsBalanceLocal();renderSmsBalanceModule();
     },e=>console.warn('SMS balance snapshots:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_clients'),async s=>{
+      // Guard first: an offline empty must not clear the meta, and must not fire the
+      // re-upload below either — those writes would queue and resurrect client meta
+      // that was intentionally deleted once the connection returns.
+      if(s.metadata?.fromCache&&!s.docs.length)return;
       if(s.empty&&Object.keys(smsBalanceMeta).length&&isAdmin()) {
         await Promise.all(Object.entries(smsBalanceMeta).map(([key,meta])=>setDoc(doc(db,'sms_balance_clients',smsBalanceDocId(key)),{...meta,meta_key:key,updated_at:Timestamp.now()})));
         return;
@@ -21491,16 +21499,19 @@ function subscribeSmsBalanceData() {
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_history'),async s=>{
+      if(s.metadata?.fromCache&&!s.docs.length)return;
       smsBalanceHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceHistory();
     },e=>console.warn('SMS balance history:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
+      if(s.metadata?.fromCache&&!s.docs.length)return;
       smsBalanceNoThreshold=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceNoThreshold();window.renderSmsBalanceAlerts();
     },e=>console.warn('SMS balance no threshold:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_inactive_usage'),async s=>{
+      if(s.metadata?.fromCache&&!s.docs.length)return;
       smsBalanceInactiveUsageHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceInactiveUsageHistory();
     },e=>console.warn('SMS balance inactive usage history:',e));
   } catch(e){console.warn(e);}
@@ -25503,7 +25514,8 @@ async function loadVosStatsCloud() {
 }
 function subscribeVosStatsCloud() {
   if(!fbOk)return;
-  try{onSnapshot(query(collection(db,VOS_STATS_CLOUD_COLLECTION),orderBy('session_date','desc'),limit(VOS_STATS_CLOUD_LIMIT)),snapshot=>{vosStatsSnapshots=snapshot.docs.map(vosStatsCloudSnapshot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));const today=vosStatsSortedSnaps(),selected=today.find(s=>s.time_slot===vosStatsSelectedSlot)||today[today.length-1];vosStatsSelectedSlot=selected?.time_slot||'';saveVosStatsLocal();renderVosStats();},error=>console.warn('VOS Stats subscription:',error));}
+  // Same rule as VOS Daily Traffic: an empty cache event is not an empty server.
+  try{onSnapshot(query(collection(db,VOS_STATS_CLOUD_COLLECTION),orderBy('session_date','desc'),limit(VOS_STATS_CLOUD_LIMIT)),snapshot=>{if(snapshot.metadata?.fromCache&&!snapshot.docs.length)return;vosStatsSnapshots=snapshot.docs.map(vosStatsCloudSnapshot).sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`));const today=vosStatsSortedSnaps(),selected=today.find(s=>s.time_slot===vosStatsSelectedSlot)||today[today.length-1];vosStatsSelectedSlot=selected?.time_slot||'';saveVosStatsLocal();renderVosStats();},error=>console.warn('VOS Stats subscription:',error));}
   catch(e){console.warn('subscribe VOS Stats:',e);}
 }
 function loadVosStatsLocal() {
@@ -28411,6 +28423,13 @@ function subscribeStatsDailyHistory() {
       limit(STATS_DAILY_MAX_SAVED_DATES)
     );
     onSnapshot(activeDailyQuery, snapshot => {
+      // An empty result served from the offline cache is not an authoritative empty
+      // server. Firestore is created without persistence, so the cache starts empty
+      // every load and raises exactly this event once the SDK declares itself offline
+      // — taking it would blank the tab and then persist the blank over the browser
+      // mirror below. A real wipe arrives from the server with fromCache false and
+      // still clears, so intentional deletions are unaffected.
+      if (snapshot.metadata?.fromCache && !snapshot.docs.length) return;
       statsDailyHistory = snapshot.docs.map(entry => normalizeStatsDailyDay({ id:entry.id, ...entry.data() }));
       trimStatsDailyHistory();
       saveStatsDailyLocal();
