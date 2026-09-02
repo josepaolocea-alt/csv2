@@ -13654,17 +13654,29 @@ function profileDocId(name) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
 }
 
-/* Persistent baseline store — in-memory mirror of the `usage_profiles` collection. */
+/* Persistent baseline store.
+
+   `usage_profiles` holds one document per client, and posting a snapshot rewrites
+   one of them for every client with usage — so watching the collection live billed
+   every open session a read per client every 30 minutes, which dwarfed everything
+   else this app reads. It is now read ONCE per session and each session derives
+   the newest samples itself, from the snapshots it already receives for free.
+
+   _storedProfileRecords is that one-shot read: the persisted history, unfiltered.
+   _profileSamples is what the baseline maths actually uses — those records with
+   manual exclusions applied, then today's snapshots folded in on top. Both the
+   posting operator and everyone else run the same fold over the same snapshot
+   rows, so they arrive at identical samples without exchanging anything. */
 let _profileSamples = null;   // Map<name, Array<{d, s, u}>>
 let _profilesLoaded = false;
 let _profilesLoading = null;
 let _usageProfiles = null;    // computed baseline cache (median/threshold per client)
-let _usageProfileDocs = null;
-let _usageProfilesUnsubscribe = null, _usageExclusionsUnsubscribe = null;
-// Resolve on each listener's first delivery. Callers that used to pair a one-shot
-// getDocs with these listeners await these instead, so the collection is read once
-// per session rather than twice on every boot.
-let _usageProfilesFirst = null, _usageExclusionsFirst = null;
+let _storedProfileRecords = null;   // Array<{carrier_name, samples}> — the persisted baseline, read once
+let _usageExclusionsUnsubscribe = null;
+// Resolve on the exclusions listener's first delivery. Exclusions stay live: the
+// collection is tiny, it changes only when an operator marks a reading, and both
+// the fold below and the stored records are filtered through it.
+let _usageExclusionsFirst = null;
 function invalidateUsageProfiles() { _usageProfiles = null; }
 
 function sampleKey(d, s) { return `${d}|${s}`; }
@@ -13730,20 +13742,98 @@ function usageExclusionsSetFromDocs(docs) {
   });
   return fresh;
 }
-function usageProfilesMapFromDocs(docs) {
-  const map = new Map();
+// Firestore documents (or the plain equivalents the reset path rebuilds) → the
+// stored records. Legacy numeric samples carry no date/slot and are kept as-is.
+// Exclusions are NOT applied here: the records are the raw persisted history, so
+// un-marking a reading can restore it without re-reading the collection.
+function usageProfileRecordsFromDocs(docs) {
+  const records = [];
   (docs || []).forEach(entry => {
-    const data = entry.data();
-    const name = data.carrier_name;
+    const data = typeof entry?.data === 'function' ? entry.data() : entry;
+    const name = data?.carrier_name;
     if (!name || !Array.isArray(data.samples)) return;
-    const samples = data.samples
+    records.push({ carrier_name:name, samples: data.samples
       .map(sample => (typeof sample === 'number'
         ? { d:'', s:'', u:sample }
         : { d:sample.d || '', s:sample.s || '', u:amountNumber(sample.u) }))
-      .filter(sample => Number.isFinite(sample.u) && !isExcludedReading(name, sample.d, sample.s));
-    map.set(name, samples);
+      .filter(sample => Number.isFinite(sample.u)) });
+  });
+  return records;
+}
+function usageProfileRecordsFromSamples(map) {
+  return [...(map || new Map())].map(([carrier_name, samples]) =>
+    ({ carrier_name, samples: (samples || []).map(sample => ({ ...sample })) }));
+}
+// Stored records → the working map, with manual exclusions applied. Arrays and
+// their samples are copied because the fold below mutates them in place.
+function usageProfilesMapFromRecords(records) {
+  const map = new Map();
+  (records || []).forEach(({ carrier_name:name, samples }) => {
+    map.set(name, (samples || [])
+      .filter(sample => !isExcludedReading(name, sample.d, sample.s))
+      .map(sample => ({ ...sample })));
   });
   return map;
+}
+/* Fold snapshot rows into a name→samples map, applying exactly the rules
+   recordUsageSamples() applies at post time: month-start days and wide gaps never
+   become samples, nor do manually excluded readings, nor zero/negative usage.
+   Deduped by date+slot, so folding the same snapshot twice — or re-folding a slot
+   that was overwritten — replaces rather than duplicates. `priorSnapshot` is the
+   snapshot chronologically before the first of `snaps`, needed to judge whether
+   that first slot follows a gap. */
+function foldSnapshotSamples(map, snaps, priorSnapshot = null) {
+  let previous = priorSnapshot;
+  (snaps || []).forEach(snap => {
+    if (!snap || !snap.session_date) return;
+    // The stamped gap is authoritative — it was measured at post time against the
+    // real predecessor, which this session may not be holding. Fall back to the
+    // slot times for snapshots saved before gap_minutes was recorded. No
+    // predecessor either way means no gap to judge, and isWideGap(0) is false.
+    const gap = Number.isFinite(snap.gap_minutes)
+      ? snap.gap_minutes
+      : (previous ? snapGapMinutes(snap, previous) : 0);
+    const skip = isMonthStart(snap.session_date) || isWideGap(gap);
+    previous = snap;                              // advance even when this snap is skipped
+    const date = snap.session_date, slot = snap.time_slot || '', key = sampleKey(date, slot);
+    (snap.data || []).forEach(row => {
+      const name = row?.carrier_name; if (!name) return;
+      let arr = map.get(name);
+      if (arr) {                                   // drop any prior sample for this exact date+slot
+        const i = arr.findIndex(sample => sampleKey(sample.d, sample.s) === key);
+        if (i >= 0) arr.splice(i, 1);
+      }
+      if (skip) return;
+      const usage = amountNumber(row.usage_30min);
+      if (usage > 0 && !isExcludedReading(name, date, slot)) {
+        if (!arr) { arr = []; map.set(name, arr); }
+        arr.push({ d:date, s:slot, u:usage });
+      }
+    });
+  });
+  // capSamples() keeps the tail, so the arrays have to be chronological. Folding
+  // re-appends a replaced slot at the end, which is what puts them out of order.
+  map.forEach(arr => { arr.sort((a, b) => sampleKey(a.d, a.s).localeCompare(sampleKey(b.d, b.s))); capSamples(arr); });
+  return map;
+}
+/* Rebuild the working baseline: the stored history, plus every snapshot this
+   session currently holds for today. Cheap and idempotent, so it can run on each
+   snapshot delivery. */
+function rebuildUsageBaseline() {
+  const map = _storedProfileRecords
+    ? usageProfilesMapFromRecords(_storedProfileRecords)
+    : (_profileSamples || new Map());
+  foldSnapshotSamples(map, todaySnaps, priorSnap);
+  _profileSamples = map;
+  invalidateUsageProfiles();
+}
+// Called wherever today's snapshots change. Silent until the baseline has loaded,
+// so an early snapshot delivery cannot seed a today-only baseline that then makes
+// loadUsageProfiles() skip its first-run backfill.
+function refreshLocalUsageBaseline() {
+  if (!_profilesLoaded) return;
+  rebuildUsageBaseline();
+  refreshSpamProfileViews();
 }
 function refreshSpamProfileViews() {
   invalidateUsageProfiles();
@@ -13763,7 +13853,9 @@ function subscribeUsageProfileData() {
         _usageExclusions = usageExclusionsSetFromDocs(snapshot.docs);
         _exclusionsLoaded = true;
         persistExclusionsLocal();
-        if (_usageProfileDocs) _profileSamples = usageProfilesMapFromDocs(_usageProfileDocs);
+        // Marking or un-marking a reading re-filters the stored history and
+        // re-folds today's snapshots, so it takes effect on every open session.
+        if (_storedProfileRecords) rebuildUsageBaseline();
         refreshSpamProfileViews();
         first();
       }, error => {
@@ -13775,24 +13867,7 @@ function subscribeUsageProfileData() {
       });
     });
   }
-  if (!_usageProfilesUnsubscribe) {
-    _usageProfilesFirst = new Promise(resolve => {
-      let settled = false;
-      const first = () => { if (!settled) { settled = true; resolve(); } };
-      _usageProfilesUnsubscribe = onSnapshot(collection(db, 'usage_profiles'), snapshot => {
-        _usageProfileDocs = snapshot.docs;
-        _profileSamples = usageProfilesMapFromDocs(snapshot.docs);
-        _profilesLoaded = true;
-        refreshSpamProfileViews();
-        first();
-      }, error => {
-        console.warn('Usage profiles subscribe:', error);
-        _usageProfilesUnsubscribe = null;
-        first();
-      });
-    });
-  }
-  return Promise.all([_usageExclusionsFirst, _usageProfilesFirst]);
+  return _usageExclusionsFirst || Promise.resolve();
 }
 // The snapshot the live table is currently showing — the reading a spam flag/
 // exclusion refers to (viewed historical slot, else the latest processed one).
@@ -13855,16 +13930,23 @@ async function loadUsageProfiles() {
     try {
       await loadUsageExclusions();   // so backfill/baseline honor manual exclusions
       if (fbOk) {
-        // Same listener-first rule as the exclusions above: no duplicate read.
-        subscribeUsageProfileData();
-        await _usageProfilesFirst;
+        // One read per session. Everything posted after this point is derived
+        // from the snapshots themselves by refreshLocalUsageBaseline().
+        try {
+          const snapshot = await getDocs(collection(db, 'usage_profiles'));
+          _storedProfileRecords = usageProfileRecordsFromDocs(snapshot.docs);
+        } catch (e) { console.warn('Usage profiles read:', e); }
       }
-      // A failed listener leaves this null; the backfill check below needs a Map.
-      _profileSamples = _profileSamples || new Map();
       _profilesLoaded = true;
+      // First run (or after a full wipe while snapshots still exist): seed the
+      // store. The test is the STORED baseline, not the folded one — today's
+      // snapshots alone would make the map look populated and skip the seed that
+      // recovers the rest of the window.
+      if (!_storedProfileRecords || !_storedProfileRecords.length) await backfillUsageProfilesFromSnapshots();
+      rebuildUsageBaseline();
+      // A failed read and an empty backfill both leave this null.
+      _profileSamples = _profileSamples || new Map();
       invalidateUsageProfiles();
-      // First run (or after a full wipe while snapshots still exist): seed the store.
-      if (_profileSamples.size === 0) await backfillUsageProfilesFromSnapshots();
     } finally { _profilesLoading = null; }
   })();
   return _profilesLoading;
@@ -13873,24 +13955,13 @@ async function loadUsageProfiles() {
 // One-time seed of the persistent store from whatever snapshots currently exist.
 async function backfillUsageProfilesFromSnapshots() {
   await loadAllSnapshotHistory();
-  const map = new Map();
-  let prevSnap = null;                          // chronologically preceding snapshot (sorted order)
-  snapsAllSorted().forEach(snap => {
-    const wide = prevSnap ? isWideGap(snapGapMinutes(snap, prevSnap)) : false;
-    prevSnap = snap;                            // advance even when this snap is skipped below
-    if (!snap || !snap.session_date || isMonthStart(snap.session_date) || wide) return;
-    (snap.data || []).forEach(r => {
-      const name = r?.carrier_name; if (!name) return;
-      const u = amountNumber(r.usage_30min);
-      if (u > 0 && !isExcludedReading(name, snap.session_date, snap.time_slot || '')) {
-        let arr = map.get(name); if (!arr) { arr = []; map.set(name, arr); }
-        arr.push({ d: snap.session_date, s: snap.time_slot || '', u });
-      }
-    });
-  });
-  map.forEach(arr => capSamples(arr)); // snaps already sorted by date+slot → keep most recent N
+  // Same fold every session runs on today's snapshots, over the whole history.
+  const map = foldSnapshotSamples(new Map(), snapsAllSorted());
   if (map.size === 0) return;
   _profileSamples = map;
+  // The rebuild is now the stored baseline, so a later refreshLocalUsageBaseline()
+  // starts from it rather than resurrecting the documents this replaced.
+  _storedProfileRecords = usageProfileRecordsFromSamples(map);
   invalidateUsageProfiles();
   await persistProfileDocs([...map.keys()]);
 }
@@ -15540,6 +15611,9 @@ window.confirmResetSpamBaseline = async () => {
       });
       if (changed.length) await persistProfileDocs(changed);
     }
+    // The merged result is the stored baseline now — without this the next
+    // snapshot delivery would rebuild from the pre-reset records.
+    _storedProfileRecords = usageProfileRecordsFromSamples(_profileSamples);
     invalidateUsageProfiles();
     _spamAlertSeeded = false;               // re-seed silently so the rebuild doesn't blast notifications
     scanSpamSuspects();
@@ -15547,7 +15621,10 @@ window.confirmResetSpamBaseline = async () => {
     const rebuilt = _profileSamples ? _profileSamples.size : 0;
     let doneMsg = `✓ Spam baseline reset — cleared ${deleted} profile(s), rebuilt ${rebuilt} client(s) from clean snapshots`;
     if (keepOn) doneMsg += ` · kept ${kept} sample(s) in range`;
-    toast(doneMsg, 'ok', 6000);
+    // Sessions read the stored baseline once at load, so a reset reaches other
+    // operators on their next refresh rather than instantly.
+    doneMsg += ' · other operators should refresh to pick this up';
+    toast(doneMsg, 'ok', 7000);
   } catch (e) { toast('Reset failed: ' + e.message, 'err', 6000); }
   finally { setLoading(false); }
 };
@@ -17861,6 +17938,9 @@ function subscribePriorSnapshot() {
         // may disappear after today's query has already become empty.
         priorSnap = priorSnapshotFromDocs(snapshot.docs);
         priorSnapLoaded = true;
+        // The prior snapshot decides whether today's first slot follows a wide
+        // gap, so the fold has to be redone when it arrives or changes.
+        refreshLocalUsageBaseline();
         // New Critical depends on this baseline. Re-render every dependent view
         // immediately so another account never needs to switch tabs to correct a
         // temporary all-critical-as-new display.
@@ -28980,6 +29060,10 @@ async function init(){
           document.getElementById('view-banner')?.classList.remove('visible');
           await loadPrevSnap();
         }
+        // Derive the newest baseline samples from the snapshots themselves. This
+        // is what keeps a non-posting operator's spam baseline current now that
+        // usage_profiles is no longer broadcast.
+        refreshLocalUsageBaseline();
         refreshAll();
         populateSlots();   // re-anchor the time box as snapshots load / sync across operators
       });
