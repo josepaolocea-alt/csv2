@@ -10654,6 +10654,11 @@
                     </div>
                     <div class="stats-daily-archive-note">Admin only. Archived reports remain in this browser's local storage.</div>
                   </div>
+                  <div class="stats-daily-archive">
+                    <div style="font-weight:700">Dashboard — Stopped Traffic</div>
+                    <label class="settings-check"><input type="checkbox" role="switch" id="vos-daily-stopped-floor" onchange="toggleDailyStoppedFloor('vosDaily',this.checked)"><span>Only list routes that were above 100 min yesterday</span></label>
+                    <div class="stats-daily-archive-note">On by default. A route that carried e.g. 19.65 min yesterday and nothing today is skipped, so the panel keeps only stops worth chasing. Decreases, Increases and Total Call Time are not filtered, and no saved report is changed. Every role may set this; the choice is remembered in this browser.</div>
+                  </div>
                   <!-- Same split as Daily Traffic: the Logs tab records the
                        imports, this is where a date's data is removed. -->
                   <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px;color:var(--red)">Danger Zone</div>
@@ -10979,6 +10984,11 @@
             <button type="button" class="tbtn" id="stats-daily-archive-btn" onclick="archiveStatsDailyMonth()" title="Move this month out of the active Daily Traffic collection">Archive</button>
           </div>
           <div class="stats-daily-archive-note" id="stats-daily-archive-note">Admin only. Semi-admins and viewers may review this setting but cannot archive.</div>
+        </div>
+        <div class="stats-daily-archive">
+          <div class="snap-label">Dashboard — Stopped Traffic</div>
+          <label class="settings-check"><input type="checkbox" role="switch" id="stats-daily-stopped-floor" onchange="toggleDailyStoppedFloor('statsDaily',this.checked)"><span>Only list clients that were above 100 Raw Duration yesterday</span></label>
+          <div class="stats-daily-archive-note">On by default. A client that carried e.g. 19.65 yesterday and nothing today is skipped, so the panel keeps only stops worth chasing. Decreases, Increases and Total Raw Duration are not filtered, and no saved report is changed. Every role may set this; the choice is remembered in this browser.</div>
         </div>
         <!-- Deleting a date's data is a decision about the data, not about the
              audit trail, so it lives here rather than in the Logs tab. The
@@ -24963,6 +24973,48 @@ function parseVosTrafficMatrix(matrix) {
     acd:item.answered > 0 ? (item.total_call_time_seconds / 60) / item.answered : 0,
   }));
 }
+/* ── Dashboard "Stopped Traffic" floor ────────────────────────────────────
+   Shared by Daily Traffic and VOS Daily Traffic. A route that carried a few
+   seconds yesterday and none today is technically stopped but tells an
+   operator nothing, so by default the Stopped panel only lists rows whose
+   PREVIOUS day was above this many minutes. Decrease, Increase and the Total
+   tables are never filtered. Each browser stores its own choice; nothing here
+   changes the saved reports or what any comparison computes. */
+const DAILY_STOPPED_FLOOR_MINUTES = 100;
+const DAILY_STOPPED_FLOOR_KEY = 'bm_daily_stopped_floor_v1';
+function dailyStoppedFloorPrefs() {
+  try { const saved = JSON.parse(localStorage.getItem(DAILY_STOPPED_FLOOR_KEY) || '{}'); return saved && typeof saved === 'object' ? saved : {}; }
+  catch (e) { return {}; }
+}
+// Default ON: an unset (or unreadable) preference filters, so a fresh browser
+// gets the quiet dashboard without anyone having to find the switch.
+function dailyStoppedFloorOn(scope) { return dailyStoppedFloorPrefs()[scope] !== false; }
+function setDailyStoppedFloor(scope, on) {
+  const prefs = dailyStoppedFloorPrefs();
+  prefs[scope] = !!on;
+  try { localStorage.setItem(DAILY_STOPPED_FLOOR_KEY, JSON.stringify(prefs)); } catch (e) {}
+}
+// Rows below the floor are hidden, not reclassified — `hidden` drives the note
+// under the panel so a short list never reads as missing data.
+function applyDailyStoppedFloor(rows, scope, previousValue) {
+  if (!dailyStoppedFloorOn(scope)) return { rows, hidden:0, filtered:false };
+  const kept = rows.filter(row => Number(previousValue(row)) > DAILY_STOPPED_FLOOR_MINUTES);
+  return { rows:kept, hidden:rows.length - kept.length, filtered:true };
+}
+const DAILY_STOPPED_FLOOR_INPUTS = { statsDaily:'stats-daily-stopped-floor', vosDaily:'vos-daily-stopped-floor' };
+function syncDailyStoppedFloorInputs() {
+  Object.entries(DAILY_STOPPED_FLOOR_INPUTS).forEach(([scope, id]) => {
+    const input = document.getElementById(id);
+    if (input) input.checked = dailyStoppedFloorOn(scope);
+  });
+}
+// Redrawn straight away so switching back to the Dashboard shows the new list
+// rather than the one built before the switch was flipped.
+window.toggleDailyStoppedFloor = (scope, on) => {
+  setDailyStoppedFloor(scope, on);
+  syncDailyStoppedFloorInputs();
+  if (scope === 'vosDaily') renderVosDailyDashboard(); else renderStatsDailyDashboard();
+};
 const VOS_TRAFFIC_LOCAL_KEY = 'bm_vos_traffic_v2';
 const VOS_TRAFFIC_ARCHIVE_LOCAL_KEY = 'bm_vos_traffic_archive_v1';
 const VOS_DAILY_CLOUD_COLLECTION = 'vos_daily_traffic';
@@ -25206,7 +25258,7 @@ window.switchVosDailyTab = tab => {
   else if(vosDailyTab==='logs'){subscribeLogs();renderVosDailyLogs();}
   // Same as the Daily Traffic picker: populateVosDeleteDates only ran from the
   // Logs render, so Settings showed an empty list until Logs had been opened.
-  else if(vosDailyTab==='settings')populateVosDeleteDates();
+  else if(vosDailyTab==='settings'){populateVosDeleteDates();syncDailyStoppedFloorInputs();}
   if(vosDailyTab!=='logs'&&document.body.classList.contains('vos-mode'))unsubscribeLogs();
   setSbStatus(`Viewing: VOS — Daily Traffic — ${vosDailyTab.replace(/\b\w/g,c=>c.toUpperCase())}`);
 };
@@ -25237,8 +25289,11 @@ function renderVosDailyDashboard(){
   document.querySelectorAll('.vos-previous-date-heading').forEach(heading=>{heading.textContent=vosDashboardDateHeading(comparison.previousDay?.session_date,'Previous (min)');heading.title=comparison.previousDay?`Previous saved date: ${comparison.previousDay.session_date}`:'Previous saved date';});
   const needsComparison=!!comparison.currentDay&&!comparison.previousDay;
   const empty=`<tr><td colspan="4" style="text-align:center;color:var(--text-3)">${needsComparison?'Add a second dated report to compare routes.':'No matching routes.'}</td></tr>`;
-  const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:comparison.rows.filter(r=>r.status==='stopped').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
-  ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);if(body)body.innerHTML=groups[name].map(vosDashboardRow).join('')||empty;vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}`);});
+  // Stopped is the only group with a floor; Decrease and Increase stay complete.
+  const stoppedFloor=applyDailyStoppedFloor(comparison.rows.filter(r=>r.status==='stopped'),'vosDaily',row=>vosMinutes(row.previous_total_call_time_seconds));
+  const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:stoppedFloor.rows.sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
+  const stoppedEmpty=stoppedFloor.hidden?`<tr><td colspan="4" style="text-align:center;color:var(--text-3)">${stoppedFloor.hidden} stopped route${stoppedFloor.hidden===1?'':'s'} below ${DAILY_STOPPED_FLOOR_MINUTES} min — hidden by the Settings filter.</td></tr>`:empty;
+  ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);if(body)body.innerHTML=groups[name].map(vosDashboardRow).join('')||(name==='stopped'?stoppedEmpty:empty);vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}${name==='stopped'&&stoppedFloor.hidden?` · ${stoppedFloor.hidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min hidden`:''}`);});
   const days=vosSortedHistory(), totals=days.map((day,index)=>{const total=day.rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0),previous=index?days[index-1].rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0):0;return{date:day.session_date,total,change:index?total-previous:0};}).reverse();
   const latestVosDate=days.slice(-1)[0]?.session_date||'';
   const totalBody=document.getElementById('vos-dashboard-total'); if(totalBody)totalBody.innerHTML=totals.map(row=>{const totalMinutes=vosMinutes(row.total),changeMinutes=vosMinutes(row.change),isLatest=row.date&&row.date===latestVosDate;return `<tr><td>${stEsc(row.date)}${isLatest?' <span class="st-daily-status new st-daily-latest-flag" title="Most recently uploaded VOS report">Latest</span>':''}</td><td class="num">${stN2(totalMinutes)}</td><td class="num">${changeMinutes>0?'+':''}${stN2(changeMinutes)}</td><td style="text-align:center"><span class="st-daily-status ${row.change>0?'increase':row.change<0?'decrease':'unchanged'}">${row.change>0?'Increase':row.change<0?'Decrease':'—'}</span></td></tr>`;}).join('')||empty;
@@ -26444,11 +26499,17 @@ function statsDailyTwoWeekRouteSnapshot() {
   return { dates, dayByDate, latestDay, reportCount:dayByDate.size, rows };
 }
 
+// Stopped is the only group with a floor; Decrease, Increase and the Total
+// table below are untouched. The dashboard export reads these same groups, so
+// the workbook matches what is on screen.
 function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
+  const stopped = applyDailyStoppedFloor(
+    snapshot.rows.filter(row => row.status === 'stopped'), 'statsDaily', row => row.yesterday_raw_dur);
   return {
     decrease:snapshot.rows.filter(row => row.status === 'decrease').sort((a,b) => a.change - b.change),
-    stopped:snapshot.rows.filter(row => row.status === 'stopped').sort((a,b) => b.yesterday_raw_dur - a.yesterday_raw_dur),
+    stopped:stopped.rows.sort((a,b) => b.yesterday_raw_dur - a.yesterday_raw_dur),
     increase:snapshot.rows.filter(row => row.status === 'increase').sort((a,b) => b.change - a.change),
+    stoppedHidden:stopped.hidden,
   };
 }
 
@@ -26493,11 +26554,12 @@ function renderStatsDailyDashboard() {
     heading.title = yesterdayDate ? `Previous calendar day: ${yesterdayDate}` : 'Previous calendar day';
   });
 
-  const groups = statsDailyDashboardGroups(snapshot);
+  const { stoppedHidden = 0, ...statusGroups } = statsDailyDashboardGroups(snapshot);
   const empty = label => `<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
-  Object.entries(groups).forEach(([status, allRows]) => {
+  Object.entries(statusGroups).forEach(([status, allRows]) => {
+    const floored = status === 'stopped' && stoppedHidden;
     const count = document.getElementById(`st-daily-dashboard-${status}-count`);
-    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}`;
+    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}${floored ? ` · ${stoppedHidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min hidden` : ''}`;
     const body = document.getElementById(`st-daily-dashboard-${status}`);
     if (!body) return;
     const rows = allRows.slice(0, 10);
@@ -26509,7 +26571,9 @@ function renderStatsDailyDashboard() {
       return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
         + `<td style="text-align:right">${stN2(row.latest_raw_dur)}</td><td style="text-align:right">${row.yesterday_raw_dur === null ? '—' : stN2(row.yesterday_raw_dur)}</td><td style="text-align:right">${stN2(row.baseline_raw_dur)}</td>`
         + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN2(Math.abs(row.change)) : signedChange}</td></tr>`;
-    }).join('') : empty(snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
+    }).join('') : empty(floored
+      ? `${stoppedHidden} stopped client${stoppedHidden === 1 ? '' : 's'} below ${DAILY_STOPPED_FLOOR_MINUTES} min — hidden by the Settings filter.`
+      : snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
   });
 
   const totalDates = statsDailyDashboardTotalDates(snapshot);
@@ -26897,7 +26961,7 @@ window.switchStatsDailyTab = tab => {
   // The Danger Zone date picker is filled by renderStatsDailyLogs, so opening
   // Settings without having visited Logs first left it saying "No saved dates"
   // however many reports were stored. Fill it on the way in.
-  else if(statsDailyTab==='settings')populateDailyDeleteDates();
+  else if(statsDailyTab==='settings'){populateDailyDeleteDates();syncDailyStoppedFloorInputs();}
   if(statsDailyTab!=='logs'&&document.body.classList.contains('traffic-mode'))unsubscribeLogs();
   setSbStatus(statsDailyTab === 'settings' ? 'Viewing: Daily Traffic Settings' : `Viewing: Daily Traffic — ${statsDailyTab.replace(/\b\w/g, c => c.toUpperCase())}`);
 };
