@@ -10636,8 +10636,8 @@
               </div>
 
               <div class="st-daily-panel" id="vos-daily-panel-logs" role="tabpanel" aria-labelledby="vos-daily-tab-logs" style="display:none">
-                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button type="button" class="tbtn" id="vos-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('vos-daily-traffic','VOS Daily Traffic')">Delete All Logs</button></div>
-                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
+                <div class="fbar"><span class="sms-muted">Persistent audit trail of VOS Daily Traffic imports, including the authenticated processing user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button type="button" class="tbtn" id="vos-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('vos-daily-traffic','VOS Daily Traffic')">Delete All Logs</button></div>
+                <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px"><div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Processed At</th><th>Processed By</th><th>Filename</th><th class="num">Rows</th><th>Actions</th></tr></thead><tbody id="vos-daily-logs-tbody"></tbody></table></div></div>
                 <div class="sms-muted" id="vos-daily-logs-count">No VOS Daily Traffic logs yet.</div>
               </div>
 
@@ -20282,13 +20282,30 @@ function saveSmsBalanceLocal() {
     localStorage.setItem(SMS_BALANCE_LOCAL.inactiveUsage, JSON.stringify(smsBalanceInactiveUsageHistory));
   } catch(e) {}
 }
+/* Snapshot Slot follows the posted data, not the wall clock: it sits on the slot
+   after the latest one saved today, which is the same slot the 30-min timeline
+   shows as the next empty box. Anchoring to the data keeps an operator in
+   sequence when catching up late and survives a reload. Before anything is
+   posted today it falls back to the wall-clock next slot, and it stays put on
+   the last slot of the day (nothing to advance to). */
+function computeSmsBalanceDefaultSlot() {
+  const slots = shiftSlots('24H'), latest = smsBalanceTodaySnaps.at(-1)?.time_slot || '';
+  const index = latest ? slots.indexOf(latest) : -1;
+  if (index >= 0) return index+1 < slots.length ? slots[index+1] : slots[index];
+  return nextSlot();
+}
+// When true the box auto-follows computeSmsBalanceDefaultSlot(). A hand-pick from
+// the dropdown turns it off so the operator's choice sticks; posting turns it back
+// on. Without this the first populate froze the box on whatever the wall clock said
+// at load, so a slot posted afterwards — by this operator or a colleague — left the
+// picker sitting on a slot the timeline already showed as filled.
+let smsBalanceSlotAutoTrack = true;
 function populateSmsBalanceSlots() {
   const sel = document.getElementById('sms-bal-slot'); if (!sel) return;
   const slots = shiftSlots('24H');
-  const current = sel.value;
-  const latest = smsBalanceTodaySnaps.at(-1);
-  const next = latest ? slots[Math.min(slots.length-1, slots.indexOf(latest.time_slot)+1)] : nextSlot();
-  const chosen = slots.includes(current) ? current : (slots.includes(next) ? next : slots[0]);
+  const chosen = smsBalanceSlotAutoTrack
+    ? computeSmsBalanceDefaultSlot()
+    : (slots.includes(sel.value) ? sel.value : computeSmsBalanceDefaultSlot());
   sel.innerHTML = slots.map(slot => `<option value="${slot}" ${slot===chosen?'selected':''}>${fmt12(slot)}</option>`).join('');
 }
 function smsBalanceNextSlotAfterPost(slot) {
@@ -20296,6 +20313,9 @@ function smsBalanceNextSlotAfterPost(slot) {
   return index>=0&&index<slots.length-1?slots[index+1]:slot;
 }
 function advanceSmsBalanceSlotAfterPost(slot) {
+  // Posting re-arms tracking, so the repopulate that follows lands on the slot
+  // after the one just saved even if the operator had hand-picked this one.
+  smsBalanceSlotAutoTrack=true;
   const select=document.getElementById('sms-bal-slot');if(select)select.value=smsBalanceNextSlotAfterPost(slot);
 }
 function loadSmsBalanceSettingsUi() {
@@ -21610,11 +21630,18 @@ async function cleanupOldSmsBalanceSnapshots() {
   const cutoffStr=`${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
   try{const q=query(collection(db,'sms_balance_snapshots'),where('session_date','<',cutoffStr));const s=await getDocs(q);let batch=writeBatch(db),count=0;for(const entry of s.docs){batch.delete(doc(db,'sms_balance_snapshots',entry.id));if(++count>=490){await batch.commit();batch=writeBatch(db);count=0;}}if(count)await batch.commit();}catch(e){console.warn('SMS balance retention cleanup:',e);}
 }
+// A hand-pick of the slot box stops it from auto-following the latest post; the
+// next post re-arms it. The premium dropdown sets the native select and fires a
+// bubbling change, so one listener on the select covers both.
+function bindSmsBalanceSlotAutoTrack() {
+  const slot=document.getElementById('sms-bal-slot');if(!slot||slot.dataset.autoTrackBound)return;
+  slot.dataset.autoTrackBound='true';slot.addEventListener('change',()=>{smsBalanceSlotAutoTrack=false;});
+}
 // These listeners must stay live from boot: currentImportantNotifications()
 // builds the global "SMS · New Critical" bell item from smsBalanceAlertSets()
 // and smsBalanceLatest, so deferring them to module entry would leave the bell
 // reporting a stale localStorage mirror (or nothing on a fresh browser).
-function initSmsBalanceModule() {loadSmsBalanceLocal();populateSmsBalanceSlots();loadSmsBalanceSettingsUi();renderSmsBalanceModule();subscribeSmsBalanceData();cleanupOldSmsBalanceSnapshots();}
+function initSmsBalanceModule() {loadSmsBalanceLocal();bindSmsBalanceSlotAutoTrack();populateSmsBalanceSlots();loadSmsBalanceSettingsUi();renderSmsBalanceModule();subscribeSmsBalanceData();cleanupOldSmsBalanceSnapshots();}
 
 /* SMS MODULE */
 const SMS_FIELDS = ['date','client','sender_id','sender_id_comment','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','priority_vendor','emails','notes'];
@@ -25374,8 +25401,8 @@ function renderVosDailyLogs(){
     const action=isAdmin()&&log.session_date
       ?`<button class="row-del" title="Delete this log entry" aria-label="Delete the VOS Daily Traffic log entry for ${escAttr(log.session_date)}" onclick="openDeleteLogsForDateConfirm('vos-daily-traffic','${escAttr(log.session_date)}','the VOS Daily Traffic log entry for ${escAttr(log.session_date)}')">${DEL_ICON_SVG}</button>`
       :'<span class="sms-muted">—</span>';
-    return `<tr><td>${stEsc(log.session_date||'—')}</td><td>${stEsc(processedText)}</td><td>${stEsc(log.filename||'VOS report')}</td><td class="num">${stN0(log.rows||0)}</td><td>${action}</td></tr>`;
-  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';
+    return `<tr><td>${stEsc(log.session_date||'—')}</td><td>${stEsc(processedText)}</td><td>${stEsc(snapshotLogPostedBy(log))}</td><td>${stEsc(log.filename||'VOS report')}</td><td class="num">${stN0(log.rows||0)}</td><td>${action}</td></tr>`;
+  }).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-3)">No VOS Daily Traffic logs yet.</td></tr>';
   vosSetText('vos-daily-logs-count',rows.length?`${rows.length} import${rows.length===1?'':'s'} logged`:'No VOS Daily Traffic logs yet.');
   populateVosDeleteDates();
 }
