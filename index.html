@@ -10488,6 +10488,7 @@
                     <input id="vos-traffic-date" class="win-inp" type="date" data-premium-date aria-label="VOS Traffic Date" required aria-required="true">
                     <input type="file" id="vos-traffic-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosTrafficFile(this.files[0]);this.value=''">
                     <button type="button" class="tbtn primary" onclick="document.getElementById('vos-traffic-file').click()">Upload File</button>
+                    <button type="button" class="tbtn" id="vos-daily-undo-btn" onclick="undoLastVosDailyTraffic()" title="Remove the most recently uploaded VOS Daily Traffic date">Undo Last</button>
                   </div>
                   <span class="vos-file-status daily-import-status" id="vos-file-status">No VOS file uploaded.</span>
                 </div>
@@ -25533,6 +25534,40 @@ function renderVosDailyLogs(){
   populateVosDeleteDates();
 }
 window.renderVosDailyLogs=renderVosDailyLogs;
+/* Undo Last removes the report most recently UPLOADED, which is not necessarily
+   the latest traffic date — correcting an older date puts that date last. So it
+   orders by processed_at and falls back to the date only when a legacy record has
+   no timestamp. It follows the posting role, like the Daily Traffic undo it
+   mirrors: undoing your own upload is part of making it, whereas the Danger Zone
+   per-date delete stays with deleteVosDailyReport's admin/semi-admin gate. */
+window.undoLastVosDailyTraffic=async()=>{
+  if(!canPostStats()){toast('Removing VOS Daily Traffic reports is restricted for this account.','err');return;}
+  const history=vosDailyHistory.filter(day=>day?.session_date);
+  if(!history.length){toast('No saved VOS Daily Traffic date to undo.','err');return;}
+  const uploadedTime=day=>{
+    const value=new Date(day?.processed_at||'').getTime();
+    if(Number.isFinite(value))return value;
+    const fallback=new Date(`${day?.session_date||''}T00:00:00`).getTime();
+    return Number.isFinite(fallback)?fallback:0;
+  };
+  const last=history.slice().sort((a,b)=>uploadedTime(a)-uploadedTime(b)||a.session_date.localeCompare(b.session_date)).slice(-1)[0];
+  if(!last)return;
+  const approved=await confirmPremiumAction({
+    title:'Remove Latest VOS Daily Traffic Report',
+    html:`Remove the most recently uploaded report for <strong>${stEsc(last.session_date)}</strong> with <strong>${(last.rows||[]).length}</strong> route row(s)?<br><br>${stEsc(last.filename||'VOS report')}<br><br>This date will be removed from every operator's dashboard comparison. The import log entry stays in the Logs tab.`,
+    label:'Remove'
+  });
+  if(!approved)return;
+  setLoading(true,'Removing VOS Daily Traffic report…');
+  try{
+    if(fbOk)await deleteDoc(doc(db,VOS_DAILY_CLOUD_COLLECTION,vosDailyCloudDocId(last.session_date)));
+    vosDailyHistory=vosDailyHistory.filter(day=>day.session_date!==last.session_date);vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';saveVosTrafficLocal();
+    const status=document.getElementById('vos-file-status');if(status){delete status.dataset.current;status.textContent='No VOS file uploaded.';}
+    vosTrafficImportDateAutoTrack=true;syncVosDailyImportDate(true);
+    renderAllVosDailyTrafficViews();toast(`VOS Daily Traffic for ${last.session_date} removed${fbOk?'':' from this browser'}.`,'ok',6000);
+  }catch(error){toast('VOS Daily Traffic undo failed: '+error.message,'err',8000);}
+  finally{setLoading(false);}
+};
 window.deleteVosDailyReport=async sessionDate=>{
   if(!canDeleteDailyTrafficDate()){toast('Only admins and semi-admins can delete VOS Daily Traffic reports.','err');return;}
   // Only the day document goes: the import log is a separate audit record and is
