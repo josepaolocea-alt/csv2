@@ -20054,7 +20054,18 @@ function smsBalanceNoThresholdRows() {
     const key=record.meta_key||smsBalanceMetaKey(record);
     if(!record?.client)return;
     const current=rosterByKey.get(key);
-    if(current&&current._status?.credit===null&&current._status?.critical===null){byKey.set(key,current);return;}
+    // Once a client has a current row, that row decides: giving it a threshold takes
+    // it out of this alert for good. The record stays in No-Threshold History.
+    // Falling through instead would rebuild it as a _historyRecord stand-in, which
+    // both pins it here forever and drops its double-click handler, since a stand-in
+    // is absent from uniqueSmsBalanceClients and the detail popup has nothing to open.
+    // The fallback below is only for a client with no current row at all — chiefly
+    // before today's first snapshot loads, where it must survive settings changes so
+    // Alerts keeps mirroring History.
+    if(current){
+      if(current._status?.credit===null&&current._status?.critical===null)byKey.set(key,current);
+      return;
+    }
     const meta=smsBalanceMeta[key]||{};
     const row=smsBalanceNormalizeRow({
       source:record.source,client:record.client,balance:record.last_balance,
