@@ -10464,7 +10464,7 @@
                     <div class="vos-import-help">Excel or CSV · Mapping Gateway is the Client, Area Name is the Destination, and duplicate pairs are merged before saving.</div>
                   </div>
                   <div class="daily-import-actions">
-                    <select id="vos-stats-slot" class="win-sel" aria-label="VOS Stats hour"></select>
+                    <select id="vos-stats-slot" class="win-sel" aria-label="VOS Stats hour" onchange="this.dataset.userPicked='1'"></select>
                     <input type="file" id="vos-stats-file" accept=".xlsx,.xls,.csv,text/csv" hidden onchange="importVosStatsFile(this.files[0]);this.value=''">
                     <button type="button" class="tbtn primary" onclick="document.getElementById('vos-stats-file').click()">Upload File</button>
                     <button type="button" class="tbtn" onclick="undoLastVosStatsSnapshot()" title="Remove the latest hourly VOS snapshot">Undo Last</button>
@@ -25533,10 +25533,15 @@ function loadVosStatsLocal() {
   try{const saved=JSON.parse(localStorage.getItem(VOS_STATS_LOCAL_KEY)||'null');if(saved&&Array.isArray(saved.snapshots)){vosStatsSnapshots=saved.snapshots.map(s=>({...s,rows:(Array.isArray(s.rows)?s.rows:[]).map(vosStatsNormalizeRow)}));vosStatsSelectedSlot=String(saved.selectedSlot||'');}}
   catch(e){console.warn('VOS Stats local restore:',e);vosStatsSnapshots=[];vosStatsSelectedSlot='';}
 }
+// The hour box follows the clock: past the half hour it rolls to the next one,
+// so a 12:41 upload lands on 1:00 PM. A hand-picked hour is kept until upload.
+function vosStatsNearestSlot() {
+  const now=new Date(),slots=statsSlots();
+  return slots[(now.getHours()+(now.getMinutes()>=30?1:0))%24];
+}
 function populateVosStatsSlots() {
   const slots=statsSlots(),saved=vosStatsSortedSnaps(),latest=saved[saved.length-1]?.time_slot||'';
-  const latestIndex=slots.indexOf(latest),suggested=slots[Math.min(23,Math.max(0,latestIndex+1))]||slots[0];
-  const upload=document.getElementById('vos-stats-slot'); if(upload){const keep=upload.value;upload.innerHTML=slots.map(slot=>`<option value="${slot}">${fmt12(slot)}</option>`).join('');upload.value=keep&&slots.includes(keep)?keep:suggested;}
+  const upload=document.getElementById('vos-stats-slot'); if(upload){const keep=upload.dataset.userPicked==='1'?upload.value:'';upload.innerHTML=slots.map(slot=>`<option value="${slot}">${fmt12(slot)}</option>`).join('');upload.value=keep&&slots.includes(keep)?keep:vosStatsNearestSlot();}
   if(!vosStatsSelectedSlot||!saved.some(s=>s.time_slot===vosStatsSelectedSlot))vosStatsSelectedSlot=latest;
   const select=document.getElementById('vos-stats-snapshot-slot');if(select){select.innerHTML=saved.length?saved.slice().reverse().map(s=>`<option value="${stEsc(s.time_slot)}"${s.time_slot===vosStatsSelectedSlot?' selected':''}>${stEsc(fmt12(s.time_slot))} · ${stN0(s.rows.length)} routes</option>`).join(''):'<option value="">No saved hours</option>';}
 }
@@ -25623,7 +25628,7 @@ window.importVosStatsFile=async file=>{
     const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});let parsed=null,sheetName='';for(const name of workbook.SheetNames){const matrix=window.XLSX.utils.sheet_to_json(workbook.Sheets[name],{header:1,defval:'',raw:false});try{const candidate=parseVosTrafficMatrix(matrix);if(candidate.length){parsed=candidate.map(vosStatsNormalizeRow);sheetName=name;break;}}catch(e){}}
     if(!parsed?.length)throw new Error('No populated worksheet contained all required VOS columns.');const snapshot={session_date:todayStr(),time_slot:slot,filename:file.name||'VOS report',sheet_name:sheetName,processed_at:new Date().toISOString(),rows:parsed};snapshot.id=vosStatsSnapshotDocId(snapshot.session_date,slot);
     vosStatsSnapshots=[...vosStatsSnapshots.filter(s=>!(s.session_date===snapshot.session_date&&s.time_slot===slot)),snapshot].sort((a,b)=>`${a.session_date} ${a.time_slot}`.localeCompare(`${b.session_date} ${b.time_slot}`)).slice(-VOS_STATS_CLOUD_LIMIT);vosStatsSelectedSlot=slot;vosStatsLastFilename=snapshot.filename;
-    const status=document.getElementById('vos-stats-file-status');if(status){status.dataset.current='1';status.textContent=`${snapshot.filename} · ${sheetName} · ${fmt12(slot)} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}const persisted=saveVosStatsLocal();renderVosStats();
+    const status=document.getElementById('vos-stats-file-status');if(status){status.dataset.current='1';status.textContent=`${snapshot.filename} · ${sheetName} · ${fmt12(slot)} · ${parsed.length} grouped row(s)`;status.title=status.textContent;}const hourBox=document.getElementById('vos-stats-slot');if(hourBox)delete hourBox.dataset.userPicked;const persisted=saveVosStatsLocal();renderVosStats();
     let synced=false;if(fbOk){await setDoc(doc(db,VOS_STATS_CLOUD_COLLECTION,snapshot.id),{...snapshot,processed_at:Timestamp.fromDate(new Date(snapshot.processed_at))});await writeSnapshotLog({...snapshot,timestamp:new Date(snapshot.processed_at)},parsed.length,'vos-stats',{filename:snapshot.filename,sheet_name:sheetName,source_rows:parsed.reduce((sum,row)=>sum+vosNumber(row.source_rows),0)});synced=true;}
     toast(`VOS Stats saved for ${fmt12(slot)}: ${parsed.length} grouped row(s)${synced?' · synchronized':persisted?' · saved in this browser':' · browser storage is full'}`,synced||persisted?'ok':'err',8000);
   }catch(e){toast('VOS Stats file could not be processed: '+e.message,'err',9000);}finally{setLoading(false);}
