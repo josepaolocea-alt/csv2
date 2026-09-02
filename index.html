@@ -13680,6 +13680,66 @@ let _usageExclusionsUnsubscribe = null;
 let _usageExclusionsFirst = null;
 function invalidateUsageProfiles() { _usageProfiles = null; }
 
+/* ── Stored-baseline browser mirror ─────────────────────────────────────────
+   getDocs never reads from the Firestore persistent cache, so the one-shot
+   usage_profiles read was billed in full on EVERY page load — the largest
+   single cost of a reload, and pure waste on a day spent refreshing after a
+   deploy. The records are safe to mirror locally because of what they are:
+   history up to today. Today's samples are re-derived from todaySnaps by
+   foldSnapshotSamples() on every delivery, so a same-day mirror produces the
+   identical baseline. The mirror therefore expires at the calendar-day
+   boundary, when yesterday's samples become history this session can no
+   longer fold for itself.
+
+   One getCountFromServer (1 read) guards it: any change to the document count
+   — a Reset Spam Baseline on another machine, in either direction, or a client
+   appearing for the first time — re-reads the collection and re-mirrors it. A
+   hit re-stamps the mirror with the count it just verified, so a roster change
+   costs one full read rather than one per refresh for the rest of the day. */
+const USAGE_PROFILE_CACHE_KEY = 'bm_usage_profiles_v1';
+
+function readUsageProfileCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(USAGE_PROFILE_CACHE_KEY) || 'null');
+    if (!parsed || !Array.isArray(parsed.records) || !parsed.records.length) return null;
+    return parsed;   // { date, count, records }
+  } catch(e) { return null; }
+}
+
+function writeUsageProfileCache(records) {
+  try {
+    if (!Array.isArray(records) || !records.length) {
+      localStorage.removeItem(USAGE_PROFILE_CACHE_KEY);
+      return;
+    }
+    localStorage.setItem(USAGE_PROFILE_CACHE_KEY, JSON.stringify({
+      date: todayStr(), count: records.length, records
+    }));
+  } catch(e) {
+    // Baseline too large for the storage quota — drop the mirror rather than
+    // leave a truncated one behind. The next load simply reads from the server,
+    // exactly as it did before this cache existed.
+    try { localStorage.removeItem(USAGE_PROFILE_CACHE_KEY); } catch(_) {}
+  }
+}
+
+// Re-date a mirror that a count check just confirmed, without re-serialising
+// the records. Keeps consecutive refreshes on the cheap path.
+function stampUsageProfileCache(cached, count) {
+  try {
+    localStorage.setItem(USAGE_PROFILE_CACHE_KEY, JSON.stringify({
+      date: todayStr(), count, records: cached.records
+    }));
+  } catch(e) {}
+}
+
+// Single assignment point for the stored baseline, so the mirror can never
+// drift from it — every path that replaces the records refreshes the mirror.
+function setStoredProfileRecords(records) {
+  _storedProfileRecords = records;
+  writeUsageProfileCache(records);
+}
+
 function sampleKey(d, s) { return `${d}|${s}`; }
 function capSamples(arr) {
   if (arr.length > SPAM_CFG.sampleCap) arr.splice(0, arr.length - SPAM_CFG.sampleCap);
@@ -13931,11 +13991,27 @@ async function loadUsageProfiles() {
     try {
       await loadUsageExclusions();   // so backfill/baseline honor manual exclusions
       if (fbOk) {
-        // One read per session. Everything posted after this point is derived
-        // from the snapshots themselves by refreshLocalUsageBaseline().
+        // One read per DAY, not per load. Everything posted after this point is
+        // derived from the snapshots themselves by refreshLocalUsageBaseline().
         try {
-          const snapshot = await getDocs(collection(db, 'usage_profiles'));
-          _storedProfileRecords = usageProfileRecordsFromDocs(snapshot.docs);
+          const cached = readUsageProfileCache();
+          let servedFromCache = false;
+          if (cached && cached.date === todayStr()) {
+            try {
+              const live = await getCountFromServer(collection(db, 'usage_profiles'));
+              if (live.data().count === cached.count) {
+                // Records go through the same normalizer as the server path, so a
+                // mirror written by an older build can never change their shape.
+                _storedProfileRecords = usageProfileRecordsFromDocs(cached.records);
+                stampUsageProfileCache(cached, cached.count);
+                servedFromCache = true;
+              }
+            } catch (e) { /* count unavailable — fall through to the full read */ }
+          }
+          if (!servedFromCache) {
+            const snapshot = await getDocs(collection(db, 'usage_profiles'));
+            setStoredProfileRecords(usageProfileRecordsFromDocs(snapshot.docs));
+          }
         } catch (e) { console.warn('Usage profiles read:', e); }
       }
       _profilesLoaded = true;
@@ -13962,7 +14038,7 @@ async function backfillUsageProfilesFromSnapshots() {
   _profileSamples = map;
   // The rebuild is now the stored baseline, so a later refreshLocalUsageBaseline()
   // starts from it rather than resurrecting the documents this replaced.
-  _storedProfileRecords = usageProfileRecordsFromSamples(map);
+  setStoredProfileRecords(usageProfileRecordsFromSamples(map));
   invalidateUsageProfiles();
   await persistProfileDocs([...map.keys()]);
 }
@@ -15613,8 +15689,10 @@ window.confirmResetSpamBaseline = async () => {
       if (changed.length) await persistProfileDocs(changed);
     }
     // The merged result is the stored baseline now — without this the next
-    // snapshot delivery would rebuild from the pre-reset records.
-    _storedProfileRecords = usageProfileRecordsFromSamples(_profileSamples);
+    // snapshot delivery would rebuild from the pre-reset records. Routing it
+    // through the setter also replaces the browser mirror, so the reset is not
+    // undone by a stale cache on the very next reload.
+    setStoredProfileRecords(usageProfileRecordsFromSamples(_profileSamples));
     invalidateUsageProfiles();
     _spamAlertSeeded = false;               // re-seed silently so the rebuild doesn't blast notifications
     scanSpamSuspects();
