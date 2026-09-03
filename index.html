@@ -20368,6 +20368,35 @@ function smsBalanceIsFreshBaselineView() {
   if (!smsBalanceLatest || !smsBalanceFreshBaselineKey) return false;
   return `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}` === smsBalanceFreshBaselineKey;
 }
+// A hand-picked deletion invalidates the post-wipe baseline: it can remove the
+// baseline slot outright, or remove the slots posted after it and silently
+// re-expose it as the newest snapshot — which makes smsBalancePreviousContext()
+// hand back that snapshot as its own previous, leaving New Critical and Removed
+// from Critical permanently empty with nothing on screen to explain it. Dropping
+// the flag falls back to normal diffing against the previous surviving snapshot.
+// The callers that genuinely re-arm a fresh baseline (Delete Today, unrestricted
+// Delete All) set the flags again after the delete returns.
+function invalidateSmsBalanceFreshBaseline() {
+  if (smsBalanceFreshBaselineKey) setSmsBalanceFreshBaselineKey('');
+}
+function smsBalanceSlotLabel(snap) {
+  const slot = String(snap?.time_slot || '');
+  if (!/^\d{1,2}:\d{2}/.test(slot)) return 'an earlier slot';
+  return snap.session_date === todayStr() ? fmt12(slot.slice(0,5)) : `${snap.session_date} ${fmt12(slot.slice(0,5))}`;
+}
+// Names the snapshot New Critical / Removed from Critical are diffing against, so
+// an empty tab reads as "nothing changed since 6:30 PM" instead of "no data". The
+// usual cause of a blank Removed tab is a deleted reference slot: the diff only
+// ever spans the latest snapshot and the previous SURVIVING one, so a recovery
+// inside a deleted window is invisible.
+function smsBalanceBaselineNote() {
+  if (smsBalanceSeedAfterClear) return 'no baseline yet — snapshots were cleared, the next post starts one';
+  const context = smsBalancePreviousContext();
+  if (!context.ready) return 'previous snapshot still loading';
+  if (smsBalanceIsFreshBaselineView()) return `${smsBalanceSlotLabel(smsBalanceLatest)} is the fresh baseline after a clear — post again to start comparing`;
+  if (!context.snapshot) return 'no earlier snapshot survives to compare against';
+  return `comparing against ${smsBalanceSlotLabel(context.snapshot)}`;
+}
 function smsBalanceFreshBaselineNewCriticalRows(rows=smsBalanceRows()) {
   return rows.filter(row => {
     const meta = row?._meta || smsBalanceMetaFor(row);
@@ -20749,8 +20778,15 @@ window.renderSmsBalanceAlerts = () => {
   const rows=smsBalanceAlertRows();
   const showBalanceBar=smsBalanceAlertFilter==='warning';
   const balanceBarHead=document.getElementById('sms-bal-alert-balance-bar-head');if(balanceBarHead)balanceBarHead.style.display=showBalanceBar?'':'none';
-  const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row,false,showBalanceBar)).join(''):smsBalanceEmptyRow(showBalanceBar?12:11,'No clients match this Alerts view.');
-  const count=document.getElementById('sms-bal-alert-result-count');if(count)count.textContent=`${rows.length} client row(s)`;
+  // The two transition tabs are the only ones whose emptiness depends on a second
+  // snapshot, so they carry the baseline they were diffed against.
+  const isTransition=smsBalanceAlertFilter==='new'||smsBalanceAlertFilter==='removed';
+  const baselineNote=isTransition?smsBalanceBaselineNote():'';
+  const emptyText=isTransition
+    ? `No ${smsBalanceAlertFilter==='new'?'newly critical':'recovered'} clients — ${baselineNote}.`
+    : 'No clients match this Alerts view.';
+  const body=document.getElementById('sms-bal-alert-tbody');if(body)body.innerHTML=rows.length?rows.map(row=>smsBalanceTableRow(row,false,showBalanceBar)).join(''):smsBalanceEmptyRow(showBalanceBar?12:11,emptyText);
+  const count=document.getElementById('sms-bal-alert-result-count');if(count)count.textContent=`${rows.length} client row(s)${baselineNote?` · ${baselineNote}`:''}`;
 };
 function smsBalanceFilteredRows() {
   const q = String(document.getElementById('sms-bal-search')?.value || '').toLowerCase();
@@ -21443,7 +21479,9 @@ window.processSmsBalanceSnapshot = async () => {
 };
 async function deleteSmsBalanceSnapshotById(id) {
   const target=smsBalanceTodaySnaps.find(s=>(s.id||smsBalanceSnapshotId(s.session_date,s.time_slot))===id);if(!target)return;
-  smsBalanceTodaySnaps=smsBalanceTodaySnaps.filter(s=>s!==target);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||null;saveSmsBalanceLocal();
+  smsBalanceTodaySnaps=smsBalanceTodaySnaps.filter(s=>s!==target);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||null;
+  invalidateSmsBalanceFreshBaseline();
+  saveSmsBalanceLocal();
   if(fbOk)await deleteDoc(doc(db,'sms_balance_snapshots',id));renderSmsBalanceModule();
 }
 window.deleteSmsBalanceSnapshot = async id => {
@@ -21459,8 +21497,12 @@ async function wipeSmsBalanceCollection(name,predicate=()=>true) {
 }
 async function deleteSmsBalanceSnapshotsMatching(predicate) {
   const backup = smsBalanceTodaySnaps.slice();
+  const baselineBackup = smsBalanceFreshBaselineKey;
   smsBalanceTodaySnaps = smsBalanceTodaySnaps.filter(snapshot => !predicate(snapshot));
   smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
+  // Only when today's surviving set actually changed — a delete confined to older
+  // dates leaves the baseline slot, and the comparison it anchors, intact.
+  if (smsBalanceTodaySnaps.length !== backup.length) invalidateSmsBalanceFreshBaseline();
   saveSmsBalanceLocal();
   renderSmsBalanceModule();
   try {
@@ -21468,6 +21510,7 @@ async function deleteSmsBalanceSnapshotsMatching(predicate) {
   } catch (error) {
     smsBalanceTodaySnaps = backup;
     smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
+    setSmsBalanceFreshBaselineKey(baselineBackup);
     saveSmsBalanceLocal();
     renderSmsBalanceModule();
     throw error;
