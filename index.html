@@ -20417,8 +20417,23 @@ function smsBalanceTransitionRows() {
   const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
   const previousMap = new Map(previous.map(row => [smsBalanceMetaKey(row), row]));
   const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(previousMap.get(smsBalanceMetaKey(row))));
-  const removed = previous.filter(row => {const currentRow=currentMap.get(smsBalanceMetaKey(row));return smsBalanceIsCritical(row) && !smsBalanceIsCritical(currentRow) && currentRow?._status?.code!=='overdraft';})
-    .map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
+  const removed = previous.filter(row => {
+    const currentRow=currentMap.get(smsBalanceMetaKey(row));
+    if(!smsBalanceIsCritical(row)||smsBalanceIsCritical(currentRow))return false;
+    // Landing on the overdraft is the one ambiguous exit from Critical, so it is
+    // judged by direction rather than by the status alone. Paying an exhausted
+    // overdraft down — balance -1000 against OD 1000 becoming balance 0 with the
+    // full 1000 available again — restores the client's sending headroom and is a
+    // real recovery, as is any partial repayment by an overdraft-monitored client
+    // on negative thresholds. Sliding from a positive balance onto the overdraft
+    // moves the other way and must never be reported as removed from Critical.
+    // Every other landing state (safe / near / warning / no threshold) is already
+    // an improvement on its own.
+    if(currentRow?._status?.code==='overdraft')
+      return smsBalanceNumber(currentRow.balance)>smsBalanceNumber(row.balance)
+        ||smsBalanceOverdraftRemaining(currentRow)>smsBalanceOverdraftRemaining(row);
+    return true;
+  }).map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
   return { added, removed };
 }
 function smsBalanceWarningRows() {
@@ -29787,11 +29802,21 @@ if (auth) {
   }
 
   /* ── Collapsed flyout ────────────────────────────────────────────────── */
+  /* Only ever one flyout stands open, so every path that changes which one it
+     is drops all of them rather than the one group it happens to hold. */
+  function dropFlyouts() {
+    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
+  }
+
   function openFlyout(group) {
     if (!document.body.classList.contains('nav-collapsed')) return;
     var children = group.querySelector(':scope > .nav-children');
+    // Reaching a flat group (Daily Traffic, Admin) still means the pointer has
+    // left whichever group was showing a flyout, so clear it before bailing —
+    // returning above the cleanup stranded that menu on screen, and the entry
+    // also cancelled its pending close on the way past.
+    dropFlyouts();
     if (!children) return;
-    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
     group.style.setProperty('--fly-title', JSON.stringify(labelOf(group.querySelector(':scope > .nav-parent'))));
     group.style.setProperty('--fly-top', Math.max(8, group.getBoundingClientRect().top) + 'px');
     group.classList.add('is-flyout');
@@ -29804,19 +29829,22 @@ if (auth) {
   function closeFlyouts() {
     if (!nav) return;
     clearTimeout(flyoutTimer);
-    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
+    dropFlyouts();
   }
 
   /* Reaching a submenu means travelling diagonally off the 58px rail, which
      crosses out of the group for a moment. A short close delay (cancelled on
      re-entry) makes that trip survivable instead of a game of skill. */
-  function scheduleClose(group) {
+  function scheduleClose() {
     clearTimeout(flyoutTimer);
     flyoutTimer = setTimeout(function () {
       // Reaching the right-click menu means leaving the group it was opened
       // from, so hold the flyout until that menu is dismissed.
       if (ctxOpen) return;
-      group.classList.remove('is-flyout');
+      // Whatever is open, not the group this was scheduled from: the pointer
+      // may have crossed a neighbouring rail button on its way out, and that
+      // neighbour is the group the last mouseleave belonged to.
+      dropFlyouts();
     }, 260);
   }
 
@@ -30287,7 +30315,7 @@ if (auth) {
 
     nav.querySelectorAll('.nav-group').forEach(function (g) {
       g.addEventListener('mouseenter', function () { clearTimeout(flyoutTimer); openFlyout(g); });
-      g.addEventListener('mouseleave', function () { scheduleClose(g); });
+      g.addEventListener('mouseleave', function () { scheduleClose(); });
     });
     window.addEventListener('resize', closeFlyouts);
 
