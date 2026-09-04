@@ -12975,8 +12975,11 @@ function computeDefaultSlot() {
       // Hold on this slot until its Tritel counterpart is posted too, so both feeds land
       // on the same slot before the box moves on. Manual override still wins (slotAutoTrack).
       const tritelDone = tritelSnaps.some(t => t.time_slot === last);
-      if (!tritelDone) return last;
-      return (i + 1 < slots.length) ? slots[i + 1] : last;
+      const proposed = !tritelDone ? last : (i + 1 < slots.length) ? slots[i + 1] : last;
+      // Never sit the box on a slot the clock hasn't reached. A slot posted for
+      // the wrong day (see lastPostableSlotIndex) would otherwise be offered back
+      // and re-posted, deepening the block instead of clearing it.
+      if (shiftSlots('24H').indexOf(proposed) <= lastPostableSlotIndex()) return proposed;
     }
   }
   return nextSlot();
@@ -16125,16 +16128,35 @@ function fmtSnapWhen(s) {
    All Clients and Tritel run independently and can sit on different slots.
    The check reads the live-synced in-memory list, the same list the overwrite
    confirm consults. */
-function latestSlotPostedAfter(snaps, slot) {
+function latestSlotPostedAfter(snaps, slot, now = new Date()) {
   const order = shiftSlots('24H'), index = order.indexOf(slot);
   if (index < 0) return '';
+  const reached = lastPostableSlotIndex(now);
   return (snaps || [])
     .map(entry => String(entry?.time_slot || ''))
-    .filter(value => order.indexOf(value) > index)
+    .filter(value => { const i = order.indexOf(value); return i > index && i <= reached; })
     .sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] || '';
 }
-function blockBackfilledSlot(slot, snaps, label) {
-  const later = latestSlotPostedAfter(snaps, slot);
+/* The furthest slot whose reading can actually exist yet: the half-hour now in
+   progress, plus the one it is rolling into (the slot an operator posts as it
+   closes). Anything past it is a slot from a different day stamped onto this
+   one, and must never block.
+
+   session_date is the wall-clock calendar date at post time while time_slot is
+   a free-standing 24-hour clock slot, so the 7PM–7AM shift crosses midnight but
+   session_date does not. An evening slot posted after midnight — a late 11:30 PM
+   round, or a picker still sitting on that slot — lands on today's date at
+   11:30 PM, hours in the future. Counted as "already posted" it would make every
+   early-morning slot look like a backfill and lock the feed out for the rest of
+   the shift, which is exactly what happened to the Tritel and SMS Balance feeds
+   while All Clients (stamped before midnight) kept posting. */
+function lastPostableSlotIndex(now = new Date()) {
+  const order = shiftSlots('24H');
+  const current = now.getHours() * 2 + (now.getMinutes() < 30 ? 0 : 1);
+  return Math.min(current + 1, order.length - 1);
+}
+function blockBackfilledSlot(slot, snaps, label, now = new Date()) {
+  const later = latestSlotPostedAfter(snaps, slot, now);
   if (!later) return false;
   openSmsConfirm(
     `<strong>Today's ${esc(label)} snapshots already reach ${esc(fmt12(later))}, so ${esc(fmt12(slot))} can no longer be posted.</strong><br><br>`
@@ -20368,40 +20390,36 @@ function smsBalanceIsFreshBaselineView() {
   if (!smsBalanceLatest || !smsBalanceFreshBaselineKey) return false;
   return `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}` === smsBalanceFreshBaselineKey;
 }
-// A hand-picked deletion invalidates the post-wipe baseline: it can remove the
-// baseline slot outright, or remove the slots posted after it and silently
-// re-expose it as the newest snapshot — which makes smsBalancePreviousContext()
-// hand back that snapshot as its own previous, leaving New Critical and Removed
-// from Critical permanently empty with nothing on screen to explain it. Dropping
-// the flag falls back to normal diffing against the previous surviving snapshot.
-// The callers that genuinely re-arm a fresh baseline (Delete Today, unrestricted
-// Delete All) set the flags again after the delete returns.
-function invalidateSmsBalanceFreshBaseline() {
-  if (smsBalanceFreshBaselineKey) setSmsBalanceFreshBaselineKey('');
+/* A pinned fresh baseline makes smsBalancePreviousContext() hand the newest
+   snapshot back as its own previous, so both transition tabs read empty by
+   construction. Once the snapshot it was pinned to is gone — any delete path —
+   that is no longer true of anything on screen, and leaving the key set would
+   silently empty the tabs against a snapshot that no longer exists. */
+function invalidateSmsBalanceFreshBaseline() { setSmsBalanceFreshBaselineKey(''); }
+/* The first snapshot after a full wipe has nothing to diff against, so New
+   Critical opens on the current state instead of a transition: every ACTIVE
+   client already Critical or blocked. Inactive clients stay out, and so does a
+   client still running on usable overdraft — it has not hit its ceiling yet. */
+function smsBalanceFreshBaselineNewCriticalRows(rows) {
+  return (rows || []).filter(row => row._meta?.is_active !== false && smsBalanceIsCritical(row));
 }
-function smsBalanceSlotLabel(snap) {
-  const slot = String(snap?.time_slot || '');
-  if (!/^\d{1,2}:\d{2}/.test(slot)) return 'an earlier slot';
-  return snap.session_date === todayStr() ? fmt12(slot.slice(0,5)) : `${snap.session_date} ${fmt12(slot.slice(0,5))}`;
-}
-// Names the snapshot New Critical / Removed from Critical are diffing against, so
-// an empty tab reads as "nothing changed since 6:30 PM" instead of "no data". The
-// usual cause of a blank Removed tab is a deleted reference slot: the diff only
-// ever spans the latest snapshot and the previous SURVIVING one, so a recovery
-// inside a deleted window is invisible.
+/* What the two transition tabs were diffed against, phrased to complete
+   "No newly critical clients — …". An empty transition tab means nothing on its
+   own: the same emptiness covers "nothing changed since 6:30 PM", "this snapshot
+   IS the baseline" and "every earlier snapshot was deleted", and an operator
+   reading it has to be able to tell which. */
 function smsBalanceBaselineNote() {
-  if (smsBalanceSeedAfterClear) return 'no baseline yet — snapshots were cleared, the next post starts one';
-  const context = smsBalancePreviousContext();
-  if (!context.ready) return 'previous snapshot still loading';
-  if (smsBalanceIsFreshBaselineView()) return `${smsBalanceSlotLabel(smsBalanceLatest)} is the fresh baseline after a clear — post again to start comparing`;
-  if (!context.snapshot) return 'no earlier snapshot survives to compare against';
-  return `comparing against ${smsBalanceSlotLabel(context.snapshot)}`;
-}
-function smsBalanceFreshBaselineNewCriticalRows(rows=smsBalanceRows()) {
-  return rows.filter(row => {
-    const meta = row?._meta || smsBalanceMetaFor(row);
-    return meta?.is_active !== false && smsBalanceIsCritical(row);
-  });
+  if (smsBalanceSeedAfterClear) return 'no baseline yet, the next snapshot posted becomes it';
+  if (smsBalanceIsFreshBaselineView()) return 'this snapshot is the fresh baseline, so nothing precedes it';
+  const previousContext = smsBalancePreviousContext();
+  if (!previousContext.ready) return 'still loading the previous snapshot';
+  const previous = previousContext.snapshot;
+  if (!previous) return 'no earlier snapshot survives to compare against';
+  const slot = previous.time_slot ? fmt12(previous.time_slot) : '';
+  // A prior-day baseline is dated, so an overnight comparison is never mistaken
+  // for an earlier slot today.
+  const label = String(previous.session_date || '') === todayStr() ? slot : `${previous.session_date} ${slot}`.trim();
+  return `comparing against ${label}`;
 }
 function smsBalanceDecoratedSnapshotRows(snap) {
   return (snap?.data || []).filter(row => row?.client).map(row => {
@@ -20410,6 +20428,20 @@ function smsBalanceDecoratedSnapshotRows(snap) {
     return { ...row, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:matches.some(route => route.status === 'Inactive' || /blocked/i.test(route.overdraft)) };
   });
 }
+/* Leaving Critical onto the overdraft is judged by direction, not by the landing
+   status. Paying an exhausted overdraft back off its ceiling, or being granted
+   more headroom, is a recovery; a positive-threshold client whose balance falls
+   through zero onto its overdraft has got worse, and reporting that slide as
+   "Removed from Critical" would be a lie. (An overdraft-monitored client on a
+   negative threshold cannot reach this state by getting worse — a lower balance
+   keeps it at or below its own threshold, so it stays Critical or goes Blocked.)
+   A client that vanished from the latest snapshot has no landing status and is
+   left as removed, as before. */
+function smsBalanceLeftCriticalUpward(previousRow, currentRow) {
+  if (currentRow?._status?.code !== 'overdraft') return true;
+  return smsBalanceNumber(currentRow.balance) > smsBalanceNumber(previousRow.balance)
+      || smsBalanceNumber(currentRow.overdraft) > smsBalanceNumber(previousRow.overdraft);
+}
 function smsBalanceTransitionRows() {
   const previousContext = smsBalancePreviousContext();
   if (!previousContext.ready) return { added:[], removed:[] };
@@ -20417,23 +20449,8 @@ function smsBalanceTransitionRows() {
   const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
   const previousMap = new Map(previous.map(row => [smsBalanceMetaKey(row), row]));
   const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(previousMap.get(smsBalanceMetaKey(row))));
-  const removed = previous.filter(row => {
-    const currentRow=currentMap.get(smsBalanceMetaKey(row));
-    if(!smsBalanceIsCritical(row)||smsBalanceIsCritical(currentRow))return false;
-    // Landing on the overdraft is the one ambiguous exit from Critical, so it is
-    // judged by direction rather than by the status alone. Paying an exhausted
-    // overdraft down — balance -1000 against OD 1000 becoming balance 0 with the
-    // full 1000 available again — restores the client's sending headroom and is a
-    // real recovery, as is any partial repayment by an overdraft-monitored client
-    // on negative thresholds. Sliding from a positive balance onto the overdraft
-    // moves the other way and must never be reported as removed from Critical.
-    // Every other landing state (safe / near / warning / no threshold) is already
-    // an improvement on its own.
-    if(currentRow?._status?.code==='overdraft')
-      return smsBalanceNumber(currentRow.balance)>smsBalanceNumber(row.balance)
-        ||smsBalanceOverdraftRemaining(currentRow)>smsBalanceOverdraftRemaining(row);
-    return true;
-  }).map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
+  const removed = previous.filter(row => {const currentRow=currentMap.get(smsBalanceMetaKey(row));return smsBalanceIsCritical(row) && !smsBalanceIsCritical(currentRow) && smsBalanceLeftCriticalUpward(row, currentRow);})
+    .map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
   return { added, removed };
 }
 function smsBalanceWarningRows() {
@@ -20537,8 +20554,13 @@ function saveSmsBalanceLocal() {
 function computeSmsBalanceDefaultSlot() {
   const slots = shiftSlots('24H'), latest = smsBalanceTodaySnaps.at(-1)?.time_slot || '';
   const index = latest ? slots.indexOf(latest) : -1;
-  if (index >= 0) return index+1 < slots.length ? slots[index+1] : slots[index];
-  return nextSlot();
+  // The Firestore query behind this list is pinned to the date captured at page
+  // load, so a page left open past midnight still holds yesterday's snapshots and
+  // its last entry is 11:30 PM. Following that would park the box on 11:30 PM and
+  // stamp an evening slot onto the new date, which then blocks the whole morning.
+  // Fall back to the wall clock rather than propose a slot it hasn't reached.
+  const next = index >= 0 ? Math.min(index + 1, slots.length - 1) : -1;
+  return next >= 0 && next <= lastPostableSlotIndex() ? slots[next] : nextSlot();
 }
 // When true the box auto-follows computeSmsBalanceDefaultSlot(). A hand-pick from
 // the dropdown turns it off so the operator's choice sticks; posting turns it back
@@ -29802,21 +29824,11 @@ if (auth) {
   }
 
   /* ── Collapsed flyout ────────────────────────────────────────────────── */
-  /* Only ever one flyout stands open, so every path that changes which one it
-     is drops all of them rather than the one group it happens to hold. */
-  function dropFlyouts() {
-    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
-  }
-
   function openFlyout(group) {
     if (!document.body.classList.contains('nav-collapsed')) return;
     var children = group.querySelector(':scope > .nav-children');
-    // Reaching a flat group (Daily Traffic, Admin) still means the pointer has
-    // left whichever group was showing a flyout, so clear it before bailing —
-    // returning above the cleanup stranded that menu on screen, and the entry
-    // also cancelled its pending close on the way past.
-    dropFlyouts();
     if (!children) return;
+    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
     group.style.setProperty('--fly-title', JSON.stringify(labelOf(group.querySelector(':scope > .nav-parent'))));
     group.style.setProperty('--fly-top', Math.max(8, group.getBoundingClientRect().top) + 'px');
     group.classList.add('is-flyout');
@@ -29829,22 +29841,19 @@ if (auth) {
   function closeFlyouts() {
     if (!nav) return;
     clearTimeout(flyoutTimer);
-    dropFlyouts();
+    nav.querySelectorAll('.nav-group.is-flyout').forEach(function (g) { g.classList.remove('is-flyout'); });
   }
 
   /* Reaching a submenu means travelling diagonally off the 58px rail, which
      crosses out of the group for a moment. A short close delay (cancelled on
      re-entry) makes that trip survivable instead of a game of skill. */
-  function scheduleClose() {
+  function scheduleClose(group) {
     clearTimeout(flyoutTimer);
     flyoutTimer = setTimeout(function () {
       // Reaching the right-click menu means leaving the group it was opened
       // from, so hold the flyout until that menu is dismissed.
       if (ctxOpen) return;
-      // Whatever is open, not the group this was scheduled from: the pointer
-      // may have crossed a neighbouring rail button on its way out, and that
-      // neighbour is the group the last mouseleave belonged to.
-      dropFlyouts();
+      group.classList.remove('is-flyout');
     }, 260);
   }
 
@@ -30315,7 +30324,7 @@ if (auth) {
 
     nav.querySelectorAll('.nav-group').forEach(function (g) {
       g.addEventListener('mouseenter', function () { clearTimeout(flyoutTimer); openFlyout(g); });
-      g.addEventListener('mouseleave', function () { scheduleClose(); });
+      g.addEventListener('mouseleave', function () { scheduleClose(g); });
     });
     window.addEventListener('resize', closeFlyouts);
 
