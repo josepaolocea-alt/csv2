@@ -21321,9 +21321,16 @@ function resetSmsBalanceDiscoveryFilters() {
   ['sms-bal-status-filter','sms-bal-manager-type-filter','sms-bal-manager-status-filter','sms-bal-manager-account-filter','sms-bal-type-filter','sms-bal-alert-source'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const managerType=document.getElementById('sms-bal-manager-type-filter');if(managerType)managerType.dataset.ready='true';
 }
+/* Balances are cent-denominated, but the upstream report does not always send the
+   same number of decimals from one slot to the next. When it switches (4dp one
+   slot, 2dp the next) the raw subtraction turns that format change into a phantom
+   sub-cent "usage" for every client in the report, which then trips every `usage
+   > 0` alert — Inactive w/ Usage, the Usage tab, Top Usage — on rows the UI still
+   renders as 0.00. Rounding the difference to cents collapses that remainder to
+   exactly 0 and leaves genuine usage untouched. */
 function computeSmsBalanceUsage(rows, previous) {
   const prevMap=new Map((previous?.data||[]).map(row=>[smsBalanceRouteKey(row),row]));
-  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?smsBalanceNumber(prev.balance)-row.balance:0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
+  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?Math.round((smsBalanceNumber(prev.balance)-row.balance)*100)/100:0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
 }
 function smsBalanceWideGap(gapMinutes) { return Number.isFinite(gapMinutes)&&gapMinutes>30; }
 async function persistSmsPhoenixRoutes() {
