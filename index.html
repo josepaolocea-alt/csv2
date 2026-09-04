@@ -21326,11 +21326,20 @@ function resetSmsBalanceDiscoveryFilters() {
    slot, 2dp the next) the raw subtraction turns that format change into a phantom
    sub-cent "usage" for every client in the report, which then trips every `usage
    > 0` alert — Inactive w/ Usage, the Usage tab, Top Usage — on rows the UI still
-   renders as 0.00. Rounding the difference to cents collapses that remainder to
-   exactly 0 and leaves genuine usage untouched. */
+   renders as 0.00.
+   Rounding the difference to the nearest cent is NOT enough: a remainder of
+   exactly half a cent (0.005, which is what a 3dp balance against a 2dp one
+   produces) rounds UP to a full phantom cent, which is worse — it becomes visible.
+   Below one cent is drift, not usage, so it is discarded outright. The 1e-6 slack
+   keeps a genuine one-cent move on the usage side of the line: floating point
+   renders that as 0.00999999999999978, not 0.01. */
+function smsBalanceUsageDiff(prevBalance, balance) {
+  const cents = (smsBalanceNumber(prevBalance) - smsBalanceNumber(balance)) * 100;
+  return Math.abs(cents) < 1 - 1e-6 ? 0 : Math.round(cents) / 100;
+}
 function computeSmsBalanceUsage(rows, previous) {
   const prevMap=new Map((previous?.data||[]).map(row=>[smsBalanceRouteKey(row),row]));
-  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?Math.round((smsBalanceNumber(prev.balance)-row.balance)*100)/100:0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
+  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?smsBalanceUsageDiff(prev.balance,row.balance):0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
 }
 function smsBalanceWideGap(gapMinutes) { return Number.isFinite(gapMinutes)&&gapMinutes>30; }
 async function persistSmsPhoenixRoutes() {
