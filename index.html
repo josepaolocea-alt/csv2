@@ -7636,6 +7636,25 @@
       color: var(--yellow-deep); background-color: var(--yellow-soft);
       box-shadow: var(--neu-inset-sm);
     }
+    /* One scale for the whole bulk strip. Its fields sit at a compact 24px
+       while .tbtn brings the app-wide 34px, so "Apply to selected" landed
+       40% taller than the inputs it acts on and read as a pasted-in toolbar.
+       Everything in the panel — fields, the date trigger and the two action
+       buttons — is pinned to the same height instead. */
+    #sms-bulk-panel { --bulk-control-h: 28px; }
+    #sms-bulk-panel .bulk-field input,
+    #sms-bulk-panel .bulk-field select,
+    #sms-bulk-panel .premium-date-trigger {
+      height: var(--bulk-control-h); min-height: var(--bulk-control-h);
+    }
+    #sms-bulk-panel .premium-date-trigger {
+      gap: 7px; padding: 0 9px; font-size: 11px; font-weight: 500;
+      border-radius: var(--ui-control-radius);
+    }
+    #sms-bulk-panel .bulk-actions .tbtn {
+      min-height: var(--bulk-control-h); height: var(--bulk-control-h);
+      padding: 0 13px; font-size: 11.5px;
+    }
 
     /* Raised half: things you act on. */
     button.sms-toolbar-clear, button.sms-toolbar-bulk {
@@ -9714,6 +9733,7 @@
             <div id="sms-bulk-panel">
               <div class="bulk-hint">Tick the rows you want to change, then fill any fields below. <strong>Blank fields are skipped.</strong></div>
               <div class="bulk-row">
+                <div class="bulk-field"><label>Date</label><input id="sms-bulk-date" type="date" data-premium-date aria-label="Bulk route date" title="Set the Date column on every ticked route. Leave blank to keep each route's own date." style="width:148px"></div>
                 <div class="bulk-field"><label>Account Manager</label><input id="sms-bulk-account-manager" style="width:130px"></div>
                 <div class="bulk-field"><label>Platform</label><input id="sms-bulk-platform" style="width:120px" placeholder="MS Teams, Viber, …"></div>
                 <div class="bulk-field"><label>Type</label><select id="sms-bulk-type" style="width:120px"><option value="">— skip —</option><option>Wholesale</option><option>Retail</option></select></div>
@@ -24204,12 +24224,19 @@ let smsBulkMode = false;
 const smsBulkSelected = new Set();
 
 const SMS_BULK_INPUT_IDS = [
-  'sms-bulk-account-manager','sms-bulk-platform','sms-bulk-type','sms-bulk-msg-type','sms-bulk-status',
+  'sms-bulk-date','sms-bulk-account-manager','sms-bulk-platform','sms-bulk-type','sms-bulk-msg-type','sms-bulk-status',
   'sms-bulk-opt-out','sms-bulk-overdraft','sms-bulk-vendor','sms-bulk-emails','sms-bulk-notes'
 ];
 
 function resetSmsBulkInputs() {
-  SMS_BULK_INPUT_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  SMS_BULK_INPUT_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = '';
+    // The date field is a premium-date widget: clearing .value fires no event,
+    // so its trigger keeps the old label unless it is synced by hand.
+    if (el.matches('input[data-premium-date-ready="true"]')) syncPremiumDate(el);
+  });
 }
 
 function refreshSmsBulkCount() {
@@ -24282,6 +24309,7 @@ window.applySmsBulkEdit = () => {
   if (smsBulkSelected.size === 0) { toast('Tick at least one row first', 'err'); return; }
   const val = id => (document.getElementById(id)?.value ?? '').trim();
   const fieldMap = {
+    date:            val('sms-bulk-date'),
     account_manager: val('sms-bulk-account-manager'),
     platform:        val('sms-bulk-platform'),
     type:            val('sms-bulk-type'),
