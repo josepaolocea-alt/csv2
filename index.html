@@ -10746,6 +10746,12 @@
                       <button type="button" class="tbtn" id="vos-daily-delete-date-btn" onclick="deleteVosDailyReportFromSettings()" title="Delete the selected date's VOS Daily Traffic report" data-count-collection="vos_daily_traffic" data-count-filter="selected-date" data-count-date-control="vos-daily-delete-date" data-count-label="VOS Daily Traffic report">Delete Date</button>
                     </div>
                     <div class="stats-daily-archive-note" style="margin-bottom:8px">This cannot be undone. The import log entry stays in the Logs tab.</div>
+                    <div style="margin-bottom:6px">Delete a whole month for every operator, read straight from Firebase rather than from the 14 reports loaded here. Admin only.</div>
+                    <div class="stats-daily-archive-row">
+                      <input id="vos-daily-delete-month" class="win-inp" type="month" data-premium-date aria-label="VOS Daily Traffic month to delete">
+                      <button type="button" class="tbtn" id="vos-daily-delete-month-btn" style="color:var(--red)" onclick="deleteVosDailyMonth()" title="Delete every VOS Daily Traffic report in this month">Delete Month</button>
+                    </div>
+                    <div class="stats-daily-archive-note" style="margin-bottom:8px">The month just gone unlocks on the 15th, once the 14-date comparison window has rolled clear of it. If the month has never been archived you are offered a copy first.</div>
                     <div style="margin-bottom:5px">Delete every saved VOS Daily Traffic date at once, for every operator. Admin only.</div>
                     <button type="button" class="tbtn" id="vos-daily-clear-btn" style="color:var(--red)" onclick="clearVosDailyHistory()" data-count-collection="vos_daily_traffic" data-count-label="VOS Daily Traffic report">Delete All VOS Daily Traffic</button>
                   </div>
@@ -10955,6 +10961,16 @@
           <input class="win-inp" id="set-spam-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Never flag a 30-min usage below this absolute amount.">
         </div>
         <div class="settings-row">
+          <label style="min-width:150px">New client at:</label>
+          <input class="win-inp" id="set-spam-unprofiled-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Fallback for a client with too few prior readings to have a baseline: flag its 30-min usage at or above this absolute amount. 0 = never flag an unprofiled client.">
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">0 = off</span>
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">New client jump:</label>
+          <input class="win-inp" id="set-spam-unprofiled-ratio" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="…and that reading must also be at least this many times the client's highest previous reading. A client with no previous reading at all is judged on the amount above alone.">
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">× highest seen</span>
+        </div>
+        <div class="settings-row">
           <label style="min-width:150px">Recent window:</label>
           <select class="win-sel" id="set-spam-recent" style="width:130px" onchange="saveSpamSettings()" title="Defines a client's 'usual': the baseline median &amp; spread use only samples from the last N days, so it tracks the client's current level instead of lagging weeks-old behavior. Shorter = adapts faster to growth; longer = steadier.">
             <option value="3">3 days</option>
@@ -11079,6 +11095,12 @@
             <button type="button" class="tbtn" id="stats-daily-delete-date-btn" onclick="deleteStatsDailyReportFromSettings()" title="Delete the selected date's Daily Traffic data" data-count-collection="stats_daily_traffic" data-count-filter="selected-date" data-count-date-control="stats-daily-delete-date" data-count-label="Daily Traffic report">Delete Date</button>
           </div>
           <div class="stats-daily-archive-note" style="margin-bottom:8px">This cannot be undone. An admin's delete also removes the date's import log; a semi-admin's leaves it in the Logs tab.</div>
+          <div style="margin-bottom:6px">Delete a whole month, including dates the newest-14 window has already scrolled past. Admin only.</div>
+          <div class="stats-daily-archive-row">
+            <input id="stats-daily-delete-month" class="win-inp" type="month" data-premium-date aria-label="Daily Traffic month to delete">
+            <button type="button" class="tbtn" id="stats-daily-delete-month-btn" style="color:var(--red)" onclick="deleteStatsDailyMonth()" title="Delete every Daily Traffic report in this month">Delete Month</button>
+          </div>
+          <div class="stats-daily-archive-note" style="margin-bottom:8px">The month just gone unlocks on the 15th, once the 14-date comparison window has rolled clear of it. If the month has never been archived you are offered a copy first.</div>
           <div style="margin-bottom:5px">Delete every saved Daily Traffic date at once. Admin only.</div>
           <button class="tbtn" id="stats-daily-wipe-btn" style="color:var(--red)" onclick="openWipeAllConfirm('stats-daily')" data-count-collection="stats_daily_traffic" data-count-label="Daily Traffic report">Delete All Daily Traffic</button>
         </div>
@@ -13656,6 +13678,12 @@ const SPAM_CFG_DEFAULTS = {
   madFloorFrac: 0.3,        // spread floor #1 = this × median (stops MAD→0 over-flagging on flat clients)
   absMinSigma: 5,           // spread floor #2 = this absolute amount
   hardFloor: 50,            // ignore-below gate: never flag a 30-min usage below this absolute amount
+  unprofiledFloor: 500,     // fallback for a client with no usable baseline (fewer than minSamples
+                            // prior readings in the window): flag at/above this absolute 30-min
+                            // usage. 0 = never flag an unprofiled client.
+  unprofiledRatio: 5,       // …and the reading must also be at least this many times the client's
+                            // highest previous reading. A client with no previous positive reading
+                            // at all has nothing to compare against, so the floor alone decides.
   sampleCap: 300,           // max recent usage samples kept per client (rolling window)
   maxGapMinutes: 30         // snapshots are meant to be 30 min apart; if the gap to the previous
                             // snapshot EXCEEDS this (a skipped slot / overnight resume) the reading
@@ -13718,6 +13746,8 @@ function syncSpamSettingsUI() {
   set('set-spam-kwatch',  SPAM_CFG.kWatch);
   set('set-spam-khigh',   SPAM_CFG.kHigh);
   set('set-spam-gap',     SPAM_CFG.maxGapMinutes);
+  set('set-spam-unprofiled-floor', SPAM_CFG.unprofiledFloor);
+  set('set-spam-unprofiled-ratio', SPAM_CFG.unprofiledRatio);
   set('set-spam-preset',  detectSpamPreset());
 }
 window.saveSpamSettings = () => {
@@ -13730,6 +13760,8 @@ window.saveSpamSettings = () => {
   SPAM_CFG.kWatch     = Math.max(1, num('set-spam-kwatch', SPAM_CFG_DEFAULTS.kWatch));
   SPAM_CFG.kHigh      = Math.max(SPAM_CFG.kWatch, num('set-spam-khigh', SPAM_CFG_DEFAULTS.kHigh));
   SPAM_CFG.maxGapMinutes = Math.max(0, Math.round(num('set-spam-gap', SPAM_CFG_DEFAULTS.maxGapMinutes)));
+  SPAM_CFG.unprofiledFloor = Math.max(0, num('set-spam-unprofiled-floor', SPAM_CFG_DEFAULTS.unprofiledFloor));
+  SPAM_CFG.unprofiledRatio = Math.max(1, num('set-spam-unprofiled-ratio', SPAM_CFG_DEFAULTS.unprofiledRatio));
   persistSpamCfg();
   const ps = document.getElementById('set-spam-preset'); if (ps) ps.value = detectSpamPreset();
   invalidateUsageProfiles();          // recompute baseline with the new params
@@ -14295,13 +14327,19 @@ window.spamDebug = function (name) {
   const sigma = Math.max(1.4826 * mad, SPAM_CFG.madFloorFrac * med, SPAM_CFG.absMinSigma);
   const sorted = vals.slice().sort((a, b) => a - b);
   const r2 = x => Math.round(x * 100) / 100;
+  // What the unprofiled fallback would compare against. The live check excludes
+  // the reading being judged, so today's samples are left out here too — counting
+  // today's spike would inflate the threshold past the very reading in question.
+  const priorMax = raw.reduce((m, o) => (o && o.d !== today && o.u > m ? o.u : m), 0);
+  const ready = vals.length >= SPAM_CFG.minSamples;
   const out = {
     client: name,
     config: { recentDays: SPAM_CFG.recentDays, kWatch: SPAM_CFG.kWatch, kHigh: SPAM_CFG.kHigh, sustain: SPAM_CFG.sustain,
-              hardFloor: SPAM_CFG.hardFloor, minSamples: SPAM_CFG.minSamples, maxGapMinutes: SPAM_CFG.maxGapMinutes },
+              hardFloor: SPAM_CFG.hardFloor, minSamples: SPAM_CFG.minSamples, maxGapMinutes: SPAM_CFG.maxGapMinutes,
+              unprofiledFloor: SPAM_CFG.unprofiledFloor, unprofiledRatio: SPAM_CFG.unprofiledRatio },
     rawSampleCount: raw.length,
     baselineSampleCount: vals.length,
-    ready: vals.length >= SPAM_CFG.minSamples,
+    ready,
     median: r2(med),
     mean: r2(mean),
     mad: r2(mad),
@@ -14309,6 +14347,11 @@ window.spamDebug = function (name) {
     min: sorted[0], max: sorted[sorted.length - 1],
     flagAt: r2(med + SPAM_CFG.kWatch * sigma),          // a (sustained) reading at/above this trips Watch
     highAt: r2(med + SPAM_CFG.kHigh * sigma),           // …and at/above this trips High
+    // Only meaningful when ready is false — that is when the fallback applies.
+    unprofiledFlagAt: ready ? null
+      : SPAM_CFG.unprofiledFloor > 0
+        ? r2(Math.max(SPAM_CFG.unprofiledFloor, priorMax * SPAM_CFG.unprofiledRatio))
+        : 'off',
     droppedCounts: { today: dropped.today.length, monthStart: dropped.monthStart.length,
                      outsideWindow: dropped.tooOld.length, nonPositive: dropped.nonPositive.length },
     baselineSamples: kept.slice().sort((a, b) => (a.d + a.s < b.d + b.s ? -1 : 1)),
@@ -14323,6 +14366,8 @@ window.spamDebug = function (name) {
    Walk-forward per client — for every reading it rebuilds the baseline from ONLY
    the readings that preceded it (no hindsight), then applies the live robust rule:
      z = (sustained_signal − recentMedian) / sigma ,  flag if z ≥ kWatch.
+   Covers the robust rule ONLY — the unprofiled magnitude fallback that handles
+   clients below minSamples is not replayed here, so counts read low for them.
    Reads the live SPAM_CFG by default; pass overrides to experiment before saving.
    Usage:
      spamProto('CYN TONIK')                         → per-reading flags for one client
@@ -14415,7 +14460,6 @@ function spamCheck(row) {
   const { date, slot } = currentReadingMeta();
   if (isExcludedReading(row?.carrier_name, date, slot)) return null;  // marked as a recurring charge
   const p = getUsageProfiles().get(row?.carrier_name);
-  if (!p || !p.ready) return null;
   const signal = sustainedUsage(row?.carrier_name, u);
   if (signal < SPAM_CFG.hardFloor) return null;               // sustained level still below the ignore-below gate
   // A reading within this client's already-observed range is not a new anomaly.
@@ -14424,22 +14468,49 @@ function spamCheck(row) {
   // handled a larger reading before (for example, 69.19 with a profile max 80.47).
   const maxRef = usageProfileMaxRef(row?.carrier_name, date, slot);
   if (maxRef.profileMax !== null && signal <= maxRef.profileMax) return null;
+  const base = { usage: u, signal, n: p?.n ?? 0,
+                 profileMax: maxRef.profileMax, profileMaxDate: maxRef.profileMaxDate, profileMaxSlot: maxRef.profileMaxSlot };
+  // Too few prior readings for a median/MAD to describe anything. Returning null
+  // here used to make a dormant client PERMANENTLY invisible: readiness needs
+  // minSamples readings inside a rolling recentDays window, so an account that
+  // bills rarely never accumulates them, and its first huge burst — exactly the
+  // spam shape worth catching — was never judged. Fall back to plain magnitude.
+  if (!p || !p.ready) return unprofiledSpamCheck(base);
   const z = p.sigma > 0 ? (signal - p.median) / p.sigma : 0;  // jump measured in the client's own noise units
   if (z >= SPAM_CFG.kWatch) {
     const tier  = z >= SPAM_CFG.kHigh ? 'high' : 'watch';     // High vs Watch
     const ratio = p.median > 0 ? signal / p.median : Infinity;
-    return { usage: u, signal, median: p.median, sigma: p.sigma, z, ratio, n: p.n, tier,
-             profileMax: maxRef.profileMax, profileMaxDate: maxRef.profileMaxDate, profileMaxSlot: maxRef.profileMaxSlot };
+    return { ...base, median: p.median, sigma: p.sigma, z, ratio, tier };
   }
   return null;
+}
+/* Magnitude-only fallback for a client with no usable baseline. There is no
+   median or spread to measure against, so this asks two blunt questions instead:
+   is the reading large in absolute terms, and is it far above anything this
+   client has ever done? profileMax is null for a client with no prior positive
+   reading at all, so the floor alone decides that case. Always Watch tier — no
+   statistical confidence stands behind it, only size — but that is enough to
+   light the Possible Spam tab and the Alerts nav. unprofiledFloor 0 disables it. */
+function unprofiledSpamCheck(base) {
+  const floor = SPAM_CFG.unprofiledFloor;
+  if (!(floor > 0) || base.signal < floor) return null;
+  const ratio = base.profileMax > 0 ? base.signal / base.profileMax : Infinity;
+  if (Number.isFinite(ratio) && ratio < SPAM_CFG.unprofiledRatio) return null;
+  return { ...base, median: null, sigma: null, z: null, ratio, tier: 'watch', unprofiled: true };
 }
 function spamChipInfo(row) {
   const s = row._spamInfo;
   if (!s) return ['none', 'Within normal range'];
   // Show the intuitive multiple plus the robust z (what actually triggered it).
-  const detail = Number.isFinite(s.z)
-    ? `${Number.isFinite(s.ratio) ? s.ratio.toFixed(1) + '× normal · ' : ''}${s.z.toFixed(1)}σ`
-    : 'no prior usage';
+  // An unprofiled finding has no z to quote, so it names what it was judged on
+  // instead — never "× normal", because there is no established normal.
+  const detail = s.unprofiled
+    ? (Number.isFinite(s.ratio)
+        ? `${s.ratio.toFixed(1)}× highest seen · no baseline`
+        : 'first usage on record · no baseline')
+    : Number.isFinite(s.z)
+      ? `${Number.isFinite(s.ratio) ? s.ratio.toFixed(1) + '× normal · ' : ''}${s.z.toFixed(1)}σ`
+      : 'no prior usage';
   return s.tier === 'high'
     ? ['high',   `High spam · ${detail}`]
     : ['medium', `Watch · ${detail}`];
@@ -17127,6 +17198,12 @@ function applyModuleAccess(){
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
   disable('vos-daily-archive-btn', !canArchiveDailyTraffic());
+  // A month delete reaches further than the per-date delete semi-admins may run,
+  // so it stays with the admin-only controls next to Archive and Delete All.
+  disable('stats-daily-delete-month', !admin);
+  disable('stats-daily-delete-month-btn', !admin);
+  disable('vos-daily-delete-month', !admin);
+  disable('vos-daily-delete-month-btn', !admin);
   // Nobody should sit on a module they are not allowed to open — that covers the
   // admin-only Users module and any module the admin has un-ticked for this
   // account. Viewers should never sit on the SMS register tabs.
@@ -18585,9 +18662,17 @@ function alertRows() {
   if(alertFilter==='nothresh') rows=rows.filter(r=>!r._hasThreshold);
   if(alertFilter==='new')      rows=rows.filter(r=>r._isNew);
   if(alertFilter==='spam'){
-    // Rank suspects for triage: High tier first, then by how far above normal (z).
+    // Rank suspects for triage: High tier first, then by how far over the line.
+    // An unprofiled finding carries no z, so it ranks on its multiple of the
+    // client's highest previous reading — without this it sorted as z=0 and sank
+    // below every other Watch row, which is where it would least be noticed.
     const tierOrd = t => t==='high'?2:t==='watch'?1:0;
-    rows.sort((a,b)=> tierOrd(b._spamInfo?.tier)-tierOrd(a._spamInfo?.tier) || (b._spamInfo?.z??0)-(a._spamInfo?.z??0));
+    const SEV_MAX = 1e9;   // finite stand-in: Infinity−Infinity is NaN, which breaks the sort
+    const sev = info => {
+      const v = Number.isFinite(info?.z) ? info.z : info?.ratio;
+      return Number.isFinite(v) ? v : (info ? SEV_MAX : 0);
+    };
+    rows.sort((a,b)=> tierOrd(b._spamInfo?.tier)-tierOrd(a._spamInfo?.tier) || sev(b._spamInfo)-sev(a._spamInfo));
   } else {
     rows.sort((a,b)=>{
       let av=a[alertSortCol],bv=b[alertSortCol];
@@ -25679,6 +25764,67 @@ function vosDailyMonthBounds(month) {
   date.setUTCMonth(date.getUTCMonth() + 1);
   return {start, end:date.toISOString().slice(0, 10)};
 }
+
+/* ---- Month-level delete, shared by Daily Traffic and VOS Daily Traffic ----
+   Both modules compare the newest 14 saved dates, so for the first half of a
+   month the month just gone is still inside that window: on 8 September the
+   window still reaches back to about 26 August, and dropping August would
+   leave the Dashboard and Last 2 Weeks views without the dates they compare
+   against. By the 15th the window has rolled fully into the current month, so
+   that is when the previous month unlocks. Months older than that are already
+   out of the window and are never gated. The gate is calendar-based rather
+   than data-based on purpose — it stays predictable whether or not a date was
+   skipped, and it matches how operators think about the cut-off. */
+const DAILY_MONTH_DELETE_UNLOCK_DAY = 15;
+function dailyPreviousMonth(reference = new Date()) {
+  const date = new Date(Date.UTC(reference.getFullYear(), reference.getMonth(), 1));
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
+}
+// Returns '' when the month may be deleted, otherwise the reason to show.
+function dailyMonthDeleteBlock(month, reference = new Date()) {
+  // Callers validate the month first, but the guard answers for itself so a
+  // blank or malformed value can never read as "nothing is blocking this".
+  if (!/^\d{4}-\d{2}$/.test(String(month || ''))) return 'Select a valid month to delete.';
+  const current = todayStr().slice(0, 7);
+  if (month >= current) return `Only completed months can be deleted. Pick a month before ${current}.`;
+  if (month !== dailyPreviousMonth(reference)) return '';
+  if (reference.getDate() >= DAILY_MONTH_DELETE_UNLOCK_DAY) return '';
+  return `${month} is still inside the 14-date comparison window. It unlocks on the ${DAILY_MONTH_DELETE_UNLOCK_DAY}th of ${current}; deleting it today would leave the Dashboard and Last 2 Weeks views short of their comparison dates.`;
+}
+/* One read: the archive collections stamp archived_month on every document, so
+   a limit(1) match is enough to know whether a copy already exists. Without
+   Firebase the browser mirror answers the same question. */
+async function dailyMonthArchiveExists(cloudCollection, month, localKey) {
+  if (fbOk) {
+    try {
+      const found = await getDocs(query(collection(db, cloudCollection), where('archived_month', '==', month), limit(1)));
+      return !!found.docs.length;
+    } catch(e) { console.warn('daily month archive lookup:', e); return false; }
+  }
+  try {
+    const stored = JSON.parse(localStorage.getItem(localKey) || '[]');
+    return Array.isArray(stored) && stored.some(day => String(day?.session_date || '').slice(0, 7) === month);
+  } catch(e) { return false; }
+}
+/* The shared confirm dialog only has OK and Cancel, so the archive choice
+   rides along as a checkbox in its body and is mirrored into a module-level
+   flag — reading the checkbox back after the dialog closes would depend on
+   markup this code does not own. The box starts ticked, so the recommended
+   path is the one a straight OK takes. */
+let dailyMonthDeleteArchiveFirst = true;
+window.setDailyMonthDeleteArchiveFirst = checked => {
+  dailyMonthDeleteArchiveFirst = !!checked;
+  const ok = document.getElementById('sms-confirm-ok');
+  if (ok) ok.textContent = checked ? 'Archive & Delete' : 'Delete Permanently';
+};
+function dailyMonthArchivePromptHtml(month, count, unit, archiveTarget) {
+  return `<strong>${esc(month)}</strong> has never been archived.<br><br>`
+    + `This removes <strong>${count} ${esc(unit)}${count === 1 ? '' : 's'}</strong> from the active collection.<br><br>`
+    + `<label class="settings-check" style="display:flex;gap:6px;align-items:flex-start;margin:0">`
+    + `<input type="checkbox" id="daily-month-delete-archive-first" checked onchange="setDailyMonthDeleteArchiveFirst(this.checked)">`
+    + `<span>Keep a copy in <strong>${esc(archiveTarget)}</strong> first — recommended, it is the only way back.</span></label>`;
+}
 function loadVosTrafficLocal() {
   try {
     const saved = JSON.parse(localStorage.getItem(VOS_TRAFFIC_LOCAL_KEY) || 'null');
@@ -26055,6 +26201,67 @@ window.archiveVosDailyMonth=async()=>{
     renderAllVosDailyTrafficViews();
     toast(`Archived ${archivedDays.length} VOS Daily Traffic report${archivedDays.length===1?'':'s'} from ${month}.`,'ok',7000);
   }catch(e){console.warn('archive VOS Daily Traffic month:',e);toast('VOS Daily Traffic archive failed: '+e.message,'err',8000);}
+};
+/* Delete a whole month. Unlike Archive, this reads the month straight out of
+   Firestore by session_date range, so it also reaches any date the rolling
+   14-report window has already scrolled past. Admin only — a month is a wider
+   blast radius than the per-date delete semi-admins may run. */
+window.deleteVosDailyMonth=async()=>{
+  if(!isAdmin()){toast('Only admins can delete a VOS Daily Traffic month.','err');return;}
+  const month=document.getElementById('vos-daily-delete-month')?.value||'',bounds=vosDailyMonthBounds(month);
+  if(!bounds){toast('Select a valid month to delete.','err');return;}
+  const blocked=dailyMonthDeleteBlock(month);
+  if(blocked){toast(blocked,'err',9000);return;}
+  setLoading(true,`Checking VOS Daily Traffic for ${month}…`);
+  let cloudDocs=[],localDays=[];
+  try{
+    if(fbOk){
+      const monthQuery=query(collection(db,VOS_DAILY_CLOUD_COLLECTION),where('session_date','>=',bounds.start),where('session_date','<',bounds.end));
+      cloudDocs=(await getDocs(monthQuery)).docs;
+    } else localDays=vosDailyHistory.filter(day=>day.session_date>=bounds.start&&day.session_date<bounds.end);
+  }catch(e){toast(`Could not read VOS Daily Traffic for ${month}: ${e.message}`,'err',8000);return;}
+  finally{setLoading(false);}
+  const count=fbOk?cloudDocs.length:localDays.length;
+  if(!count){toast(`No active VOS Daily Traffic reports were found for ${month}.`,'ok',6000);return;}
+  const archived=await dailyMonthArchiveExists(VOS_DAILY_ARCHIVE_CLOUD_COLLECTION,month,VOS_TRAFFIC_ARCHIVE_LOCAL_KEY);
+  dailyMonthDeleteArchiveFirst=!archived;
+  const approved=archived
+    ?await confirmPremiumAction({
+      title:'Delete VOS Daily Traffic Month',
+      html:`Delete <strong>${count} VOS Daily Traffic report${count===1?'':'s'}</strong> from <strong>${stEsc(month)}</strong>?<br><br>${stEsc(month)} is already archived, so that copy stays. The active reports go for every operator and cannot be recovered from here.`,
+      label:'Delete Month'})
+    :await confirmPremiumAction({
+      title:'Archive before deleting?',
+      html:dailyMonthArchivePromptHtml(month,count,'VOS Daily Traffic report',VOS_DAILY_ARCHIVE_CLOUD_COLLECTION),
+      label:'Archive & Delete'});
+  if(!approved)return;
+  const keepCopy=!archived&&dailyMonthDeleteArchiveFirst;
+  setLoading(true,`Deleting VOS Daily Traffic for ${month}…`);
+  try{
+    if(fbOk){
+      // A month is at most 31 dates, so archive + delete stays well inside one batch.
+      const batch=writeBatch(db),archivedAt=Timestamp.now();
+      cloudDocs.forEach(entry=>{
+        if(keepCopy)batch.set(doc(db,VOS_DAILY_ARCHIVE_CLOUD_COLLECTION,entry.id),{...entry.data(),archived_month:month,archived_at:archivedAt,archived_by:operatorName||currentUserEmail||''});
+        batch.delete(doc(db,VOS_DAILY_CLOUD_COLLECTION,entry.id));
+      });
+      await batch.commit();
+    }
+    if(keepCopy){
+      const days=fbOk?cloudDocs.map(vosDailyCloudDay):localDays;
+      const existing=JSON.parse(localStorage.getItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY)||'[]'),merged=new Map((Array.isArray(existing)?existing:[]).map(day=>[day.session_date,day]));
+      days.forEach(day=>merged.set(day.session_date,{...day,archived_month:month,archived_at:new Date().toISOString(),archived_by:operatorName||''}));
+      localStorage.setItem(VOS_TRAFFIC_ARCHIVE_LOCAL_KEY,JSON.stringify([...merged.values()]));
+    }
+    vosDailyHistory=vosDailyHistory.filter(day=>day.session_date<bounds.start||day.session_date>=bounds.end);
+    vosSelectedDate=vosSortedHistory().slice(-1)[0]?.session_date||'';
+    saveVosTrafficLocal();
+    const status=document.getElementById('vos-file-status');if(status)delete status.dataset.current;
+    vosTrafficImportDateAutoTrack=true;syncVosDailyImportDate(true);
+    renderAllVosDailyTrafficViews();
+    toast(`Deleted ${count} VOS Daily Traffic report${count===1?'':'s'} from ${month}${keepCopy?' · archived copy kept':''}.`,'ok',7000);
+  }catch(e){console.warn('delete VOS Daily Traffic month:',e);toast('VOS Daily Traffic month delete failed: '+e.message,'err',8000);}
+  finally{setLoading(false);}
 };
 window.clearVosDailyHistory=async()=>{
   if(!isAdmin()){toast('Only admins can delete VOS Daily Traffic history.','err');return;}
@@ -26894,6 +27101,91 @@ window.archiveStatsDailyMonth = async () => {
   } catch(e) {
     console.warn('archive Daily Traffic month:', e);
     toast('Daily Traffic archive failed: ' + e.message, 'err', 8000);
+  } finally {
+    setLoading(false);
+  }
+};
+
+/* Delete a whole month. The range query is on the collection rather than on
+   the loaded history, so this also clears the dates the 14-report window has
+   already scrolled past — the ones that otherwise sit in Firestore unread and
+   only ever surface in the full-collection scan behind Delete All. Admin only:
+   a month is a wider blast radius than the per-date delete semi-admins run. */
+window.deleteStatsDailyMonth = async () => {
+  if (!isAdmin()) { toast('Only admins can delete a Daily Traffic month.', 'err'); return; }
+  const month = document.getElementById('stats-daily-delete-month')?.value || '';
+  const bounds = statsDailyMonthBounds(month);
+  if (!bounds) { toast('Select a valid month to delete.', 'err'); return; }
+  const blocked = dailyMonthDeleteBlock(month);
+  if (blocked) { toast(blocked, 'err', 9000); return; }
+  setLoading(true, `Checking Daily Traffic for ${month}…`);
+  let cloudDocs = [], localDays = [];
+  try {
+    if (fbOk) {
+      const monthQuery = query(
+        collection(db, 'stats_daily_traffic'),
+        where('session_date', '>=', bounds.start),
+        where('session_date', '<', bounds.end)
+      );
+      cloudDocs = (await getDocs(monthQuery)).docs;
+    } else {
+      localDays = statsDailyHistory.filter(day => day.session_date >= bounds.start && day.session_date < bounds.end);
+    }
+  } catch(e) {
+    toast(`Could not read Daily Traffic for ${month}: ${e.message}`, 'err', 8000);
+    return;
+  } finally {
+    setLoading(false);
+  }
+  const count = fbOk ? cloudDocs.length : localDays.length;
+  if (!count) { toast(`No active Daily Traffic reports were found for ${month}.`, 'ok', 6000); return; }
+  const archived = await dailyMonthArchiveExists('stats_daily_traffic_archive', month, 'bm_stats_daily_archive');
+  dailyMonthDeleteArchiveFirst = !archived;
+  const approved = archived
+    ? await confirmPremiumAction({
+        title:'Delete Daily Traffic Month',
+        html:`Delete <strong>${count} Daily Traffic report${count === 1 ? '' : 's'}</strong> from <strong>${esc(month)}</strong>?<br><br>${esc(month)} is already archived, so that copy stays. The active reports leave every comparison and cannot be recovered from here.`,
+        label:'Delete Month' })
+    : await confirmPremiumAction({
+        title:'Archive before deleting?',
+        html:dailyMonthArchivePromptHtml(month, count, 'Daily Traffic report', 'stats_daily_traffic_archive'),
+        label:'Archive & Delete' });
+  if (!approved) return;
+  const keepCopy = !archived && dailyMonthDeleteArchiveFirst;
+  setLoading(true, `Deleting Daily Traffic for ${month}…`);
+  try {
+    if (fbOk) {
+      // A month is at most 31 dates, so archive + delete stays well inside one batch.
+      const batch = writeBatch(db), archivedAt = Timestamp.fromDate(new Date());
+      cloudDocs.forEach(entry => {
+        if (keepCopy) {
+          batch.set(doc(db, 'stats_daily_traffic_archive', entry.id), {
+            ...entry.data(),
+            archived_month:month,
+            archived_at:archivedAt,
+            archived_by:operatorName || '',
+          });
+        }
+        batch.delete(doc(db, 'stats_daily_traffic', entry.id));
+      });
+      await batch.commit();
+    } else if (keepCopy) {
+      const existing = JSON.parse(localStorage.getItem('bm_stats_daily_archive') || '[]');
+      const merged = new Map((Array.isArray(existing) ? existing : []).map(day => [day.session_date, day]));
+      localDays.forEach(day => merged.set(day.session_date, { ...day, archived_month:month, archived_at:new Date().toISOString(), archived_by:operatorName || '' }));
+      localStorage.setItem('bm_stats_daily_archive', JSON.stringify([...merged.values()]));
+    }
+    statsDailyHistory = statsDailyHistory.filter(day => day.session_date < bounds.start || day.session_date >= bounds.end);
+    statsDailySelectedDate = statsDailySortedHistory().slice(-1)[0]?.session_date || '';
+    saveStatsDailyLocal();
+    syncStatsDailyImportDate(true);
+    renderStatsDailyTraffic();
+    renderStatsDailyLogs();
+    renderStatsTables();
+    toast(`Deleted ${count} Daily Traffic report${count === 1 ? '' : 's'} from ${month}${keepCopy ? ' · archived copy kept' : ''}.`, 'ok', 7000);
+  } catch(e) {
+    console.warn('delete Daily Traffic month:', e);
+    toast('Daily Traffic month delete failed: ' + e.message, 'err', 8000);
   } finally {
     setLoading(false);
   }
@@ -29315,6 +29607,14 @@ async function initStats() {
   if (dailyArchiveMonth && !dailyArchiveMonth.value) dailyArchiveMonth.value = statsDailyDefaultArchiveMonth();
   const vosArchiveMonth = document.getElementById('vos-daily-archive-month');
   if (vosArchiveMonth && !vosArchiveMonth.value) vosArchiveMonth.value = vosDailyDefaultArchiveMonth();
+  // The month people actually come here to remove is the one just gone, so both
+  // delete boxes default to it. Before the 15th the guard explains the wait
+  // rather than the box quietly pointing somewhere else.
+  const defaultDeleteMonth = dailyPreviousMonth();
+  ['stats-daily-delete-month','vos-daily-delete-month'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input && !input.value) input.value = defaultDeleteMonth;
+  });
   dailyImportDate?.addEventListener('change', () => { statsDailyImportDateAutoTrack = false; });
   // Same for the VOS Traffic Date: a hand-pick holds until the next upload re-anchors it.
   document.getElementById('vos-traffic-date')?.addEventListener('change', () => { vosTrafficImportDateAutoTrack = false; });
