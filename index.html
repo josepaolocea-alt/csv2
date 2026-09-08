@@ -20227,6 +20227,59 @@ function smsBalanceNumber(v) {
   const n = amountNumber(v);
   return Number.isFinite(n) ? n : 0;
 }
+/* ── Usage resolution ──────────────────────────────────────────────────────
+   Two balance readings can only reveal a movement as large as the COARSER of
+   their two precisions. A balance quoted to 2 dp cannot express a 0.005 change,
+   so a sub-cent difference against a 4-dp reading is not usage — it is the
+   residue of the very same balance re-quoted with fewer decimals. Phoenix
+   truncates rather than rounds, so -5.0083 comes back as -5.01 and leaves
+   0.0017 of phantom "usage" on that row, and up to 0.0099 on every other row of
+   the report at the same time. That phantom filled Usage and Inactive w/ Usage
+   with clients that had sent nothing, and — because posting also writes them
+   into the persistent Inactive w/ Usage History, which survives snapshot wipes —
+   it reappeared after every clear.
+   Genuine sub-cent usage is still kept in full whenever BOTH readings carry
+   sub-cent precision; only differences finer than the resolution the data
+   actually has are discarded. */
+const SMS_BALANCE_MAX_USAGE_DECIMALS = 6;
+function smsBalanceDecimals(value) {
+  if (!Number.isFinite(value)) return 0;
+  const text = String(value);
+  if (text.includes('e') || text.includes('E')) return SMS_BALANCE_MAX_USAGE_DECIMALS;
+  const dot = text.indexOf('.');
+  return dot < 0 ? 0 : Math.min(text.length - dot - 1, SMS_BALANCE_MAX_USAGE_DECIMALS);
+}
+/* Precision of the whole report, never of a single row: one client sitting on a
+   round 100 balance must not make a 4-dp report look like whole-dollar data. */
+function smsBalanceReportDecimals(rows) {
+  let decimals = 0;
+  (rows || []).forEach(row => {
+    const balance = row?.balance;
+    if (balance === null || balance === undefined || balance === '') return;
+    decimals = Math.max(decimals, smsBalanceDecimals(smsBalanceNumber(balance)));
+  });
+  return decimals;
+}
+function smsBalanceUsageDecimals(rows, previousRows) {
+  const current = smsBalanceReportDecimals(rows);
+  return previousRows?.length ? Math.min(current, smsBalanceReportDecimals(previousRows)) : current;
+}
+function smsBalanceRealUsage(usage, decimals) {
+  const value = smsBalanceNumber(usage);
+  if (!Number.isFinite(value) || !value) return 0;
+  /* Anything smaller than one unit of the coarser report is a re-quoting
+     residue, never a movement — a residue is by definition under one unit and a
+     real movement is at least one. Compared below the unit rather than rounded
+     to it, because rounding would promote a 0.005 residue to a phantom cent.
+     The epsilon keeps a true 0.01 that subtracts to 0.009999999999999787 on the
+     signal side of the line. */
+  if (Math.abs(value) * Math.pow(10, decimals) + 1e-6 < 1) return 0;
+  /* Surviving values are only cleared of binary-float debris
+     (0.004000000000132786 → 0.004), never quantised to the resolution: a
+     difference of two quoted balances is exact at this width, so real magnitude
+     is kept intact. */
+  return Number(value.toFixed(SMS_BALANCE_MAX_USAGE_DECIMALS));
+}
 function smsBalanceRouteKey(row) {
   return [smsBalanceSource(row?.source), row?.account_type, row?.client, row?.email, row?.number]
     .map(v => smsBalanceCleanText(v).toUpperCase()).join('|');
@@ -20521,13 +20574,19 @@ function smsBalanceMatchingPhoenixRows(row) {
   const key = smsBalanceRouteNameKey(row?.client);
   return (smsDataByTab.phoenix || []).filter(route => smsBalanceRouteNameKey(route.client) === key);
 }
+/* Snapshots posted before usage became resolution-aware still carry the stored
+   phantom, so every view re-tests it here against the snapshot's own balance
+   precision — a movement finer than these balances can express was never real.
+   Repairs the stored rows in place of a migration; nothing is rewritten. */
 function smsBalanceRows() {
-  return (smsBalanceLatest?.data || []).filter(row => row?.client).map(row => {
+  const snapshot = smsBalanceLatest?.data || [];
+  const decimals = smsBalanceReportDecimals(snapshot);
+  return snapshot.filter(row => row?.client).map(row => {
     const status = smsBalanceStatus(row);
     const meta = smsBalanceMetaFor(row);
     const matches = smsBalanceMatchingPhoenixRows(row);
     const routeBlocked = matches.some(route => route.status === 'Inactive' || /blocked/i.test(route.overdraft));
-    return { ...row, _hasSnapshot:true, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:routeBlocked };
+    return { ...row, usage_30min:smsBalanceRealUsage(row.usage_30min, decimals), _hasSnapshot:true, _status:status, _meta:meta, _routeMatches:matches.length, _routeBlocked:routeBlocked };
   });
 }
 function smsBalanceRosterRows() {
@@ -21573,14 +21632,17 @@ function resetSmsBalanceDiscoveryFilters() {
   ['sms-bal-status-filter','sms-bal-manager-type-filter','sms-bal-manager-status-filter','sms-bal-manager-account-filter','sms-bal-type-filter','sms-bal-alert-source'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const managerType=document.getElementById('sms-bal-manager-type-filter');if(managerType)managerType.dataset.ready='true';
 }
-/* Do NOT round or threshold this difference to cents. Balances are carried to 3-4
+/* Do NOT flatten this difference to whole cents. Balances are carried to 3-4
    decimals and a single SMS charge is a fraction of a cent, so sub-cent usage is
-   real signal — it is exactly what Inactive w/ Usage exists to catch. A phantom
-   sub-cent usage across the whole report means the pasted balances were truncated
-   to 2dp; fix the paste, not the arithmetic. */
+   real signal — it is exactly what Inactive w/ Usage exists to catch. The one
+   thing discarded is a difference finer than the two reports can actually
+   resolve, which is a re-quoting artifact rather than traffic; see the usage
+   resolution helpers above. */
 function computeSmsBalanceUsage(rows, previous) {
-  const prevMap=new Map((previous?.data||[]).map(row=>[smsBalanceRouteKey(row),row]));
-  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?smsBalanceNumber(prev.balance)-row.balance:0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
+  const previousRows=previous?.data||[];
+  const prevMap=new Map(previousRows.map(row=>[smsBalanceRouteKey(row),row]));
+  const decimals=smsBalanceUsageDecimals(rows,previousRows);
+  return rows.map(raw=>{const row=smsBalanceNormalizeRow(raw,raw.source),prev=prevMap.get(smsBalanceRouteKey(row));const usage=prev?smsBalanceRealUsage(smsBalanceNumber(prev.balance)-row.balance,decimals):0;return{...row,usage_30min:usage,total_usage:prev?smsBalanceNumber(prev.total_usage)+usage:0};});
 }
 function smsBalanceWideGap(gapMinutes) { return Number.isFinite(gapMinutes)&&gapMinutes>30; }
 async function persistSmsPhoenixRoutes() {
@@ -21611,8 +21673,12 @@ function smsBalanceHistoryStateMap(snap) {
 }
 function smsBalanceInactiveUsageEntries(snap) {
   const byClient=new Map();
+  // Re-tested against the snapshot's own balance precision before anything is
+  // written: this history outlives snapshot wipes, so one phantom row admitted
+  // here comes back on every clear.
+  const decimals=smsBalanceReportDecimals(snap?.data);
   (snap?.data||[]).forEach(raw=>{
-    const row=smsBalanceNormalizeRow(raw,raw.source),meta=smsBalanceMetaFor(row),usage=smsBalanceNumber(row.usage_30min);
+    const row=smsBalanceNormalizeRow(raw,raw.source),meta=smsBalanceMetaFor(row),usage=smsBalanceRealUsage(row.usage_30min,decimals);
     if(meta?.is_active!==false||usage<=0)return;
     const key=smsBalanceMetaKey(row),prior=byClient.get(key);
     if(prior){prior.row.usage_30min+=usage;prior.row.balance=row.balance;prior.row.overdraft=row.overdraft;return;}
