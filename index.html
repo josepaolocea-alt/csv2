@@ -737,6 +737,17 @@
       border-color: transparent; font-weight: 600;
       animation: alertPulse 1.6s ease-in-out infinite;
     }
+    /* The rail leaf mirrors #tnav-alerts (see the shell controller's sync).
+       The toolbar is hidden in this layout, so without this the critical
+       state had no visible target in the navigation at all. Scoped to
+       #app-nav so it outranks the later theme rule for .nav-leaf.is-active —
+       the Alerts leaf is usually both flashing AND the current view. */
+    #app-nav .nav-leaf.critical-flash {
+      background: var(--red); color: #fff !important;
+      border-color: transparent; font-weight: 600;
+      animation: alertPulse 1.6s ease-in-out infinite;
+    }
+    #app-nav .nav-leaf.critical-flash.is-active::before { background: #fff; }
 
     /* ── New Critical tab & row styles ── */
     #alert-tabs #tab-new-critical { color: var(--orange); font-weight: 600; }
@@ -2270,6 +2281,17 @@
     }
     .sms-cred-topbar { display:flex; align-items:center; gap:8px; flex:none; flex-wrap:wrap; }
     .sms-cred-topbar-actions { display:flex; align-items:center; gap:6px; margin-left:auto; }
+    /* Figures for the left of the topbar, where the hidden subtabs used to sit.
+       Same pill language as .sms-cred-sync on the right, so the row reads as one
+       header rather than two unrelated clusters. */
+    .sms-cred-stats { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
+    .sms-cred-stat {
+      display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 9px;
+      border:1px solid var(--border); border-radius:999px; background:var(--surface-2);
+      color:var(--text-2); font-size:10px; font-weight:700; white-space:nowrap;
+    }
+    .sms-cred-stat b { color:var(--text); font-weight:800; }
+    #sms-cred-count { color:var(--text); }
     .sms-cred-sync {
       display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:0 8px;
       border:1px solid var(--border); border-radius:999px; background:var(--surface-2);
@@ -9614,7 +9636,7 @@
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-critical-history">
-                    <div class="fbar"><input class="win-search" id="sms-bal-critical-history-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceHistory()"><button class="tbtn" onclick="exportSmsBalanceHistoryCsv()">Export</button></div>
+                    <div class="fbar"><span class="sms-muted">Every client seen at Critical Balance or Blocked in a posted snapshot — kept in a separate store that survives deleting snapshots. Clear it in Settings → Danger Zone.</span><input class="win-search" id="sms-bal-critical-history-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceHistory()" style="margin-left:auto"><button class="tbtn" id="sms-bal-critical-history-restore-btn" onclick="restoreDismissedSmsBalanceHistory()" data-premium-tooltip="Clients you removed while they were still critical are held out until they recover. Restore them all now." style="display:none;color:var(--text-2)">Dismissed: 0</button><button class="tbtn" onclick="exportSmsBalanceHistoryCsv()">Export</button></div>
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-critical-history-tbody"></tbody></table></div>
                   </section>
 
@@ -9783,7 +9805,21 @@
                   <button type="button" class="sms-cred-subtab active" id="sms-cred-subtab-register" onclick="switchSmsCredentialSubtab('register')">Credential Register</button>
                   <button type="button" class="sms-cred-subtab" id="sms-cred-subtab-otp" onclick="switchSmsCredentialSubtab('otp')">Manual OTP</button>
                 </div>
+                <!-- The rail owns Register / Manual-OTP navigation, so the in-panel
+                     subtabs above are hidden and this row sat empty but for the sync
+                     pill. It carries the register's at-a-glance figures and the
+                     workbook actions instead, which also lets the filter bar below
+                     stay a single row rather than wrapping onto three. -->
+                <div class="sms-cred-stats" id="sms-cred-stats">
+                  <span class="sms-cred-stat" id="sms-cred-count">0 credentials</span>
+                  <span class="sms-cred-stat" id="sms-cred-stat-otp" data-premium-tooltip="Credentials with an OTP secret key saved — these can generate a one-time password here.">OTP ready 0</span>
+                  <span class="sms-cred-stat" id="sms-cred-stat-platforms" data-premium-tooltip="Distinct platforms across the saved credentials.">0 platforms</span>
+                </div>
                 <div class="sms-cred-topbar-actions">
+                  <input type="file" id="sms-cred-workbook-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importSmsCredentialWorkbook(this.files[0]); this.value=''">
+                  <button class="tbtn" onclick="document.getElementById('sms-cred-workbook-file').click()" data-premium-tooltip="Import all credential rows from the attached workbook format">Import Workbook</button>
+                  <button class="tbtn" onclick="downloadSmsCredentialSample()" data-premium-tooltip="Download an Excel workbook with the exact supported import headers">Sample Import File</button>
+                  <button class="tbtn" onclick="exportSmsCredentialView()" data-premium-tooltip="Export only the rows currently shown by the filters">Export View</button>
                   <span class="sms-cred-sync local" id="sms-cred-sync-status" role="status" aria-live="polite" title="Credential records are currently available from this browser's local cache.">Local only</span>
                 </div>
               </div>
@@ -9844,11 +9880,6 @@
                 <select class="win-inp" id="sms-cred-filter-platform" onchange="renderSmsCredentials()"><option value="">All Platforms</option></select>
                 <button class="tbtn" onclick="renderSmsCredentials()">Search</button>
                 <button class="tbtn" onclick="clearSmsCredentialFilters()">Clear</button>
-                <input type="file" id="sms-cred-workbook-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importSmsCredentialWorkbook(this.files[0]); this.value=''">
-                <button class="tbtn" onclick="document.getElementById('sms-cred-workbook-file').click()" title="Import all credential rows from the attached workbook format">Import Workbook</button>
-                <button class="tbtn" onclick="downloadSmsCredentialSample()" title="Download an Excel workbook with the exact supported import headers">Sample Import File</button>
-                <button class="tbtn" onclick="exportSmsCredentialView()" title="Export only the rows currently shown by the filters">Export View</button>
-                <span class="sms-muted" id="sms-cred-count">0 credentials</span>
               </div>
               <div class="lv-wrap" style="flex:1">
                 <table id="sms-credentials-tbl">
@@ -9983,6 +10014,10 @@
               <div class="stat-box"><div class="sv" id="st-sum-completed">—</div><div class="sl">Total Completed</div></div>
               <div class="stat-box s-high"><div class="sv" id="st-sum-persist">—</div><div class="sl">Persistent issues</div></div>
               <div class="stat-box"><div class="sv" id="st-sum-new">—</div><div class="sl">New clients</div></div>
+            </div>
+            <div class="fbar">
+              <input id="st-search-summary" class="win-inp" placeholder="Search the four lists below…" oninput="renderStatsSummary()" style="width:250px" data-premium-tooltip="Filters Persistent Problems, Performing Bad, New Clients and Performing Well by client, account code or destination">
+              <span class="sms-muted" id="st-search-summary-note" style="margin-left:auto"></span>
             </div>
             <div class="legend" style="margin-top:4px">
               <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Critical — 0 ASR &amp; 0 ACD with &gt;500 attempts</div>
@@ -10144,6 +10179,10 @@
             </div>
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">0 ASR &amp; 0 ACD with more than 500 call attempts.</div>
+          <div class="fbar">
+            <input id="st-search-critical" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsTables()" style="width:250px">
+            <span class="sms-muted" id="st-search-critical-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10171,6 +10210,10 @@
             </div>
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR below 10, with more than 30 call attempts.</div>
+          <div class="fbar">
+            <input id="st-search-low" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsTables()" style="width:250px">
+            <span class="sms-muted" id="st-search-low-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10198,6 +10241,10 @@
             </div>
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR below 10, but 30 or fewer call attempts — often just new.</div>
+          <div class="fbar">
+            <input id="st-search-watch" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsTables()" style="width:250px">
+            <span class="sms-muted" id="st-search-watch-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10225,6 +10272,10 @@
             </div>
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR between 10 and 20, all call attempts.</div>
+          <div class="fbar">
+            <input id="st-search-ok" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsTables()" style="width:250px">
+            <span class="sms-muted" id="st-search-ok-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10252,6 +10303,10 @@
             </div>
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">ASR 21 and up, all call attempts.</div>
+          <div class="fbar">
+            <input id="st-search-good" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsTables()" style="width:250px">
+            <span class="sms-muted" id="st-search-good-note" style="margin-left:auto"></span>
+          </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap"><table>
               <thead><tr>
@@ -10280,6 +10335,7 @@
           </div>
           <div class="ui-text-micro" style="color:var(--text-2);padding:2px 4px 4px">Derived from today's saved Stats snapshots only. Each later snapshot where a previously seen route is missing adds one Hours Stopped count; records remain until all Stats snapshots are cleared.</div>
           <div class="fbar">
+            <input id="st-search-stopped" class="win-inp" placeholder="Search client, account code or destination…" oninput="renderStatsStopped()" style="width:250px">
             <button class="tbtn" id="st-stopped-toggle-did" onclick="toggleStatsStoppedDID()" title="Show stopped account codes containing -DID">Show -DID</button>
             <span class="sms-muted" id="st-stopped-filter-note" style="margin-left:auto"></span>
           </div>
@@ -10345,7 +10401,7 @@
       <div class="view" id="view-stats-logs">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Stats Snapshot Logs</div>
-          <div class="fbar"><span class="sms-muted">Persistent audit trail of hourly Stats snapshots, including the authenticated posting user.</span><button class="tbtn" onclick="renderStatsSnapshotLogs()">Refresh</button></div>
+          <div class="fbar"><span class="sms-muted">Persistent audit trail of hourly Stats snapshots, including the authenticated posting user.</span><input id="st-search-logs" class="win-inp" placeholder="Search date, slot or posted by…" oninput="renderStatsSnapshotLogs()" style="width:230px;margin-left:auto"><button class="tbtn" onclick="renderStatsSnapshotLogs()">Refresh</button></div>
           <div class="lv-wrap"><table><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-logs-tbody"></tbody></table></div>
           <div class="sms-muted" id="stats-logs-count">No Stats logs yet.</div>
         </div>
@@ -11734,9 +11790,20 @@ const smsSubscribedTabs = new Set();
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalancePriorSnap = null, smsBalancePriorLoaded = false, smsBalancePriorUnsubscribe = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [], smsBalanceInactiveUsageHistory = [];
+/* Clients removed from SMS Critical History with the per-row trash button while
+   they were still critical. Mirrors the VOIP dismissal list: a dismissed client
+   is not re-logged while it stays critical, and is un-dismissed automatically
+   the first time a snapshot shows it out of critical, so a later hit is logged
+   again as a genuinely new one. Held in one doc
+   (sms_balance_history_meta/suppressed → { keys: { <docId>: meta_key } }) so it
+   survives reloads and snapshot wipes, same as the history itself. */
+let smsBalanceHistorySuppressed = new Set();
+let smsBalanceHistorySuppLoaded = false;
 // A full snapshot wipe intentionally makes the next post a fresh transition
 // baseline. Existing Critical / No-Threshold clients remain visible in their
 // current tabs, but are not replayed into persistent history as newly detected.
+// Critical History is exempt: it is a state log, so the baseline post still
+// records every client sitting at Critical / Blocked (see recordSmsBalanceHistories).
 let smsBalanceSeedAfterClear = localStorage.getItem('bm_sms_balance_seed_after_clear') === '1';
 let smsBalanceFreshBaselineKey = localStorage.getItem('bm_sms_balance_fresh_baseline_key') || '';
 function setSmsBalanceSeedAfterClear(on) {
@@ -11772,7 +11839,8 @@ let smsBalanceSubscriptionsStarted = false;
 const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','inactive-usage-history','settings']);
 const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
 const SMS_BALANCE_LOCAL = {
-  snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold', inactiveUsage:'bm_sms_balance_inactive_usage_history'
+  snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold', inactiveUsage:'bm_sms_balance_inactive_usage_history',
+  historySuppressed:'bm_sms_balance_history_suppressed'
 };
 let SBS = { nearPct:10, retentionDays:30, soundAlert:true, requireClientThresholds:false };
 
@@ -12333,6 +12401,13 @@ function openPremiumSelect(select, focusMenu=false) {
 
 function enhancePremiumSelect(select) {
   if (!(select instanceof HTMLSelectElement) || select.multiple || select.dataset.premiumReady) return;
+  // The MutationObserver below runs a microtask after the DOM change, so a
+  // select can already be detached by the time we get here — renderPager() and
+  // friends rewrite a container's innerHTML twice in one task. Enhancing a
+  // parentless node threw, and the throw aborted the rest of the observer's
+  // batch, leaving later selects on the page unstyled. Skip it and stay
+  // un-marked so the replacement select still gets enhanced.
+  if (!select.parentNode) return;
   select.dataset.premiumReady = 'true';
   const wrapper = document.createElement('span');
   wrapper.className = 'premium-select';
@@ -12376,7 +12451,9 @@ function initPremiumSelects() {
   const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
       mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) enhancePremiumSelects(node);
+        // One bad node must not cost the rest of the batch its enhancement.
+        try { if (node.nodeType === Node.ELEMENT_NODE) enhancePremiumSelects(node); }
+        catch (e) { console.warn('premium select enhance skipped:', e); }
       });
       const select = mutation.target instanceof HTMLSelectElement
         ? mutation.target : mutation.target.parentElement?.closest?.('select');
@@ -12710,8 +12787,7 @@ window.switchModule = module => {
     statsViewingSlot = null;
     statsSortCol = 'attempts';
     statsSortDir = -1;
-    const statsSearch = document.getElementById('st-search');
-    if (statsSearch) statsSearch.value = '';
+    clearStatsSearchBoxes();
     const statsFlagFilter = document.getElementById('st-flag-filter');
     if (statsFlagFilter) {
       statsFlagFilter.value = 'all';
@@ -20553,6 +20629,7 @@ function loadSmsBalanceLocal() {
   try { smsBalanceHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.history) || '[]') || []; } catch(e) { smsBalanceHistory = []; }
   try { smsBalanceNoThreshold = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.noThreshold) || '[]') || []; } catch(e) { smsBalanceNoThreshold = []; }
   try { smsBalanceInactiveUsageHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.inactiveUsage) || '[]') || []; } catch(e) { smsBalanceInactiveUsageHistory = []; }
+  try { smsBalanceHistorySuppressed = new Set(JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.historySuppressed) || '[]') || []); } catch(e) { smsBalanceHistorySuppressed = new Set(); }
   try { SBS = { ...SBS, ...JSON.parse(localStorage.getItem('bm_sms_balance_settings') || '{}') }; } catch(e) {}
   smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
 }
@@ -20563,7 +20640,34 @@ function saveSmsBalanceLocal() {
     localStorage.setItem(SMS_BALANCE_LOCAL.history, JSON.stringify(smsBalanceHistory));
     localStorage.setItem(SMS_BALANCE_LOCAL.noThreshold, JSON.stringify(smsBalanceNoThreshold));
     localStorage.setItem(SMS_BALANCE_LOCAL.inactiveUsage, JSON.stringify(smsBalanceInactiveUsageHistory));
+    localStorage.setItem(SMS_BALANCE_LOCAL.historySuppressed, JSON.stringify([...smsBalanceHistorySuppressed]));
   } catch(e) {}
+}
+/* ── SMS Critical History dismissal (suppression) list ──────────────────── */
+const smsBalanceHistorySuppRef = () => doc(db, 'sms_balance_history_meta', 'suppressed');
+function smsBalanceHistorySuppCount() { return smsBalanceHistorySuppressed ? smsBalanceHistorySuppressed.size : 0; }
+function smsBalanceHistorySuppSetFromDoc(snapshot) {
+  const set = new Set();
+  const keys = snapshot?.exists?.() && snapshot.data()?.keys ? snapshot.data().keys : {};
+  Object.values(keys).forEach(key => { if (key) set.add(key); });
+  return set;
+}
+async function loadSmsBalanceHistorySuppressed() {
+  if (smsBalanceHistorySuppLoaded || !fbOk) return;
+  try {
+    const snapshot = await getDoc(smsBalanceHistorySuppRef());
+    smsBalanceHistorySuppressed = smsBalanceHistorySuppSetFromDoc(snapshot);
+    smsBalanceHistorySuppLoaded = true;
+    saveSmsBalanceLocal();
+  } catch (e) { /* non-fatal: dismissals just won't be honoured this session */ }
+}
+async function persistSmsBalanceHistorySuppressed() {
+  saveSmsBalanceLocal();
+  if (!fbOk) return;
+  const keys = {};
+  (smsBalanceHistorySuppressed || new Set()).forEach(key => { if (key) keys[smsBalanceDocId(key)] = key; });
+  try { await setDoc(smsBalanceHistorySuppRef(), { keys, updated_at: Timestamp.now() }); }
+  catch (e) { /* non-fatal */ }
 }
 /* Snapshot Slot follows the posted data, not the wall clock: it sits on the slot
    after the latest one saved today, which is the same slot the 30-min timeline
@@ -21215,9 +21319,15 @@ function renderSmsBalanceLogs() {
 }
 function renderStatsSnapshotLogs(){
   const body=document.getElementById('stats-logs-tbody'),count=document.getElementById('stats-logs-count');if(!body)return;
-  const rows=mergeSnapshotAuditRows('stats');
-  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join(''):smsBalanceEmptyRow(6,'No Stats snapshot audit logs yet.');
-  if(count)count.textContent=rows.length?`${rows.length} Stats log(s)`:'No Stats logs yet.';
+  const all=mergeSnapshotAuditRows('stats');
+  // Logs have no client column, so this box searches what a log row actually
+  // shows: the date, the slot (12-hour label included) and who posted it.
+  const term=statsSearchTerm('st-search-logs');
+  const rows=term?all.filter(log=>[log.session_date,log.time_slot,log.time_slot?fmt12(log.time_slot):'',snapshotLogPostedBy(log)]
+    .some(v=>String(v||'').toLowerCase().includes(term))):all;
+  body.innerHTML=rows.length?rows.map(log=>{const posted=snapshotLogDate(log.processed_at),late=logLateness({processed_at:posted,time_slot:log.time_slot,session_date:log.session_date});return `<tr><td>${esc(log.session_date||'—')}</td><td>${esc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${esc(posted?posted.toLocaleString():'—')}</td><td style="color:${late.color};font-weight:700">${esc(late.label)}</td><td>${esc(snapshotLogPostedBy(log))}</td><td class="num">${log.rows??'—'}</td></tr>`;}).join('')
+    :smsBalanceEmptyRow(6,all.length?`No match in these ${all.length} log(s) — clear the search to see them all.`:'No Stats snapshot audit logs yet.');
+  if(count)count.textContent=all.length?(rows.length===all.length?`${all.length} Stats log(s)`:`${rows.length} of ${all.length} Stats log(s)`):'No Stats logs yet.';
 }
 window.renderStatsSnapshotLogs=renderStatsSnapshotLogs;
 function renderStatsDailyLogs(){
@@ -21278,6 +21388,12 @@ window.deleteStatsDailyReportFromSettings=()=>{
   return window.deleteStatsDailyReport(date);
 };
 function renderSmsBalanceHistory() {
+  const restoreBtn=document.getElementById('sms-bal-critical-history-restore-btn');
+  if(restoreBtn){
+    const n=smsBalanceHistorySuppCount();
+    restoreBtn.style.display=(n&&isAdmin())?'':'none';
+    restoreBtn.textContent=`Dismissed: ${n} — Restore`;
+  }
   const q=String(document.getElementById('sms-bal-critical-history-search')?.value||'').toLowerCase();
   const rows=smsBalanceHistory.filter(r=>!q||[r.client,r.source,r.last_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_hit||'').localeCompare(String(a.last_hit||'')));
   const body=document.getElementById('sms-bal-critical-history-tbody');if(!body)return;
@@ -21294,7 +21410,13 @@ function renderSmsBalanceInactiveUsageHistory() {
   const rows=smsBalanceInactiveUsageHistory.filter(r=>!q||[r.client,r.source,r.account_manager].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
   body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.account_manager||'—')}</td><td>${esc(r.first_seen||'')}</td><td>${esc(r.last_seen||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_usage)}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td>${rowDelCell('deleteSmsBalanceInactiveUsageHistoryEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(9,'No inactive clients have reported positive 30-minute usage.');
 }
+// The app script is a module, so inline on*="…" handlers can only reach
+// window.*. The Logs Refresh button and the Critical History search box call
+// these by bare name and threw ReferenceError until they were published here.
 window.renderSmsBalanceInactiveUsageHistory=renderSmsBalanceInactiveUsageHistory;
+window.renderSmsBalanceHistory=renderSmsBalanceHistory;
+window.renderSmsBalanceNoThreshold=renderSmsBalanceNoThreshold;
+window.renderSmsBalanceLogs=renderSmsBalanceLogs;
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
   window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold(); renderSmsBalanceInactiveUsageHistory();
@@ -21388,28 +21510,49 @@ function smsBalanceInactiveUsageEntries(snap) {
   });
   return [...byClient.values()];
 }
+/* Critical History is a STATE log, matching the VOIP tab: every ACTIVE client
+   sitting at Critical / Blocked in this snapshot is recorded, not only the ones
+   that just crossed over. A transition-only log left every client that was
+   already critical when the log started permanently unrecorded, so the tab could
+   read empty while Alerts → Critical showed 18 clients. `criticalNew` keeps the
+   genuine crossings for the audio alert, and `recovered` un-dismisses a client
+   the moment a snapshot shows it out of critical.
+   Inactive clients are excluded so a wipe plus one snapshot reproduces exactly
+   the Critical count in Alerts (smsBalanceAlertRows hides them there too). */
 function smsBalanceNewHistoryEntries(snap,previous=null) {
   const current=smsBalanceHistoryStateMap(snap),before=smsBalanceHistoryStateMap(previous||{data:[]});
-  const critical=[],noThreshold=[];
+  const critical=[],criticalNew=[],recovered=[],noThreshold=[];
   current.forEach((entry,key)=>{
     const prior=before.get(key);
     const criticalNow=smsBalanceIsCritical({...entry.row,_status:entry.status});
     const criticalBefore=!!prior&&smsBalanceIsCritical({...prior.row,_status:prior.status});
     const noThresholdNow=entry.status.credit===null&&entry.status.critical===null;
     const noThresholdBefore=!!prior&&prior.status.credit===null&&prior.status.critical===null;
-    if(criticalNow&&!criticalBefore)critical.push({key,...entry});
+    const active=smsBalanceMetaFor(entry.row)?.is_active!==false;
+    if(criticalNow&&active){
+      critical.push({key,...entry});
+      if(!criticalBefore)criticalNew.push({key,...entry});
+    }
+    if(!criticalNow)recovered.push(key);
     if(noThresholdNow&&!noThresholdBefore)noThreshold.push({key,...entry});
   });
-  return {critical,noThreshold,inactiveUsage:smsBalanceInactiveUsageEntries(snap)};
+  return {critical,criticalNew,recovered,noThreshold,inactiveUsage:smsBalanceInactiveUsageEntries(snap)};
 }
 async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   entries=entries||smsBalanceNewHistoryEntries(snap,previous);
+  await loadSmsBalanceHistorySuppressed();
+  if(!smsBalanceHistorySuppressed)smsBalanceHistorySuppressed=new Set();
+  // A dismissed client that this snapshot shows out of critical has recovered,
+  // so drop the dismissal — a later critical hit is a new one and gets logged.
+  let suppChanged=false;
+  (entries.recovered||[]).forEach(key=>{ if(smsBalanceHistorySuppressed.delete(key))suppChanged=true; });
   const histMap=new Map(smsBalanceHistory.map(r=>[r.meta_key,r]));
   const noMap=new Map(smsBalanceNoThreshold.map(r=>[r.meta_key,r]));
   const inactiveUsageMap=new Map(smsBalanceInactiveUsageHistory.map(r=>[r.meta_key,r]));
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const remote=[];
   entries.critical.forEach(({key,row,status})=>{
+    if(smsBalanceHistorySuppressed.has(key))return;   // dismissed while still critical
     const prior=histMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_hit:prior?.first_hit||hitAt,last_hit:hitAt,count:prior?.last_hit===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance,od_remaining:status.odRemaining,last_status:status.code};histMap.set(key,record);remote.push(['sms_balance_history',record]);
   });
   entries.noThreshold.forEach(({key,row})=>{
@@ -21419,6 +21562,7 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
     const prior=inactiveUsageMap.get(key);const record={meta_key:key,source:row.source,client:row.client,account_manager:meta?.account_manager||prior?.account_manager||'',first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_usage:row.usage_30min,last_balance:row.balance,last_overdraft:row.overdraft};inactiveUsageMap.set(key,record);remote.push(['sms_balance_inactive_usage',record]);
   });
   smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];smsBalanceInactiveUsageHistory=[...inactiveUsageMap.values()];saveSmsBalanceLocal();
+  if(suppChanged)await persistSmsBalanceHistorySuppressed();
   if(fbOk)await Promise.all(remote.map(([collectionName,record])=>setDoc(doc(db,collectionName,smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));
 }
 function focusSmsBalanceNewCriticalView() {
@@ -21513,9 +21657,16 @@ window.processSmsBalanceSnapshot = async () => {
   const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||'',user_email:currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
   const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
-  const historyEntries=seedsFreshBaseline?{critical:[],noThreshold:[],inactiveUsage:[]}:smsBalanceNewHistoryEntries(snap,previous);
+  const allEntries=smsBalanceNewHistoryEntries(snap,previous);
+  // A fresh baseline still fills Critical History — it is a state log, so the
+  // clients already sitting at Critical belong in it. Only the transition-driven
+  // lists (audio, No-Threshold, Inactive w/ Usage) are held back, since with no
+  // baseline to diff against everything would look newly detected.
+  const historyEntries=seedsFreshBaseline
+    ?{critical:allEntries.critical,criticalNew:[],recovered:allEntries.recovered,noThreshold:[],inactiveUsage:[]}
+    :allEntries;
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
-  const freshCriticalCount=historyEntries.critical.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
+  const freshCriticalCount=historyEntries.criticalNew.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
   const hasCurrentCritical=data.some(row=>smsBalanceIsCritical(row)&&smsBalanceMetaFor(row)?.is_active!==false);
   smsBalanceTodaySnaps=dedupeSmsBalanceSnapshots([...smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot),snap]);smsBalanceLatest=smsBalanceTodaySnaps.at(-1)||snap;saveSmsBalanceLocal();resetSmsBalanceDiscoveryFilters();
   if(seedsFreshBaseline){
@@ -21640,10 +21791,14 @@ window.deleteAllSmsBalanceSnapshots = async () => {
 };
 window.clearSmsBalanceHistory = async () => {
   if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}
-  if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>Clients that remain in the same state will stay cleared. Only clients that newly enter Critical / Overdraft afterward will be recorded.'}))return;
-  const backup=smsBalanceHistory.slice();smsBalanceHistory=[];saveSmsBalanceLocal();renderSmsBalanceHistory();
-  try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — waiting for new entries','ok');}
-  catch(error){smsBalanceHistory=backup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not clear SMS Critical History: '+error.message,'err',7000);}
+  if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>The next snapshot re-logs every client still at Critical / Blocked, so the tab rebuilds from the current state. Any per-row dismissals are dropped too.'}))return;
+  const backup=smsBalanceHistory.slice(),suppBackup=new Set(smsBalanceHistorySuppressed);
+  smsBalanceHistory=[];smsBalanceHistorySuppressed=new Set();smsBalanceHistorySuppLoaded=true;saveSmsBalanceLocal();renderSmsBalanceHistory();
+  // A full wipe resets dismissals as well, matching the VOIP Danger Zone wipe:
+  // leaving them set would silently keep clients out of the rebuilt log.
+  try{if(fbOk)await deleteDoc(smsBalanceHistorySuppRef());}catch(error){/* non-fatal */}
+  try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — the next snapshot re-logs current criticals','ok',7000);}
+  catch(error){smsBalanceHistory=backup;smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not clear SMS Critical History: '+error.message,'err',7000);}
 };
 window.clearSmsBalanceNoThreshold = async () => {
   if(!isAdmin()){toast('Only admins can clear the list.','err');return;}
@@ -21662,10 +21817,28 @@ window.clearSmsBalanceInactiveUsageHistory = async () => {
 window.deleteSmsBalanceHistoryEntry = async key => {
   if(!isAdmin()){toast('Only admins can delete SMS critical history.','err');return;}
   const row=smsBalanceHistory.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
-  if(!await confirmSmsBalanceAction({title:'Remove Critical History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from SMS Critical History?<br><br>SMS snapshots and all other history entries are not affected.`}))return;
-  const backup=smsBalanceHistory.slice();smsBalanceHistory=smsBalanceHistory.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceHistory();
-  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_history',smsBalanceDocId(key)));toast(`Removed ${row.client} from SMS Critical History`,'ok');}
-  catch(error){smsBalanceHistory=backup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not remove SMS Critical History entry: '+error.message,'err',7000);}
+  if(!await confirmSmsBalanceAction({title:'Remove Critical History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from SMS Critical History?<br><br>This stops it being re-logged while it stays critical. It comes back only if it recovers and then hits Critical again. SMS snapshots and all other history entries are not affected.`}))return;
+  const backup=smsBalanceHistory.slice(),suppBackup=new Set(smsBalanceHistorySuppressed);
+  smsBalanceHistory=smsBalanceHistory.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);
+  // Remember the dismissal so the state log doesn't re-add a still-critical
+  // client on the very next snapshot; it auto-clears once seen out of critical.
+  await loadSmsBalanceHistorySuppressed();
+  smsBalanceHistorySuppressed.add(key);
+  saveSmsBalanceLocal();renderSmsBalanceHistory();
+  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_history',smsBalanceDocId(key)));await persistSmsBalanceHistorySuppressed();toast(`Removed ${row.client} from SMS Critical History`,'ok');}
+  catch(error){smsBalanceHistory=backup;smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not remove SMS Critical History entry: '+error.message,'err',7000);}
+};
+// Bring back every client dismissed while still critical. They re-enter SMS
+// Critical History on the next snapshot if they are still at Critical / Blocked.
+window.restoreDismissedSmsBalanceHistory = async () => {
+  if(!isAdmin()){toast('Only admins can manage SMS critical history.','err');return;}
+  const n=smsBalanceHistorySuppCount();
+  if(!n){toast('No dismissed clients to restore.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Restore Dismissed Clients',label:'Restore All',html:`Restore all <strong>${n}</strong> dismissed client(s)?<br><br>Any still at Critical / Blocked are logged back into SMS Critical History on the next snapshot.`}))return;
+  const suppBackup=new Set(smsBalanceHistorySuppressed);
+  smsBalanceHistorySuppressed=new Set();smsBalanceHistorySuppLoaded=true;
+  try{await persistSmsBalanceHistorySuppressed();renderSmsBalanceHistory();toast('Restored dismissed clients','ok');}
+  catch(error){smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Restore failed: '+error.message,'err',7000);}
 };
 window.deleteSmsBalanceNoThresholdEntry = async key => {
   if(!isAdmin()){toast('Only admins can delete SMS No-Threshold History.','err');return;}
@@ -21920,6 +22093,14 @@ function subscribeSmsBalanceData() {
       if(s.metadata?.fromCache&&!s.docs.length)return;
       smsBalanceHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceHistory();
     },e=>console.warn('SMS balance history:',e));
+  } catch(e){console.warn(e);}
+  try {
+    // The dismissal list is synchronized too, so another operator posting the next
+    // snapshot does not re-add a client an admin just removed.
+    onSnapshot(smsBalanceHistorySuppRef(),s=>{
+      smsBalanceHistorySuppressed=smsBalanceHistorySuppSetFromDoc(s);
+      smsBalanceHistorySuppLoaded=true;saveSmsBalanceLocal();renderSmsBalanceHistory();
+    },e=>console.warn('SMS balance history dismissals:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
@@ -23278,7 +23459,23 @@ window.renderSmsCredentials = () => {
     th.textContent = SMS_CREDENTIAL_LABELS[field] + (field === smsCredentialSortCol ? (smsCredentialSortDir > 0 ? ' ▲' : ' ▼') : '');
   });
   const count = document.getElementById('sms-cred-count');
-  if (count) count.textContent = `${rows.length} of ${smsCredentials.length} credential(s)`;
+  // "4 credential(s)" while unfiltered; the "of N" only appears once a filter is
+  // actually narrowing the list, so the chip doesn't read as noise by default.
+  if (count) count.innerHTML = rows.length === smsCredentials.length
+    ? `<b>${smsCredentials.length}</b> credential(s)`
+    : `<b>${rows.length}</b> of ${smsCredentials.length} credential(s)`;
+  const otpChip = document.getElementById('sms-cred-stat-otp');
+  if (otpChip) {
+    const ready = smsCredentials.filter(row => String(row?.otp_secret || '').trim()).length;
+    otpChip.innerHTML = `OTP ready <b>${ready}</b>`;
+    otpChip.style.display = smsCredentials.length ? '' : 'none';
+  }
+  const platformChip = document.getElementById('sms-cred-stat-platforms');
+  if (platformChip) {
+    const platforms = new Set(smsCredentials.map(row => String(row?.platform || '').trim()).filter(Boolean));
+    platformChip.innerHTML = `<b>${platforms.size}</b> platform(s)`;
+    platformChip.style.display = platforms.size ? '' : 'none';
+  }
   const clipped = (value, mono=false) => `<div class="sms-cred-clip${mono ? ' sms-cred-mono' : ''}" title="${esc(value)}">${esc(value)}</div>`;
   const copyable = (row, field, mono=false, strong=false) => {
     const value = String(row[field] ?? '');
@@ -28244,12 +28441,14 @@ window.sortStatsSummary = (section, col) => {
   renderStatsSummary();
 };
 
-function processStatsRows(rows, tbodyId, full) {
+function processStatsRows(rows, tbodyId, full, emptyText) {
   const tb = document.getElementById(tbodyId);
   if (!tb) return;
   if (!rows.length) {
     const span = full ? 13 : 12;
-    tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:var(--text-3);text-align:center">No clients in this category.</td></tr>`;
+    // An emptied-by-search table must not claim the category itself is empty.
+    const text = emptyText || 'No clients in this category.';
+    tb.innerHTML = `<tr><td colspan="${span}" style="padding:10px;color:var(--text-3);text-align:center">${stEsc(text)}</td></tr>`;
     return;
   }
   const currentSnap = statsCurrentSnap();
@@ -28314,28 +28513,35 @@ function appendStatsPastedTotalRow(total) {
 
 function renderStatsStopped() {
   const allRows = statsStoppedTrafficRows();
-  const rows = statsStoppedShowDID
+  const didRows = statsStoppedShowDID
     ? allRows
     : allRows.filter(row => !/-DID/i.test(String(row.acct_list || row.account_code || '')));
+  const rows = statsFilterBySearch(didRows, 'st-search-stopped');
+  const searchHidden = didRows.length - rows.length;
   const tbody = document.getElementById('st-tbody-stopped');
   const count = document.getElementById('st-stopped-count');
   const tabCount = document.getElementById('sttab-cnt-stopped');
   const toggle = document.getElementById('st-stopped-toggle-did');
   const filterNote = document.getElementById('st-stopped-filter-note');
-  const hiddenDID = allRows.length - rows.length;
+  const hiddenDID = allRows.length - didRows.length;
   if (count) count.textContent = rows.length;
-  if (tabCount) tabCount.textContent = rows.length ? `(${rows.length})` : '(none)';
+  // The nav badge counts stopped routes, not what the search happens to show.
+  if (tabCount) tabCount.textContent = didRows.length ? `(${didRows.length})` : '(none)';
   if (toggle) {
     toggle.textContent = statsStoppedShowDID ? 'Hide -DID' : 'Show -DID';
     toggle.title = `${statsStoppedShowDID ? 'Hide' : 'Show'} stopped account codes containing -DID`;
     toggle.classList.toggle('active', statsStoppedShowDID);
   }
-  if (filterNote) filterNote.textContent = hiddenDID
-    ? `${rows.length} shown · ${hiddenDID} -DID hidden`
-    : `${rows.length} route(s) · sorted by Attempts (highest first)`;
+  if (filterNote) filterNote.textContent = [
+    searchHidden ? `${rows.length} of ${didRows.length} shown` : `${rows.length} route(s) · sorted by Attempts (highest first)`,
+    hiddenDID ? `${hiddenDID} -DID hidden` : ''
+  ].filter(Boolean).join(' · ');
   if (!tbody) return;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:10px;color:var(--text-3);text-align:center">No stopped traffic detected in today\'s Stats snapshots.</td></tr>';
+    const text = searchHidden
+      ? `No match in these ${didRows.length} stopped route(s) — clear the search to see them all.`
+      : "No stopped traffic detected in today's Stats snapshots.";
+    tbody.innerHTML = `<tr><td colspan="12" style="padding:10px;color:var(--text-3);text-align:center">${stEsc(text)}</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(row => {
@@ -28373,16 +28579,44 @@ function statsRowHasFlag(r, f) {
   }
 }
 
+/* Every Stats tab carries its own search box, each with independent state — the
+   same per-view pattern SMS Balance and VOS use, so filtering one tab never
+   silently narrows another. One matcher keeps them consistent: client name,
+   account code(s) and destination are the three columns an operator identifies
+   a route by, and they are what the All tab has always matched on. */
+function statsSearchTerm(id) {
+  return (document.getElementById(id)?.value || '').trim().toLowerCase();
+}
+function statsRowMatchesSearch(row, term) {
+  if (!term) return true;
+  return String(row?.customer_name || '').toLowerCase().includes(term)
+    || String(row?.acct_list || row?.account_code || '').toLowerCase().includes(term)
+    || String(row?.destination || '').toLowerCase().includes(term);
+}
+function statsFilterBySearch(rows, id) {
+  const term = statsSearchTerm(id);
+  return term ? (rows || []).filter(row => statsRowMatchesSearch(row, term)) : (rows || []);
+}
+// "3 of 11 shown" only while a term is active; blank otherwise, so an unused
+// box adds no chrome.
+function setStatsSearchNote(id, shown, total) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = shown === total ? '' : `${shown} of ${total} shown`;
+}
+// Clear every Stats search box at once (module reset / fresh snapshot).
+function clearStatsSearchBoxes() {
+  ['st-search','st-hr-search','st-search-summary','st-search-stopped','st-search-logs',
+   ...STATS_CLASSIFICATION_VIEWS.map(cls => 'st-search-' + cls)]
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
 function renderStatsTables() {
   updateStatsAllSortHeaders();
   const rows = statsCurrentRows();
-  const search = (document.getElementById('st-search')?.value || '').trim().toLowerCase();
+  const search = statsSearchTerm('st-search');
   const flagF = document.getElementById('st-flag-filter')?.value || 'all';
-  let allRows = statsSortRows(rows);
-  if (search) allRows = allRows.filter(r =>
-    r.customer_name.toLowerCase().includes(search)
-    || r.acct_list.toLowerCase().includes(search)
-    || (r.destination || '').toLowerCase().includes(search));
+  let allRows = statsFilterBySearch(statsSortRows(rows), 'st-search');
   if (flagF !== 'all') allRows = allRows.filter(r => statsRowHasFlag(r, flagF));
   processStatsRows(allRows, 'st-tbody-all', true);
   const filtered = search || flagF !== 'all';
@@ -28397,9 +28631,15 @@ function renderStatsTables() {
    ['ok','st-tbody-ok','st-ok-count'],
    ['good','st-tbody-good','st-good-count']].forEach(([cls,tb,cl]) => {
     const sub = byCls(cls);
-    processStatsRows(sub, tb, false);
+    const shown = statsFilterBySearch(sub, 'st-search-' + cls);
+    processStatsRows(shown, tb, false,
+      sub.length && !shown.length ? `No match in these ${sub.length} client(s) — clear the search to see them all.` : '');
     const el = document.getElementById(cl);
-    if (el) el.textContent = sub.length;
+    if (el) el.textContent = shown.length === sub.length ? sub.length : `${shown.length} of ${sub.length}`;
+    setStatsSearchNote('st-search-' + cls + '-note', shown.length, sub.length);
+    // The nav badge and the Critical alert highlight stay on the UNFILTERED
+    // count: a search is a look at the list, not a change to how many routes
+    // are actually in trouble.
     const tab = document.getElementById('sttab-cnt-' + cls);
     if (tab) tab.textContent = (cls === 'critical' && !sub.length) ? '(none)' : `(${sub.length})`;
   });
@@ -28455,11 +28695,17 @@ function renderStatsSummary() {
   set('st-sum-persist', rows.filter(r => r.persistent).length);
   set('st-sum-new', rows.filter(r => r.isNew).length);
 
+  // One search box serves all four Summary lists. The stat tiles above stay on
+  // the whole snapshot — they are the totals for the hour, not a view of a list.
+  let summaryShown = 0, summaryTotal = 0;
   const fill = (id, list, builder, empty) => {
     const tb = document.getElementById(id);
     if (!tb) return;
-    tb.innerHTML = list.length ? list.map(builder).join('')
-      : `<tr><td colspan="7" style="padding:8px;color:var(--text-3);text-align:center">${empty}</td></tr>`;
+    const shown = statsFilterBySearch(list, 'st-search-summary');
+    summaryTotal += list.length; summaryShown += shown.length;
+    const text = (list.length && !shown.length) ? 'No match in this list.' : empty;
+    tb.innerHTML = shown.length ? shown.map(builder).join('')
+      : `<tr><td colspan="7" style="padding:8px;color:var(--text-3);text-align:center">${stEsc(text)}</td></tr>`;
   };
   const clientCell = r => `${stEsc(r.customer_name)}<div class="ui-text-micro" style="color:var(--text-2)">${stEsc(r.destination || '')}</div>`;
 
@@ -28497,7 +28743,12 @@ function renderStatsSummary() {
       <td style="text-align:right">${stVal(r.asr)}</td><td style="text-align:right">${stVal(r.acd)}</td>
       <td style="text-align:right">${stN0(r.attempts)}</td><td style="text-align:right">${stN0(r.completed)}</td></tr>`,
     'No clients in the Good band yet.');
+
+  setStatsSearchNote('st-search-summary-note', summaryShown, summaryTotal);
 }
+// The Summary search box calls this from an inline oninput, which can only
+// reach window.* — see the SMS Logs/Critical History regression.
+window.renderStatsSummary = renderStatsSummary;
 
 function renderStatsSidebar() {
   const list = document.getElementById('stats-snap-list');
@@ -29781,6 +30032,11 @@ if (auth) {
           : (inModule && !leaf.dataset.view && !leaf.dataset.smstab && !leaf.dataset.vostab);
         leaf.classList.toggle('is-active', on);
         leaf.setAttribute('aria-current', on ? 'page' : 'false');
+        // The Alerts control this leaf mirrors lives on the toolbar, which the
+        // rail layout hides — so its red critical-flash had no visible target
+        // anywhere on screen. Mirror that state exactly the way is-active is
+        // mirrored, and the rail stays a read-only observer of the source.
+        leaf.classList.toggle('critical-flash', !!src && src.classList.contains('critical-flash'));
         // Prefer the deepest match: a sub-group header is only the answer
         // when nothing inside it is. A clone never answers, because it has no
         // sub-group above it and would shorten the breadcrumb.
