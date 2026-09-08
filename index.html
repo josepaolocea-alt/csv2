@@ -21686,15 +21686,20 @@ function smsBalanceInactiveUsageEntries(snap) {
   });
   return [...byClient.values()];
 }
-/* Critical History is a STATE log, matching the VOIP tab: every ACTIVE client
-   sitting at Critical / Blocked in this snapshot is recorded, not only the ones
-   that just crossed over. A transition-only log left every client that was
-   already critical when the log started permanently unrecorded, so the tab could
-   read empty while Alerts → Critical showed 18 clients. `criticalNew` keeps the
-   genuine crossings for the audio alert, and `recovered` un-dismisses a client
-   the moment a snapshot shows it out of critical.
-   Inactive clients are excluded so a wipe plus one snapshot reproduces exactly
-   the Critical count in Alerts (smsBalanceAlertRows hides them there too). */
+/* Critical History logs the ARRIVAL, not the presence: a client is recorded on
+   the snapshot it crosses INTO Critical / Blocked and is then left alone for as
+   long as it stays there. That is what the table's columns mean — "Times Hit"
+   counts how many times a client went critical, not how many snapshots it sat
+   there, and a post where nothing crossed over writes nothing at all.
+   Clients already sitting at Critical when the log is empty are deliberately NOT
+   seeded (requested 2026-09-08): Alerts → Critical is where the standing list
+   lives, and this tab answers "who came in". The trade-off is accepted — after a
+   clear the tab reads empty until the next genuine crossing.
+   `critical` remains the current-state list for callers that want it;
+   `criticalNew` is what reaches Critical History and the audio alert. `recovered`
+   un-dismisses a client the moment a snapshot shows it out of critical, so its
+   next crossing is logged as a fresh hit.
+   Inactive clients are excluded, matching smsBalanceAlertRows. */
 function smsBalanceNewHistoryEntries(snap,previous=null) {
   const current=smsBalanceHistoryStateMap(snap),before=smsBalanceHistoryStateMap(previous||{data:[]});
   const critical=[],criticalNew=[],recovered=[],noThreshold=[];
@@ -21727,7 +21732,9 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   const inactiveUsageMap=new Map(smsBalanceInactiveUsageHistory.map(r=>[r.meta_key,r]));
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const remote=[];
-  entries.critical.forEach(({key,row,status})=>{
+  // Crossings only — a client that merely stays critical is already on the tab
+  // and must not be rewritten on every post.
+  (entries.criticalNew||[]).forEach(({key,row,status})=>{
     if(smsBalanceHistorySuppressed.has(key))return;   // dismissed while still critical
     const prior=histMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_hit:prior?.first_hit||hitAt,last_hit:hitAt,count:prior?.last_hit===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance,od_remaining:status.odRemaining,last_status:status.code};histMap.set(key,record);remote.push(['sms_balance_history',record]);
   });
@@ -21834,10 +21841,9 @@ window.processSmsBalanceSnapshot = async () => {
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
   const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
   const allEntries=smsBalanceNewHistoryEntries(snap,previous);
-  // A fresh baseline still fills Critical History — it is a state log, so the
-  // clients already sitting at Critical belong in it. Only the transition-driven
-  // lists (audio, No-Threshold, Inactive w/ Usage) are held back, since with no
-  // baseline to diff against everything would look newly detected.
+  // A fresh baseline writes no history at all: with nothing to diff against,
+  // every client would look newly detected and each list would replay the whole
+  // report. `recovered` is kept so a baseline post can still lift dismissals.
   const historyEntries=seedsFreshBaseline
     ?{critical:allEntries.critical,criticalNew:[],recovered:allEntries.recovered,noThreshold:[],inactiveUsage:[]}
     :allEntries;
