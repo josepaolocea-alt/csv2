@@ -9518,7 +9518,7 @@
                   <section class="sms-bal-view" id="sms-bal-view-alerts">
                     <div class="sms-bal-segmented" id="sms-bal-alert-tabs" role="tablist" aria-label="SMS Balance alert filters">
                       <button class="tbtn active" id="sms-bal-alert-all" onclick="setSmsBalanceAlertFilter('all',this)" data-premium-tooltip="Every client in the latest Reseller and Wholesale snapshot.">All <span id="sms-bal-alert-count-all"></span></button>
-                      <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted. Turns red while Critical clients exist.">Critical <span id="sms-bal-alert-count-critical"></span></button>
+                      <button class="tbtn" id="sms-bal-alert-critical" data-tone="critical" onclick="setSmsBalanceAlertFilter('critical',this)" data-premium-tooltip="Balance reached zero without available overdraft, configured Critical Balance reached, signed critical overdraft level reached, or available overdraft exhausted. Shows the count without turning red — New Critical marks the change.">Critical <span id="sms-bal-alert-count-critical"></span></button>
                       <button class="tbtn" id="sms-bal-alert-warning" data-tone="warning" onclick="setSmsBalanceAlertFilter('warning',this)" data-premium-tooltip="Clients near or inside the configured Credit Limit, plus clients running on overdraft. When overdraft is available, the Balance Bar recalculates toward overdraft exhaustion; removing overdraft restores the configured Credit-to-Critical range. Turns red at 90% or more.">Warning <span id="sms-bal-alert-count-warning"></span></button>
                       <button class="tbtn" id="sms-bal-alert-safe" data-tone="safe" onclick="setSmsBalanceAlertFilter('safe',this)" data-premium-tooltip="Threshold-configured clients with enough positive credit remaining.">Safe <span id="sms-bal-alert-count-safe"></span></button>
                       <button class="tbtn" id="sms-bal-alert-nothreshold" onclick="setSmsBalanceAlertFilter('nothreshold',this)" data-premium-tooltip="All clients recorded in persistent No Threshold History, plus current clients awaiting thresholds. Turns red while a current client has neither Credit Limit nor Critical Balance set.">No Threshold <span id="sms-bal-alert-count-nothreshold"></span></button>
@@ -11878,7 +11878,7 @@ const SMS_DEFAULT_PLATFORMS = ['MS Teams','Viber','WhatsApp','Telegram','Email']
    SETTINGS
 ════════════════════════════════════════════════ */
 let S = {
-  lightMax:-10, mediumMax:-1, nearPct:5, shift:'7AM-7PM',
+  lightMax:-10, mediumMax:-1, nearPct:5, shift:'24H',
   soundAlert:true, voipVoiceAlert:true, browserNotif:true, retentionDays:7,
   useBands:false, bandMedium:-50, bandHigh:-101, bandCritical:-151,
   nightMode:false,
@@ -11886,6 +11886,8 @@ let S = {
 };
 let legacyVoipReminderSettings = null;
 const VOIP_REMINDER_DEFAULTS = { enabled:false, offset:10 };
+// Marks the one-time re-default of the VOIP shift to 24 Hours (All Day).
+const VOIP_SHIFT_24H_DEFAULT_KEY = 'bm_voip_shift_24h_default_v1';
 
 function voipUserStorageKey(prefix) {
   const identity = currentUserUid || String(currentUserEmail || '').trim().toLowerCase() || 'local';
@@ -11986,6 +11988,18 @@ function loadSettings() {
         legacyVoipReminderSettings = { enabled:!!parsed.slotReminder, offset:parsed.slotReminderOffset };
       }
       S={...S,...parsed};
+    }
+  } catch(e){}
+  // One-time move to the 24-hour default shift. A browser that already saved
+  // 7AM-7PM keeps every other preference; only the shift is re-defaulted, and
+  // only once, so a later manual pick of a day/night shift still sticks.
+  try {
+    if (!localStorage.getItem(VOIP_SHIFT_24H_DEFAULT_KEY)) {
+      localStorage.setItem(VOIP_SHIFT_24H_DEFAULT_KEY, '1');
+      if (S.shift !== '24H') {
+        S.shift = '24H';
+        localStorage.setItem('bm_s98', JSON.stringify(sharedVoipSettingsPayload()));
+      }
     }
   } catch(e){}
   // Reminder preferences are loaded separately for the authenticated account.
@@ -13030,6 +13044,10 @@ function shiftSlots(shift) {
   for (let h=s; h<e; h++) { const hh=(h%24).toString().padStart(2,'0'); out.push(`${hh}:00`,`${hh}:30`); }
   out.push(`${(e%24).toString().padStart(2,'0')}:00`);
   return out;
+}
+// Readable name for a stored shift value, so '24H' doesn't leak into headings.
+function shiftLabel(shift) {
+  return shift === '24H' ? '24 Hours (All Day)' : String(shift || '');
 }
 function nextSlot() {
   const n=new Date(), h=n.getHours(), m=n.getMinutes();
@@ -18333,7 +18351,7 @@ function refreshAll() {
 
 function updateSync() {
   updateBalanceStatusBar();
-  document.getElementById('print-date').textContent = `${todayStr()} · ${S.shift}`;
+  document.getElementById('print-date').textContent = `${todayStr()} · ${shiftLabel(S.shift)}`;
 }
 
 function updateBalanceStatusBar() {
@@ -19720,7 +19738,9 @@ function shiftForTimeSlot(slot) {
   return h >= 7 && h < 19 ? '7AM-7PM' : '7PM-7AM';
 }
 function snapshotMatchesShift(s, shift) {
-  if (shift === 'both') return true;
+  // '24H' covers the whole day, so every snapshot belongs to it — including the
+  // ones already stamped 7AM-7PM / 7PM-7AM before the shift was switched.
+  if (shift === 'both' || shift === '24H') return true;
   return (s.shift || '') === shift || shiftForTimeSlot(s.time_slot) === shift;
 }
 function slotIndexForShift(slot, shift) {
@@ -20859,7 +20879,12 @@ function updateSmsBalanceAlertCounts() {
   const newCriticalCount = countFor('new');
   const currentRows = rowsFor('all');
   const redTabs={
-    critical:countFor('critical')>0,
+    // Critical is a standing state, not an event: it is red on almost every
+    // snapshot, which drowns out the tabs that mark a genuine change. The VOIP
+    // Alerts sub-tabs leave their Critical filter plain for the same reason, so
+    // the count alone carries it here too. Kept in the map (rather than dropped)
+    // so a tab left red by an earlier build is cleared on the next refresh.
+    critical:false,
     warning:rowsFor('warning').some(smsBalanceWarningIsHot),
     nothreshold:currentRows.some(row=>row._status?.credit===null&&row._status?.critical===null),
     usage:rowsFor('usage').some(row=>smsBalanceNumber(row.usage_30min)>50),
@@ -25095,7 +25120,7 @@ function renderShiftSummary() {
     ${recovered.length ? `<div class="ui-text-micro" style="margin-bottom:6px"><span style="color:var(--green);font-weight:700">✓ Recovered:</span> ${recovered.map(n=>`<span style="margin-right:6px">${esc(n)}</span>`).join('')}</div>` : ''}
     <div class="sum-section-grid">
     <div class="sum-section ss-red">
-      <div class="ss-title">New Critical Balance in ${esc(S.shift)} snapshot coverage:</div>
+      <div class="ss-title">New Critical Balance in ${esc(shiftLabel(S.shift))} snapshot coverage:</div>
       ${criticalHits.length?`<div class="voip-critical-coverage-scroll"><table class="sum-movers voip-critical-coverage-table" style="width:100%">
         <thead><tr><th style="width:28px">#</th><th>Client</th><th style="width:120px">First reached</th><th style="width:110px">Status</th></tr></thead>
         <tbody>${criticalHits.map((hit,index)=>`<tr><td style="color:var(--text-2)">${index+1}.</td><td>${esc(hit.client)}</td><td style="font-family:var(--mono);color:var(--red)">${esc(hit.reached_time)}</td><td style="color:${hit.current_status==='Recovered'?'var(--green)':'var(--red)'};font-weight:700">${esc(hit.current_status)}</td></tr>`).join('')}</tbody>
@@ -25468,7 +25493,15 @@ const ST_LOW_MIN_ATTEMPTS = 30;   // Low ignores clients with this many attempts
 const stEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const stN0  = v => Math.round(v || 0).toLocaleString();
 const stN2  = v => (v || 0).toFixed(2);
-const stVal = v => ((+v >= 0 && +v <= 0.9) ? `<span class="st-val-bad">${stN2(v)}</span>` : stN2(v));
+/* ASR/ACD under 1.00 reads as a broken route, so the cell text turns red. The
+   test uses the rounded value, so what goes red is exactly what the cell shows.
+   `suffix` keeps a trailing unit (VOS prints "%") inside the red span. */
+const stVal = (v, suffix = '') => {
+  const rounded = +stN2(v);
+  return (rounded >= 0 && rounded <= 0.99)
+    ? `<span class="st-val-bad">${stN2(v)}${suffix}</span>`
+    : stN2(v) + suffix;
+};
 
 /* ── VOS Traffic file import ───────────────────────────────────────────────
    VOS exports may contain many area-prefix rows for the same logical route.
@@ -26269,7 +26302,7 @@ function vosStatsSetText(id,value){const element=document.getElementById(id);if(
 function vosStatsBadge(cls,prefix=''){return `<span class="stbadge ${cls}">${stEsc(prefix+String(cls||'').toUpperCase())}</span>`;}
 function vosStatsTableRow(row) {
   const delta=row.attempt_change===null||row.attempt_change===undefined?'—':`${row.attempt_change>0?'+':''}${stN0(row.attempt_change)}`;
-  return `<tr class="st-row-${row.cls} vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td>${vosStatsBadge(row.acdcls,'ACD ')}</td><td class="num">${delta}</td></tr>`;
+  return `<tr class="st-row-${row.cls} vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td>${vosStatsBadge(row.acdcls,'ACD ')}</td><td class="num">${delta}</td></tr>`;
 }
 function renderVosStatsSummary() {
   const snap=vosStatsCurrentSnap(),rows=vosStatsRowsWithComparison(),total=vosStatsAggregate(rows),counts=rows.reduce((out,row)=>(out[row.cls]=(out[row.cls]||0)+1,out),{}),stopped=vosStatsStoppedRows();
@@ -26282,7 +26315,7 @@ function renderVosStatsTables() {
   const filtered=all.filter(row=>vosStatsMatchesSearch(row,search)&&(!filter||row.cls===filter)).sort((a,b)=>(ST_CLS_RANK?.[a.cls]??9)-(ST_CLS_RANK?.[b.cls]??9)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
   vosStatsSetText('vos-stats-row-count',`${filtered.length} of ${all.length} grouped row(s)`);const allBody=document.getElementById('vos-stats-tbody-all');if(allBody)allBody.innerHTML=filtered.map(vosStatsTableRow).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats rows match the current view.</td></tr>';
   VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
-  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stN2(row.asr)}%</td><td class="num">${stN2(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
+  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
 }
 function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Calls</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD min</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
 function vosStatsHourlyMatrix() {
@@ -30036,7 +30069,13 @@ if (auth) {
         // rail layout hides — so its red critical-flash had no visible target
         // anywhere on screen. Mirror that state exactly the way is-active is
         // mirrored, and the rail stays a read-only observer of the source.
-        leaf.classList.toggle('critical-flash', !!src && src.classList.contains('critical-flash'));
+        // Both alert modules mean the same thing by their red — "a sub-tab
+        // inside this view is lit" — they just spell it differently: VOIP sets
+        // critical-flash on #tnav-alerts, SMS Balance sets has-new-critical on
+        // #sms-bal-nav-alerts. Read either one so the rail is uniform.
+        var alerting = !!src && (src.classList.contains('critical-flash')
+          || src.classList.contains('has-new-critical'));
+        leaf.classList.toggle('critical-flash', alerting);
         // Prefer the deepest match: a sub-group header is only the answer
         // when nothing inside it is. A clone never answers, because it has no
         // sub-group above it and would shorten the breadcrumb.
