@@ -9595,7 +9595,20 @@
                       <button class="tbtn" onclick="renderSmsBalanceAlerts()">Refresh</button>
                       <span class="sms-muted" id="sms-bal-alert-result-count"></span>
                     </div>
-                    <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>Account Type</th><th class="num">Balance</th><th class="num">30m Usage</th><th class="num">Overdraft</th><th class="num">OD Remaining</th><th class="num">Credit Limit</th><th class="num">Critical Balance</th><th id="sms-bal-alert-balance-bar-head" style="display:none">Balance Bar</th><th>Status</th><th>Notes</th></tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
+                    <div class="sms-bal-table-wrap" id="sms-bal-alert-table-wrap"><table class="sms-bal-table"><thead><tr>
+                      <th class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="client" onclick="sortSmsBalanceAlerts('client')" onkeydown="smsBalanceSortHeaderKey(event,'client')">Client</th>
+                      <th class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="type" onclick="sortSmsBalanceAlerts('type')" onkeydown="smsBalanceSortHeaderKey(event,'type')">Type</th>
+                      <th class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="account" onclick="sortSmsBalanceAlerts('account')" onkeydown="smsBalanceSortHeaderKey(event,'account')">Account Type</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="balance" onclick="sortSmsBalanceAlerts('balance')" onkeydown="smsBalanceSortHeaderKey(event,'balance')">Balance</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="usage" onclick="sortSmsBalanceAlerts('usage')" onkeydown="smsBalanceSortHeaderKey(event,'usage')">30m Usage</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="overdraft" onclick="sortSmsBalanceAlerts('overdraft')" onkeydown="smsBalanceSortHeaderKey(event,'overdraft')">Overdraft</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="odremaining" onclick="sortSmsBalanceAlerts('odremaining')" onkeydown="smsBalanceSortHeaderKey(event,'odremaining')">OD Remaining</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="credit" onclick="sortSmsBalanceAlerts('credit')" onkeydown="smsBalanceSortHeaderKey(event,'credit')">Credit Limit</th>
+                      <th class="st-sortable num" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="critical" onclick="sortSmsBalanceAlerts('critical')" onkeydown="smsBalanceSortHeaderKey(event,'critical')">Critical Balance</th>
+                      <th id="sms-bal-alert-balance-bar-head" style="display:none" class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="balancebar" onclick="sortSmsBalanceAlerts('balancebar')" onkeydown="smsBalanceSortHeaderKey(event,'balancebar')">Balance Bar</th>
+                      <th class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="status" onclick="sortSmsBalanceAlerts('status')" onkeydown="smsBalanceSortHeaderKey(event,'status')">Status</th>
+                      <th class="st-sortable" role="columnheader" tabindex="0" aria-sort="none" data-sms-alert-sort="notes" onclick="sortSmsBalanceAlerts('notes')" onkeydown="smsBalanceSortHeaderKey(event,'notes')">Notes</th>
+                    </tr></thead><tbody id="sms-bal-alert-tbody"></tbody></table></div>
                     <div class="sms-bal-table-wrap" id="sms-bal-usage-history-wrap" style="display:none"><table class="sms-bal-table"><thead id="sms-bal-usage-history-thead"></thead><tbody id="sms-bal-usage-history-tbody"></tbody></table></div>
                     <div class="sms-muted" id="sms-bal-usage-history-foot" style="display:none"></div>
                   </section>
@@ -21042,6 +21055,81 @@ function smsBalanceAlertSets() {
     inactiveusage:rows.filter(row => row._meta?.is_active === false && smsBalanceNumber(row.usage_30min) > 0)
   };
 }
+/* ── Alerts column sorting ─────────────────────────────────────────────────
+   Each Alerts subtab keeps its own column sort. The subtabs do not share one
+   meaningful order — Usage leads on 30m usage, Warning on bar progress, the
+   rest on severity — so carrying a single sort across all of them would throw
+   away the ordering every tab was built around. With no sort chosen a tab falls
+   back to that default; resetSmsBalanceDiscoveryFilters() clears the choices. */
+const smsBalanceAlertSortState = {};
+const SMS_BALANCE_ALERT_SORT_NUMERIC = new Set(['balance','usage','overdraft','odremaining','credit','critical','balancebar','status']);
+function smsBalanceAlertSortIsNumeric(key) { return SMS_BALANCE_ALERT_SORT_NUMERIC.has(key) || String(key).startsWith('slot:'); }
+function smsBalanceAlertSortStatus(row) { return row._status || smsBalanceStatus(row); }
+// Mirrors what the cell actually prints: a value the row renders as "—" sorts
+// as blank so it never outranks a real reading.
+function smsBalanceAlertSortNumber(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+const SMS_BALANCE_ALERT_SORT_VALUES = {
+  client: row => String(row.client || ''),
+  type: row => smsBalanceSourceLabel(row.source),
+  account: row => String(row.account_type || ''),
+  balance: row => smsBalanceAlertSortNumber(row.balance),
+  usage: row => smsBalanceAlertSortNumber(row.usage_30min),
+  overdraft: row => smsBalanceAlertSortNumber(row.overdraft),
+  odremaining: row => Math.max(0, smsBalanceNumber(smsBalanceAlertSortStatus(row).odRemaining)),
+  credit: row => smsBalanceAlertSortStatus(row).credit,
+  critical: row => smsBalanceAlertSortStatus(row).critical,
+  balancebar: row => smsBalanceWarningProgress(smsBalanceAlertSortStatus(row)),
+  // Removed from Critical rows display a recovered badge, so they rank as safe.
+  status: row => smsBalanceStatusRank(row._removedFromCritical ? 'safe' : smsBalanceAlertSortStatus(row).code),
+  notes: row => String((row._meta || smsBalanceMetaFor(row)).notes || '')
+};
+function smsBalanceAlertSortCompare(a, b, dir) {
+  const blank = v => v === null || v === undefined || v === '' || (typeof v === 'number' && !Number.isFinite(v));
+  if (blank(a)) return blank(b) ? 0 : 1;
+  if (blank(b)) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return (a - b) * dir;
+  return String(a).localeCompare(String(b)) * dir;
+}
+function smsBalanceApplyAlertSort(rows, filter) {
+  const sort = smsBalanceAlertSortState[filter];
+  const read = sort && SMS_BALANCE_ALERT_SORT_VALUES[sort.key];
+  if (!read) return rows;
+  return rows.slice().sort((a,b) => smsBalanceAlertSortCompare(read(a), read(b), sort.dir) || String(a.client||'').localeCompare(String(b.client||'')));
+}
+window.sortSmsBalanceAlerts = key => {
+  const filter = smsBalanceAlertFilter;
+  const current = smsBalanceAlertSortState[filter];
+  // Numbers open on the largest value; text opens A→Z.
+  smsBalanceAlertSortState[filter] = current && current.key === key
+    ? { key, dir: -current.dir }
+    : { key, dir: smsBalanceAlertSortIsNumeric(key) ? -1 : 1 };
+  window.renderSmsBalanceAlerts();
+};
+window.smsBalanceSortHeaderKey = (event, key) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  window.sortSmsBalanceAlerts(key);
+};
+function smsBalanceAlertSortIndicator(key, filter=smsBalanceAlertFilter) {
+  const sort = smsBalanceAlertSortState[filter];
+  const active = !!sort && sort.key === key;
+  return { active, arrow: active ? (sort.dir < 0 ? ' ▼' : ' ▲') : '', ariaSort: active ? (sort.dir < 0 ? 'descending' : 'ascending') : 'none' };
+}
+function updateSmsBalanceAlertSortHeaders() {
+  document.querySelectorAll('#sms-bal-alert-table-wrap thead th[data-sms-alert-sort]').forEach(th => {
+    const key = th.getAttribute('data-sms-alert-sort') || '';
+    const label = th.getAttribute('data-sort-label') || th.textContent.replace(/\s*[▲▼]\s*$/,'').trim();
+    th.setAttribute('data-sort-label', label);
+    const { arrow, ariaSort } = smsBalanceAlertSortIndicator(key);
+    th.textContent = `${label}${arrow}`;
+    th.setAttribute('aria-sort', ariaSort);
+  });
+}
+function smsBalanceAlertSortHeader(key, label, numeric) {
+  const { arrow, ariaSort } = smsBalanceAlertSortIndicator(key, 'usagehistory');
+  const call = `sortSmsBalanceAlerts('${escAttr(key)}')`;
+  return `<th class="st-sortable${numeric?' num':''}" role="columnheader" tabindex="0" aria-sort="${ariaSort}" data-sms-alert-sort="${escAttr(key)}" onclick="${call}" onkeydown="smsBalanceSortHeaderKey(event,'${escAttr(key)}')">${esc(label)}${arrow}</th>`;
+}
 function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
   const sets = smsBalanceAlertSets();
   let rows = (sets[filter] || sets.all).slice();
@@ -21052,6 +21140,8 @@ function smsBalanceAlertRows(filter=smsBalanceAlertFilter, applyUi=true) {
     if (q) rows = rows.filter(row => [row.client,row.email,row.number,row.account_type,row._meta?.notes].some(v => String(v||'').toLowerCase().includes(q)));
     if (source) rows = rows.filter(row => row.source === source);
   }
+  // A header the user clicked outranks the subtab's default ordering.
+  if(applyUi&&smsBalanceAlertSortState[filter]?.key)return smsBalanceApplyAlertSort(rows,filter);
   if(filter==='usage')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
   if(filter==='critical')return rows.sort((a,b)=>smsBalanceNumber(b.usage_30min)-smsBalanceNumber(a.usage_30min)||a.client.localeCompare(b.client));
   if(filter==='warning')return rows.sort((a,b)=>(smsBalanceWarningProgress(b)??-1)-(smsBalanceWarningProgress(a)??-1)||a.client.localeCompare(b.client));
@@ -21141,7 +21231,15 @@ function renderSmsBalanceUsageHistory() {
     const key=smsBalanceMetaKey(row);const item=clients.get(key)||{row,bySlot:{}};item.bySlot[s.time_slot]=smsBalanceNumber(row.usage_30min);clients.set(key,item);
   }));
   let items=[...clients.values()].filter(item=>!q||[item.row.client,item.row.source,item.row.email].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>a.row.source.localeCompare(b.row.source)||a.row.client.localeCompare(b.row.client));
-  thead.innerHTML=`<tr><th>Type</th><th>Client</th>${usedSlots.map(slot=>`<th class="num">${esc(fmt12(slot))}</th>`).join('')}</tr>`;
+  // The pivot's columns are the slots posted today, so its sort keys are built
+  // per render rather than declared with the fixed Alerts columns.
+  const pivotSort=smsBalanceAlertSortState.usagehistory;
+  const readPivot=pivotSort&&(pivotSort.key==='type'?item=>smsBalanceSourceLabel(item.row.source)
+    :pivotSort.key==='client'?item=>String(item.row.client||'')
+    :String(pivotSort.key).startsWith('slot:')?item=>{const v=item.bySlot[pivotSort.key.slice(5)];return v===undefined?null:v;}
+    :null);
+  if(readPivot)items=items.slice().sort((a,b)=>smsBalanceAlertSortCompare(readPivot(a),readPivot(b),pivotSort.dir)||String(a.row.client||'').localeCompare(String(b.row.client||'')));
+  thead.innerHTML=`<tr>${smsBalanceAlertSortHeader('type','Type',false)}${smsBalanceAlertSortHeader('client','Client',false)}${usedSlots.map(slot=>smsBalanceAlertSortHeader(`slot:${slot}`,fmt12(slot),true)).join('')}</tr>`;
   tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${smsBalanceUsageHistoryCell(v,slot)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
   if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
   const resultCount=document.getElementById('sms-bal-alert-result-count');if(resultCount)resultCount.textContent=`${items.length} client row(s)`;
@@ -21158,6 +21256,7 @@ window.renderSmsBalanceAlerts = () => {
   const rows=smsBalanceAlertRows();
   const showBalanceBar=smsBalanceAlertFilter==='warning';
   const balanceBarHead=document.getElementById('sms-bal-alert-balance-bar-head');if(balanceBarHead)balanceBarHead.style.display=showBalanceBar?'':'none';
+  updateSmsBalanceAlertSortHeaders();
   // The two transition tabs are the only ones whose emptiness depends on a second
   // snapshot, so they carry the baseline they were diffed against.
   const isTransition=smsBalanceAlertFilter==='new'||smsBalanceAlertFilter==='removed';
@@ -21680,6 +21779,7 @@ function resetSmsBalanceDiscoveryFilters() {
   localStorage.setItem('bm_sms_balance_manager_source','');
   ['sms-bal-search','sms-bal-manager-search','sms-bal-alert-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   ['sms-bal-status-filter','sms-bal-manager-type-filter','sms-bal-manager-status-filter','sms-bal-manager-account-filter','sms-bal-type-filter','sms-bal-alert-source'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  Object.keys(smsBalanceAlertSortState).forEach(filter=>{delete smsBalanceAlertSortState[filter];});
   const managerType=document.getElementById('sms-bal-manager-type-filter');if(managerType)managerType.dataset.ready='true';
 }
 /* Do NOT flatten this difference to whole cents. Balances are carried to 3-4
@@ -22099,7 +22199,8 @@ function smsBalanceCsvDownload(headers,rows,name) {const csv=[headers,...rows].m
 window.exportSmsBalanceAlertView = () => {
   if(smsBalanceAlertFilter==='usagehistory'){
     const table=document.querySelector('#sms-bal-usage-history-wrap table');
-    const matrix=table?[...table.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(cell=>cell.textContent.trim())):[];
+    // Header cells carry the active sort arrow on screen; the CSV takes the label alone.
+    const matrix=table?[...table.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('th,td')].map(cell=>cell.textContent.replace(/\s*[▲▼]\s*$/,'').trim())):[];
     if(matrix.length<2){toast('No 30-minute usage history to export.','err');return;}
     smsBalanceCsvDownload(matrix[0],matrix.slice(1),`sms_balance_30m_usage_snapshot_${todayStr()}.csv`);return;
   }
