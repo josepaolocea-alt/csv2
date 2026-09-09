@@ -20635,20 +20635,42 @@ function smsBalanceNoThresholdRows() {
   });
   return [...byKey.values()];
 }
+function smsBalanceSnapshotKey(snapshot) { return snapshot ? `${snapshot.session_date}|${snapshot.time_slot}` : ''; }
+/* Both post-clear latches — the seed flag and the pinned baseline key — live in
+   this browser's localStorage, but what they claim is global: every snapshot was
+   wiped, so the newest one has nothing behind it. An earlier surviving slot today
+   contradicts that outright, and a latch left standing against it is a lie the
+   browser repeats on every render — New Critical republishes the entire Critical
+   tab, Removed from Critical stays empty, at every slot. Posting was the only way
+   out, so a machine that deletes and then only watches, or that never posts at
+   all, stayed wrong indefinitely; that is why fixing the transition logic alone
+   never made this stop coming back. Deriving staleness from the snapshots
+   everyone can see is what retires the latch on its own. */
+function clearStaleSmsBalanceBaselineLatches() {
+  if (!smsBalanceSeedAfterClear && !smsBalanceFreshBaselineKey) return;
+  const latestKey = smsBalanceSnapshotKey(smsBalanceLatest);
+  if (!latestKey) return;
+  const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
+  if (ordered.findIndex(s => smsBalanceSnapshotKey(s) === latestKey) <= 0) return;
+  if (smsBalanceSeedAfterClear) setSmsBalanceSeedAfterClear(false);
+  if (smsBalanceFreshBaselineKey === latestKey) setSmsBalanceFreshBaselineKey('');
+}
 function smsBalancePreviousContext() {
+  clearStaleSmsBalanceBaselineLatches();
   const ordered = sortSmsBalanceSnapshots(smsBalanceTodaySnaps);
   if (smsBalanceSeedAfterClear) return { snapshot:null, ready:true };
   if (!ordered.length || !smsBalanceLatest) return { snapshot:null, ready:smsBalancePriorLoaded };
-  const latestKey = `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}`;
+  const latestKey = smsBalanceSnapshotKey(smsBalanceLatest);
   if (latestKey === smsBalanceFreshBaselineKey) return { snapshot:smsBalanceLatest, ready:true };
-  const index = ordered.findIndex(s => `${s.session_date}|${s.time_slot}` === latestKey);
+  const index = ordered.findIndex(s => smsBalanceSnapshotKey(s) === latestKey);
   if (index > 0) return { snapshot:ordered[index - 1], ready:true };
   return { snapshot:smsBalancePriorSnap, ready:smsBalancePriorLoaded };
 }
 function smsBalancePreviousSnapshot() { return smsBalancePreviousContext().snapshot; }
 function smsBalanceIsFreshBaselineView() {
+  clearStaleSmsBalanceBaselineLatches();
   if (!smsBalanceLatest || !smsBalanceFreshBaselineKey) return false;
-  return `${smsBalanceLatest.session_date}|${smsBalanceLatest.time_slot}` === smsBalanceFreshBaselineKey;
+  return smsBalanceSnapshotKey(smsBalanceLatest) === smsBalanceFreshBaselineKey;
 }
 /* A pinned fresh baseline makes smsBalancePreviousContext() hand the newest
    snapshot back as its own previous, so both transition tabs read empty by
@@ -20669,6 +20691,7 @@ function smsBalanceFreshBaselineNewCriticalRows(rows) {
    IS the baseline" and "every earlier snapshot was deleted", and an operator
    reading it has to be able to tell which. */
 function smsBalanceBaselineNote() {
+  clearStaleSmsBalanceBaselineLatches();
   if (smsBalanceSeedAfterClear) return 'no baseline yet, the next snapshot posted becomes it';
   if (smsBalanceIsFreshBaselineView()) return 'this snapshot is the fresh baseline, so nothing precedes it';
   const previousContext = smsBalancePreviousContext();
@@ -21824,6 +21847,11 @@ window.processSmsBalanceSnapshot = async () => {
   if(existing&&!await confirmSmsBalanceAction({title:'Overwrite SMS Balance Snapshot',label:'Overwrite Snapshot',html:`The <strong>${esc(fmt12(slot))}</strong> SMS Balance snapshot already exists today.<br><br>Overwrite the Reseller and Wholesale rows stored for this slot?`}))return;
   const slotIndex=shiftSlots('24H').indexOf(slot);
   const previousToday=smsBalanceTodaySnaps.filter(s=>s.time_slot!==slot&&shiftSlots('24H').indexOf(s.time_slot)<slotIndex).at(-1)||null;
+  // An earlier slot today means the wipe the seed latch describes is over. The
+  // latch is browser-local, so without this a machine that deleted snapshots
+  // hours ago posts this slot as a fresh baseline: no usage baseline, no Critical
+  // History written, and every Critical client republished as New Critical.
+  if(smsBalanceSeedAfterClear&&previousToday)setSmsBalanceSeedAfterClear(false);
   // Match VOIP behavior: the first snapshot today compares with the latest
   // snapshot from the most recent prior day. This prevents clients that stayed
   // Critical or without thresholds overnight from being announced as new again.
@@ -21839,7 +21867,9 @@ window.processSmsBalanceSnapshot = async () => {
   const now=new Date();
   const snap={id:smsBalanceSnapshotId(todayStr(),slot),timestamp:now,session_date:todayStr(),time_slot:slot,gap_minutes:gapMinutes,operator:operatorName||'',user_email:currentUserEmail||'',reseller:split('reseller'),wholesale:split('wholesale'),data};
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
-  const seedsFreshBaseline=smsBalanceSeedAfterClear||postedKey===smsBalanceFreshBaselineKey;
+  // Re-posting the slot a fresh baseline is pinned to keeps it the baseline, but
+  // only while nothing precedes it — the same reality check the read paths apply.
+  const seedsFreshBaseline=smsBalanceSeedAfterClear||(postedKey===smsBalanceFreshBaselineKey&&!previousToday);
   const allEntries=smsBalanceNewHistoryEntries(snap,previous);
   // A fresh baseline writes no history at all: with nothing to diff against,
   // every client would look newly detected and each list would replay the whole
