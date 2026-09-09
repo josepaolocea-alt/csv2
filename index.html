@@ -1599,6 +1599,27 @@
     .st-daily-rank-card.total tbody tr { cursor: default; }
     .st-daily-rank-card.total .st-daily-status { justify-content: center; min-width: 72px; }
     .st-daily-rank-count { color: var(--text-3); font-size: 10px; font-weight: 600; }
+    /* Count and Show hidden travel together as one right-hand group, so the title
+       row keeps the two flex children its space-between layout expects. */
+    .st-daily-rank-meta { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+    .st-daily-peek {
+      flex: 0 0 auto; padding: 3px 9px;
+      color: var(--text-2); background: var(--bg); border: 0; border-radius: var(--r-pill);
+      font-family: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .02em;
+      cursor: pointer; box-shadow: var(--neu-raised-sm);
+      transition: color .15s ease, box-shadow .15s ease;
+    }
+    .st-daily-peek:hover { color: var(--text); }
+    .st-daily-peek:active { box-shadow: var(--neu-inset-sm); }
+    .st-daily-peek[aria-pressed="true"] { color: var(--accent-strong); box-shadow: var(--neu-inset-sm); }
+    /* Revealed rows stay visibly secondary to the ranking they sit under: this is
+       a peek behind the floor, not a longer Top 10. */
+    .st-daily-floor-divider td {
+      color: var(--text-3); background: var(--surface-2);
+      font-size: 9px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+    }
+    .st-daily-rank-card tbody tr.st-daily-floor-divider { cursor: default; }
+    .st-daily-rank-card tbody tr.st-daily-below-floor td { opacity: .68; }
     .st-daily-rank-card table { font-size: 10.5px; font-variant-numeric: tabular-nums; }
     #vos-daily-panel-dashboard .st-daily-rank-card table { table-layout:fixed; }
     #vos-daily-panel-dashboard .st-daily-rank-card th:first-child,
@@ -10487,7 +10508,7 @@
                 <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest Raw Dur</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday Raw Dur</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Change</th></tr></thead><tbody id="st-daily-dashboard-decrease"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card stopped" aria-labelledby="st-daily-stopped-title">
-                <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 routes</span></div>
+                <div class="st-daily-rank-title" id="st-daily-stopped-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-meta"><span class="st-daily-rank-count" id="st-daily-dashboard-stopped-count">0 routes</span><button type="button" class="st-daily-peek" id="st-daily-stopped-peek" onclick="toggleDailyStoppedPeek('statsDaily')" aria-pressed="false" aria-controls="st-daily-dashboard-stopped" hidden>Show hidden</button></span></div>
                 <div class="st-daily-rank-scroll"><table><thead><tr><th>Client</th><th class="st-daily-latest-heading" style="text-align:right">Latest Raw Dur</th><th class="st-daily-yesterday-heading" style="text-align:right">Yesterday Raw Dur</th><th style="text-align:right">2-week avg</th><th style="text-align:right">Lost</th></tr></thead><tbody id="st-daily-dashboard-stopped"></tbody></table></div>
               </section>
               <section class="st-daily-rank-card increase" aria-labelledby="st-daily-increase-title">
@@ -10700,7 +10721,7 @@
                 <div class="st-daily-dashboard-meta" id="vos-daily-dashboard-meta">Add dated VOS reports to build the two-week dashboard.</div>
                 <div class="st-daily-dashboard-grid" tabindex="0" aria-label="VOS Daily Traffic dashboard cards">
                   <section class="st-daily-rank-card decrease"><div class="st-daily-rank-title"><span>Top 10 Decreases</span><span class="st-daily-rank-count" id="vos-dashboard-decrease-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-decrease"></tbody></table></div></section>
-                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span></div><div class="st-daily-rank-scroll" id="vos-dashboard-stopped-scroll" tabindex="0" aria-label="Top 10 Stopped Traffic routes"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
+                  <section class="st-daily-rank-card stopped"><div class="st-daily-rank-title"><span>Top 10 Stopped Traffic</span><span class="st-daily-rank-meta"><span class="st-daily-rank-count" id="vos-dashboard-stopped-count">0 routes</span><button type="button" class="st-daily-peek" id="vos-dashboard-stopped-peek" onclick="toggleDailyStoppedPeek('vosDaily')" aria-pressed="false" aria-controls="vos-dashboard-stopped" hidden>Show hidden</button></span></div><div class="st-daily-rank-scroll" id="vos-dashboard-stopped-scroll" tabindex="0" aria-label="Top 10 Stopped Traffic routes"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Lost (min)</th></tr></thead><tbody id="vos-dashboard-stopped"></tbody></table></div></section>
                   <section class="st-daily-rank-card increase"><div class="st-daily-rank-title"><span>Top 10 Increases</span><span class="st-daily-rank-count" id="vos-dashboard-increase-count">0 routes</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Gateway / Area</th><th class="num vos-current-date-heading">Last posted (min)</th><th class="num vos-previous-date-heading">Previous (min)</th><th class="num">Change (min)</th></tr></thead><tbody id="vos-dashboard-increase"></tbody></table></div></section>
                   <section class="st-daily-rank-card total"><div class="st-daily-rank-title"><span>Total Call Time</span><span class="st-daily-rank-count" id="vos-dashboard-total-count">0 dates</span></div><div class="st-daily-rank-scroll"><table><thead><tr><th>Date</th><th class="num">Total minutes</th><th class="num">Change (min)</th><th>Trend</th></tr></thead><tbody id="vos-dashboard-total"></tbody></table></div></section>
                 </div>
@@ -25808,12 +25829,42 @@ function setDailyStoppedFloor(scope, on) {
   try { localStorage.setItem(DAILY_STOPPED_FLOOR_KEY, JSON.stringify(prefs)); } catch (e) {}
 }
 // Rows below the floor are hidden, not reclassified — `hidden` drives the note
-// under the panel so a short list never reads as missing data.
+// under the panel so a short list never reads as missing data, and `hiddenRows`
+// lets the panel show them on request without re-deriving the split.
 function applyDailyStoppedFloor(rows, scope, previousValue) {
-  if (!dailyStoppedFloorOn(scope)) return { rows, hidden:0, filtered:false };
-  const kept = rows.filter(row => Number(previousValue(row)) > DAILY_STOPPED_FLOOR_MINUTES);
-  return { rows:kept, hidden:rows.length - kept.length, filtered:true };
+  if (!dailyStoppedFloorOn(scope)) return { rows, hidden:0, hiddenRows:[], filtered:false };
+  const kept = [], below = [];
+  rows.forEach(row => (Number(previousValue(row)) > DAILY_STOPPED_FLOOR_MINUTES ? kept : below).push(row));
+  return { rows:kept, hidden:below.length, hiddenRows:below, filtered:true };
 }
+/* A look, not a setting. The Stopped panel keeps the floor exactly as configured
+   and this only appends the rows it is holding back, so an operator can check
+   what was filtered out without opening Settings — and without changing what the
+   dashboard exports, what anyone else sees, or what the next reload shows.
+   Deliberately not persisted: the quiet dashboard is where every session starts. */
+const dailyStoppedPeek = { statsDaily:false, vosDaily:false };
+function dailyStoppedPeekOn(scope) { return !!dailyStoppedPeek[scope] && dailyStoppedFloorOn(scope); }
+/* The floor is the only thing that makes rows hidden, so the button appears
+   exactly when it is holding something back — otherwise it would offer to reveal
+   an empty list. */
+function syncDailyStoppedPeekButton(id, scope, hiddenCount) {
+  const button = document.getElementById(id);
+  if (!button) return;
+  const available = dailyStoppedFloorOn(scope) && hiddenCount > 0;
+  button.hidden = !available;
+  if (!available) return;
+  const on = dailyStoppedPeekOn(scope);
+  const rowLabel = `${hiddenCount} row${hiddenCount === 1 ? '' : 's'}`;
+  button.textContent = on ? 'Hide' : 'Show hidden';
+  button.setAttribute('aria-pressed', String(on));
+  button.title = on
+    ? `Collapse the ${rowLabel} below ${DAILY_STOPPED_FLOOR_MINUTES} min again.`
+    : `List the ${rowLabel} below ${DAILY_STOPPED_FLOOR_MINUTES} min. This is a temporary view — it does not change the Settings filter.`;
+}
+window.toggleDailyStoppedPeek = scope => {
+  dailyStoppedPeek[scope] = !dailyStoppedPeek[scope];
+  if (scope === 'vosDaily') renderVosDailyDashboard(); else renderStatsDailyDashboard();
+};
 const DAILY_STOPPED_FLOOR_INPUTS = { statsDaily:'stats-daily-stopped-floor', vosDaily:'vos-daily-stopped-floor' };
 function syncDailyStoppedFloorInputs() {
   Object.entries(DAILY_STOPPED_FLOOR_INPUTS).forEach(([scope, id]) => {
@@ -25822,9 +25873,11 @@ function syncDailyStoppedFloorInputs() {
   });
 }
 // Redrawn straight away so switching back to the Dashboard shows the new list
-// rather than the one built before the switch was flipped.
+// rather than the one built before the switch was flipped. Moving the floor also
+// drops the peek: it was a look at a set that no longer exists.
 window.toggleDailyStoppedFloor = (scope, on) => {
   setDailyStoppedFloor(scope, on);
+  dailyStoppedPeek[scope] = false;
   syncDailyStoppedFloorInputs();
   if (scope === 'vosDaily') renderVosDailyDashboard(); else renderStatsDailyDashboard();
 };
@@ -26156,7 +26209,7 @@ window.openVosDailyHistoryForRoute=token=>{
   window.switchVosDailyTab('history');
 };
 window.clearVosDailyHistoryRouteFilter=()=>{const search=document.getElementById('vos-history-search');if(search)delete search.dataset.routeKey;};
-function vosDashboardRow(row){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds),changeClass=row.status==='stopped'||change<0?'st-daily-negative':change>0?'st-daily-positive':'',routeToken=vosDailyRouteToken(row).replace(/'/g,'%27');return `<tr data-vos-daily-route="${stEsc(routeToken)}" ondblclick="openVosDailyHistoryForRoute('${routeToken}')" title="Double-click to view this Mapping Gateway + Area Name in Last 2 Weeks"><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num ${changeClass}">${change>0?'+':''}${stN2(change)}</td></tr>`;}
+function vosDashboardRow(row,belowFloor=false){const latest=vosMinutes(row.total_call_time_seconds),previous=vosMinutes(row.previous_total_call_time_seconds),change=vosMinutes(row.change_seconds),changeClass=row.status==='stopped'||change<0?'st-daily-negative':change>0?'st-daily-positive':'',routeToken=vosDailyRouteToken(row).replace(/'/g,'%27');return `<tr class="${belowFloor?'st-daily-below-floor':''}" data-vos-daily-route="${stEsc(routeToken)}" ondblclick="openVosDailyHistoryForRoute('${routeToken}')" title="Double-click to view this Mapping Gateway + Area Name in Last 2 Weeks"><td class="st-daily-rank-client">${stEsc(row.mapping_gateway)}<span class="st-daily-rank-destination">${stEsc(row.area_name)}</span></td><td class="num">${stN2(latest)}</td><td class="num">${stN2(previous)}</td><td class="num ${changeClass}">${change>0?'+':''}${stN2(change)}</td></tr>`;}
 function renderVosDailyDashboard(){
   const comparison=vosDailyComparison(vosSortedHistory().slice(-1)[0]?.session_date||'');
   document.querySelectorAll('.vos-current-date-heading').forEach(heading=>{heading.textContent=vosDashboardDateHeading(comparison.currentDay?.session_date,'Last posted (min)');heading.title=comparison.currentDay?`Last posted date: ${comparison.currentDay.session_date}`:'Last posted date';});
@@ -26167,7 +26220,13 @@ function renderVosDailyDashboard(){
   const stoppedFloor=applyDailyStoppedFloor(comparison.rows.filter(r=>r.status==='stopped'),'vosDaily',row=>vosMinutes(row.previous_total_call_time_seconds));
   const groups={decrease:comparison.rows.filter(r=>r.status==='decrease').sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),stopped:stoppedFloor.rows.sort((a,b)=>a.change_seconds-b.change_seconds).slice(0,10),increase:comparison.rows.filter(r=>r.status==='increase').sort((a,b)=>b.change_seconds-a.change_seconds).slice(0,10)};
   const stoppedEmpty=stoppedFloor.hidden?`<tr><td colspan="4" style="text-align:center;color:var(--text-3)">${stoppedFloor.hidden} stopped route${stoppedFloor.hidden===1?'':'s'} below ${DAILY_STOPPED_FLOOR_MINUTES} min — hidden by the Settings filter.</td></tr>`:empty;
-  ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);if(body)body.innerHTML=groups[name].map(vosDashboardRow).join('')||(name==='stopped'?stoppedEmpty:empty);vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}${name==='stopped'&&stoppedFloor.hidden?` · ${stoppedFloor.hidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min hidden`:''}`);});
+  // Revealed rows sit under the ranking they were filtered out of, behind a
+  // labelled divider, so the Top 10 above them still reads as the Top 10.
+  const peeking=stoppedFloor.hidden&&dailyStoppedPeekOn('vosDaily');
+  const revealed=peeking?stoppedFloor.hiddenRows.slice().sort((a,b)=>a.change_seconds-b.change_seconds):[];
+  const revealedHtml=revealed.length?`<tr class="st-daily-floor-divider"><td colspan="4">Below ${DAILY_STOPPED_FLOOR_MINUTES} min · hidden by the Settings filter</td></tr>`+revealed.map(row=>vosDashboardRow(row,true)).join(''):'';
+  syncDailyStoppedPeekButton('vos-dashboard-stopped-peek','vosDaily',stoppedFloor.hidden);
+  ['decrease','stopped','increase'].forEach(name=>{const body=document.getElementById(`vos-dashboard-${name}`);const rowsHtml=groups[name].map(row=>vosDashboardRow(row)).join('')+(name==='stopped'?revealedHtml:'');if(body)body.innerHTML=rowsHtml||(name==='stopped'?stoppedEmpty:empty);vosSetText(`vos-dashboard-${name}-count`,`${groups[name].length} route${groups[name].length===1?'':'s'}${name==='stopped'&&stoppedFloor.hidden?` · ${stoppedFloor.hidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min ${peeking?'shown':'hidden'}`:''}`);});
   const days=vosSortedHistory(), totals=days.map((day,index)=>{const total=day.rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0),previous=index?days[index-1].rows.reduce((sum,row)=>sum+vosNumber(row.total_call_time_seconds),0):0;return{date:day.session_date,total,change:index?total-previous:0};}).reverse();
   const latestVosDate=days.slice(-1)[0]?.session_date||'';
   const totalBody=document.getElementById('vos-dashboard-total'); if(totalBody)totalBody.innerHTML=totals.map(row=>{const totalMinutes=vosMinutes(row.total),changeMinutes=vosMinutes(row.change),isLatest=row.date&&row.date===latestVosDate;return `<tr><td>${stEsc(row.date)}${isLatest?' <span class="st-daily-status new st-daily-latest-flag" title="Most recently uploaded VOS report">Latest</span>':''}</td><td class="num">${stN2(totalMinutes)}</td><td class="num">${changeMinutes>0?'+':''}${stN2(changeMinutes)}</td><td style="text-align:center"><span class="st-daily-status ${row.change>0?'increase':row.change<0?'decrease':'unchanged'}">${row.change>0?'Increase':row.change<0?'Decrease':'—'}</span></td></tr>`;}).join('')||empty;
@@ -27572,6 +27631,9 @@ function statsDailyDashboardGroups(snapshot = statsDailyTwoWeekSnapshot()) {
     stopped:stopped.rows.sort((a,b) => b.yesterday_raw_dur - a.yesterday_raw_dur),
     increase:snapshot.rows.filter(row => row.status === 'increase').sort((a,b) => b.change - a.change),
     stoppedHidden:stopped.hidden,
+    // Carried for the panel's Show hidden view only. `stopped` stays floored, so
+    // the dashboard export keeps following the saved setting rather than a peek.
+    stoppedHiddenRows:stopped.hiddenRows.slice().sort((a,b) => b.yesterday_raw_dur - a.yesterday_raw_dur),
   };
 }
 
@@ -27616,24 +27678,34 @@ function renderStatsDailyDashboard() {
     heading.title = yesterdayDate ? `Previous calendar day: ${yesterdayDate}` : 'Previous calendar day';
   });
 
-  const { stoppedHidden = 0, ...statusGroups } = statsDailyDashboardGroups(snapshot);
+  const { stoppedHidden = 0, stoppedHiddenRows = [], ...statusGroups } = statsDailyDashboardGroups(snapshot);
   const empty = label => `<tr><td colspan="5" style="padding:16px 8px;text-align:center;color:var(--text-3)">${label}</td></tr>`;
+  const peeking = stoppedHidden && dailyStoppedPeekOn('statsDaily');
+  syncDailyStoppedPeekButton('st-daily-stopped-peek', 'statsDaily', stoppedHidden);
   Object.entries(statusGroups).forEach(([status, allRows]) => {
     const floored = status === 'stopped' && stoppedHidden;
     const count = document.getElementById(`st-daily-dashboard-${status}-count`);
-    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}${floored ? ` · ${stoppedHidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min hidden` : ''}`;
+    if (count) count.textContent = `${allRows.length} client${allRows.length === 1 ? '' : 's'}${floored ? ` · ${stoppedHidden} under ${DAILY_STOPPED_FLOOR_MINUTES} min ${peeking ? 'shown' : 'hidden'}` : ''}`;
     const body = document.getElementById(`st-daily-dashboard-${status}`);
     if (!body) return;
-    const rows = allRows.slice(0, 10);
-    body.innerHTML = rows.length ? rows.map(row => {
+    const rankRow = (row, belowFloor) => {
       const changeClass = row.change < 0 ? 'st-daily-negative' : 'st-daily-positive';
       const signedChange = `${row.change > 0 ? '+' : ''}${stN2(row.change)}`;
       const pct = row.change_pct === null ? '' : ` (${row.change_pct > 0 ? '+' : ''}${row.change_pct.toFixed(1)}%)`;
       const encodedKey = encodeURIComponent(row.key).replace(/'/g, '%27');
-      return `<tr ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
+      return `<tr class="${belowFloor ? 'st-daily-below-floor' : ''}" ondblclick="openStatsDailyHistoryForClient(decodeURIComponent('${encodedKey}'))" title="Double-click to view this client in Last 2 Weeks"><td class="st-daily-rank-client"><strong title="${stEsc(row.customer_name)}">${stEsc(row.customer_name)}</strong><span class="st-daily-rank-account" title="${stEsc(row.account_codes)}">${stEsc(row.account_codes)}</span></td>`
         + `<td style="text-align:right">${stN2(row.latest_raw_dur)}</td><td style="text-align:right">${row.yesterday_raw_dur === null ? '—' : stN2(row.yesterday_raw_dur)}</td><td style="text-align:right">${stN2(row.baseline_raw_dur)}</td>`
         + `<td class="${changeClass}" style="text-align:right" title="${stEsc(`${signedChange}${pct}`)}">${status === 'stopped' ? stN2(Math.abs(row.change)) : signedChange}</td></tr>`;
-    }).join('') : empty(floored
+    };
+    // Revealed rows sit under the ranking they were filtered out of, behind a
+    // labelled divider, so the Top 10 above them still reads as the Top 10.
+    const revealed = status === 'stopped' && peeking ? stoppedHiddenRows : [];
+    const revealedHtml = revealed.length
+      ? `<tr class="st-daily-floor-divider"><td colspan="5">Below ${DAILY_STOPPED_FLOOR_MINUTES} min · hidden by the Settings filter</td></tr>`
+        + revealed.map(row => rankRow(row, true)).join('')
+      : '';
+    const rowsHtml = allRows.slice(0, 10).map(row => rankRow(row, false)).join('') + revealedHtml;
+    body.innerHTML = rowsHtml || empty(floored
       ? `${stoppedHidden} stopped client${stoppedHidden === 1 ? '' : 's'} below ${DAILY_STOPPED_FLOOR_MINUTES} min — hidden by the Settings filter.`
       : snapshot.latestDay ? `No ${status} traffic` : 'No daily data');
   });
