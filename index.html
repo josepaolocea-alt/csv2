@@ -1636,6 +1636,11 @@
       min-width: 0; margin-left: 6px; vertical-align: middle;
       padding: 2px 5px; font-size: 9px; letter-spacing: .02em;
     }
+    /* Both dashboards need this. A rank list scrolled to its end used to put the
+       final row flush on the card border — legible in theory, but it reads as a
+       row sliced by the edge, and the reserved scrollbar gutter keeps the last
+       column clear of the thumb. */
+    #st-daily-panel-dashboard .st-daily-rank-scroll,
     #vos-daily-panel-dashboard .st-daily-rank-scroll {
       padding-bottom: 10px;
       scroll-padding-bottom: 10px;
@@ -1667,6 +1672,7 @@
       outline: 2px solid var(--accent);
       outline-offset: -2px;
     }
+    #st-daily-panel-dashboard .st-daily-rank-card tbody tr:last-child td,
     #vos-daily-panel-dashboard .st-daily-rank-card tbody tr:last-child td { padding-bottom: 11px; }
     .st-daily-rank-scroll { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
     .st-daily-rank-card.total .st-daily-rank-scroll { max-height: 230px; }
@@ -26111,8 +26117,13 @@ function vosDailyComparison(date = vosSelectedDate) {
     const previousSeconds = before ? vosNumber(before.total_call_time_seconds) : 0;
     const change = currentSeconds - previousSeconds;
     let status = 'unchanged';
+    // "Stopped" has to mean traffic that ended, so a disappeared route is only a
+    // stop when it actually carried Total Call Time on the previous date. A route
+    // listed yesterday at a flat 0 and dropped from today's report had nothing to
+    // lose, and used to reach the Stopped panel as a 0.00 → 0.00 row. Any real
+    // duration still counts, however small.
     if (!before && now) status = 'new';
-    else if (before && !now) status = 'stopped';
+    else if (before && !now) status = previousSeconds > 0 ? 'stopped' : 'unchanged';
     else if (change > 0) status = 'increase';
     else if (change < 0) status = 'decrease';
     return {...identity, ...(now || {source_rows:0,total_calls:0,fail:0,success:0,answered:0,avg_call_duration_sum_seconds:0,total_call_time_seconds:0,asr:0,acd:0}),
@@ -28129,7 +28140,10 @@ function statsDailyComparison(sessionDate) {
     const rawDur = now?.raw_dur || 0, previousRawDur = before?.raw_dur || 0;
     let status = 'unchanged';
     if (now && !before) status = 'new';
-    else if (!now && before) status = 'stopped';
+    // A client listed yesterday with no Raw Duration at all had no traffic to
+    // stop, so dropping off today's report leaves it unchanged — the same rule
+    // the zero-today branch below already applies.
+    else if (!now && before) status = previousRawDur > 0 ? 'stopped' : 'unchanged';
     else if (rawDur === 0 && previousRawDur > 0) status = 'stopped';
     else if (rawDur > previousRawDur) status = 'increase';
     else if (rawDur < previousRawDur) status = 'decrease';
