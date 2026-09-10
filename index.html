@@ -3331,7 +3331,21 @@
     .sms-bal-table td.num, .sms-bal-table th.num { text-align:right; font-family:var(--mono); }
     .sms-bal-table tbody tr { transition:background .14s ease,box-shadow .14s ease; }
     .sms-bal-table tbody tr:nth-child(even) td { background:color-mix(in srgb,var(--surface-2) 48%,var(--surface)); }
-    .sms-bal-table tbody tr:hover td { background:color-mix(in srgb,var(--accent-soft) 42%,var(--surface)) !important; }
+    /* The hover ground was 42% of --accent-soft, which is barely a tint at all:
+       1.05:1 against a plain row and 1.00:1 against the striped even rows — on
+       every second row the hover was mathematically no change, so the row under
+       the pointer could not be picked out at all. Mixing from --accent instead
+       lands it at 1.20:1 against a plain row and 1.15:1 against a striped one.
+       A deeper ground costs the three inks that were sitting closest to their
+       floor, so each steps up while the pointer is on the row: the red of a hot
+       warning row and of a Balance Bar at 90%+ go to --red-deep (4.31:1 →
+       5.94:1) and the muted em dash goes to --text-2 (4.33:1 → 5.38:1). Every
+       piece of text in the table now clears 4.5:1 in both themes, hovered or
+       not — measured, not eyeballed. */
+    .sms-bal-table tbody tr:hover td { background:color-mix(in srgb,var(--accent) 14%,var(--surface)) !important; }
+    .sms-bal-table tbody tr:hover .sms-muted { color:var(--text-2); }
+    .sms-bal-table tbody tr:hover .bar-pct-danger,
+    .sms-bal-table tbody tr.sms-bal-row-warning-hot:hover td { color:var(--red-deep); }
     .sms-bal-row-blocked td:first-child, .sms-bal-row-critical td:first-child { box-shadow:inset 3px 0 0 var(--red); }
     .sms-bal-row-overdraft td:first-child { box-shadow:inset 3px 0 0 var(--orange); }
     .sms-bal-row-warning td:first-child, .sms-bal-row-near td:first-child { box-shadow:inset 3px 0 0 var(--yellow); }
@@ -8096,7 +8110,26 @@
     }
     body.night-mode #sidebar textarea::placeholder,
     body.night-mode #sidebar input::placeholder { color: var(--text-3); }
-    .sms-bal-usage-hot { color: var(--on-accent); background: var(--yellow) !important; }
+    /* A 30m Usage figure over 50 is a saturated --yellow chip, and its ink is
+       --on-accent because that is the token for text on a strong fill — white
+       in the light theme. As a bare class the chip was (0,1,0), which loses to
+       the app-wide `tbody tr:hover td { background: var(--row-hover) }` at
+       (0,1,3): hovering the row repainted the cell and left white ink on a pale
+       blue ground at 1.2:1, so the number vanished under the pointer. Binding
+       the chip to the table it lives in raises it above every hover ground, so
+       the fill and the ink it was chosen for now travel together. Hot warning
+       rows are excluded on purpose — a row already washed red keeps its own
+       colour, as it did before. */
+    .sms-bal-table tbody tr:not(.sms-bal-row-warning-hot) td.sms-bal-usage-hot {
+      color: var(--on-accent); background: var(--yellow) !important;
+    }
+    /* The dark theme keeps the deeper amber it has always used rather than
+       inheriting the light theme's chip — a saturated --yellow is a lot of
+       light to put on a screen someone is reading at 3am — but it is restated
+       at this weight so it survives the hover ground too. */
+    body.night-mode .sms-bal-table tbody tr:not(.sms-bal-row-warning-hot) td.sms-bal-usage-hot {
+      color: #fff4b8; background: #5b4a00 !important;
+    }
 
     /* ── 14c · Reported fixes ─────────────────────────────────────────────
        Five things found in use after the first pass of this layer. Four of
