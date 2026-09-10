@@ -11896,9 +11896,11 @@ let smsBalanceHistorySuppressed = new Set();
 let smsBalanceHistorySuppLoaded = false;
 // A full snapshot wipe intentionally makes the next post a fresh transition
 // baseline. Existing Critical / No-Threshold clients remain visible in their
-// current tabs, but are not replayed into persistent history as newly detected.
-// Critical History is exempt: it is a state log, so the baseline post still
-// records every client sitting at Critical / Blocked (see recordSmsBalanceHistories).
+// current tabs, but are not replayed into persistent history as newly detected —
+// Critical History included: it logs arrivals, and after a wipe nothing has
+// arrived (see recordSmsBalanceHistories). These two keys only pre-declare the
+// baseline for the browser that ran the delete; the post itself decides from
+// whether any snapshot survives to diff against, so every browser agrees.
 let smsBalanceSeedAfterClear = localStorage.getItem('bm_sms_balance_seed_after_clear') === '1';
 let smsBalanceFreshBaselineKey = localStorage.getItem('bm_sms_balance_fresh_baseline_key') || '';
 function setSmsBalanceSeedAfterClear(on) {
@@ -22034,7 +22036,16 @@ window.processSmsBalanceSnapshot = async () => {
   const postedKey=`${snap.session_date}|${snap.time_slot}`;
   // Re-posting the slot a fresh baseline is pinned to keeps it the baseline, but
   // only while nothing precedes it — the same reality check the read paths apply.
-  const seedsFreshBaseline=smsBalanceSeedAfterClear||(postedKey===smsBalanceFreshBaselineKey&&!previousToday);
+  // `!previous` is the real test and it is read off the surviving snapshots, not
+  // off a latch: after every snapshot is deleted there is nothing to diff
+  // against, so the post is a baseline no matter which browser makes it. The
+  // seed latch is localStorage and only the machine that ran the delete has it,
+  // so gating on the latch alone let a second operator post the first snapshot
+  // after a wipe and republish the entire Critical tab into Critical History as
+  // arrivals — bumping Times Hit for clients that never crossed anything. VOIP
+  // never had this because its history is presence-based and ignores the
+  // previous snapshot entirely.
+  const seedsFreshBaseline=!previous||smsBalanceSeedAfterClear||(postedKey===smsBalanceFreshBaselineKey&&!previousToday);
   const allEntries=smsBalanceNewHistoryEntries(snap,previous);
   // A fresh baseline writes no history at all: with nothing to diff against,
   // every client would look newly detected and each list would replay the whole
@@ -22168,13 +22179,13 @@ window.deleteAllSmsBalanceSnapshots = async () => {
 };
 window.clearSmsBalanceHistory = async () => {
   if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}
-  if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>The next snapshot re-logs every client still at Critical / Blocked, so the tab rebuilds from the current state. Any per-row dismissals are dropped too.'}))return;
+  if(!await confirmSmsBalanceAction({title:'Clear SMS Critical History',label:'Clear History',html:'Clear the complete <strong>SMS Critical / Overdraft History</strong>?<br><br>The tab logs arrivals, so it stays empty until a client next crosses INTO Critical / Blocked — clients already sitting there are not re-logged. Alerts → Critical keeps showing them meanwhile. Any per-row dismissals are dropped too.'}))return;
   const backup=smsBalanceHistory.slice(),suppBackup=new Set(smsBalanceHistorySuppressed);
   smsBalanceHistory=[];smsBalanceHistorySuppressed=new Set();smsBalanceHistorySuppLoaded=true;saveSmsBalanceLocal();renderSmsBalanceHistory();
   // A full wipe resets dismissals as well, matching the VOIP Danger Zone wipe:
   // leaving them set would silently keep clients out of the rebuilt log.
   try{if(fbOk)await deleteDoc(smsBalanceHistorySuppRef());}catch(error){/* non-fatal */}
-  try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — the next snapshot re-logs current criticals','ok',7000);}
+  try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — it refills from the next client that crosses into Critical','ok',7000);}
   catch(error){smsBalanceHistory=backup;smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not clear SMS Critical History: '+error.message,'err',7000);}
 };
 window.clearSmsBalanceNoThreshold = async () => {
