@@ -9819,7 +9819,7 @@
             </div>
             <div class="sms-table-col">
             <div class="fbar">
-              <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="renderSmsClients()" style="min-width:240px">
+              <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="onSmsSearchInput()" style="min-width:240px">
               <select class="win-inp" id="sms-filter-client"          onchange="renderSmsClients()" title="Filter by Client"><option value="">All Clients</option></select>
               <select class="win-inp" id="sms-filter-destination"     onchange="renderSmsClients()" title="Filter by Destination"><option value="">All Destinations</option></select>
               <select class="win-inp" id="sms-filter-account-manager" onchange="renderSmsClients()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
@@ -24112,21 +24112,23 @@ function smsSearchCompact(value) {
   return smsSearchKey(value).replace(/\s+/g, '');
 }
 
-// Tokens of `value` with intra-word punctuation stripped, but real word boundaries preserved.
-// e.g. "ABC-123 for globe" → ["abc123", "for", "globe"] — so "elfo" can't bridge "for globe".
-function smsCompactTokens(value) {
-  return smsSearchKey(value).split(/\s+/).filter(Boolean);
+/* Matcher against an ALREADY normalized query. The table search runs this once per
+   field per row, so normalizing the query 16 times a row — and the value twice — is
+   what made typing lag on a large register; both are hoisted out here.
+
+   There used to be a per-token fallback below the substring test, meant to let
+   "abc123" find "ABC-123". It never could: smsSearchKey splits on punctuation, so
+   that value normalizes to "abc 123", and every token it produced was already a
+   substring of the haystack the test above had just rejected. Dropping it changes
+   no result and saves a split per missed field. Reviving that intent means matching
+   against smsSearchCompact(value), which is a search-behaviour change, not a fix. */
+function smsMatchesKey(value, q) {
+  if (!q) return true;
+  return smsSearchKey(value).includes(q);
 }
 
 function smsTextMatches(value, query) {
-  const q = smsSearchKey(query);
-  if (!q) return true;
-  const hay = smsSearchKey(value);
-  if (hay.includes(q)) return true;
-  // Compact fallback for single-token queries like "abc123" matching "ABC-123".
-  // Restricted to per-token matches so cross-word substrings (e.g. "elfo" in "panel for") don't hit.
-  if (/\s/.test(q)) return false;
-  return smsCompactTokens(value).some(tok => tok.includes(q));
+  return smsMatchesKey(value, smsSearchKey(query));
 }
 
 function smsTextSame(value, query) {
@@ -24737,8 +24739,9 @@ function showUndoToast(msg, onUndo, seconds=5) {
 }
 
 function smsMatchesSearch(row, q) {
-  if (!smsSearchKey(q)) return true;
-  return SMS_FIELDS.some(f => smsTextMatches(row[f], q));
+  const key = smsSearchKey(q);
+  if (!key) return true;
+  return SMS_FIELDS.some(f => smsMatchesKey(row[f], key));
 }
 
 function refreshSmsFilterOptions() {
@@ -24949,7 +24952,19 @@ window.applySmsBulkEdit = () => {
 
 const SMS_SORTABLE_COLS = ['date','client','sender_id','destination','account_manager','platform','type','msg_type','status','opt_out','overdraft','vendor','priority_vendor','emails','notes'];
 
+/* Every keystroke used to re-render the whole register — the row filter walks all 16
+   fields of every route, and renderSmsClients also rebuilds the eight combo menus and
+   the three filter selects, none of which depend on the search text. Collapsing a burst
+   of keystrokes into one render is what keeps the box responsive on a large register.
+   Any direct renderSmsClients() call (Search button, saving a route, switching tabs)
+   supersedes a queued one, so the delayed pass can never fire over a fresher render. */
+let smsSearchTimer = null;
+window.onSmsSearchInput = () => {
+  clearTimeout(smsSearchTimer);
+  smsSearchTimer = setTimeout(() => { smsSearchTimer = null; renderSmsClients(); }, 150);
+};
 window.renderSmsClients = () => {
+  if (smsSearchTimer) { clearTimeout(smsSearchTimer); smsSearchTimer = null; }
   const tbody = document.getElementById('sms-clients-tbody');
   if (!tbody) return;
   updateSmsDatalists();
@@ -26817,15 +26832,24 @@ function loadVosStatsLocal() {
   try{const saved=JSON.parse(localStorage.getItem(VOS_STATS_LOCAL_KEY)||'null');if(saved&&Array.isArray(saved.snapshots)){vosStatsSnapshots=saved.snapshots.map(s=>({...s,rows:(Array.isArray(s.rows)?s.rows:[]).map(vosStatsNormalizeRow)}));vosStatsSelectedSlot=String(saved.selectedSlot||'');}}
   catch(e){console.warn('VOS Stats local restore:',e);vosStatsSnapshots=[];vosStatsSelectedSlot='';}
 }
-// The hour box follows the clock: past the half hour it rolls to the next one,
-// so a 12:41 upload lands on 1:00 PM. A hand-picked hour is kept until upload.
+// Fallback for a day with no saved hour yet: the hour box follows the clock, and
+// past the half hour it rolls to the next one, so a 12:41 upload lands on 1:00 PM.
 function vosStatsNearestSlot() {
   const now=new Date(),slots=statsSlots();
   return slots[(now.getHours()+(now.getMinutes()>=30?1:0))%24];
 }
+/* Once today has a saved hour the box steps to the slot right after the latest one
+   (1:00 PM saved → 2:00 PM), the same rule the Stats feed uses. Anchored to posted
+   data rather than the wall clock, so it survives reloads and keeps you in sequence
+   when catching up on a backlog. A hand-picked hour is kept until the next upload. */
+function vosStatsDefaultSlot(latest) {
+  const slots=statsSlots(),index=latest?slots.indexOf(String(latest)):-1;
+  if(index>=0)return index+1<slots.length?slots[index+1]:slots[index];
+  return vosStatsNearestSlot();
+}
 function populateVosStatsSlots() {
   const slots=statsSlots(),saved=vosStatsSortedSnaps(),latest=saved[saved.length-1]?.time_slot||'';
-  const upload=document.getElementById('vos-stats-slot'); if(upload){const keep=upload.dataset.userPicked==='1'?upload.value:'';upload.innerHTML=slots.map(slot=>`<option value="${slot}">${fmt12(slot)}</option>`).join('');upload.value=keep&&slots.includes(keep)?keep:vosStatsNearestSlot();}
+  const upload=document.getElementById('vos-stats-slot'); if(upload){const keep=upload.dataset.userPicked==='1'?upload.value:'';upload.innerHTML=slots.map(slot=>`<option value="${slot}">${fmt12(slot)}</option>`).join('');upload.value=keep&&slots.includes(keep)?keep:vosStatsDefaultSlot(latest);}
   if(!vosStatsSelectedSlot||!saved.some(s=>s.time_slot===vosStatsSelectedSlot))vosStatsSelectedSlot=latest;
   const select=document.getElementById('vos-stats-snapshot-slot');if(select){select.innerHTML=saved.length?saved.slice().reverse().map(s=>`<option value="${stEsc(s.time_slot)}"${s.time_slot===vosStatsSelectedSlot?' selected':''}>${stEsc(fmt12(s.time_slot))} · ${stN0(s.rows.length)} routes</option>`).join(''):'<option value="">No saved hours</option>';}
 }
