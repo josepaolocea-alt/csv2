@@ -2569,7 +2569,7 @@
       border-right: 1px solid var(--border);
     }
     .sb-pane:last-child { border-right: none; }
-    #sb-sync, #sb-sms-last, #sb-stats-last, #sb-daily-last { white-space: nowrap; font-size: 10px; }
+    #sb-sync, #sb-sms-last, #sb-stats-last, #sb-daily-last, #sb-vos-stats-last, #sb-vos-daily-last { white-space: nowrap; font-size: 10px; }
     #sb-status { flex: 0 0 auto; color: var(--text); }
     #sb-right { margin-left: auto; border-right: none; }
 
@@ -8015,12 +8015,20 @@
     .dlg-tb { border-bottom: 1px solid var(--border); box-shadow: none; }
 
     /* ── 13 · Status bar ──────────────────────────────────────────────────*/
+    /* The bar sits in the grid's `foot` area, which starts after the nav rail
+       and the snapshot sidebar — on a 1440 window that is ~914px, not the whole
+       width. Six feeds at a full timestamp each outrun that, and with the
+       default `overflow: visible` the overspill was silently clipped by the
+       window edge, taking the operator-name control with it. Scroll instead,
+       and pin that control so it is always reachable. */
     #statusbar {
       height: 32px; padding: 0 14px;
       font-size: 10.5px; color: var(--text-3);
       background: var(--surface-2);
       border: 0; border-top: 1px solid var(--border); box-shadow: none;
+      overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
     }
+    #statusbar::-webkit-scrollbar { display: none; }
     #statusbar .sb-pane {
       flex: 0 0 auto; min-width: 0; padding: 0 12px;
       border: 0; white-space: nowrap;
@@ -8028,7 +8036,10 @@
     }
     #statusbar .sb-pane + .sb-pane { border-left: 1px solid var(--border); }
     #statusbar #sb-status { color: var(--text-2); font-weight: 600; font-family: var(--font); letter-spacing: 0; }
-    #statusbar #sb-right { min-width: 0; margin-left: auto; padding-right: 0; }
+    #statusbar #sb-right {
+      min-width: 0; margin-left: auto; padding-right: 0;
+      position: sticky; right: 0; background: var(--surface-2);
+    }
 
     /* ── 14 · Sign-in ─────────────────────────────────────────────────────*/
     #login-overlay {
@@ -10845,6 +10856,8 @@
     <div class="sb-pane" id="sb-sms-last">SMS · No snapshot</div>
     <div class="sb-pane" id="sb-stats-last">Stats · No snapshot</div>
     <div class="sb-pane" id="sb-daily-last">Traffic · No snapshot</div>
+    <div class="sb-pane" id="sb-vos-stats-last">VOS Stats · No snapshot</div>
+    <div class="sb-pane" id="sb-vos-daily-last">VOS Traffic · No snapshot</div>
     <div class="sb-pane" id="sb-right" style="cursor:pointer" onclick="showOperatorDialog()" title="Click to change your name"><span id="sb-opname">Set name…</span></div>
   </div>
 </div><!-- /#win -->
@@ -18512,9 +18525,8 @@ function updateBalanceStatusBar() {
   const snap = latestSnap || lastProcessedSnap || priorSnap;
   if (snap?.time_slot) {
     const date = snap.session_date || todayStr();
-    const rows = snap.data?.length || 0;
-    el.textContent = `VOIP · ${fmt12(snap.time_slot)} · ${date}${rows ? ` · ${rows} clients` : ''}`;
-    el.title = `Latest Balance Monitor VOIP snapshot: ${fmt12(snap.time_slot)} · ${date}${rows ? ` · ${rows} clients` : ''}`;
+    el.textContent = `VOIP · ${fmt12(snap.time_slot)} · ${date}`;
+    el.title = `Latest Balance Monitor VOIP snapshot: ${fmt12(snap.time_slot)} · ${date}`;
     return;
   }
   // Local metadata is a demo/offline fallback. While connected, an empty
@@ -18528,7 +18540,7 @@ function updateBalanceStatusBar() {
     const day = date && !isNaN(date.getTime())
       ? date.toLocaleDateString([], { year:'numeric', month:'2-digit', day:'2-digit' })
       : '';
-    el.textContent = `VOIP · ${fmt12(meta.slot)}${day ? ` · ${day}` : ''}${meta.rows ? ` · ${meta.rows} clients` : ''}`;
+    el.textContent = `VOIP · ${fmt12(meta.slot)}${day ? ` · ${day}` : ''}`;
   } else {
     el.textContent = 'VOIP · No snapshot';
   }
@@ -21806,10 +21818,10 @@ function updateSmsBalanceStatusBar() {
   if (!pane) return;
   const snap = smsBalanceLatest;
   pane.textContent = snap?.time_slot
-    ? `SMS · ${fmt12(snap.time_slot)} · ${snap.session_date || todayStr()} · ${(snap.data || []).length} clients`
+    ? `SMS · ${fmt12(snap.time_slot)} · ${snap.session_date || todayStr()}`
     : 'SMS · No snapshot';
   pane.title = snap?.time_slot
-    ? `Latest Balance Monitor SMS snapshot: ${fmt12(snap.time_slot)} · ${snap.session_date || todayStr()} · ${(snap.data || []).length} clients`
+    ? `Latest Balance Monitor SMS snapshot: ${fmt12(snap.time_slot)} · ${snap.session_date || todayStr()}`
     : 'The latest posted Balance Monitor SMS snapshot';
 }
 window.clearSmsBalancePaste = () => { ['sms-bal-reseller-ta','sms-bal-wholesale-ta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';}); };
@@ -26205,6 +26217,7 @@ function renderAllVosDailyTrafficViews() {
   renderVosDailyDashboard();
   renderVosDailyHistory();
   renderVosDailyLogs();
+  updateVosDailyTrafficStatusBar();
 }
 async function migrateVosDailyTrafficLocalToCloud(days) {
   if(!fbOk || !canPostStats() || vosDailyCloudMigrationRunning || !days.length)return false;
@@ -26301,6 +26314,7 @@ function renderVosDateOptions() {
   syncVosDailyImportDate();
 }
 function renderVosTraffic() {
+  updateVosDailyTrafficStatusBar();
   const tbody = document.getElementById('vos-traffic-tbody'); if (!tbody) return;
   renderVosDateOptions();
   const comparison = vosDailyComparison(), rows = vosVisibleRows();
@@ -26869,7 +26883,7 @@ async function deleteVosStatsCloudHistory() {
   for(const entry of snapshot.docs){batch.delete(doc(db,VOS_STATS_CLOUD_COLLECTION,entry.id));pending++;deleted++;if(pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}
   if(pending)await batch.commit();return deleted;
 }
-function renderVosStats() {populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}refreshImportantNotifications();}
+function renderVosStats() {updateVosStatsStatusBar();populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}refreshImportantNotifications();}
 window.renderVosStats=renderVosStats;window.renderVosStatsHourly=renderVosStatsHourly;
 window.switchVosStatsTab=tab=>{vosStatsTab=VOS_STATS_TABS.includes(tab)?tab:'summary';VOS_STATS_TABS.forEach(name=>{const active=name===vosStatsTab,button=document.getElementById(`vos-stats-tab-${name}`),panel=document.getElementById(`vos-stats-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));panel?.classList.toggle('active',active);});const exports=document.getElementById('vos-stats-export-actions');if(exports)exports.style.display=['logs','settings'].includes(vosStatsTab)?'none':'flex';renderVosStats();setSbStatus(`Viewing: VOS — Stats — ${vosStatsTab.replace(/\b\w/g,c=>c.toUpperCase())}`);};
 window.selectVosStatsSlot=slot=>{vosStatsSelectedSlot=String(slot||'');const status=document.getElementById('vos-stats-file-status');if(status)delete status.dataset.current;saveVosStatsLocal();renderVosStats();};window.viewVosStatsSlot=slot=>{window.selectVosStatsSlot(slot);window.switchVosStatsTab('all');};
@@ -29430,7 +29444,7 @@ function updateStatsStatusBar() {
   const snaps = statsSortedSnaps();
   if (snaps.length) {
     const last = snaps[snaps.length-1];
-    pane.textContent = `Stats · ${fmt12(last.time_slot)} · ${last.session_date || todayStr()} · ${last.data?.length||0} rows`;
+    pane.textContent = `Stats · ${fmt12(last.time_slot)} · ${last.session_date || todayStr()}`;
   } else {
     let meta = null;
     try { meta = JSON.parse(localStorage.getItem('bm_stats_last') || 'null'); } catch(e) {}
@@ -29439,7 +29453,7 @@ function updateStatsStatusBar() {
       const day = date && !isNaN(date.getTime())
         ? date.toLocaleDateString([], { year:'numeric', month:'2-digit', day:'2-digit' })
         : '';
-      pane.textContent = `Stats · ${fmt12(meta.slot)}${day ? ` · ${day}` : ''} · ${meta.rows || 0} rows`;
+      pane.textContent = `Stats · ${fmt12(meta.slot)}${day ? ` · ${day}` : ''}`;
     } else {
       pane.textContent = 'Stats · No snapshot';
     }
@@ -29457,10 +29471,32 @@ function updateDailyTrafficStatusBar() {
     return Number.isFinite(fallback) ? fallback : 0;
   };
   const last = statsDailyHistory.slice().sort((a,b) => postedTime(a) - postedTime(b) || String(a.session_date).localeCompare(String(b.session_date))).pop();
-  pane.textContent = last
-    ? `Traffic · ${last.session_date} · ${last.clients?.length || 0} rows`
-    : 'Traffic · No snapshot';
+  pane.textContent = last ? `Traffic · ${last.session_date}` : 'Traffic · No snapshot';
   pane.title = 'The latest posted Daily Traffic snapshot';
+}
+
+/* The VOS panes read the same two stores the VOS module renders from, so they
+   stay correct without a listener of their own. VOS Stats is subscribed at boot
+   by initStats(); VOS Daily Traffic only attaches its listener when the module
+   is opened, so before that this pane shows the browser cache that
+   saveVosTrafficLocal() last wrote — the same fallback the VOIP pane uses. */
+function updateVosStatsStatusBar() {
+  const pane = document.getElementById('sb-vos-stats-last');
+  if (!pane) return;
+  // All dates, not just today: the point of the pane is when the last hour
+  // landed, and an overnight gap should still say so rather than read empty.
+  const snaps = vosStatsSortedSnaps(true);
+  const last = snaps[snaps.length-1];
+  pane.textContent = last ? `VOS Stats · ${fmt12(last.time_slot)} · ${last.session_date}` : 'VOS Stats · No snapshot';
+  pane.title = 'The latest posted VOS Stats snapshot';
+}
+
+function updateVosDailyTrafficStatusBar() {
+  const pane = document.getElementById('sb-vos-daily-last');
+  if (!pane) return;
+  const last = vosSortedHistory().slice(-1)[0];
+  pane.textContent = last ? `VOS Traffic · ${last.session_date}` : 'VOS Traffic · No snapshot';
+  pane.title = 'The latest posted VOS Daily Traffic snapshot';
 }
 
 // Build the per-client × per-hour matrix for today's posted snapshots.
@@ -29586,6 +29622,10 @@ function statsRender() {
   renderStatsDailyTraffic();
   updateStatsStatusBar();
   updateDailyTrafficStatusBar();
+  // Both VOS feeds have their own render paths, but neither runs until the VOS
+  // module is opened; painting them here keeps the footer complete from boot.
+  updateVosStatsStatusBar();
+  updateVosDailyTrafficStatusBar();
   refreshImportantNotifications();
 }
 
