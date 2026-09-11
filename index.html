@@ -1527,6 +1527,19 @@
       background:var(--surface-2); border-bottom:1px solid var(--border);
     }
     .daily-filterbar.vos { grid-template-columns:minmax(125px,170px) minmax(135px,175px) minmax(240px,1fr) auto; }
+    /* Stats › All Clients carries six controls where Daily Traffic carries
+       five and VOS four, and its workspace is narrowed further by the snapshot
+       panel. At six, fixed tracks overflow the panel on a 1440-wide screen
+       instead of reflowing — the viewport breakpoint below can't see that,
+       because the width that runs out is the container's. So this one bar
+       wraps: identical single row while it fits, extra rows when it doesn't. */
+    .daily-filterbar.stats-all { display:flex; flex-wrap:wrap; align-items:center; }
+    .daily-filterbar.stats-all > * { min-width:0; }
+    .daily-filterbar.stats-all > .win-sel,
+    .daily-filterbar.stats-all > .premium-select { flex:1 1 150px; max-width:172px; }
+    .daily-filterbar.stats-all > .win-inp { flex:4 1 210px; }
+    .daily-filterbar.stats-all > .tbtn { flex:0 0 auto; }
+    .daily-filterbar.stats-all > .daily-filter-count { flex:0 0 auto; margin-left:auto; }
     .daily-filterbar .win-inp, .daily-filterbar .win-sel { width:100%; min-width:0 !important; height:31px; }
     .daily-filter-count {
       justify-self:end; min-width:max-content; padding:4px 8px; color:var(--text-2);
@@ -10209,9 +10222,18 @@
               </div>
             </div>
           </div>
-          <div class="fbar">
-            <input id="st-search" class="win-inp" placeholder="Search client…" oninput="renderStatsTables()" style="width:160px">
-            <select id="st-flag-filter" class="win-sel" onchange="renderStatsTables()" title="Filter by Status / Flags" style="width:150px">
+          <div class="daily-filterbar stats-all" aria-label="All Clients filters">
+            <select id="st-all-slot" class="win-sel" onchange="viewStatsSlot(this.value)" title="Saved hourly snapshot"></select>
+            <select id="st-cls-filter" class="win-sel" onchange="renderStatsTables()" title="Filter classification">
+              <option value="">All Classifications</option>
+              <option value="critical">Critical</option>
+              <option value="low">Low</option>
+              <option value="watch">Watch</option>
+              <option value="ok">Ok</option>
+              <option value="good">Good</option>
+            </select>
+            <input id="st-search" class="win-inp" type="search" placeholder="Search client, account code or destination…" oninput="renderStatsTables()">
+            <select id="st-flag-filter" class="win-sel" onchange="renderStatsTables()" title="Filter by Status / Flags">
               <option value="all">All flags</option>
               <option value="any">Any flag</option>
               <option value="new">New</option>
@@ -10222,7 +10244,7 @@
               <option value="none">— No flags</option>
             </select>
             <button class="tbtn" id="st-hide-did" onclick="toggleStatsHideDID()" title="Hide any account code containing -DID">Hide -DID</button>
-            <span class="sms-muted" id="st-all-count" style="margin-left:auto"></span>
+            <span class="daily-filter-count" id="st-all-count">0 client(s)</span>
           </div>
           <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
             <div class="lv-wrap">
@@ -12927,11 +12949,12 @@ window.switchModule = module => {
     statsSortCol = 'attempts';
     statsSortDir = -1;
     clearStatsSearchBoxes();
-    const statsFlagFilter = document.getElementById('st-flag-filter');
-    if (statsFlagFilter) {
-      statsFlagFilter.value = 'all';
-      if (statsFlagFilter._premiumSelectWrapper) syncPremiumSelect(statsFlagFilter);
-    }
+    [['st-flag-filter','all'], ['st-cls-filter','']].forEach(([id, reset]) => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.value = reset;
+      if (select._premiumSelectWrapper) syncPremiumSelect(select);
+    });
     updateViewMenuState();
     subscribeStatsRemarks();   // Remarks column is rendered by this module only
     window.switchStatsMode('current');
@@ -25670,7 +25693,7 @@ const STATS_VIEW_GUIDES = {
     title:'All Clients guide',
     summary:'Shows every client and destination in the currently selected Stats snapshot, with its calculated quality classification and comparison signals.',
     items:[
-      'Use Search and the Flags filter to narrow the table; the download contains only the rows currently shown.',
+      'The filter bar picks the saved hour to read, then narrows it by classification, search text and flags; the download contains only the rows currently shown.',
       'When the pasted report includes a Total row, its aggregate is preserved at the bottom of the unfiltered table but is never counted as a client.',
       'Traffic vs Prev Day compares the exact Account Code + Destination with the same time slot on the most recent prior saved day.',
       'Double-click a row to open that exact client and destination in Hourly. Use the rightmost remarks icon to read or update persistent notes.',
@@ -29378,15 +29401,51 @@ function clearStatsSearchBoxes() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 }
 
+/* Snapshot picker in the All Clients filter bar — the same control VOS Stats
+   carries, so the hour being read is visible from the table instead of only
+   from the sidebar list or the Summary timeline. Options are rewritten only
+   when the saved hours actually change: renderStatsTables() runs on every
+   keystroke in the search box, and replacing a live <select>'s children on each
+   one churns the premium-select wrapper for nothing. */
+function populateStatsAllSlots() {
+  const select = document.getElementById('st-all-slot');
+  if (!select) return;
+  const snaps = statsSortedSnaps();
+  const current = statsCurrentSnap()?.time_slot || '';
+  const signature = snaps.map(s => `${s.time_slot}:${s.data?.length || 0}`).join('|');
+  let touched = false;
+  if (select.dataset.slotSignature !== signature) {
+    select.dataset.slotSignature = signature;
+    select.innerHTML = snaps.length
+      ? snaps.slice().reverse().map(s => {
+          const n = groupStatsSnapshot(s).size;
+          return `<option value="${stEsc(s.time_slot)}">${stEsc(fmt12(s.time_slot))} · ${stN0(n)} client${n === 1 ? '' : 's'}</option>`;
+        }).join('')
+      : '<option value="">No saved hours</option>';
+    touched = true;
+  }
+  const wanted = snaps.length ? current : '';
+  if (select.value !== wanted && [...select.options].some(o => o.value === wanted)) {
+    select.value = wanted;
+    touched = true;
+  }
+  // The premium wrapper otherwise repaints its label a microtask later off the
+  // MutationObserver, which shows the previous hour for a frame after a post.
+  if (touched && select._premiumSelectWrapper) syncPremiumSelect(select);
+}
+
 function renderStatsTables() {
   updateStatsAllSortHeaders();
+  populateStatsAllSlots();
   const rows = statsCurrentRows();
   const search = statsSearchTerm('st-search');
   const flagF = document.getElementById('st-flag-filter')?.value || 'all';
+  const clsF  = document.getElementById('st-cls-filter')?.value || '';
   let allRows = statsFilterBySearch(statsSortRows(rows), 'st-search');
+  if (clsF) allRows = allRows.filter(r => r.cls === clsF);
   if (flagF !== 'all') allRows = allRows.filter(r => statsRowHasFlag(r, flagF));
   processStatsRows(allRows, 'st-tbody-all', true);
-  const filtered = search || flagF !== 'all';
+  const filtered = search || flagF !== 'all' || !!clsF;
   if (!filtered) appendStatsPastedTotalRow(statsCurrentSnap()?.total);
   const cnt = document.getElementById('st-all-count');
   if (cnt) cnt.textContent = `${allRows.length} client(s)` + (filtered ? ' (filtered)' : (statsCurrentSnap()?.total ? ' + pasted Total' : ''));
