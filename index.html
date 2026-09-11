@@ -10714,7 +10714,7 @@
                     <span class="daily-filter-count" id="vos-stats-row-count">0 grouped rows</span>
                   </div>
                   <div class="vos-stats-meta">ASR = Answered ÷ Total Calls × 100. ACD = (Total Call Time ÷ 60) ÷ Answered. ACD bands match Stats: Critical ≤0, Low &lt;1 min, Ok &lt;2 min, Good ≥2 min.</div>
-                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-all"></tbody></table></div></div>
+                  <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-all"></tbody></table></div></div>
                 </div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-hourly" role="tabpanel" aria-labelledby="vos-stats-tab-hourly">
@@ -10723,12 +10723,12 @@
                   <div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-hourly-table" id="vos-stats-hourly-table"><thead id="vos-stats-hourly-head"></thead><tbody id="vos-stats-hourly-body"></tbody></table></div></div>
                 </div>
 
-                <div class="vos-stats-panel" id="vos-stats-panel-critical" role="tabpanel" aria-labelledby="vos-stats-tab-critical"><div class="vos-stats-meta">0 ASR and 0 ACD with more than 500 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-critical"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-low" role="tabpanel" aria-labelledby="vos-stats-tab-low"><div class="vos-stats-meta">ASR below 10 with more than 30 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-low"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-critical" role="tabpanel" aria-labelledby="vos-stats-tab-critical"><div class="vos-stats-meta">0 ASR and 0 ACD with more than 500 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-critical"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-low" role="tabpanel" aria-labelledby="vos-stats-tab-low"><div class="vos-stats-meta">ASR below 10 with more than 30 Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-low"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
                 <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin &amp; semi-admin.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
@@ -11491,7 +11491,7 @@
     <div class="dlg-tb"><span>Client Remarks</span></div>
     <div style="padding:14px">
       <div class="ui-text-control" id="st-remark-target" style="font-weight:600;margin-bottom:4px;color:var(--text);word-break:break-word"></div>
-      <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
+      <div class="ui-text-micro" id="st-remark-scope" style="color:var(--text-2);margin-bottom:8px">Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.</div>
       <textarea class="win-inp" id="st-remark-ta" maxlength="2000" placeholder="Why does this client have low stats? Previous findings, vendor status, dates…" style="width:100%;min-height:90px;max-height:60vh;resize:none;overflow-y:auto;line-height:1.5;margin-bottom:6px;font-family:inherit"
         oninput="stRemarkAutoGrow(this)"
         onkeydown="if(event.key==='Escape'){closeStatsRemark();}else if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){saveStatsRemark();}"></textarea>
@@ -12962,6 +12962,7 @@ window.switchModule = module => {
     document.querySelectorAll('.nav-item[id^="snav-"]').forEach(b => b.classList.remove('active'));
     document.getElementById('view-vos-traffic')?.classList.add('active');
     updateViewMenuState();
+    subscribeStatsRemarks();   // VOS Stats shares the Stats remark cells
     window.switchVosPrimaryTab(vosPrimaryTab);
     return;
   }
@@ -26899,9 +26900,28 @@ function vosStatsAggregate(rows) {
 }
 function vosStatsSetText(id,value){const element=document.getElementById(id);if(element)element.textContent=value;}
 function vosStatsBadge(cls,prefix=''){return `<span class="stbadge ${cls}">${stEsc(prefix+String(cls||'').toUpperCase())}</span>`;}
+/* ── VOS Stats remarks ────────────────────────────────────────────────────
+   A note pinned to one Mapping Gateway + Area Name, behaving exactly like the
+   Stats remark cell: hover the icon to read it, click to edit, and it survives
+   snapshot wipes because it lives in the shared 'stats_remarks' collection
+   rather than inside a VOS snapshot. The 'vos:' prefix keeps that key space
+   apart from the Stats one (Account Code + Destination), and the identity is
+   upper-cased the way vosStatsKey is, so a later export that spells the same
+   gateway differently still finds its note. */
+const VOS_REMARK_KEY_PREFIX = 'vos:';
+const vosStatsRemarkKey = row =>
+  `${VOS_REMARK_KEY_PREFIX}${String(row?.mapping_gateway || '').trim().toUpperCase()} | ${String(row?.area_name || '').trim().toUpperCase()}`;
+function vosStatsRemarkCell(row) {
+  // stRemarkCell reads gkey/customer_name/destination, so hand it the VOS
+  // identity under those names and the whole Stats remark UI applies as-is.
+  return stRemarkCell({ gkey: vosStatsRemarkKey(row),
+                        customer_name: row?.mapping_gateway || '',
+                        destination: row?.area_name || '' });
+}
+const vosStatsHasRemark = row => !!statsRemarkText(vosStatsRemarkKey(row));
 function vosStatsTableRow(row) {
   const delta=row.attempt_change===null||row.attempt_change===undefined?'—':`${row.attempt_change>0?'+':''}${stN0(row.attempt_change)}`;
-  return `<tr class="st-row-${row.cls} vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td>${vosStatsBadge(row.acdcls,'ACD ')}</td><td class="num">${delta}</td></tr>`;
+  return `<tr class="st-row-${row.cls} vos-stats-drill-row${vosStatsHasRemark(row)?' st-has-remark':''}" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td>${vosStatsBadge(row.acdcls,'ACD ')}</td><td class="num">${delta}</td>${vosStatsRemarkCell(row)}</tr>`;
 }
 function renderVosStatsSummary() {
   const snap=vosStatsCurrentSnap(),rows=vosStatsRowsWithComparison(),total=vosStatsAggregate(rows),counts=rows.reduce((out,row)=>(out[row.cls]=(out[row.cls]||0)+1,out),{}),stopped=vosStatsStoppedRows();
@@ -26912,9 +26932,11 @@ function renderVosStatsSummary() {
 function renderVosStatsTables() {
   const all=vosStatsRowsWithComparison(),search=String(document.getElementById('vos-stats-search')?.value||'').trim().toLowerCase(),filter=String(document.getElementById('vos-stats-class-filter')?.value||'');
   const filtered=all.filter(row=>vosStatsMatchesSearch(row,search)&&(!filter||row.cls===filter)).sort((a,b)=>(ST_CLS_RANK?.[a.cls]??9)-(ST_CLS_RANK?.[b.cls]??9)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
-  vosStatsSetText('vos-stats-row-count',`${filtered.length} of ${all.length} grouped row(s)`);const allBody=document.getElementById('vos-stats-tbody-all');if(allBody)allBody.innerHTML=filtered.map(vosStatsTableRow).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats rows match the current view.</td></tr>';
-  VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="13" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
-  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
+  vosStatsSetText('vos-stats-row-count',`${filtered.length} of ${all.length} grouped row(s)`);const allBody=document.getElementById('vos-stats-tbody-all');if(allBody)allBody.innerHTML=filtered.map(vosStatsTableRow).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats rows match the current view.</td></tr>';
+  VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
+  // A stopped route keeps its remark too — that hour is usually exactly when
+  // someone wants to read (or write) why it went quiet.
+  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row${vosStatsHasRemark(row)?' st-has-remark':''}" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td>${vosStatsRemarkCell(row)}</tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
 }
 function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Calls</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD min</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
 function vosStatsHourlyMatrix() {
@@ -27040,6 +27062,13 @@ function statsRemarkDocId(key) {
   // encodeURIComponent yields a Firestore-safe id (no '/'), and is reversible.
   return encodeURIComponent(String(key ?? '')).slice(0, 1400);
 }
+// Remark cells live on two surfaces now — the Stats/Traffic tables and the VOS
+// Stats tables — so every change to the store has to repaint both. Each render
+// is a no-op for a module whose tables simply hold no rows yet.
+function renderRemarkTables() {
+  statsRender();
+  renderVosStatsTables();
+}
 function statsRemarkText(key) {
   const e = statsRemarks.get(key);
   return e ? (e.text || '') : '';
@@ -27088,6 +27117,11 @@ window.editStatsRemark = (td) => {
   statsRemarkEditKey = key;
   const entry = statsRemarks.get(key);
   document.getElementById('st-remark-target').textContent = td.dataset.label || key;
+  // One dialog serves both key spaces, so name the right identity for this row.
+  const scope = document.getElementById('st-remark-scope');
+  if (scope) scope.textContent = key.startsWith(VOS_REMARK_KEY_PREFIX)
+    ? 'Notes are saved per Mapping Gateway + Area Name and are kept even when VOS snapshots are cleared.'
+    : 'Notes are saved per Account Code + Destination and are kept even when stats snapshots are cleared.';
   const ta = document.getElementById('st-remark-ta');
   ta.value = entry ? (entry.text || '') : '';
   ta.readOnly = !admin;                       // non-admins can read but not type
@@ -27122,7 +27156,7 @@ window.saveStatsRemark = async () => {
   const entry = { key, text, updated_by: operatorName || '', updated_at: new Date() };
   statsRemarks.set(key, entry);
   window.closeStatsRemark();
-  statsRender();
+  renderRemarkTables();
   if (fbOk) {
     try {
       await setDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)),
@@ -27139,15 +27173,15 @@ window.clearStatsRemark = async () => {
   if (!key) return;
   const had = statsRemarks.delete(key);
   window.closeStatsRemark();
-  statsRender();
+  renderRemarkTables();
   if (had && fbOk) {
     try { await deleteDoc(doc(db, 'stats_remarks', statsRemarkDocId(key))); toast('✓ Remark cleared', 'ok'); }
     catch (e) { toast('Firestore error: ' + e.message, 'err'); }
   }
 };
-// Remarks are only ever rendered on the Stats and Traffic tables, so this whole
-// collection is subscribed when one of those modules is opened rather than at
-// boot for every account. The guard matters now that the call site can repeat.
+// Remarks are only ever rendered on the Stats, Traffic and VOS tables, so this
+// whole collection is subscribed when one of those modules is opened rather than
+// at boot for every account. The guard matters now that the call site can repeat.
 let statsRemarksUnsubscribe = null;
 function subscribeStatsRemarks() {
   if (!fbOk || statsRemarksUnsubscribe) return;
@@ -27164,7 +27198,7 @@ function subscribeStatsRemarks() {
         });
       });
       statsRemarks = m;
-      statsRender();
+      renderRemarkTables();
     });
   } catch (e) { console.warn('stats remarks subscribe:', e); }
 }
