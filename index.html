@@ -9820,13 +9820,14 @@
             <div class="sms-table-col">
             <div class="fbar">
               <input class="win-search" id="sms-search" type="search" placeholder="Search all SMS client columns..." oninput="onSmsSearchInput()" style="min-width:240px">
-              <select class="win-inp" id="sms-filter-client"          onchange="renderSmsClients()" title="Filter by Client"><option value="">All Clients</option></select>
-              <select class="win-inp" id="sms-filter-destination"     onchange="renderSmsClients()" title="Filter by Destination"><option value="">All Destinations</option></select>
-              <select class="win-inp" id="sms-filter-account-manager" onchange="renderSmsClients()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
+              <select class="win-inp" id="sms-filter-client"          onchange="onSmsFilterChange()" title="Filter by Client"><option value="">All Clients</option></select>
+              <select class="win-inp" id="sms-filter-destination"     onchange="onSmsFilterChange()" title="Filter by Destination"><option value="">All Destinations</option></select>
+              <select class="win-inp" id="sms-filter-account-manager" onchange="onSmsFilterChange()" title="Filter by Account Manager"><option value="">All Account Managers</option></select>
               <button class="tbtn" onclick="renderSmsClients()">Search</button>
               <button class="tbtn sms-toolbar-clear" onclick="clearSmsFilters()" title="Clear search and all route filters">Clear Filters</button>
               <button class="tbtn sms-toolbar-bulk" id="sms-bulk-btn" onclick="toggleSmsBulkEdit()" title="Edit multiple SMS routes at once">Bulk Edit</button>
               <span class="sms-muted" id="sms-count">0 client route(s)</span>
+              <button class="tbtn" id="sms-show-all-btn" style="display:none" onclick="showAllSmsRows()" title="Draw every matching route. Searching or filtering is faster on a large register.">Show all</button>
               <span id="sms-selection-actions" aria-live="polite" style="display:none;align-items:center;gap:6px;margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
                 <span class="sms-muted" id="sms-selection-count">0 selected</span>
                 <span class="sms-muted">Download selected:</span>
@@ -9860,7 +9861,7 @@
             <div class="lv-wrap">
               <table id="sms-clients-tbl">
                 <thead><tr>
-                  <th class="sms-bulk-col"><input type="checkbox" id="sms-bulk-all" onchange="toggleSmsBulkAll(this.checked)" title="Select / deselect all visible"></th>
+                  <th class="sms-bulk-col"><input type="checkbox" id="sms-bulk-all" onchange="toggleSmsBulkAll(this.checked)" title="Select / deselect every route matching the current search and filters"></th>
                   <th onclick="sortSms('date')" id="sms-th-date" style="cursor:pointer">Date</th>
                   <th onclick="sortSms('client')" id="sms-th-client" style="cursor:pointer">Client</th>
                   <th onclick="sortSms('sender_id')" id="sms-th-sender_id" style="cursor:pointer">Sender ID(s)</th>
@@ -11892,6 +11893,20 @@ const SMS_ALL_TABS = new Set(['balance', ...Object.keys(SMS_TAB_CONFIG), 'creden
 const smsDataByTab = { client: [], phoenix: [] };
 // Two most recently added/edited routes per tab — pinned to rows 1 and 2.
 const smsRecentIdsByTab = { client: [], phoenix: [] };
+/* Only the first page of matching routes is DRAWN. Handing the browser every row of
+   a large register is what makes opening V3 slow — it builds ~18 elements per row
+   (16 cells, a checkbox, the row action buttons) for rows nobody is looking at, and
+   that DOM construction, not the JavaScript, is the cost: on a 2,000-route register
+   the row HTML takes ~10ms to assemble and ~830ms for the DOM to accept it.
+
+   This is a drawing limit only. smsFilteredRows holds every route matching the
+   current search and filters, and the count, Select all, bulk edit, delete and
+   export all read from that — nothing silently operates on just the drawn page.
+   smsShowAllRows is the operator's "Show all" escape hatch, and it resets whenever
+   the result set changes (new search, new filter, Clear Filters, tab switch). */
+const SMS_ROW_PAGE = 200;
+let smsShowAllRows = false;
+let smsFilteredRows = [];
 const smsRemoteApplyingByTab = { client: false, phoenix: false };
 const smsSubscribedTabs = new Set();
 
@@ -24383,10 +24398,13 @@ window.switchSmsTab = tab => {
   subscribeSmsClients(tab);
   updateSmsTabUi();
   buildSmsVendorBox();
-  updateSmsDatalists();
-  clearSmsFilters();
+  // The table is rendered ONCE, at the end. clearSmsFilters() already renders, so
+  // resetting the form first and letting it have the last word replaces what used
+  // to be two full renders per switch — the single biggest cost of opening a tab,
+  // since each one rebuilds every row of the register. renderSmsClients() also
+  // calls updateSmsDatalists() itself, so there is no separate call for it here.
   newSmsClient(false);
-  renderSmsClients();
+  clearSmsFilters();
 };
 
 function initSmsModule() {
@@ -24766,6 +24784,7 @@ window.clearSmsFilters = () => {
   ['sms-filter-client','sms-filter-destination','sms-filter-account-manager'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  smsShowAllRows = false;   // back to the whole register, so draw the first page only
   renderSmsClients();
 };
 
@@ -24875,20 +24894,18 @@ window.cancelSmsBulkEdit = () => {
 window.toggleSmsBulkRow = (id, checked) => {
   if (checked) smsBulkSelected.add(id); else smsBulkSelected.delete(id);
   refreshSmsBulkCount();
-  // Keep "select all" header in sync
+  // Keep "select all" header in sync against every matching route. Reading the DOM
+  // checkboxes would only see the drawn page and tick the box while unseen matches
+  // are still unselected.
   const allCb = document.getElementById('sms-bulk-all');
-  if (allCb) {
-    const visible = [...document.querySelectorAll('#sms-clients-tbody .sms-bulk-chk')].map(c => c.dataset.id);
-    allCb.checked = visible.length > 0 && visible.every(v => smsBulkSelected.has(v));
-  }
+  if (allCb) allCb.checked = smsFilteredRows.length > 0 && smsFilteredRows.every(r => smsBulkSelected.has(r.id));
 };
 
 window.toggleSmsBulkAll = checked => {
-  document.querySelectorAll('#sms-clients-tbody .sms-bulk-chk').forEach(cb => {
-    cb.checked = !!checked;
-    const id = cb.dataset.id;
-    if (checked) smsBulkSelected.add(id); else smsBulkSelected.delete(id);
-  });
+  // Selects every route matching the current filters, including matches past the
+  // drawn page — so bulk edit, delete and export cover what the count says they do.
+  smsFilteredRows.forEach(r => { if (checked) smsBulkSelected.add(r.id); else smsBulkSelected.delete(r.id); });
+  document.querySelectorAll('#sms-clients-tbody .sms-bulk-chk').forEach(cb => { cb.checked = !!checked; });
   refreshSmsBulkCount();
 };
 
@@ -24960,9 +24977,13 @@ const SMS_SORTABLE_COLS = ['date','client','sender_id','destination','account_ma
    supersedes a queued one, so the delayed pass can never fire over a fresher render. */
 let smsSearchTimer = null;
 window.onSmsSearchInput = () => {
+  smsShowAllRows = false;   // a new result set starts capped again
   clearTimeout(smsSearchTimer);
   smsSearchTimer = setTimeout(() => { smsSearchTimer = null; renderSmsClients(); }, 150);
 };
+// The dropdown filters change the result set the same way the search box does.
+window.onSmsFilterChange = () => { smsShowAllRows = false; renderSmsClients(); };
+window.showAllSmsRows = () => { smsShowAllRows = true; renderSmsClients(); };
 window.renderSmsClients = () => {
   if (smsSearchTimer) { clearTimeout(smsSearchTimer); smsSearchTimer = null; }
   const tbody = document.getElementById('sms-clients-tbody');
@@ -25003,9 +25024,22 @@ window.renderSmsClients = () => {
     const base = th.textContent.replace(/[\s▲▼]+$/, '');
     th.textContent = c === col ? `${base} ${dir > 0 ? '▲' : '▼'}` : base;
   });
+  // Everything below the table works on `rows` (every match); only `drawn` is built
+  // into the DOM. Pinned recents are at the front, so a just-saved route is always
+  // on the first page.
+  smsFilteredRows = rows;
+  const capped = !smsShowAllRows && rows.length > SMS_ROW_PAGE;
+  const drawn = capped ? rows.slice(0, SMS_ROW_PAGE) : rows;
   const count = document.getElementById('sms-count');
-  if (count) count.textContent = `${rows.length} of ${smsClients.length} client route(s)`;
-  tbody.innerHTML = rows.length ? rows.map(r => {
+  if (count) count.textContent = capped
+    ? `Showing ${SMS_ROW_PAGE} of ${rows.length} matching · ${smsClients.length} client route(s)`
+    : `${rows.length} of ${smsClients.length} client route(s)`;
+  const showAllBtn = document.getElementById('sms-show-all-btn');
+  if (showAllBtn) {
+    showAllBtn.style.display = capped ? '' : 'none';
+    showAllBtn.textContent = `Show all ${rows.length}`;
+  }
+  tbody.innerHTML = drawn.length ? drawn.map(r => {
     const hasComment = !!String(r.sender_id_comment || '').trim();
     const commentTitle = hasComment ? `Comment: ${r.sender_id_comment}` : '';
     const selected = smsBulkSelected.has(r.id);
@@ -25029,12 +25063,10 @@ window.renderSmsClients = () => {
     <td onclick="event.stopPropagation()"><span class="sms-row-actions"><button class="tbtn" title="Download all routes for this client" onclick="exportSmsClientByRow('${escAttr(r.id)}')">↓</button><button class="tbtn" onclick="editSmsClient('${escAttr(r.id)}')">Edit</button>${canDeleteSmsRegisters()?`<button class="tbtn" onclick="deleteSmsClient('${escAttr(r.id)}')">Delete</button>`:''}</span></td>
   </tr>`;
   }).join('') : `<tr style="cursor:default"><td colspan="${smsBulkMode?16:15}" style="text-align:center;padding:16px;color:var(--text-2)">No SMS client routes found.</td></tr>`;
-  // Keep "select all" checkbox in sync (checked only if every visible row is selected)
+  // Keep "select all" in sync against every MATCHING route, not just the drawn page,
+  // so the box can't read as ticked while unseen matches sit unselected.
   const allCb = document.getElementById('sms-bulk-all');
-  if (allCb) {
-    const visibleIds = rows.map(r => r.id);
-    allCb.checked = visibleIds.length > 0 && visibleIds.every(id => smsBulkSelected.has(id));
-  }
+  if (allCb) allCb.checked = rows.length > 0 && rows.every(r => smsBulkSelected.has(r.id));
   refreshSmsBulkCount();
 };
 
