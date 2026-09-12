@@ -10510,7 +10510,7 @@
       <div class="view" id="view-stats-logs">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
           <div class="groupbox-title">Stats Snapshot Logs</div>
-          <div class="fbar"><span class="sms-muted">Persistent audit trail of hourly Stats snapshots, including the authenticated posting user.</span><input id="st-search-logs" class="win-inp" placeholder="Search date, slot or posted by…" oninput="renderStatsSnapshotLogs()" style="width:230px;margin-left:auto"><button class="tbtn" onclick="renderStatsSnapshotLogs()">Refresh</button></div>
+          <div class="fbar"><span class="sms-muted">Persistent audit trail of hourly Stats snapshots, including the authenticated posting user. Deleting here removes log entries only — the saved hourly snapshots are not affected.</span><input id="st-search-logs" class="win-inp" placeholder="Search date, slot or posted by…" oninput="renderStatsSnapshotLogs()" style="width:230px;margin-left:auto"><button class="tbtn" onclick="refreshStatsSnapshotLogs()">Refresh</button><button type="button" class="tbtn" id="stats-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('stats','Stats')">Delete All Logs</button></div>
           <div class="lv-wrap"><table><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Posted By</th><th style="text-align:right">Rows</th></tr></thead><tbody id="stats-logs-tbody"></tbody></table></div>
           <div class="sms-muted" id="stats-logs-count">No Stats logs yet.</div>
         </div>
@@ -10754,7 +10754,7 @@
                 <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
                 <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
-                <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="vos-stats-meta">Local audit trail of hourly VOS file imports.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="fbar"><span class="sms-muted">Persistent audit trail of hourly VOS Stats imports, including the authenticated processing user. Deleting here removes log entries only — the saved hourly snapshots are not affected.</span><button type="button" class="tbtn" onclick="refreshVosStatsLogs()">Refresh</button><button type="button" class="tbtn" id="vos-stats-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('vos-stats','VOS Stats')">Delete All Logs</button></div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Processed By</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div><div class="sms-muted" id="vos-stats-logs-count">No VOS Stats logs yet.</div></div>
                 <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin &amp; semi-admin.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
               </div>
             </div>
@@ -17314,6 +17314,8 @@ function applyModuleAccess(){
   // Clearing an audit trail is admin-only too, even though it destroys no data.
   disable('stats-daily-logs-wipe-btn', !admin);
   disable('vos-daily-logs-wipe-btn', !admin);
+  disable('stats-logs-wipe-btn', !admin);
+  disable('vos-stats-logs-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
@@ -17589,6 +17591,9 @@ function renderActiveSnapshotLogViews(){
   // records but the table kept painting the rows it already had, which read as
   // "Delete All Logs does nothing".
   if(document.getElementById('vos-daily-panel-logs')?.style.display==='flex')renderVosDailyLogs();
+  // VOS Stats panels toggle an `active` class instead of style.display, so this
+  // one is tested the way switchVosStatsTab leaves it.
+  if(document.getElementById('vos-stats-panel-logs')?.classList.contains('active'))renderVosStatsLogs();
 }
 function subscribeLogs(){
   if (!fbOk || logsUnsub) return;
@@ -17776,6 +17781,15 @@ window.openDeleteLogsForDateConfirm = (module, sessionDate, label = 'this log en
     `Only the log record is removed. The traffic data for that date is not affected — that is deleted from Settings → Danger Zone.`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
+/* What the wipe leaves behind, in the module's own vocabulary: the Daily Traffic
+   feeds hold one report per date, Stats and VOS Stats hold hourly snapshots, and
+   each is deleted from a different place. Saying "traffic data" to someone
+   clearing the Stats trail would describe the wrong thing. */
+const SNAPSHOT_LOG_KEEPS_NOTE = {
+  stats:      'The saved hourly snapshots are not affected — those are deleted from Stats → Settings.',
+  'vos-stats':'The saved hourly snapshots are not affected — those are deleted from VOS Stats → Settings.'
+};
+const SNAPSHOT_LOG_KEEPS_DEFAULT = 'The traffic data for those dates is not affected — that is deleted from Settings → Danger Zone.';
 window.openDeleteModuleLogsConfirm = (module, label) => {
   if (!isAdmin()) return;
   // Deliberately not gated on snapshotLogsFor(module).length: that reads the
@@ -17784,7 +17798,7 @@ window.openDeleteModuleLogsConfirm = (module, label) => {
   pendingLogDelete = { mode:'module', module };
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete all ${esc(label)} log entries?</strong><br><br>` +
-    `Only the log records are removed. The traffic data for those dates is not affected — that is deleted from Settings → Danger Zone.<br><br>` +
+    `Only the log records are removed. ${SNAPSHOT_LOG_KEEPS_NOTE[module] || SNAPSHOT_LOG_KEEPS_DEFAULT}<br><br>` +
     `<span style="color:var(--red)">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
@@ -21850,6 +21864,10 @@ function renderStatsSnapshotLogs(){
   if(count)count.textContent=all.length?(rows.length===all.length?`${all.length} Stats log(s)`:`${rows.length} of ${all.length} Stats log(s)`):'No Stats logs yet.';
 }
 window.renderStatsSnapshotLogs=renderStatsSnapshotLogs;
+// Refresh re-reads this module's slice, not just the paint: the live listener
+// carries only the newest records across all modules, so repainting alone could
+// never bring a crowded-out snapshot log back.
+window.refreshStatsSnapshotLogs=async()=>{await ensureModuleLogs('stats',{force:true});renderStatsSnapshotLogs();};
 function renderStatsDailyLogs(){
   const body=document.getElementById('stats-daily-logs-tbody'),count=document.getElementById('stats-daily-logs-count');if(!body)return;
   const rows=mergeSnapshotAuditRows('daily-traffic');
@@ -27093,7 +27111,26 @@ window.openVosStatsHourlyForRow=element=>{
   window.switchVosStatsTab('hourly');
   requestAnimationFrame(()=>document.querySelector('#vos-stats-hourly-body .st-hr-client')?.scrollIntoView({block:'nearest',inline:'start'}));
 };
-function renderVosStatsLogs() {const body=document.getElementById('vos-stats-logs-body'),snaps=vosStatsSortedSnaps(true).slice().reverse();if(body)body.innerHTML=snaps.map(s=>`<tr><td>${stEsc(s.session_date)}</td><td>${stEsc(fmt12(s.time_slot))}</td><td>${stEsc(s.processed_at?new Date(s.processed_at).toLocaleString():'—')}</td><td>${stEsc(s.filename||'VOS report')}</td><td>${stEsc(s.sheet_name||'—')}</td><td class="num">${stN0(s.rows?.length||0)}</td><td class="num">${stN0((s.rows||[]).reduce((sum,row)=>sum+vosNumber(row.source_rows),0))}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats imports yet.</td></tr>';}
+/* VOS Stats imports write real audit records (module 'vos-stats'); this table
+   used to list the saved snapshots instead, so it showed the DATA rather than
+   the trail — "clear the logs" there would have meant deleting hourly
+   snapshots, and a delete of the log records would have left every row on
+   screen. It now reads the audit records, like every other Logs tab. Imports
+   made before audit logging existed simply do not appear; their snapshots are
+   untouched and still listed in the other VOS Stats views. */
+function renderVosStatsLogs() {
+  const body=document.getElementById('vos-stats-logs-body');if(!body)return;
+  if(!fbOk){body.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">Logs require Firestore — unavailable in demo mode.</td></tr>';vosSetText('vos-stats-logs-count','');return;}
+  const rows=mergeSnapshotAuditRows('vos-stats');
+  body.innerHTML=rows.length?rows.map(log=>{const processed=snapshotLogDate(log.processed_at);
+    return `<tr><td>${stEsc(log.session_date||'—')}</td><td>${stEsc(log.time_slot?fmt12(log.time_slot):'—')}</td><td>${stEsc(processed?processed.toLocaleString():'—')}</td><td>${stEsc(snapshotLogPostedBy(log))}</td><td>${stEsc(log.filename||'VOS report')}</td><td>${stEsc(log.sheet_name||'—')}</td><td class="num">${stN0(log.rows||0)}</td><td class="num">${stN0(log.source_rows||0)}</td></tr>`;
+  }).join(''):'<tr><td colspan="8" style="text-align:center;color:var(--text-3);padding:18px">No VOS Stats audit logs yet.</td></tr>';
+  vosSetText('vos-stats-logs-count',rows.length?`${rows.length} import${rows.length===1?'':'s'} logged`:'No VOS Stats logs yet.');
+}
+// Refresh re-reads this module's slice, not just the paint: the live listener
+// carries only the newest records across all modules, so repainting alone could
+// never bring a crowded-out import back.
+window.refreshVosStatsLogs=async()=>{await ensureModuleLogs('vos-stats',{force:true});renderVosStatsLogs();};
 async function deleteVosStatsCloudHistory() {
   if(!fbOk)return 0;const snapshot=await getDocs(collection(db,VOS_STATS_CLOUD_COLLECTION));let batch=writeBatch(db),pending=0,deleted=0;
   for(const entry of snapshot.docs){batch.delete(doc(db,VOS_STATS_CLOUD_COLLECTION,entry.id));pending++;deleted++;if(pending>=490){await batch.commit();batch=writeBatch(db);pending=0;}}
@@ -27101,7 +27138,15 @@ async function deleteVosStatsCloudHistory() {
 }
 function renderVosStats() {updateVosStatsStatusBar();populateVosStatsSlots();renderVosStatsSummary();renderVosStatsTables();renderVosStatsHourly();renderVosStatsLogs();const snap=vosStatsCurrentSnap(),status=document.getElementById('vos-stats-file-status');if(status&&snap&&!status.dataset.current){status.textContent=`${snap.filename||'VOS report'} · ${fmt12(snap.time_slot)} · restored · ${snap.rows.length} grouped row(s)`;status.title=status.textContent;}refreshImportantNotifications();}
 window.renderVosStats=renderVosStats;window.renderVosStatsHourly=renderVosStatsHourly;
-window.switchVosStatsTab=tab=>{vosStatsTab=VOS_STATS_TABS.includes(tab)?tab:'summary';VOS_STATS_TABS.forEach(name=>{const active=name===vosStatsTab,button=document.getElementById(`vos-stats-tab-${name}`),panel=document.getElementById(`vos-stats-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));panel?.classList.toggle('active',active);});const exports=document.getElementById('vos-stats-export-actions');if(exports)exports.style.display=['logs','settings'].includes(vosStatsTab)?'none':'flex';renderVosStats();setSbStatus(`Viewing: VOS — Stats — ${vosStatsTab.replace(/\b\w/g,c=>c.toUpperCase())}`);};
+window.switchVosStatsTab=tab=>{vosStatsTab=VOS_STATS_TABS.includes(tab)?tab:'summary';VOS_STATS_TABS.forEach(name=>{const active=name===vosStatsTab,button=document.getElementById(`vos-stats-tab-${name}`),panel=document.getElementById(`vos-stats-panel-${name}`);button?.classList.toggle('active',active);button?.setAttribute('aria-selected',String(active));panel?.classList.toggle('active',active);});const exports=document.getElementById('vos-stats-export-actions');if(exports)exports.style.display=['logs','settings'].includes(vosStatsTab)?'none':'flex';renderVosStats();
+  // Entering the VOS module drops the shared snapshot_logs listener, so this tab
+  // takes it back on the way in and releases it on the way out — exactly like
+  // VOS Daily Traffic's Logs tab. Without it the table would paint whatever
+  // logsData was left over from an earlier module and never see a change, so a
+  // delete here would appear to do nothing.
+  if(vosStatsTab==='logs'){subscribeLogs();ensureModuleLogs('vos-stats');renderVosStatsLogs();}
+  else if(document.body.classList.contains('vos-mode'))unsubscribeLogs();
+  setSbStatus(`Viewing: VOS — Stats — ${vosStatsTab.replace(/\b\w/g,c=>c.toUpperCase())}`);};
 window.selectVosStatsSlot=slot=>{vosStatsSelectedSlot=String(slot||'');const status=document.getElementById('vos-stats-file-status');if(status)delete status.dataset.current;saveVosStatsLocal();renderVosStats();};window.viewVosStatsSlot=slot=>{window.selectVosStatsSlot(slot);window.switchVosStatsTab('all');};
 window.importVosStatsFile=async file=>{
   if(!file)return;if(!canPostStats()){toast('Posting VOS Stats snapshots is restricted for this account.','err');return;}if(!window.XLSX){toast('The Excel/CSV reader is still loading. Please try again.','err',7000);return;}
