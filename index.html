@@ -9376,12 +9376,14 @@
       <!-- ═══ LOGS ══════════════════════════════════ -->
       <div class="view" id="view-logs">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">Snapshot Logs</div>
+          <div class="groupbox-title">All Snapshot Logs</div>
           <div class="fbar">
-            <span class="ui-text-micro" style="color:var(--text-2)">Audit trail of every snapshot posted — scheduled slot time vs. the time it was actually posted.</span>
+            <span class="ui-text-micro" style="color:var(--text-2)">Audit trail of every snapshot posted, across every module — scheduled slot time vs. the time it was actually posted.</span>
+            <label class="ui-text-micro" for="logs-module-filter" style="margin-left:8px;color:var(--text-3)">Module</label>
+            <select class="win-sel" id="logs-module-filter" onchange="setLogsModuleFilter(this.value)" title="Show one module's audit trail, or all of them"></select>
             <span id="logs-admin-tools" style="display:none;margin-left:auto;gap:4px">
               <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>Delete Selected</button>
-              <button class="tbtn" style="color:var(--red)" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
+              <button class="tbtn" style="color:var(--red)" id="logs-del-all-btn" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
             </span>
             <span class="ui-text-micro" id="logs-viewonly-note" style="display:none;margin-left:auto;color:var(--text-3);font-style:italic">View only — deleting logs is restricted to admins.</span>
           </div>
@@ -10623,7 +10625,7 @@
           </div>
 
           <div class="st-daily-panel" id="st-daily-panel-logs" role="tabpanel" aria-labelledby="st-daily-tab-logs" style="display:none">
-            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="renderStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('daily-traffic','Daily Traffic')">Delete All Logs</button></div>
+            <div class="fbar"><span class="sms-muted">Persistent audit trail of Daily Traffic imports, including the authenticated posting user. Deleting here removes log entries only — to remove a date's data, use Settings → Danger Zone.</span><button class="tbtn" onclick="refreshStatsDailyLogs()">Refresh</button><button class="tbtn" id="stats-daily-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('daily-traffic','Daily Traffic')">Delete All Logs</button></div>
             <div class="tab-content" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:4px">
               <div class="lv-wrap"><table><thead><tr><th>Traffic Date</th><th>Posted At</th><th>Posted By</th><th style="text-align:right">Rows</th><th>Actions</th></tr></thead><tbody id="stats-daily-logs-tbody"></tbody></table></div>
             </div>
@@ -13024,7 +13026,7 @@ window.switchView = name => {
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); ensureSpamHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ renderConfiguredVoipClients(); window.renderWizard(); renderImpHist(); }
-  if (name==='logs')          { subscribeLogs(); renderLogs(); }
+  if (name==='logs')          { subscribeLogs(); if (logsModuleFilter) ensureModuleLogs(logsModuleFilter); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
   if (name==='spam-history')  { ensureSpamFlagHistory(); ensureSpamHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
@@ -15535,15 +15537,6 @@ window.confirmWipeCritHistory = async () => {
         if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
       }
       if (count > 0) await batch.commit();
-      if (kind === 'stats-daily') {
-        const audit = await getDocs(query(collection(db,'snapshot_logs'),where('module','==','daily-traffic')));
-        let auditBatch=writeBatch(db), auditCount=0;
-        for (const entry of audit.docs) {
-          auditBatch.delete(doc(db,'snapshot_logs',entry.id));
-          if (++auditCount >= BATCH_MAX) { await auditBatch.commit(); auditBatch=writeBatch(db); auditCount=0; }
-        }
-        if (auditCount > 0) await auditBatch.commit();
-      }
       try { await deleteDoc(critSuppRef()); } catch (e) { /* non-fatal */ }
     }
     _critHits = new Map();
@@ -17499,7 +17492,58 @@ function snapshotLogDate(value) {
   const date=value instanceof Date?value:value?.toDate?.()||(value?new Date(value):null);
   return date instanceof Date&&Number.isFinite(date.getTime())?date:null;
 }
-function snapshotLogsFor(module) { return logsData.filter(log=>snapshotLogModule(log)===module); }
+/* The live listener carries only the newest SNAPSHOT_LOG_LIVE_LIMIT records
+   across EVERY module at once, and VOIP alone posts on half-hour slots, so a
+   low-volume module — Daily Traffic and VOS Daily Traffic import once a day —
+   is routinely crowded out of that window entirely: the records are still in
+   Firestore, but the module's Logs tab shows one or two rows, or none.
+   Each module tab therefore tops itself up with a one-shot, module-scoped read
+   the first time it is opened. The query is equality-only and sorted in JS:
+   pairing orderBy('processed_at') with where('module','==',…) would need a
+   composite index, nothing else in this app requires one, and a missing index
+   fails the query outright — so the tab would break rather than degrade. The
+   read fires only when the live window is actually starving the module, so the
+   busy modules that already fill it cost nothing extra. */
+const SNAPSHOT_LOG_MODULE_MIN_ROWS = 25;
+const logsModuleCache = new Map();    // module -> records fetched outside the live window
+const logsModuleFetched = new Set();  // modules already topped up this session
+function snapshotLogsLive(module) { return logsData.filter(log=>snapshotLogModule(log)===module); }
+function snapshotLogsFor(module) {
+  const live=snapshotLogsLive(module),extra=logsModuleCache.get(module);
+  if(!extra?.length)return live;
+  const seen=new Set(live.map(log=>log.id));
+  return live.concat(extra.filter(log=>!seen.has(log.id)));
+}
+/* Every record currently in hand — live window plus top-ups. This is what the
+   all-modules table and the selection are allowed to address, so a row a module
+   tab fetched can still be ticked and deleted from the shared view. */
+function allCachedLogs() {
+  const seen=new Set(logsData.map(log=>log.id)),out=logsData.slice();
+  logsModuleCache.forEach(rows=>rows.forEach(log=>{ if(!seen.has(log.id)){seen.add(log.id);out.push(log);} }));
+  return out;
+}
+/* Anything that removes log records has to drop them from the top-ups too, or a
+   deleted row keeps painting in the module tab that fetched it. */
+function dropCachedLogs(predicate) {
+  logsData=logsData.filter(log=>!predicate(log));
+  logsModuleCache.forEach((rows,module)=>logsModuleCache.set(module,rows.filter(log=>!predicate(log))));
+}
+function snapshotLogRecord(entry) { const data=entry.data();return { id:entry.id, ...data, processed_at:data.processed_at?.toDate() }; }
+async function ensureModuleLogs(module, { force = false } = {}) {
+  if (!fbOk || !module) return;
+  if (!force && logsModuleFetched.has(module)) return;
+  if (!force && snapshotLogsLive(module).length >= SNAPSHOT_LOG_MODULE_MIN_ROWS) return;
+  logsModuleFetched.add(module);
+  try {
+    const scoped = await getDocs(query(collection(db,'snapshot_logs'), where('module','==',module)));
+    logsModuleCache.set(module, scoped.docs.map(snapshotLogRecord));
+    renderActiveSnapshotLogViews();
+  } catch(e) {
+    console.warn('ensureModuleLogs:', e);
+    logsModuleFetched.delete(module);   // a failed top-up is retried on the next open
+  }
+}
+window.ensureModuleLogs = ensureModuleLogs;
 /* Audit records only, newest first. This used to merge in rows synthesised from
    the saved snapshots for anything that had data but no audit record, which
    made a Logs tab show entries that were not logs: they could not be deleted,
@@ -17551,8 +17595,12 @@ function subscribeLogs(){
   try {
     const q = query(collection(db,'snapshot_logs'), orderBy('processed_at','desc'), limit(SNAPSHOT_LOG_LIVE_LIMIT));
     logsUnsub = onSnapshot(q, snap => {
-      logsData = snap.docs.map(d => ({ id:d.id, ...d.data(), processed_at:d.data().processed_at?.toDate() }));
-      [...logsSelected].forEach(id => { if (!logsData.some(l=>l.id===id)) logsSelected.delete(id); });
+      logsData = snap.docs.map(snapshotLogRecord);
+      // Pruned against everything in hand, not just the live window: a row a
+      // module tab topped up is selectable, and dropping it here would untick
+      // it on every unrelated snapshot that arrives.
+      const known = new Set(allCachedLogs().map(l => l.id));
+      [...logsSelected].forEach(id => { if (!known.has(id)) logsSelected.delete(id); });
       renderActiveSnapshotLogViews();
     }, error => {
       console.warn('subscribeLogs:', error);
@@ -17567,6 +17615,31 @@ function unsubscribeLogs(){
   logsUnsub = null;
 }
 
+/* This tab predates every other module: when VOIP was the only writer, "all of
+   snapshot_logs" and "the VOIP logs" were the same set, so it never filtered and
+   grew a Module column instead. It stays the all-modules view — the cross-module
+   trail is the thing no other tab offers — but the filter below makes that a
+   choice rather than a surprise, and scopes the destructive buttons to match. */
+let logsModuleFilter = '';   // '' = every module
+function logsVisibleRows(){ return logsModuleFilter ? mergeSnapshotAuditRows(logsModuleFilter) : logsData; }
+function logsFilterLabel(){ return SNAPSHOT_LOG_MODULE_LABELS[logsModuleFilter] || logsModuleFilter; }
+function syncLogsModuleFilter(){
+  const sel = document.getElementById('logs-module-filter');
+  if (!sel) return;
+  if (!sel.options.length){
+    sel.innerHTML = `<option value="">All modules</option>` +
+      Object.entries(SNAPSHOT_LOG_MODULE_LABELS).map(([key,label]) => `<option value="${escAttr(key)}">${esc(label)}</option>`).join('');
+  }
+  sel.value = logsModuleFilter;
+}
+window.setLogsModuleFilter = value => {
+  logsModuleFilter = String(value || '');
+  // Ticks are addressed by id; keeping them across a filter change would arm a
+  // delete for rows the table is no longer showing.
+  logsSelected.clear();
+  if (logsModuleFilter) ensureModuleLogs(logsModuleFilter);
+  renderLogs();
+};
 function renderLogs(){
   const admin   = isAdmin();
   const tbody   = document.getElementById('logs-tbody');
@@ -17576,19 +17649,25 @@ function renderLogs(){
   document.getElementById('logs-viewonly-note').style.display = admin ? 'none' : '';
   document.getElementById('logs-th-check').style.display      = admin ? '' : 'none';
   document.getElementById('logs-th-action').style.display     = admin ? '' : 'none';
+  syncLogsModuleFilter();
+  const delAll = document.getElementById('logs-del-all-btn');
+  if (delAll) delAll.textContent = logsModuleFilter ? `Delete All ${logsFilterLabel()} Logs` : 'Delete All Logs';
 
   if (!fbOk){
     tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">Logs require Firestore — unavailable in demo mode.</td></tr>`;
     countEl.textContent = '';
     return;
   }
-  if (!logsData.length){
-    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.</td></tr>`;
-    countEl.textContent = '0 logs';
+  const rows = logsVisibleRows();
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">${logsModuleFilter
+      ? `No ${esc(logsFilterLabel())} logs yet. Clear the module filter to see the other modules.`
+      : 'No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.'}</td></tr>`;
+    countEl.textContent = logsModuleFilter ? `0 ${logsFilterLabel()} logs` : '0 logs';
     updateLogsSelUI();
     return;
   }
-  tbody.innerHTML = logsData.map(log => {
+  tbody.innerHTML = rows.map(log => {
     const late      = logLateness(log);
     const d         = log.processed_at;
     const postedStr = d ? d.toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
@@ -17607,8 +17686,9 @@ function renderLogs(){
       ${actionCell}
     </tr>`;
   }).join('');
-  const lateCount = logsData.filter(l => { const x=logLateness(l); return x.min!=null && x.min>15; }).length;
-  countEl.textContent = `Latest ${logsData.length} log(s)` + (lateCount ? ` · ${lateCount} posted late` : '');
+  const lateCount = rows.filter(l => { const x=logLateness(l); return x.min!=null && x.min>15; }).length;
+  countEl.textContent = (logsModuleFilter ? `${rows.length} ${logsFilterLabel()} log(s)` : `Latest ${rows.length} log(s) across all modules`)
+    + (lateCount ? ` · ${lateCount} posted late` : '');
   updateLogsSelUI();
 }
 
@@ -17619,8 +17699,10 @@ function updateLogsSelUI(){
     btn.disabled = n === 0;
     btn.textContent = n ? `Delete Selected (${n})` : 'Delete Selected';
   }
+  // Select-all is about the rows on screen, so it tracks the filtered set.
+  const visible = logsVisibleRows();
   const all = document.getElementById('logs-check-all');
-  if (all) all.checked = logsData.length > 0 && logsSelected.size === logsData.length;
+  if (all) all.checked = visible.length > 0 && visible.every(l => logsSelected.has(l.id));
 }
 
 window.toggleLogSelect = (id, cb) => {
@@ -17628,14 +17710,14 @@ window.toggleLogSelect = (id, cb) => {
   updateLogsSelUI();
 };
 window.toggleAllLogs = (cb) => {
-  if (cb.checked) logsData.forEach(l => logsSelected.add(l.id));
+  if (cb.checked) logsVisibleRows().forEach(l => logsSelected.add(l.id));
   else logsSelected.clear();
   renderLogs();
 };
 
 window.openDeleteOneLogConfirm = (id) => {
   if (!isAdmin()) return;
-  const log = logsData.find(l => l.id === id);
+  const log = allCachedLogs().find(l => l.id === id);
   pendingLogDelete = { mode:'one', id };
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete this log entry?</strong><br><br>` +
@@ -17652,12 +17734,19 @@ window.openDeleteSelectedLogsConfirm = () => {
     `Only the log records are removed — snapshot data is not affected.`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
+/* Follows the module filter, because a table showing one module with a button
+   that silently wipes all seven is a trap. Unfiltered it still means all —
+   that is what this tab is for — and the wording says so either way. Not gated
+   on the row count for the same reason openDeleteModuleLogsConfirm isn't: the
+   view holds a window, and the confirmed action queries Firestore. */
 window.openDeleteAllLogsConfirm = () => {
   if (!isAdmin()) return;
-  if (!logsData.length){ toast('No logs to delete.','err'); return; }
+  if (logsModuleFilter){ window.openDeleteModuleLogsConfirm(logsModuleFilter, logsFilterLabel()); return; }
   pendingLogDelete = { mode:'all' };
   document.getElementById('logs-confirm-text').innerHTML =
     `<strong>Delete ALL snapshot log entries?</strong><br><br>` +
+    `This clears the audit trail for <strong>every module</strong> — VOIP, Tritel, SMS Balance, Stats, VOS Stats and both Daily Traffic feeds. ` +
+    `Pick a module above to clear just one.<br><br>` +
     `Only the log records are removed — snapshot data and New Critical comparisons are not affected.<br><br>` +
     `<span style="color:var(--red)">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
@@ -17741,7 +17830,7 @@ window.confirmDeleteLogs = async () => {
     // the newest SNAPSHOT_LOG_LIVE_LIMIT records and a tab can be open with no
     // listener attached at all. Drop what was just deleted from the cached rows
     // and repaint, so a Logs table can never keep showing a deleted record.
-    logsData = logsData.filter(log => !deletedIds.has(log.id));
+    dropCachedLogs(log => deletedIds.has(log.id));
     renderActiveSnapshotLogViews();
     toast(`✓ Deleted ${ids.length} log entr${ids.length===1?'y':'ies'}`, 'ok');
   } catch(e){ toast('Delete failed: ' + e.message, 'err', 6000); }
@@ -18209,7 +18298,7 @@ window.confirmWipeAll = async () => {
     : kind === 'tritel' ? 'Deleting all Tritel snapshots…' : 'Deleting all snapshots…';
   setLoading(true, loadingMsg);
   try {
-    let deletedCount = 0, keptCount = 0;
+    let deletedCount = 0, keptCount = 0, clearedDailyLogs = false;
     if (fbOk) {
       const s = await getDocs(collection(db, colName));
       const BATCH_MAX = 490;
@@ -18227,6 +18316,25 @@ window.confirmWipeAll = async () => {
         if (++count >= BATCH_MAX) { await batch.commit(); batch = writeBatch(db); count = 0; }
       }
       if (count > 0) await batch.commit();
+      /* Deleting a single date through deleteStatsDailyReport also clears that
+         date's audit record for admins, so the all-dates wipe has to do the
+         same or the Logs tab keeps rows for data that no longer exists.
+         snapshot_logs deletion is admin-only in firestore.rules, so a
+         semi-admin wipes the data and leaves the trail standing — the same
+         split the single-date delete makes. This block used to sit in
+         confirmWipeCritHistory, where neither `kind` nor BATCH_MAX is defined:
+         it threw a ReferenceError that aborted Clear Critical History after the
+         records were already gone. */
+      if (kind === 'stats-daily' && isAdmin()) {
+        const audit = await getDocs(query(collection(db,'snapshot_logs'),where('module','==','daily-traffic')));
+        let auditBatch = writeBatch(db), auditCount = 0;
+        for (const entry of audit.docs) {
+          auditBatch.delete(doc(db,'snapshot_logs',entry.id));
+          if (++auditCount >= BATCH_MAX) { await auditBatch.commit(); auditBatch = writeBatch(db); auditCount = 0; }
+        }
+        if (auditCount > 0) await auditBatch.commit();
+        clearedDailyLogs = true;
+      }
     }
     if (kind === 'stats') {
       statsTodaySnaps = [];
@@ -18242,7 +18350,10 @@ window.confirmWipeAll = async () => {
       statsRender();
     } else if (kind === 'stats-daily') {
       statsDailyHistory = [];
-      logsData = logsData.filter(log => log.module !== 'daily-traffic');
+      // Only drop the audit rows if they were actually deleted above. A
+      // semi-admin's wipe leaves them in Firestore, and clearing them here
+      // emptied the Logs tab until the next reload brought them all back.
+      if (clearedDailyLogs) dropCachedLogs(log => log.module === 'daily-traffic');
       statsDailySelectedDate = '';
       statsDailyImportDateAutoTrack = true;
       try { localStorage.removeItem('bm_stats_daily_history'); } catch(e) {}
@@ -21754,6 +21865,10 @@ function renderStatsDailyLogs(){
   if(count)count.textContent=rows.length?`${rows.length} Daily Traffic log(s)`:'No Daily Traffic logs yet.';
 }
 window.renderStatsDailyLogs=renderStatsDailyLogs;
+// Refresh re-reads this module's slice, not just the paint: the live listener
+// only carries the newest records across all modules, so repainting alone could
+// never bring a crowded-out import back.
+window.refreshStatsDailyLogs=async()=>{await ensureModuleLogs('daily-traffic',{force:true});renderStatsDailyLogs();};
 window.deleteStatsDailyReport=async sessionDate=>{
   if(!canDeleteDailyTrafficDate()){toast('Only admins and semi-admins can delete Daily Traffic reports.','err');return;}
   // snapshot_logs deletion is admin-only in firestore.rules and a batch commits
@@ -21772,7 +21887,7 @@ window.deleteStatsDailyReport=async sessionDate=>{
       }
       await batch.commit();
     }
-    statsDailyHistory=statsDailyHistory.filter(day=>day.session_date!==sessionDate);if(clearsLog)logsData=logsData.filter(log=>!(log.module==='daily-traffic'&&log.session_date===sessionDate));
+    statsDailyHistory=statsDailyHistory.filter(day=>day.session_date!==sessionDate);if(clearsLog)dropCachedLogs(log=>log.module==='daily-traffic'&&log.session_date===sessionDate);
     statsDailySelectedDate=statsDailySortedHistory().slice(-1)[0]?.session_date||'';saveStatsDailyLocal();syncStatsDailyImportDate(true);renderStatsDailyTraffic();renderStatsDailyLogs();renderStatsTables();
     toast(`Deleted Daily Traffic report for ${sessionDate}.`,'ok');
   }catch(e){toast('Daily Traffic delete failed: '+e.message,'err',8000);}finally{setLoading(false);}
@@ -21846,7 +21961,7 @@ window.switchSmsBalanceView = (view, persist=true) => {
   document.getElementById(`sms-bal-view-${view}`)?.classList.add('active');
   if(view==='alerts')window.renderSmsBalanceAlerts(); if(view==='all')window.renderSmsBalanceAll();
   if(view==='manager')window.renderSmsBalanceManager();
-  if(view==='logs'){subscribeLogs();renderSmsBalanceLogs();}
+  if(view==='logs'){subscribeLogs();ensureModuleLogs('sms-balance');renderSmsBalanceLogs();}
   else if(document.body.classList.contains('sms-mode'))unsubscribeLogs();
   if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
   if(view==='inactive-usage-history')renderSmsBalanceInactiveUsageHistory();
@@ -26428,7 +26543,7 @@ window.switchVosDailyTab = tab => {
   // earlier module and then never saw a change, so deletes appeared to do
   // nothing. Subscribe on the way in and release on the way out, exactly like
   // Daily Traffic's Logs tab.
-  else if(vosDailyTab==='logs'){subscribeLogs();renderVosDailyLogs();}
+  else if(vosDailyTab==='logs'){subscribeLogs();ensureModuleLogs('vos-daily-traffic');renderVosDailyLogs();}
   // Same as the Daily Traffic picker: populateVosDeleteDates only ran from the
   // Logs render, so Settings showed an empty list until Logs had been opened.
   else if(vosDailyTab==='settings'){populateVosDeleteDates();syncDailyStoppedFloorInputs();}
@@ -28379,7 +28494,7 @@ window.switchStatsDailyTab = tab => {
   if (statsDailyTab === 'dashboard') renderStatsDailyDashboard();
   else if (statsDailyTab === 'history') renderStatsDailyHistory();
   else if (statsDailyTab === 'today') renderStatsDailyTraffic();
-  else if(statsDailyTab==='logs'){subscribeLogs();renderStatsDailyLogs();}
+  else if(statsDailyTab==='logs'){subscribeLogs();ensureModuleLogs('daily-traffic');renderStatsDailyLogs();}
   // The Danger Zone date picker is filled by renderStatsDailyLogs, so opening
   // Settings without having visited Logs first left it saying "No saved dates"
   // however many reports were stored. Fill it on the way in.
@@ -29002,7 +29117,7 @@ window.switchStatsView = name => {
   if (columnPicker) columnPicker.hidden = !STATS_CLASSIFICATION_VIEWS.includes(name);
   setSbStatus('Viewing: Stats — ' + name.replace(/\b\w/g, c => c.toUpperCase()));
   statsRender();
-  if(name==='logs'){subscribeLogs();renderStatsSnapshotLogs();}
+  if(name==='logs'){subscribeLogs();ensureModuleLogs('stats');renderStatsSnapshotLogs();}
   else if(document.body.classList.contains('stats-mode'))unsubscribeLogs();
 };
 
