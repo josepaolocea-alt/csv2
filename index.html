@@ -15013,7 +15013,7 @@ function spamFlagHistoryMapFromDocs(docs) {
       ratio:event.ratio == null ? NaN : Number(event.ratio),
       tier:event.tier === 'high' ? 'high' : 'watch', not_spam:!!event.not_spam,
       ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null),
-      reviewed_at:event.reviewed_at?.toDate?.() || null,
+      reviewed_at:event.reviewed_at?.toDate?.() || (event.reviewed_at instanceof Date ? event.reviewed_at : null),
     })).filter(event => event.d);
     if (name && events.length) { sortSpamHistEvents(events); map.set(name, { events }); }
   });
@@ -15171,18 +15171,34 @@ function ensureSpamFlagHistory() {
     .catch(() => { _spamFlagHistoryKicked = false; });
 }
 
+/* "2026-09-12 · 5:30 PM" for a review timestamp, matching how the First/Last
+   Flagged columns read. Review Status alone cannot say WHEN a client was cleared,
+   which makes a status that was set days ago look like it was just set by the
+   row action you clicked a moment ago. */
+function spamReviewStamp(value) {
+  const d = value instanceof Date ? value : null;
+  if (!d || !Number.isFinite(d.getTime())) return '';
+  const day = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${day} · ${d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' })}`;
+}
+
 function spamHistRows() {
   const rows = [];
   (_spamFlagHistory || new Map()).forEach((record,name) => {
     if (!record?.events?.length) return;
     const first = record.events[0], last = record.events[record.events.length - 1];
+    // Newest review across the client's events — the moment this row was cleared.
+    const reviewedAt = record.events.reduce((newest,event) => {
+      const at = event.reviewed_at instanceof Date && Number.isFinite(event.reviewed_at.getTime()) ? event.reviewed_at : null;
+      return at && (!newest || at > newest) ? at : newest;
+    }, null);
     const profileUsages = ((_profileSamples && _profileSamples.get(name)) || []).map(sample => amountNumber(sample?.u));
     const recordedHighs = record.events.flatMap(event => [amountNumber(event.usage), amountNumber(event.profile_max)]);
     const maxUsage = [...profileUsages, ...recordedHighs].filter(value => Number.isFinite(value) && value > 0)
       .reduce((highest, value) => Math.max(highest, value), 0);
     rows.push({
       name, count:record.events.length, usage:last.usage, maxUsage, ratio:last.ratio,
-      tier:last.tier, notSpam:!!last.not_spam,
+      tier:last.tier, notSpam:!!last.not_spam, reviewedAt,
       firstD:first.d, firstS:first.s, lastD:last.d, lastS:last.s,
       _first:spamHistKey(first.d,first.s), _last:spamHistKey(last.d,last.s),
     });
@@ -15222,11 +15238,22 @@ function renderSpamHistory() {
       <td><strong>${esc(row.name)}</strong></td><td class="num">${row.count}</td>
       <td class="num">${fmt(row.usage)}</td><td class="num">${row.maxUsage > 0 ? fmt(row.maxUsage) : '—'}</td><td class="num">${Number.isFinite(row.ratio) ? `${row.ratio.toFixed(1)}×` : '—'}</td>
       <td><span class="stbadge ${row.tier === 'high' ? 'critical' : 'low'}">${row.tier === 'high' ? 'High' : 'Watch'}</span></td>
-      <td><span class="stbadge ${row.notSpam ? 'good' : 'watch'}">${row.notSpam ? 'Marked Not Spam' : 'Flagged'}</span></td>
+      <td>${spamHistReviewCell(row)}</td>
       <td style="white-space:nowrap">${esc(row.firstD)}${row.firstS ? ` · ${esc(fmt12(row.firstS))}` : ''}</td>
       <td style="white-space:nowrap">${esc(row.lastD)}${row.lastS ? ` · ${esc(fmt12(row.lastS))}` : ''}</td>
       ${spamHistAdminActions(row)}
     </tr>`).join('') || `<tr><td colspan="10" style="text-align:center;padding:16px;color:var(--text-2)">${spamHistSearch ? 'No clients match your search.' : 'No Possible Spam flags logged yet.'}</td></tr>`;
+}
+
+/* Review Status, stamped with WHEN it was set. Both row actions here write one
+   client only, so a row already carrying an older stamp was cleared by an earlier
+   review (or by "Not spam" on the Possible Spam tab), not by the row you just
+   clicked — the stamp is what makes that difference visible. */
+function spamHistReviewCell(row) {
+  if (!row.notSpam) return '<span class="stbadge watch">Flagged</span>';
+  const stamp = spamReviewStamp(row.reviewedAt);
+  return `<span class="stbadge good" title="${esc(stamp ? `Marked Not Spam on ${stamp}` : 'Marked Not Spam — review time not recorded')}">Marked Not Spam</span>`
+    + (stamp ? `<div class="ui-text-micro" style="color:var(--text-2);margin-top:3px;white-space:nowrap">${esc(stamp)}</div>` : '');
 }
 
 function spamHistAdminActions(row) {
@@ -15282,10 +15309,11 @@ window.exportSpamHistory = () => {
   if (spamHistSearch) rows = rows.filter(row => row.name.toLowerCase().includes(spamHistSearch));
   if (!rows.length) { toast('Nothing to export.', 'err'); return; }
   const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-  const lines = [['Client','Times Flagged','Last 30m Usage','Highest 30m Usage','vs Normal','Last Tier','Review Status','First Flagged','Last Flagged'].map(csvCell).join(',')];
+  const lines = [['Client','Times Flagged','Last 30m Usage','Highest 30m Usage','vs Normal','Last Tier','Review Status','Reviewed On','First Flagged','Last Flagged'].map(csvCell).join(',')];
   rows.forEach(row => lines.push([
     row.name,row.count,row.usage,row.maxUsage || '',Number.isFinite(row.ratio) ? row.ratio : '',row.tier,
-    row.notSpam ? 'Marked Not Spam' : 'Flagged',`${row.firstD} ${row.firstS}`,`${row.lastD} ${row.lastS}`,
+    row.notSpam ? 'Marked Not Spam' : 'Flagged',row.notSpam ? spamReviewStamp(row.reviewedAt) : '',
+    `${row.firstD} ${row.firstS}`,`${row.lastD} ${row.lastS}`,
   ].map(csvCell).join(',')));
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' }));
