@@ -14457,13 +14457,43 @@ function usageWindowHigh(name) {
            windowFrom: dateStrDaysBefore(readingDate, spamLookbackDays()), windowTo: readingDate };
 }
 
+/* Resolve what someone typed at the console to a real profile key. The samples
+   are keyed by the exact carrier_name, so 'CYN VOS' misses a client stored as
+   'CYN VOS ' or 'Cyn Vos' and returns an empty report that looks like "no
+   history" rather than "wrong name". Exact match first, then case-insensitive,
+   then a substring search; an ambiguous substring resolves to nothing and lists
+   the candidates instead of silently picking one. */
+function resolveProfileName(name) {
+  const samples = _profileSamples || new Map();
+  const wanted = String(name ?? '').trim();
+  if (!wanted) return { name: '', candidates: [...samples.keys()].sort() };
+  if (samples.has(wanted)) return { name: wanted, candidates: [] };
+  const keys = [...samples.keys()];
+  const lower = wanted.toLowerCase();
+  const exact = keys.filter(k => k.trim().toLowerCase() === lower);
+  if (exact.length === 1) return { name: exact[0], candidates: [] };
+  const partial = exact.length ? exact : keys.filter(k => k.toLowerCase().includes(lower));
+  if (partial.length === 1) return { name: partial[0], candidates: [] };
+  return { name: '', candidates: partial.sort() };
+}
+
 /* Console debug helper — show exactly what a client is being judged against.
    Usage from the browser console:  spamDebug('CYN TONIK')
    Prints the day-by-day highs inside the look-back window, which of them is the
    reference, and the amount a reading has to beat today. Exposed on window
    because the module scope is otherwise invisible to the console. */
-window.spamDebug = function (name) {
+window.spamDebug = function (rawName) {
   const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
+  if (!_profilesLoaded) console.warn('Usage profiles are still loading — open Alerts and try again in a moment.');
+  const hit = resolveProfileName(rawName);
+  if (!hit.name) {
+    console.warn(`No stored usage profile matches "${rawName ?? ''}".`,
+      hit.candidates.length ? `Did you mean one of these ${hit.candidates.length}?` : 'No clients have samples yet.');
+    if (hit.candidates.length) console.table(hit.candidates.map(c => ({ client: c })));
+    return { client: rawName, matched: null, candidates: hit.candidates };
+  }
+  const name = hit.name;
+  if (name !== String(rawName ?? '').trim()) console.info(`Matched stored client "${name}".`);
   const ref = usageWindowHigh(name);
   const raw = (_profileSamples && _profileSamples.get(name)) || [];
   const inWindow = raw.filter(o => o && o.u > 0 && o.d && o.d >= ref.windowFrom && o.d < ref.windowTo);
@@ -14548,6 +14578,13 @@ window.spamProto = function (name, opts = {}) {
   };
 
   if (name) {
+    const hit = resolveProfileName(name);
+    if (!hit.name) {
+      console.warn(`No stored usage profile matches "${name}".`);
+      if (hit.candidates.length) console.table(hit.candidates.map(c => ({ client: c })));
+      return { params: P, matched: null, candidates: hit.candidates };
+    }
+    name = hit.name;
     const res = runOne(name);
     const flagged = res.rows.filter(x => x.flag !== '—');
     const closest = res.rows.filter(x => x.ratio != null).sort((a,b) => b.ratio - a.ratio).slice(0, 10);
