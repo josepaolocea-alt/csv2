@@ -9169,7 +9169,7 @@
               <div class="voip-alert-guide-item"><span class="badge none">Safe</span>No configured warning or critical threshold is currently reached.</div>
               <div class="voip-alert-guide-item"><span class="badge medium">No threshold</span>No explicit Credit Limit or Critical Balance is set; enabled fallback balance bands may still classify the client.</div>
               <div class="voip-alert-guide-item"><span class="badge light">Usage &gt;50</span>30-minute usage is at least 50. Medium starts at 100 and High starts at 150.</div>
-              <div class="voip-alert-guide-item"><span class="badge high">Possible Spam</span>Sustained 30-minute usage is unusually high — against the client's own recent usual, against every other client in the same reading, or as a collapse of its remaining runway to Critical. The chip names which test fired.</div>
+              <div class="voip-alert-guide-item"><span class="badge high">Possible Spam</span>30-minute usage is more than double this client's own highest 30-minute usage of the last 30 days (today not counted). The chip shows the multiple and the high it is measured against; both multiples and the window are set in Settings.</div>
               <div class="voip-alert-guide-item"><span class="badge high">New Critical</span>Critical now, but not critical in the comparison snapshot.</div>
               <div class="voip-alert-guide-item"><span class="badge removed">Removed</span>Critical in the comparison snapshot, but no longer critical now.</div>
               <div class="voip-alert-guide-item"><span class="badge light">Inactive + Usage</span>Configured Inactive while still reporting non-zero 30-minute usage.</div>
@@ -9458,7 +9458,7 @@
                 <th onclick="sortSpamHist('count')" style="text-align:right">Times Flagged</th>
                 <th onclick="sortSpamHist('usage')" style="text-align:right">Last 30m Usage</th>
                 <th onclick="sortSpamHist('maxUsage')" style="text-align:right" title="Highest recorded 30-minute usage for this client">Highest 30m Usage</th>
-                <th onclick="sortSpamHist('ratio')" style="text-align:right">vs Normal</th>
+                <th onclick="sortSpamHist('ratio')" style="text-align:right" title="How many times the client's own recent high that reading was — blank when the client had no history to compare with">× its high</th>
                 <th onclick="sortSpamHist('tier')">Last Tier</th>
                 <th onclick="sortSpamHist('status')">Review Status</th>
                 <th onclick="sortSpamHist('first')" title="Newest first by default">First Flagged ▼</th>
@@ -11038,10 +11038,10 @@
         <div class="settings-admin-section" id="voip-settings-spam-section">
         <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
         <div class="ui-text-micro" style="font-weight:700;margin-bottom:4px">Spam Detection (30m Usage)</div>
-        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Flags a client only when its 30-min usage jumps well above its own <em>recent</em> usual, measured in the client's own noise (robust std-devs), so a naturally spiky or steadily-growing client doesn't false-flag. Wide-gap catch-up readings are excluded.</div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Takes each client's <em>highest</em> 30-min usage over the look-back window (today not counted) and flags the client only when a reading is more than that many times higher. A 30-day high of 100 with a 2× multiple means a reading has to exceed 200. Wide-gap catch-up readings are excluded.</div>
         <div class="settings-row">
           <label style="min-width:150px;font-weight:700">Preset:</label>
-          <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags at 3σ (more flags); Balanced at 3.5σ; Relaxed at 4.5σ (only big jumps). Each preset sets Watch-at, High-at and Ignore-below below. Custom = manually tuned values.">
+          <select class="win-sel" id="set-spam-preset" style="width:130px" onchange="applySpamPreset(this.value)" title="Quick sensitivity presets. Aggressive flags above 1.5× the client's own recent high (more flags); Balanced above 2×; Relaxed above 3× (only a tripling). Each preset sets the two multiples below. Custom = manually tuned values.">
             <option value="aggressive">Aggressive</option>
             <option value="balanced">Balanced</option>
             <option value="relaxed">Relaxed</option>
@@ -11049,81 +11049,40 @@
           </select>
         </div>
         <div class="settings-row">
-          <label style="min-width:150px">Watch at (σ):</label>
-          <input class="win-inp" id="set-spam-kwatch" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="Flag a client Watch when its (sustained) 30-min usage is this many robust std-devs above its own recent median. Lower = more sensitive (more flags). 3.5 ≈ a clear anomaly beyond the client's normal spread.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">std-devs above usual</span>
+          <label style="min-width:150px">Flag above:</label>
+          <input class="win-inp" id="set-spam-ratio" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="Flag when the 30-min usage is MORE than this many times the client's highest 30-min usage in the look-back window. 2 = it has to more than double its own recent record. Exactly at the multiple is not flagged. Lower = more flags.">
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">× the client's own high</span>
         </div>
         <div class="settings-row">
-          <label style="min-width:150px">High tier at (σ):</label>
-          <input class="win-inp" id="set-spam-khigh" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="A flag at or above this many std-devs above usual is ranked High (loud alarm); below it is Watch. Must be ≥ Watch-at.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">std-devs above usual</span>
+          <label style="min-width:150px">High tier above:</label>
+          <input class="win-inp" id="set-spam-highratio" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="More than this many times the same high is ranked High (loud alarm); between the two multiples is Watch. Must be ≥ Flag above.">
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">× the client's own high</span>
         </div>
         <div class="settings-row">
-          <label style="min-width:150px">Sustain (slots):</label>
-          <input class="win-inp" id="set-spam-sustain" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="Require the usage to stay elevated for this many consecutive 30-min slots before flagging (the current + preceding same-day readings are averaged). 1 = flag on a single reading; 2 = a lone one-slot blip won't trip, a burst that holds for an hour will.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">1 = single reading</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Min samples:</label>
-          <input class="win-inp" id="set-spam-min" type="number" step="1" min="1" style="width:70px" onchange="saveSpamSettings()" title="Prior consumption points a client needs within the recent window before it can be judged.">
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Ignore below:</label>
-          <input class="win-inp" id="set-spam-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Never flag a 30-min usage below this absolute amount.">
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">New client at:</label>
-          <input class="win-inp" id="set-spam-unprofiled-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Fallback for a client with too few prior readings to have a baseline: flag its 30-min usage at or above this absolute amount. 0 = never flag an unprofiled client.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">0 = off</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">New client jump:</label>
-          <input class="win-inp" id="set-spam-unprofiled-ratio" type="number" step="0.5" min="1" style="width:70px" onchange="saveSpamSettings()" title="…and that reading must also be at least this many times the client's highest previous reading. A client with no previous reading at all is judged on the amount above alone.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">× highest seen</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Recent window:</label>
-          <select class="win-sel" id="set-spam-recent" style="width:130px" onchange="saveSpamSettings()" title="Defines a client's 'usual': the baseline median &amp; spread use only samples from the last N days, so it tracks the client's current level instead of lagging weeks-old behavior. Shorter = adapts faster to growth; longer = steadier.">
-            <option value="3">3 days</option>
-            <option value="5">5 days</option>
+          <label style="min-width:150px">Look-back window:</label>
+          <select class="win-sel" id="set-spam-lookback" style="width:130px" onchange="saveSpamSettings()" title="How far back to look for the client's highest 30-min usage. 30 days on 16 Sep means the highest reading from 17 Aug onward, today excluded. Longer = a steadier bar and fewer flags; shorter = it follows a client's current level more closely.">
             <option value="7">7 days</option>
-            <option value="10">10 days</option>
             <option value="14">14 days</option>
-            <option value="0">No limit</option>
+            <option value="30">30 days</option>
+            <option value="60">60 days</option>
+            <option value="90">90 days</option>
           </select>
         </div>
         <div class="settings-row">
+          <label style="min-width:150px">Ignore below:</label>
+          <input class="win-inp" id="set-spam-floor" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="Never flag a 30-min usage below this absolute amount, however big a multiple it is. Stops a client whose recent high is 2.00 from flagging on a 6.00 reading.">
+        </div>
+        <div class="settings-row">
+          <label style="min-width:150px">No history at:</label>
+          <input class="win-inp" id="set-spam-nohistory" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="A client with NO usage at all inside the look-back window has no high to be a multiple of. Flag it when its 30-min usage reaches this absolute amount instead. 0 = never flag a client with no history.">
+          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">0 = off</span>
+        </div>
+        <div class="settings-row">
           <label style="min-width:150px">Max gap:</label>
-          <input class="win-inp" id="set-spam-gap" type="number" step="5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Snapshots are meant to be 30 min apart. If the scheduled-slot gap to the previous snapshot exceeds this many minutes (i.e. a slot was skipped or it's the first post after a long break), that reading accumulated more than one interval: it is neither flagged as spam nor added to the baseline, and posting it prompts a confirmation. A normal consecutive 30-min reading still counts. 0 disables the guard.">
+          <input class="win-inp" id="set-spam-gap" type="number" step="5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Snapshots are meant to be 30 min apart. If the scheduled-slot gap to the previous snapshot exceeds this many minutes (i.e. a slot was skipped or it's the first post after a long break), that reading accumulated more than one interval: it is neither flagged as spam nor added to the usage profile, and posting it prompts a confirmation. A normal consecutive 30-min reading still counts. 0 disables the guard.">
           <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">min (0 = off)</span>
         </div>
-        <div class="ui-text-micro" style="font-weight:700;margin-top:8px;margin-bottom:4px">Extra detectors</div>
-        <div class="ui-text-micro" style="color:var(--text-2);margin-bottom:4px">Two rules that need no history at all, so a new or long-dormant client is covered from its first reading. Both raise the same Possible Spam flag; the chip names which rule fired.</div>
-        <div class="settings-row">
-          <label style="min-width:150px">Fleet outlier (σ):</label>
-          <input class="win-inp" id="set-spam-fleetk" type="number" step="0.5" min="0" style="width:70px" onchange="saveSpamSettings()" title="Flag when a client's 30-min usage is this many robust std-devs above the median of every OTHER active client in the same snapshot. Self-calibrating — a quiet night tightens it, a busy afternoon loosens it — so there is no absolute amount to maintain. 0 = off.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">above fleet (0 = off)</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Fleet min clients:</label>
-          <input class="win-inp" id="set-spam-fleetmin" type="number" step="1" min="2" style="width:70px" onchange="saveSpamSettings()" title="Use the fleet comparison only when at least this many active clients have positive 30-min usage in the snapshot. Below it there are too few peers for a median to mean anything.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">with usage</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">ETA collapse:</label>
-          <input class="win-inp" id="set-spam-eta" type="number" step="15" min="0" style="width:70px" onchange="saveSpamSettings()" title="Flag when the projected time until this client reaches its Critical Balance drops to this many minutes or less in a single slot. A client already inside the window on the previous reading is not re-flagged — that is approaching Critical, not spiking. 0 = off.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">min (0 = off)</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Prior max ages out:</label>
-          <input class="win-inp" id="set-spam-maxage" type="number" step="1" min="0" style="width:70px" onchange="saveSpamSettings()" title="A client's highest previous reading stops suppressing new flags once it is older than this many days. Without it, one big burst immunises a client for as long as the sample is kept. 0 = a prior maximum of any age suppresses.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">days (0 = never)</span>
-        </div>
-        <div class="settings-row">
-          <label style="min-width:150px">Prior max margin:</label>
-          <input class="win-inp" id="set-spam-maxmargin" type="number" step="0.05" min="0.1" max="1" style="width:70px" onchange="saveSpamSettings()" title="A previous maximum only suppresses a reading at or below (that maximum × this). 0.9 lets a reading within 10% of the old record still flag; 1 = the strict original rule, where anything at or under the old maximum is ignored.">
-          <span class="ui-text-micro" style="color:var(--text-2);margin-left:4px">× highest seen</span>
-        </div>
+        <div class="ui-text-micro" style="color:var(--text-2);margin-top:6px">Console: <strong>spamDebug('CLIENT')</strong> shows the day-by-day highs behind a client's bar; <strong>spamProto()</strong> replays these settings over the stored history and counts what they would have flagged.</div>
         </div>
         <div class="settings-admin-section" id="voip-settings-access-section">
         <hr style="border:none;border-top:1px solid var(--text-3);margin:6px 0">
@@ -13805,79 +13764,62 @@ function usageTrendArrow(row) {
 }
 
 /* ════════════════════════════════════════════════
-   USAGE PROFILE / SPAM ANOMALY DETECTION  (robust z-score model)
+   USAGE PROFILE / SPAM ANOMALY DETECTION  (multiple-of-the-recent-high model)
    Baseline lives in its OWN persistent Firestore collection (`usage_profiles`),
    NOT in `snapshots` — so it survives deleting/wiping the snapshots collection.
-   Each client doc holds a capped rolling buffer of recent positive 30-min usage
-   samples (keyed by date+slot). Detection has three pillars, tuned so a naturally
-   bursty or steadily-growing client doesn't false-flag:
-     1. RECENT window   — "usual" = median over the last `recentDays` days only, so
-                           the baseline tracks a client's current level, not weeks-old
-                           behavior (fixes the trend-lag false positive).
-     2. ROBUST spread   — jump measured in the client's OWN noise: a scaled MAD
-                           (median absolute deviation), floored so a low-variance
-                           client can't collapse sigma to ~0 and over-flag.
-     3. SUSTAIN         — the reading must stay elevated for `sustain` consecutive
-                           30-min slots, so a lone one-slot blip within normal
-                           variance doesn't trip.
-   Flag when  z = (signal − median) / sigma ≥ kWatch  (and signal ≥ hardFloor);
-   z ≥ kHigh = High tier, else Watch. Month-start days (recurring monthly charges)
-   never feed the baseline and never alert. See recordUsageSamples().
+   Each client doc holds a rolling buffer of positive 30-min usage samples (keyed
+   by date+slot) covering the look-back window.
+
+   ONE rule, stated in the numbers an operator can read straight off the table:
+
+       reference high = this client's HIGHEST 30-min usage in the last
+                        `lookbackDays` days, not counting today
+       flag when      current 30-min usage  >  reference high × `spikeRatio`
+
+   So with a 30-day high of 100 and spikeRatio 2, a reading has to exceed 200 to
+   be called Possible Spam — 200 exactly is not flagged. Above `highRatio` × the
+   same high the flag is ranked High instead of Watch. A client with no reading
+   at all inside the window has nothing to be a multiple OF, so it is judged on
+   size alone (`noHistoryFloor`).
+
+   This replaced a robust z-score model (median + scaled MAD, plus fleet-relative
+   and burn-rate detectors). It flagged far more often and no operator could
+   verify a flag by eye — "3.5 robust std-devs above the median" is not a number
+   you can check against the row in front of you. Month-start days (recurring
+   monthly charges) never feed the profile and never alert. See recordUsageSamples().
 ════════════════════════════════════════════════ */
 const SPAM_CFG_DEFAULTS = {
   monthStartExcludeDays: 2, // ignore day 1..N of the month (monthly recurring charges)
-  minSamples: 8,            // need this many prior consumption points in the window for a stable baseline
-  recentDays: 7,            // "usual" = median/spread over the last N days only (0 = all stored samples)
-  sustain: 2,               // reading must stay elevated this many consecutive 30-min slots (1 = single reading)
-  kWatch: 3.5,              // robust z (MADs above usual) to flag Watch
-  kHigh: 5,                 // robust z to flag High (must be ≥ kWatch)
-  madFloorFrac: 0.3,        // spread floor #1 = this × median (stops MAD→0 over-flagging on flat clients)
-  absMinSigma: 5,           // spread floor #2 = this absolute amount
+  lookbackDays: 30,         // reference high = highest 30-min usage over the last N days (today excluded)
+  spikeRatio: 2,            // flag when the reading is MORE than this many times that high
+  highRatio: 4,             // …and more than this many times it ranks the flag High rather than Watch
   hardFloor: 50,            // ignore-below gate: never flag a 30-min usage below this absolute amount
-  unprofiledFloor: 500,     // fallback for a client with no usable baseline (fewer than minSamples
-                            // prior readings in the window): flag at/above this absolute 30-min
-                            // usage. 0 = never flag an unprofiled client.
-  unprofiledRatio: 5,       // …and the reading must also be at least this many times the client's
-                            // highest previous reading. A client with no previous positive reading
-                            // at all has nothing to compare against, so the floor alone decides.
-  sampleCap: 300,           // max recent usage samples kept per client (rolling window)
+  noHistoryFloor: 500,      // a client with NO reading inside the window has no high to multiply, so
+                            // it is judged on size alone: flag at/above this amount. 0 = never flag it.
+  detailDays: 3,            // keep every reading for the last N days; older days inside the window keep
+                            // only that day's highest reading. The rule needs the daily maximum and
+                            // nothing else, and this is what lets a 30-day window fit in the stored
+                            // profile (and its localStorage mirror) at all.
+  sampleCap: 600,           // hard ceiling on samples per client — a safety valve behind detailDays
   maxGapMinutes: 30,        // snapshots are meant to be 30 min apart; if the gap to the previous
                             // snapshot EXCEEDS this (a skipped slot / overnight resume) the reading
                             // accumulated more than one interval: don't flag it as spam and don't
-                            // feed it to the baseline. A normal consecutive 30-min reading (gap == 30)
+                            // feed it to the profile. A normal consecutive 30-min reading (gap == 30)
                             // still counts. 0 = disable the gap guard.
-  /* ── Fleet-relative outlier (cross-sectional) ──────────────────────────────
-     Judges a reading against every OTHER client in the same snapshot instead of
-     against the client's own history, so an account with no usable baseline is
-     measured against something real rather than a flat amount someone guessed.
-     Self-calibrating: a quiet night tightens it, a busy afternoon loosens it. */
-  fleetK: 6,                // robust z above the fleet's median for this slot. 0 = rule off.
-  fleetMinClients: 12,      // need this many clients with positive usage before the fleet stat is trusted
-  /* ── ETA collapse (burn rate) ──────────────────────────────────────────────
-     The projected time until this client reaches its Critical Balance fell into
-     the window in a SINGLE slot. Needs no history at all, and scales itself to
-     each client's own runway. */
-  etaFlagMinutes: 90,       // flag when projected time-to-critical drops to/below this. 0 = rule off.
-  /* ── Novelty suppressor (was a hard veto on the profile maximum) ───────────
-     A prior maximum only suppresses when it is RECENT and comfortably above the
-     reading, so one big burst no longer immunises a client for good. */
-  profileMaxRecentDays: 14, // a max older than this stops suppressing. 0 = any age suppresses.
-  profileMaxMargin: 0.9,    // suppress only when signal <= profileMax × this. 1 = the original strict rule.
 };
 // Live config — operator-tunable via Settings; persisted in localStorage `bm_spamcfg`.
 const SPAM_CFG = { ...SPAM_CFG_DEFAULTS };
-// Named sensitivity presets. Each bundles the "how eager to flag" knobs (the z
-// thresholds + ignore-below floor); "Balanced" mirrors SPAM_CFG_DEFAULTS. The
-// remaining knobs (min samples, recent window, sustain, max gap) stay independent.
-// Values matching no preset = Custom.
+// Named sensitivity presets: how big a multiple of the client's own recent high
+// counts as spam. "Balanced" mirrors SPAM_CFG_DEFAULTS. The remaining knobs
+// (look-back window, floors, max gap) stay independent. No match = Custom.
 const SPAM_PRESETS = {
-  aggressive: { kWatch: 3,   kHigh: 4.5, hardFloor: 40 },  // flags at 3σ — catches subtler jumps
-  balanced:   { kWatch: 3.5, kHigh: 5,   hardFloor: 50 },  // flags at 3.5σ — == SPAM_CFG_DEFAULTS
-  relaxed:    { kWatch: 4.5, kHigh: 6.5, hardFloor: 80 },  // flags at 4.5σ — only big jumps
+  aggressive: { spikeRatio: 1.5, highRatio: 3 },  // 1.5× the recent high already flags
+  balanced:   { spikeRatio: 2,   highRatio: 4 },  // == SPAM_CFG_DEFAULTS
+  relaxed:    { spikeRatio: 3,   highRatio: 6 },  // only a tripling flags
 };
 function detectSpamPreset() {
   for (const [nm, p] of Object.entries(SPAM_PRESETS)) {
-    if (SPAM_CFG.kWatch === p.kWatch && SPAM_CFG.kHigh === p.kHigh && SPAM_CFG.hardFloor === p.hardFloor) return nm;
+    if (SPAM_CFG.spikeRatio === p.spikeRatio && SPAM_CFG.highRatio === p.highRatio) return nm;
   }
   return 'custom';
 }
@@ -13886,22 +13828,24 @@ function loadSpamCfg() {
   try {
     const v = localStorage.getItem('bm_spamcfg');
     if (v) {
-      const saved = JSON.parse(v);
-      // Migrate any legacy model (older MAD `k`, or ratio-of-median `ratioMult`/
-      // `highRatio`/`maxAgeDays`) to the robust z-score model: drop the old knobs
-      // and adopt the Balanced robust preset for the changed thresholds.
-      if (saved && (saved.ratioMult !== undefined || saved.k !== undefined) && saved.kWatch === undefined) {
-        delete saved.k; delete saved.madFallbackMult; delete saved.ratioMult; delete saved.highRatio; delete saved.maxAgeDays;
-        saved.recentDays   = SPAM_CFG_DEFAULTS.recentDays;
-        saved.sustain      = SPAM_CFG_DEFAULTS.sustain;
-        saved.kWatch       = SPAM_CFG_DEFAULTS.kWatch;
-        saved.kHigh        = SPAM_CFG_DEFAULTS.kHigh;
-        saved.madFloorFrac = SPAM_CFG_DEFAULTS.madFloorFrac;
-        saved.absMinSigma  = SPAM_CFG_DEFAULTS.absMinSigma;
-        saved.hardFloor    = SPAM_CFG_DEFAULTS.hardFloor;
+      const saved = JSON.parse(v) || {};
+      // Every earlier model (ratio-of-median, then the robust z-score one) is
+      // migrated the same way: only knobs the CURRENT model has are adopted, and
+      // anything else in the saved blob is dropped. Without this, a browser that
+      // had tuned kWatch/fleetK would carry dead keys forever — and, worse, the
+      // stale `highRatio` from the very first model would land on a knob that now
+      // means something completely different.
+      const known = {};
+      Object.keys(SPAM_CFG_DEFAULTS).forEach(k => { if (Number.isFinite(saved[k])) known[k] = saved[k]; });
+      migrated = Object.keys(saved).some(k => !(k in SPAM_CFG_DEFAULTS));
+      // The first build of this model shipped without highRatio; a saved blob from
+      // it would leave High unreachable rather than defaulting.
+      if (!Number.isFinite(known.spikeRatio) || !Number.isFinite(known.highRatio)) {
+        known.spikeRatio = SPAM_CFG_DEFAULTS.spikeRatio;
+        known.highRatio  = SPAM_CFG_DEFAULTS.highRatio;
         migrated = true;
       }
-      Object.assign(SPAM_CFG, saved);
+      Object.assign(SPAM_CFG, known);
     }
   } catch(e) {}
   if (migrated) persistSpamCfg();
@@ -13912,44 +13856,28 @@ function persistSpamCfg() {
 }
 function syncSpamSettingsUI() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('set-spam-recent',  SPAM_CFG.recentDays);
-  set('set-spam-min',     SPAM_CFG.minSamples);
-  set('set-spam-floor',   SPAM_CFG.hardFloor);
-  set('set-spam-sustain', SPAM_CFG.sustain);
-  set('set-spam-kwatch',  SPAM_CFG.kWatch);
-  set('set-spam-khigh',   SPAM_CFG.kHigh);
-  set('set-spam-gap',     SPAM_CFG.maxGapMinutes);
-  set('set-spam-unprofiled-floor', SPAM_CFG.unprofiledFloor);
-  set('set-spam-unprofiled-ratio', SPAM_CFG.unprofiledRatio);
-  set('set-spam-fleetk',    SPAM_CFG.fleetK);
-  set('set-spam-fleetmin',  SPAM_CFG.fleetMinClients);
-  set('set-spam-eta',       SPAM_CFG.etaFlagMinutes);
-  set('set-spam-maxage',    SPAM_CFG.profileMaxRecentDays);
-  set('set-spam-maxmargin', SPAM_CFG.profileMaxMargin);
-  set('set-spam-preset',  detectSpamPreset());
+  set('set-spam-ratio',     SPAM_CFG.spikeRatio);
+  set('set-spam-highratio', SPAM_CFG.highRatio);
+  set('set-spam-lookback',  SPAM_CFG.lookbackDays);
+  set('set-spam-floor',     SPAM_CFG.hardFloor);
+  set('set-spam-nohistory', SPAM_CFG.noHistoryFloor);
+  set('set-spam-gap',       SPAM_CFG.maxGapMinutes);
+  set('set-spam-preset',    detectSpamPreset());
 }
 window.saveSpamSettings = () => {
   if (!isAdmin()) { syncSpamSettingsUI(); return; }
   const num = (id, def) => { const v = parseFloat(document.getElementById(id)?.value); return Number.isFinite(v) ? v : def; };
-  SPAM_CFG.recentDays = Math.max(0, Math.round(num('set-spam-recent', SPAM_CFG_DEFAULTS.recentDays)));
-  SPAM_CFG.minSamples = Math.max(1, Math.round(num('set-spam-min',     SPAM_CFG_DEFAULTS.minSamples)));
-  SPAM_CFG.hardFloor  = Math.max(0, num('set-spam-floor',  SPAM_CFG_DEFAULTS.hardFloor));
-  SPAM_CFG.sustain    = Math.max(1, Math.round(num('set-spam-sustain', SPAM_CFG_DEFAULTS.sustain)));
-  SPAM_CFG.kWatch     = Math.max(1, num('set-spam-kwatch', SPAM_CFG_DEFAULTS.kWatch));
-  SPAM_CFG.kHigh      = Math.max(SPAM_CFG.kWatch, num('set-spam-khigh', SPAM_CFG_DEFAULTS.kHigh));
-  SPAM_CFG.maxGapMinutes = Math.max(0, Math.round(num('set-spam-gap', SPAM_CFG_DEFAULTS.maxGapMinutes)));
-  SPAM_CFG.unprofiledFloor = Math.max(0, num('set-spam-unprofiled-floor', SPAM_CFG_DEFAULTS.unprofiledFloor));
-  SPAM_CFG.unprofiledRatio = Math.max(1, num('set-spam-unprofiled-ratio', SPAM_CFG_DEFAULTS.unprofiledRatio));
-  SPAM_CFG.fleetK          = Math.max(0, num('set-spam-fleetk', SPAM_CFG_DEFAULTS.fleetK));
-  SPAM_CFG.fleetMinClients = Math.max(2, Math.round(num('set-spam-fleetmin', SPAM_CFG_DEFAULTS.fleetMinClients)));
-  SPAM_CFG.etaFlagMinutes  = Math.max(0, Math.round(num('set-spam-eta', SPAM_CFG_DEFAULTS.etaFlagMinutes)));
-  SPAM_CFG.profileMaxRecentDays = Math.max(0, Math.round(num('set-spam-maxage', SPAM_CFG_DEFAULTS.profileMaxRecentDays)));
-  // Above 1 the suppressor would swallow readings ABOVE the old record, which is
-  // the one thing it must never do; below 0.1 it stops suppressing at all.
-  SPAM_CFG.profileMaxMargin = Math.min(1, Math.max(0.1, num('set-spam-maxmargin', SPAM_CFG_DEFAULTS.profileMaxMargin)));
+  // A multiple below 1 would flag every reading under the client's own high, i.e.
+  // everything — the one value the rule can never mean.
+  SPAM_CFG.spikeRatio   = Math.max(1, num('set-spam-ratio', SPAM_CFG_DEFAULTS.spikeRatio));
+  SPAM_CFG.highRatio    = Math.max(SPAM_CFG.spikeRatio, num('set-spam-highratio', SPAM_CFG_DEFAULTS.highRatio));
+  SPAM_CFG.lookbackDays = Math.max(1, Math.round(num('set-spam-lookback', SPAM_CFG_DEFAULTS.lookbackDays)));
+  SPAM_CFG.hardFloor    = Math.max(0, num('set-spam-floor', SPAM_CFG_DEFAULTS.hardFloor));
+  SPAM_CFG.noHistoryFloor = Math.max(0, num('set-spam-nohistory', SPAM_CFG_DEFAULTS.noHistoryFloor));
+  SPAM_CFG.maxGapMinutes  = Math.max(0, Math.round(num('set-spam-gap', SPAM_CFG_DEFAULTS.maxGapMinutes)));
   persistSpamCfg();
   const ps = document.getElementById('set-spam-preset'); if (ps) ps.value = detectSpamPreset();
-  invalidateUsageProfiles();          // recompute baseline with the new params
+  invalidateUsageProfiles();          // recompute the reference highs with the new window
   _spamAlertSeeded = false;           // re-seed silently so a config tweak doesn't blast notifications
   safeRender('Alerts', renderAlerts);
   scanSpamSuspects();
@@ -13960,9 +13888,8 @@ window.applySpamPreset = (name) => {
   const p = SPAM_PRESETS[name];
   if (!p) return;                     // "Custom" chosen → keep the current manual values
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  set('set-spam-kwatch', p.kWatch);
-  set('set-spam-khigh',  p.kHigh);
-  set('set-spam-floor',  p.hardFloor);
+  set('set-spam-ratio',     p.spikeRatio);
+  set('set-spam-highratio', p.highRatio);
   saveSpamSettings();                 // reads the fields back into SPAM_CFG, persists & re-scans
 };
 // YYYY-MM-DD for `n` days before today (local), matching todayStr()'s formatting.
@@ -13975,15 +13902,27 @@ function dayOfMonth(dateStr) {
   const p = String(dateStr || '').split('-'); // YYYY-MM-DD
   return p.length === 3 ? parseInt(p[2], 10) : NaN;
 }
+// YYYY-MM-DD for `n` days before `dateStr` (falls back to today when it is blank
+// or malformed). The look-back window is measured from a reading's own date, not
+// from the wall clock, so browsing an older snapshot judges it against the
+// history that existed then.
+function dateStrDaysBefore(dateStr, n) {
+  const p = String(dateStr || '').split('-');
+  const d = p.length === 3 && p.every(x => x !== '' && Number.isFinite(+x))
+    ? new Date(+p[0], +p[1] - 1, +p[2])
+    : new Date();
+  d.setDate(d.getDate() - (Number.isFinite(n) ? n : 0));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// The look-back window, read defensively: a missing or nonsense value must fall
+// back to the shipped default, never to 0 — which `| 0` would turn into a
+// one-day window and a bar built from yesterday alone.
+function spamLookbackDays() {
+  return Math.max(1, Math.round(Number(SPAM_CFG.lookbackDays) || 30));
+}
 function isMonthStart(dateStr) {
   const d = dayOfMonth(dateStr);
   return Number.isFinite(d) && d <= SPAM_CFG.monthStartExcludeDays;
-}
-function medianOf(arr) {
-  if (!arr.length) return 0;
-  const a = arr.slice().sort((x, y) => x - y);
-  const m = a.length >> 1;
-  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 }
 function profileDocId(name) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
@@ -14005,19 +13944,15 @@ function profileDocId(name) {
 let _profileSamples = null;   // Map<name, Array<{d, s, u}>>
 let _profilesLoaded = false;
 let _profilesLoading = null;
-let _usageProfiles = null;    // computed baseline cache (median/threshold per client)
+// { key: readingDate, map: Map<name, reference high> } — see getUsageProfiles().
+let _usageProfiles = null;
 let _storedProfileRecords = null;   // Array<{carrier_name, samples}> — the persisted baseline, read once
 let _usageExclusionsUnsubscribe = null;
 // Resolve on the exclusions listener's first delivery. Exclusions stay live: the
 // collection is tiny, it changes only when an operator marks a reading, and both
 // the fold below and the stored records are filtered through it.
 let _usageExclusionsFirst = null;
-// Per-snapshot derivations the spam rules need once per render rather than once
-// per row (see fleetUsageStats / prevRowFor). Both come from the same rows the
-// baseline is folded from, so anything that invalidates the baseline clears them.
-let _fleetUsageStats = null;
-let _prevRowIndex = null;
-function invalidateUsageProfiles() { _usageProfiles = null; _fleetUsageStats = null; _prevRowIndex = null; }
+function invalidateUsageProfiles() { _usageProfiles = null; }
 
 /* ── Stored-baseline browser mirror ─────────────────────────────────────────
    getDocs never reads from the Firestore persistent cache, so the one-shot
@@ -14080,7 +14015,52 @@ function setStoredProfileRecords(records) {
 }
 
 function sampleKey(d, s) { return `${d}|${s}`; }
+/* Trim a client's rolling buffer to what the rule can still use, in place.
+
+   The rule needs one number per day — that day's highest 30-min usage — for the
+   last `lookbackDays` days. A plain count cap could not deliver it: a client with
+   usage in most slots fills 300 samples in under a week, so a 30-day window would
+   quietly become a 6-day one. Three passes instead:
+     1. drop days that have aged out of the window entirely;
+     2. compact the days outside `detailDays` to that day's single highest
+        reading — all the rule will ever ask of them, and what keeps 30 days of
+        history small enough to persist (and to mirror in localStorage);
+     3. keep the count cap as a safety valve behind both.
+
+   The window is anchored on the NEWEST reading in the buffer rather than on the
+   clock, so the poster's incremental trim and a watching session's bulk re-fold
+   of the same readings always agree — the invariant the whole local-fold design
+   rests on — and a client that has been quiet for a month keeps its history
+   instead of having it erased. Undated legacy samples carry no day at all, so
+   they can never answer the question the rule asks; they are dropped here.
+
+   One consequence worth knowing: re-posting an OLD slot (outside detailDays) with
+   a corrected, lower value cannot lower that day's high, because the reading it
+   replaces was already compacted away. Reset Spam Baseline rebuilds from the
+   snapshots if that ever matters. */
 function capSamples(arr) {
+  if (!Array.isArray(arr) || !arr.length) return arr;
+  let newest = '';
+  arr.forEach(o => { const d = o?.d || ''; if (d > newest) newest = d; });
+  if (newest) {
+    const detail     = Math.max(1, Math.round(Number(SPAM_CFG.detailDays) || 3));
+    const oldest     = dateStrDaysBefore(newest, spamLookbackDays());
+    const detailFrom = dateStrDaysBefore(newest, detail - 1);
+    const dayHigh = new Map();
+    const kept = [];
+    arr.forEach(o => {
+      const u = amountNumber(o?.u);
+      const d = o?.d || '';
+      if (!(u > 0) || d < oldest) return;              // aged out, non-positive, or undated
+      if (d >= detailFrom) { kept.push(o); return; }   // recent days keep every slot
+      const best = dayHigh.get(d);
+      if (!best || u > amountNumber(best.u)) dayHigh.set(d, o);
+    });
+    dayHigh.forEach(o => kept.push(o));
+    kept.sort((a, b) => sampleKey(a.d, a.s).localeCompare(sampleKey(b.d, b.s)));
+    arr.length = 0;
+    kept.forEach(o => arr.push(o));
+  }
   if (arr.length > SPAM_CFG.sampleCap) arr.splice(0, arr.length - SPAM_CFG.sampleCap);
   return arr;
 }
@@ -14434,184 +14414,135 @@ async function persistProfileDocs(names) {
   } catch (e) { /* non-fatal: baseline still lives in memory for this session */ }
 }
 
+/* Every client's reference high for the reading currently on screen: the highest
+   30-min usage it recorded in the `lookbackDays` days BEFORE that reading's day.
+
+   Today is excluded on purpose. It keeps today's spike from raising the bar it is
+   being judged against, and it means every reading taken today is measured
+   against the same fixed number — an operator can be told "the bar for this
+   client today is 2 × 412.30, set on Sep 3" and check it.
+
+   Computed for the whole fleet in one pass and cached per reading date, because
+   renderAlerts() asks for it once per row. invalidateUsageProfiles() drops it
+   whenever the samples change. */
 function getUsageProfiles() {
-  if (_usageProfiles) return _usageProfiles;
-  const today = todayStr();
-  // "Usual" = the RECENT window only, so the baseline tracks a client's current
-  // regime instead of lagging weeks-old behavior (0 = all stored samples).
-  const minDate = SPAM_CFG.recentDays > 0 ? dateStrDaysAgo(SPAM_CFG.recentDays) : '';
-  const samples = _profileSamples || new Map();
-  const profiles = new Map();
-  samples.forEach((arr, name) => {
-    let profileMax = null;
-    let profileMaxDate = '';
-    let profileMaxSlot = '';
+  const { date } = currentReadingMeta();
+  const readingDate = date || todayStr();
+  if (_usageProfiles && _usageProfiles.key === readingDate) return _usageProfiles.map;
+  const oldest = dateStrDaysBefore(readingDate, spamLookbackDays());
+  const map = new Map();
+  (_profileSamples || new Map()).forEach((arr, name) => {
+    let high = null, highDate = '', highSlot = '', n = 0;
     (arr || []).forEach(o => {
       const u = amountNumber(o?.u);
-      if (!(u > 0)) return;
-      if (profileMax === null || u > profileMax) {
-        profileMax = u;
-        profileMaxDate = o?.d || '';
-        profileMaxSlot = o?.s || '';
-      }
+      const d = o?.d || '';
+      // Strictly earlier days only: the day being judged (and anything after it,
+      // when an older snapshot is being browsed) can't be part of its own baseline.
+      if (!(u > 0) || !d || d < oldest || d >= readingDate) return;
+      n++;
+      if (high === null || u > high) { high = u; highDate = d; highSlot = o?.s || ''; }
     });
-    // Baseline = established prior days only: skip today (so a spike can't judge
-    // itself), skip month-start days, and drop anything before the recent window.
-    const vals = (arr || []).filter(o => o && o.u > 0 && o.d !== today && !isMonthStart(o.d) && (!minDate || o.d >= minDate)).map(o => o.u);
-    const n = vals.length;
-    if (n < SPAM_CFG.minSamples) { profiles.set(name, { ready: false, n, profileMax, profileMaxDate, profileMaxSlot }); return; }
-    const med = medianOf(vals);
-    // Robust spread: scaled MAD (median absolute deviation) — the jump is judged in
-    // the client's OWN noise units, so a naturally spiky client needs a bigger jump
-    // than a stable one. Floored two ways (fraction of median, and an absolute min)
-    // so a low-variance client can't collapse sigma toward 0 and flag on nothing.
-    const mad = medianOf(vals.map(v => Math.abs(v - med)));
-    const sigma = Math.max(1.4826 * mad, SPAM_CFG.madFloorFrac * med, SPAM_CFG.absMinSigma);
-    profiles.set(name, { ready: true, n, median: med, mad, sigma, profileMax, profileMaxDate, profileMaxSlot });
+    map.set(name, { high, highDate, highSlot, n, windowFrom: oldest, windowTo: readingDate });
   });
-  _usageProfiles = profiles;
-  return profiles;
+  _usageProfiles = { key: readingDate, map };
+  return map;
+}
+// The one client's entry, with the empty shape a client that has never been seen
+// at all would get (getUsageProfiles only holds clients that have samples).
+function usageWindowHigh(name) {
+  const hit = getUsageProfiles().get(name);
+  if (hit) return hit;
+  const readingDate = currentReadingMeta().date || todayStr();
+  return { high: null, highDate: '', highSlot: '', n: 0,
+           windowFrom: dateStrDaysBefore(readingDate, spamLookbackDays()), windowTo: readingDate };
 }
 
-/* Console debug helper — inspect exactly what a client's spam baseline is built
-   from. Usage from the browser console:  spamDebug('CYN TONIK')
-   Returns the raw stored samples plus the filtered baseline (what actually feeds
-   the median), so you can see whether a low "× normal" median is representative
-   or deflated by dropped/excluded readings. Exposed on window because the module
-   scope is otherwise invisible to the console. */
-function usageProfileMaxRef(name, skipDate = '', skipSlot = '') {
-  let profileMax = null;
-  let profileMaxDate = '';
-  let profileMaxSlot = '';
-  const arr = (_profileSamples && _profileSamples.get(name)) || [];
-  (arr || []).forEach(o => {
-    if (skipDate && o?.d === skipDate && (!skipSlot || o?.s === skipSlot)) return;
-    const u = amountNumber(o?.u);
-    if (!(u > 0)) return;
-    if (profileMax === null || u > profileMax) {
-      profileMax = u;
-      profileMaxDate = o?.d || '';
-      profileMaxSlot = o?.s || '';
-    }
-  });
-  return { profileMax, profileMaxDate, profileMaxSlot };
-}
-
+/* Console debug helper — show exactly what a client is being judged against.
+   Usage from the browser console:  spamDebug('CYN TONIK')
+   Prints the day-by-day highs inside the look-back window, which of them is the
+   reference, and the amount a reading has to beat today. Exposed on window
+   because the module scope is otherwise invisible to the console. */
 window.spamDebug = function (name) {
-  const today = todayStr();
-  const minDate = SPAM_CFG.recentDays > 0 ? dateStrDaysAgo(SPAM_CFG.recentDays) : '';
+  const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
+  const ref = usageWindowHigh(name);
   const raw = (_profileSamples && _profileSamples.get(name)) || [];
-  const dropped = { today: [], monthStart: [], tooOld: [], nonPositive: [] };
-  const kept = [];
-  raw.forEach(o => {
-    if (!o || !(o.u > 0)) { dropped.nonPositive.push(o); return; }
-    if (o.d === today)       { dropped.today.push(o);      return; }
-    if (isMonthStart(o.d))   { dropped.monthStart.push(o); return; }
-    if (minDate && o.d < minDate) { dropped.tooOld.push(o); return; }  // outside the recent window
-    kept.push(o);
+  const inWindow = raw.filter(o => o && o.u > 0 && o.d && o.d >= ref.windowFrom && o.d < ref.windowTo);
+  // One row per day, which is how the rule sees the window.
+  const byDay = new Map();
+  inWindow.forEach(o => {
+    const cur = byDay.get(o.d);
+    if (!cur || amountNumber(o.u) > amountNumber(cur.u)) byDay.set(o.d, o);
   });
-  const vals = kept.map(o => o.u);
-  const med = medianOf(vals);
-  const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-  const mad = medianOf(vals.map(v => Math.abs(v - med)));
-  const sigma = Math.max(1.4826 * mad, SPAM_CFG.madFloorFrac * med, SPAM_CFG.absMinSigma);
-  const sorted = vals.slice().sort((a, b) => a - b);
-  const r2 = x => Math.round(x * 100) / 100;
-  // What the unprofiled fallback would compare against. The live check excludes
-  // the reading being judged, so today's samples are left out here too — counting
-  // today's spike would inflate the threshold past the very reading in question.
-  const priorMax = raw.reduce((m, o) => (o && o.d !== today && o.u > m ? o.u : m), 0);
-  const ready = vals.length >= SPAM_CFG.minSamples;
+  const dayHighs = [...byDay.values()]
+    .sort((a, b) => (a.d < b.d ? -1 : 1))
+    .map(o => ({ date: o.d, slot: o.s, high: r2(amountNumber(o.u)), isReference: o.d === ref.highDate && o.s === ref.highSlot }));
   const out = {
     client: name,
-    config: { recentDays: SPAM_CFG.recentDays, kWatch: SPAM_CFG.kWatch, kHigh: SPAM_CFG.kHigh, sustain: SPAM_CFG.sustain,
-              hardFloor: SPAM_CFG.hardFloor, minSamples: SPAM_CFG.minSamples, maxGapMinutes: SPAM_CFG.maxGapMinutes,
-              unprofiledFloor: SPAM_CFG.unprofiledFloor, unprofiledRatio: SPAM_CFG.unprofiledRatio,
-              fleetK: SPAM_CFG.fleetK, fleetMinClients: SPAM_CFG.fleetMinClients,
-              etaFlagMinutes: SPAM_CFG.etaFlagMinutes,
-              profileMaxRecentDays: SPAM_CFG.profileMaxRecentDays, profileMaxMargin: SPAM_CFG.profileMaxMargin },
-    rawSampleCount: raw.length,
-    baselineSampleCount: vals.length,
-    ready,
-    median: r2(med),
-    mean: r2(mean),
-    mad: r2(mad),
-    sigma: r2(sigma),                                   // robust spread (scaled MAD, floored)
-    min: sorted[0], max: sorted[sorted.length - 1],
-    flagAt: r2(med + SPAM_CFG.kWatch * sigma),          // a (sustained) reading at/above this trips Watch
-    highAt: r2(med + SPAM_CFG.kHigh * sigma),           // …and at/above this trips High
-    // Only meaningful when ready is false — that is when the fallback applies.
-    unprofiledFlagAt: ready ? null
-      : SPAM_CFG.unprofiledFloor > 0
-        ? r2(Math.max(SPAM_CFG.unprofiledFloor, priorMax * SPAM_CFG.unprofiledRatio))
-        : 'off',
-    droppedCounts: { today: dropped.today.length, monthStart: dropped.monthStart.length,
-                     outsideWindow: dropped.tooOld.length, nonPositive: dropped.nonPositive.length },
-    // What the novelty suppressor will and won't let through. A reading at or
-    // below suppressesAtOrBelow is dropped before any rule sees it — unless the
-    // record that set it has aged out, which agedOut reports.
-    novelty: (() => {
-      const maxRef = usageProfileMaxRef(name);
-      const margin = Number.isFinite(SPAM_CFG.profileMaxMargin) ? SPAM_CFG.profileMaxMargin : 1;
-      const days = SPAM_CFG.profileMaxRecentDays;
-      return { profileMax: maxRef.profileMax, setOn: maxRef.profileMaxDate || null,
-               agedOut: !!(days > 0 && maxRef.profileMaxDate && maxRef.profileMaxDate < dateStrDaysAgo(days)),
-               suppressesAtOrBelow: maxRef.profileMax === null ? null : r2(maxRef.profileMax * margin) };
-    })(),
-    // The cross-sectional rule, which needs no history from this client at all.
-    fleet: (() => {
-      const stat = fleetUsageStats();
-      return { clientsWithUsage: stat.n, median: r2(stat.median), sigma: r2(stat.sigma),
-               enoughPeers: stat.n >= SPAM_CFG.fleetMinClients,
-               flagAt: SPAM_CFG.fleetK > 0 ? r2(stat.median + SPAM_CFG.fleetK * stat.sigma) : 'off' };
-    })(),
-    baselineSamples: kept.slice().sort((a, b) => (a.d + a.s < b.d + b.s ? -1 : 1)),
-    droppedSamples: dropped,
+    config: { lookbackDays: SPAM_CFG.lookbackDays, spikeRatio: SPAM_CFG.spikeRatio, highRatio: SPAM_CFG.highRatio,
+              hardFloor: SPAM_CFG.hardFloor, noHistoryFloor: SPAM_CFG.noHistoryFloor,
+              detailDays: SPAM_CFG.detailDays, maxGapMinutes: SPAM_CFG.maxGapMinutes },
+    window: `${ref.windowFrom} → ${ref.windowTo} (exclusive)`,
+    readingsInWindow: ref.n,
+    daysInWindow: dayHighs.length,
+    referenceHigh: r2(ref.high),
+    referenceSetOn: ref.highDate ? `${ref.highDate}${ref.highSlot ? ' ' + ref.highSlot : ''}` : null,
+    // The two numbers a reading is actually compared with.
+    flagAbove: ref.high === null
+      ? (SPAM_CFG.noHistoryFloor > 0 ? `${SPAM_CFG.noHistoryFloor} (no history — amount alone)` : 'off (no history)')
+      : r2(Math.max(ref.high * SPAM_CFG.spikeRatio, SPAM_CFG.hardFloor)),
+    highTierAbove: ref.high === null ? null : r2(Math.max(ref.high * SPAM_CFG.highRatio, SPAM_CFG.hardFloor)),
+    storedSamples: raw.length,
+    dayHighs,
   };
-  console.table(out.baselineSamples);
-  console.log('%cBaseline summary', 'font-weight:bold', out);
+  console.table(dayHighs);
+  console.log('%cReference high summary', 'font-weight:bold', out);
   return out;
 };
 
-/* ── BACKTEST: replay the LIVE robust detector over stored history (console-only) ─
-   Walk-forward per client — for every reading it rebuilds the baseline from ONLY
-   the readings that preceded it (no hindsight), then applies the live robust rule:
-     z = (sustained_signal − recentMedian) / sigma ,  flag if z ≥ kWatch.
-   Covers the robust rule ONLY — the unprofiled magnitude fallback that handles
-   clients below minSamples is not replayed here, so counts read low for them.
-   Reads the live SPAM_CFG by default; pass overrides to experiment before saving.
+/* ── BACKTEST: replay the live rule over stored history (console-only) ─────────
+   Walk-forward per client — for every stored reading it takes the highest
+   reading from the `lookbackDays` days BEFORE that reading's own day (no
+   hindsight) and applies the live rule: flag when usage > high × spikeRatio.
+   Answers the only question worth asking before changing a knob: how many times
+   would THIS setting have flagged over the history we already have?
+   Reads the live SPAM_CFG by default; pass overrides to try a setting first.
    Usage:
-     spamProto('CYN TONIK')                         → per-reading flags for one client
-     spamProto()                                     → flag counts across all clients
-     spamProto('CYN TONIK', { kWatch: 3, sustain: 1 })  → try alternative knobs
+     spamProto('CYN TONIK')                        → per-reading verdicts for one client
+     spamProto()                                    → flag counts across all clients
+     spamProto('CYN TONIK', { spikeRatio: 3 })      → what a stricter multiple would have done
    Touches nothing persistent. */
 window.spamProto = function (name, opts = {}) {
-  const P = { recentDays: SPAM_CFG.recentDays, minSamples: SPAM_CFG.minSamples, sustain: SPAM_CFG.sustain,
-              kWatch: SPAM_CFG.kWatch, kHigh: SPAM_CFG.kHigh, madFloorFrac: SPAM_CFG.madFloorFrac,
-              absMinSigma: SPAM_CFG.absMinSigma, hardFloor: SPAM_CFG.hardFloor, ...opts };
+  const P = { lookbackDays: SPAM_CFG.lookbackDays, spikeRatio: SPAM_CFG.spikeRatio,
+              highRatio: SPAM_CFG.highRatio, hardFloor: SPAM_CFG.hardFloor,
+              noHistoryFloor: SPAM_CFG.noHistoryFloor, ...opts };
   const r2 = x => (x == null ? null : Math.round(x * 100) / 100);
-  const parse = s => { const p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]).getTime(); };
-  const daysBetween = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
 
   const runOne = (nm) => {
     const raw = (_profileSamples && _profileSamples.get(nm)) || [];
-    const s = raw.filter(o => o && o.u > 0).slice().sort((a,b) => (a.d + a.s < b.d + b.s ? -1 : 1));
+    const s = raw.filter(o => o && o.u > 0 && o.d).slice().sort((a,b) => (a.d + a.s < b.d + b.s ? -1 : 1));
     const rows = []; let flags = 0, high = 0;
     for (let i = 0; i < s.length; i++) {
-      const cur = s[i], prior = s.slice(0, i);
-      let verdict = '—', z = null, med = null;
-      const recWin = prior.filter(o => o.d !== cur.d && (!P.recentDays || daysBetween(cur.d, o.d) <= P.recentDays)).map(o => o.u);
-      if (recWin.length >= P.minSamples && cur.u >= P.hardFloor) {
-        med = medianOf(recWin);
-        const sigma = Math.max(1.4826 * medianOf(recWin.map(v => Math.abs(v - med))), P.madFloorFrac * med, P.absMinSigma);
-        // signal = current + up to (sustain-1) immediately-preceding SAME-DAY readings (no cross-day averaging)
-        const seg = [cur.u];
-        for (let j = i - 1; j >= 0 && seg.length < P.sustain && s[j].d === cur.d; j--) seg.push(s[j].u);
-        const sig = seg.reduce((a,b) => a+b, 0) / seg.length;
-        z = (sig - med) / sigma;
-        if (sig >= P.hardFloor && z >= P.kWatch) { verdict = z >= P.kHigh ? 'HIGH' : 'watch'; flags++; if (verdict === 'HIGH') high++; }
+      const cur = s[i];
+      const from = dateStrDaysBefore(cur.d, Math.max(1, P.lookbackDays | 0));
+      let ref = null, refDate = '';
+      for (let j = 0; j < i; j++) {                       // strictly earlier days, inside the window
+        const o = s[j];
+        if (o.d >= cur.d || o.d < from) continue;
+        if (ref === null || o.u > ref) { ref = o.u; refDate = o.d; }
       }
-      rows.push({ date: cur.d, slot: cur.s, usage: r2(cur.u), recentMed: r2(med), z: r2(z), flag: verdict });
+      let verdict = '—', ratio = null, flagAt = null;
+      if (cur.u >= P.hardFloor) {
+        if (ref === null) {
+          flagAt = P.noHistoryFloor > 0 ? P.noHistoryFloor : null;
+          if (flagAt !== null && cur.u >= flagAt) { verdict = 'watch'; flags++; }
+        } else {
+          ratio = cur.u / ref;
+          flagAt = ref * P.spikeRatio;
+          if (cur.u > flagAt) { verdict = ratio > P.highRatio ? 'HIGH' : 'watch'; flags++; if (verdict === 'HIGH') high++; }
+        }
+      }
+      rows.push({ date: cur.d, slot: cur.s, usage: r2(cur.u), windowHigh: r2(ref), setOn: refDate || null,
+                  ratio: r2(ratio), flagAbove: r2(flagAt), flag: verdict });
     }
     return { rows, flags, high, n: s.length };
   };
@@ -14619,102 +14550,39 @@ window.spamProto = function (name, opts = {}) {
   if (name) {
     const res = runOne(name);
     const flagged = res.rows.filter(x => x.flag !== '—');
-    const topZ = res.rows.filter(x => x.z != null).sort((a,b) => b.z - a.z).slice(0, 10);
-    console.log(`%c${name} — ${res.n} readings   robust flags: ${res.flags} (${res.high} High)`, 'font-weight:bold;font-size:13px');
+    const closest = res.rows.filter(x => x.ratio != null).sort((a,b) => b.ratio - a.ratio).slice(0, 10);
+    console.log(`%c${name} — ${res.n} readings   flags: ${res.flags} (${res.high} High)`, 'font-weight:bold;font-size:13px');
     console.log('%cParams:', 'font-weight:bold', P);
     console.log('%cFlagged readings:', 'font-weight:bold');
     console.table(flagged.length ? flagged : [{ note: 'no flags' }]);
-    console.log('%cMost anomalous readings (top z — near-misses included):', 'font-weight:bold');
-    console.table(topZ);
+    console.log('%cBiggest multiples of the window high (near-misses included):', 'font-weight:bold');
+    console.table(closest);
     return { params: P, ...res, flaggedRows: flagged };
   }
   const summary = [];
   (_profileSamples || new Map()).forEach((_, nm) => {
     const res = runOne(nm);
-    if (res.n >= P.minSamples) summary.push({ client: nm, readings: res.n, flags: res.flags, high: res.high });
+    if (res.n) summary.push({ client: nm, readings: res.n, flags: res.flags, high: res.high });
   });
   summary.sort((a,b) => b.flags - a.flags);
-  console.log('%cRobust-model flag counts (walk-forward, all clients):', 'font-weight:bold', P);
+  console.log('%cFlag counts (walk-forward, all clients):', 'font-weight:bold', P);
   console.table(summary);
   return { params: P, clients: summary };
 };
 
-/* Sustained signal: average of the client's current 30-min usage and up to
-   (sustain-1) immediately-preceding SAME-DAY readings — so a lone one-slot blip
-   within normal variance doesn't trip, but a burst that holds does. Falls back to
-   the single reading when earlier slots aren't available (first reading of the
-   day) or a slot is missing/zero. sustain==1 short-circuits to the raw reading. */
-function sustainedUsage(name, currentUsage) {
-  const need = Math.max(1, SPAM_CFG.sustain | 0);
-  if (need <= 1 || !Number.isFinite(currentUsage)) return currentUsage;
-  const { date, slot } = currentReadingMeta();
-  const order = shiftSlots('24H');
-  const idxOf = s => { const i = order.indexOf(s); return i < 0 ? 999 : i; };
-  const curIdx = idxOf(slot);
-  const earlier = (todaySnaps || [])
-    .filter(sn => (sn.session_date || todayStr()) === date && idxOf(sn.time_slot) < curIdx)
-    .sort((a, b) => idxOf(b.time_slot) - idxOf(a.time_slot)); // nearest slot first
-  const vals = [currentUsage];
-  for (let i = 0; i < earlier.length && vals.length < need; i++) {
-    const rr = (earlier[i].data || []).find(x => x?.carrier_name === name);
-    const u = rr ? amountNumber(rr.usage_30min) : NaN;
-    if (Number.isFinite(u) && u > 0) vals.push(u); else break;  // stop at a gap/zero — don't average across it
-  }
-  return vals.reduce((a, b) => a + b, 0) / vals.length;
-}
-/* Fleet-wide usage statistics for the snapshot currently on screen: the median
-   and robust spread of every ACTIVE client's positive 30-min usage in that one
-   reading. This is the cross-sectional counterpart to a client's own baseline —
-   it answers "is this extreme compared with everyone else right now", which is
-   the only question that can be asked at all about a client with no history.
-   Keyed to the viewed snapshot so it is computed once per render rather than
-   once per row; invalidateUsageProfiles() clears it when the data is re-folded. */
-function fleetUsageStats() {
-  const { date, slot } = currentReadingMeta();
-  const rows = activeData() || [];
-  const key = `${date}|${slot}|${rows.length}`;
-  if (_fleetUsageStats && _fleetUsageStats.key === key) return _fleetUsageStats;
-  const vals = [];
-  rows.forEach(r => {
-    const nm = r?.carrier_name; if (!nm) return;
-    if (isClientInactive(clientsMeta[nm] || {})) return;   // dormant accounts would drag the median down
-    const v = amountNumber(r.usage_30min);
-    if (v > 0) vals.push(v);
-  });
-  const median = medianOf(vals);
-  const mad = medianOf(vals.map(v => Math.abs(v - median)));
-  const sigma = Math.max(1.4826 * mad, SPAM_CFG.madFloorFrac * median, SPAM_CFG.absMinSigma);
-  _fleetUsageStats = { key, n: vals.length, median, mad, sigma };
-  return _fleetUsageStats;
-}
-
-/* The previous snapshot's rows keyed by client. The ETA rule needs one lookup
-   per row, and scanning the array each time would make a render quadratic in the
-   client count. Memoized on the previous snapshot's identity, so it is built
-   once per render and rebuilt when the comparison snapshot changes. */
-function prevRowFor(name) {
-  const prev = getPrevSnapshot();
-  if (!prev || !name) return null;
-  const key = `${prev.session_date || ''}|${prev.time_slot || ''}|${(prev.data || []).length}`;
-  if (!_prevRowIndex || _prevRowIndex.key !== key) {
-    const map = new Map();
-    (prev.data || []).forEach(r => { if (r?.carrier_name) map.set(r.carrier_name, r); });
-    _prevRowIndex = { key, map };
-  }
-  return _prevRowIndex.map.get(name) || null;
-}
-
 /* Evaluate a live row. Returns an info object or null.
 
-   Four independent rules can raise a finding; the strongest is reported and the
-   names of all that agreed ride along on `rules`:
-     baseline   — robust z against the client's OWN recent median (the original rule)
-     unprofiled — plain magnitude, for a client with too little history to model
-     fleet      — robust z against every other client in this same snapshot
-     eta        — burn rate: projected time-to-critical collapsed in one slot
-   The first three are novelty-gated by isWithinKnownRange(); the ETA rule is not,
-   because a client that repeatedly empties its runway inside one slot is worth
-   saying so about every time it happens. */
+   One rule: the reading has to beat this client's own highest 30-min usage over
+   the last `lookbackDays` days by more than `spikeRatio`. Everything before that
+   comparison is a gate, not a judgement — a month-start day, a reading below the
+   ignore-below floor, a wide-gap catch-up reading that isn't really 30 minutes of
+   usage, or a reading the operator has already marked a recurring charge.
+
+   A client with no reading at all inside the window has no high to be a multiple
+   of. It is judged on size alone, because the alternative is that a brand-new or
+   long-dormant account can never be flagged however large its first burst is.
+   `rule` rides along on the finding and into spam_history, so a flag raised that
+   way stays distinguishable in review from one with a real reference behind it. */
 function spamCheck(row) {
   if (isMonthStart(todayStr())) return null;   // suppressed on monthly-charge days
   const u = amountNumber(row?.usage_30min);
@@ -14722,152 +14590,38 @@ function spamCheck(row) {
   if (isWideGap(currentReadingGapMinutes())) return null;  // reading spans far more than 30 min → not a fair spike
   const { date, slot } = currentReadingMeta();
   if (isExcludedReading(row?.carrier_name, date, slot)) return null;  // marked as a recurring charge
-  const p = getUsageProfiles().get(row?.carrier_name);
-  const signal = sustainedUsage(row?.carrier_name, u);
-  if (signal < SPAM_CFG.hardFloor) return null;               // sustained level still below the ignore-below gate
-  const maxRef = usageProfileMaxRef(row?.carrier_name, date, slot);
-  const base = { usage: u, signal, n: p?.n ?? 0,
-                 profileMax: maxRef.profileMax, profileMaxDate: maxRef.profileMaxDate, profileMaxSlot: maxRef.profileMaxSlot };
-  const findings = [];
-  if (!isWithinKnownRange(signal, maxRef)) {
-    if (!p || !p.ready) {
-      // Too few prior readings for a median/MAD to describe anything. Returning
-      // null here used to make a dormant client PERMANENTLY invisible: readiness
-      // needs minSamples readings inside a rolling recentDays window, so an
-      // account that bills rarely never accumulates them, and its first huge
-      // burst — exactly the spam shape worth catching — was never judged.
-      const found = unprofiledSpamCheck(base);
-      if (found) findings.push(found);
-    } else {
-      const z = p.sigma > 0 ? (signal - p.median) / p.sigma : 0;  // jump measured in the client's own noise units
-      if (z >= SPAM_CFG.kWatch) {
-        const tier  = z >= SPAM_CFG.kHigh ? 'high' : 'watch';     // High vs Watch
-        const ratio = p.median > 0 ? signal / p.median : Infinity;
-        findings.push({ ...base, median: p.median, sigma: p.sigma, z, ratio, tier, rule: 'baseline' });
-      }
-    }
-    const fleet = fleetSpamCheck(base);
-    if (fleet) findings.push(fleet);
+  const ref = usageWindowHigh(row?.carrier_name);
+  // profileMax / profileMaxDate / profileMaxSlot keep their names: the row chip,
+  // the client popup and every stored spam_history event already read them, and
+  // they still mean the same thing — the highest reading this one is measured
+  // against. Only the window it is taken over has changed.
+  const base = { usage: u, signal: u, n: ref.n, windowDays: SPAM_CFG.lookbackDays, windowFrom: ref.windowFrom,
+                 profileMax: ref.high, profileMaxDate: ref.highDate, profileMaxSlot: ref.highSlot };
+  if (ref.high === null || !(ref.high > 0)) {
+    const floor = SPAM_CFG.noHistoryFloor;
+    if (!(floor > 0) || u < floor) return null;
+    return { ...base, ratio: null, flagAt: floor, tier: 'watch', unprofiled: true,
+             rule: 'nohistory', rules: ['nohistory'] };
   }
-  const eta = etaSpamCheck(base, row);
-  if (eta) findings.push(eta);
-  return pickSpamFinding(findings);
+  const flagAt = ref.high * SPAM_CFG.spikeRatio;
+  if (!(u > flagAt)) return null;   // exactly at the multiple is not spam — it has to exceed it
+  const ratio = u / ref.high;
+  return { ...base, ratio, flagAt, tier: ratio > SPAM_CFG.highRatio ? 'high' : 'watch',
+           rule: 'window', rules: ['window'] };
 }
 
-/* Novelty suppressor: is this reading inside the range this client has already
-   been seen to reach? The original form was a hard veto —
-   maxRef.profileMax !== null && signal <= maxRef.profileMax — which kept a low
-   median from labelling a value Possible Spam when the profile had safely
-   handled a larger reading before (69.19 against a profile max of 80.47). But as
-   an unconditional veto it also made a REPEAT offender permanently invisible:
-   the first burst raised profileMax, and every later burst at or under that
-   level was dropped in silence. Two knobs soften it without losing the original
-   intent — a max older than profileMaxRecentDays stops immunising the client,
-   and profileMaxMargin requires the old record to sit comfortably above the
-   reading rather than merely at it. Both defaults off (0 / 1) reproduce the
-   strict rule exactly. */
-function isWithinKnownRange(signal, maxRef) {
-  const max = maxRef?.profileMax;
-  if (max === null || max === undefined) return false;   // nothing observed yet → every reading is new
-  const days = Number.isFinite(SPAM_CFG.profileMaxRecentDays) ? SPAM_CFG.profileMaxRecentDays : 0;
-  if (days > 0 && maxRef.profileMaxDate && maxRef.profileMaxDate < dateStrDaysAgo(days)) return false;
-  const margin = Number.isFinite(SPAM_CFG.profileMaxMargin) ? SPAM_CFG.profileMaxMargin : 1;
-  return signal <= max * margin;
-}
-
-/* Magnitude-only fallback for a client with no usable baseline. There is no
-   median or spread to measure against, so this asks two blunt questions instead:
-   is the reading large in absolute terms, and is it far above anything this
-   client has ever done? profileMax is null for a client with no prior positive
-   reading at all, so the floor alone decides that case. Always Watch tier — no
-   statistical confidence stands behind it, only size — but that is enough to
-   light the Possible Spam tab and the Alerts nav. unprofiledFloor 0 disables it. */
-function unprofiledSpamCheck(base) {
-  const floor = SPAM_CFG.unprofiledFloor;
-  if (!(floor > 0) || base.signal < floor) return null;
-  const ratio = base.profileMax > 0 ? base.signal / base.profileMax : Infinity;
-  if (Number.isFinite(ratio) && ratio < SPAM_CFG.unprofiledRatio) return null;
-  return { ...base, median: null, sigma: null, z: null, ratio, tier: 'watch', unprofiled: true, rule: 'unprofiled' };
-}
-
-/* Cross-sectional rule. Because it compares a client with its peers rather than
-   with its own past, it is the rule that actually covers a new or long-dormant
-   account — the case the flat unprofiledFloor could only guess at, and the one
-   that let a 384 reading pass unremarked in a fleet where four clients out of a
-   hundred and sixty exceeded 50. What stops a legitimately large carrier
-   flagging every slot is the novelty gate in spamCheck(): its ordinary level
-   sits at or under its own profile maximum, so this rule is never consulted. */
-function fleetSpamCheck(base) {
-  const k = SPAM_CFG.fleetK;
-  if (!(k > 0)) return null;
-  const stat = fleetUsageStats();
-  if (!stat || stat.n < SPAM_CFG.fleetMinClients) return null;  // too few peers for a median to mean anything
-  const z = stat.sigma > 0 ? (base.signal - stat.median) / stat.sigma : 0;
-  if (z < k) return null;
-  const ratio = stat.median > 0 ? base.signal / stat.median : Infinity;
-  return { ...base, median: stat.median, sigma: stat.sigma, z, ratio,
-           tier: z >= k * 1.6 ? 'high' : 'watch', rule: 'fleet', fleetN: stat.n };
-}
-
-/* Burn-rate rule. etaMinutes() already projects how long a client's remaining
-   runway lasts at its current 30-min rate; a burst collapses that from hours to
-   minutes in a single reading, whatever the absolute amount, and it does so on a
-   client's very first day because the projection needs only the thresholds the
-   client is already configured with. Deliberately an EVENT rather than a state:
-   a client whose ETA was ALREADY inside the window on the previous reading is
-   merely approaching Critical — which the Critical and Warning tabs say far
-   better — so only the slot where it falls in raises a flag. */
-function etaSpamCheck(base, row) {
-  const lim = SPAM_CFG.etaFlagMinutes;
-  if (!(lim > 0)) return null;
-  const eta = etaMinutes(row);
-  if (eta === null || eta > lim) return null;
-  const prevRow = prevRowFor(row?.carrier_name);
-  const prevEta = prevRow ? etaMinutes(prevRow) : null;
-  if (prevEta !== null && prevEta <= lim) return null;   // was already inside the window → not a collapse
-  return { ...base, median: null, sigma: null, z: null, ratio: null,
-           tier: eta <= lim / 2 ? 'high' : 'watch', rule: 'eta', eta, prevEta };
-}
-
-/* Several rules can fire on one reading. Report the strongest — High before
-   Watch, then the rule with the most evidence behind it — and carry the names of
-   every rule that agreed so the chip can say when more than one did. */
-function pickSpamFinding(findings) {
-  if (!findings || !findings.length) return null;
-  const tierOrder = { high: 2, watch: 1 };
-  const ruleOrder = { baseline: 4, fleet: 3, unprofiled: 2, eta: 1 };
-  const ranked = findings.slice().sort((a, b) =>
-    (tierOrder[b.tier] || 0) - (tierOrder[a.tier] || 0) ||
-    (ruleOrder[b.rule] || 0) - (ruleOrder[a.rule] || 0));
-  return { ...ranked[0], rules: ranked.map(f => f.rule) };
-}
 function spamChipInfo(row) {
   const s = row._spamInfo;
   if (!s) return ['none', 'Within normal range'];
-  // Each rule is judged on a different quantity, so each names its own — a fleet
-  // z is not a z against the client's usual, and an ETA collapse has no multiple
-  // at all. Never quote "× normal" where no established normal exists.
-  const mult = unit => (Number.isFinite(s.ratio) ? `${s.ratio.toFixed(1)}× ${unit} · ` : '');
-  let detail;
-  if (s.rule === 'eta') {
-    detail = `runway gone in ${s.eta}m${Number.isFinite(s.prevEta) ? ` (was ${s.prevEta}m)` : ''} · burn rate`;
-  } else if (s.rule === 'fleet') {
-    detail = `${mult('fleet median')}${s.z.toFixed(1)}σ vs fleet`;
-  } else if (s.unprofiled) {
-    detail = Number.isFinite(s.ratio)
-      ? `${s.ratio.toFixed(1)}× highest seen · no baseline`
-      : 'first usage on record · no baseline';
-  } else if (Number.isFinite(s.z)) {
-    detail = `${mult('normal')}${s.z.toFixed(1)}σ`;
-  } else {
-    detail = 'no prior usage';
-  }
-  // More than one rule agreeing is itself evidence, so say so.
-  const others = (s.rules || []).length - 1;
-  const also = others > 0 ? ` · +${others} more rule${others > 1 ? 's' : ''}` : '';
+  // The chip has to be checkable against the row it sits on: the multiple, and
+  // the number it is a multiple OF. Never quote a statistic nobody can verify.
+  const days = Number.isFinite(s.windowDays) ? s.windowDays : SPAM_CFG.lookbackDays;
+  const detail = Number.isFinite(s.ratio)
+    ? `${s.ratio.toFixed(1)}× its ${days}-day high (${fmt(s.profileMax)})`
+    : `no usage in ${days} days · judged on amount`;
   return s.tier === 'high'
-    ? ['high',   `High spam · ${detail}${also}`]
-    : ['medium', `Watch · ${detail}${also}`];
+    ? ['high',   `High spam · ${detail}`]
+    : ['medium', `Watch · ${detail}`];
 }
 function updateSpamTab(count) {
   const tab = document.getElementById('tab-spam');
@@ -19159,7 +18913,7 @@ function alertRows() {
   // Warning turns red at 90% progress toward Critical Balance. Usage is not a
   // prerequisite: balance proximity alone is the warning condition.
   const warnBlinkCount = visibleData.filter(r=>r._level==='light' && balanceBarPct(r)>=90).length;
-  const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, z:r._spamInfo?.z }));
+  const spamSuspects   = visibleData.filter(r=>r._spam).map(r=>({ name:r.carrier_name, tier:r._spamInfo?.tier, ratio:r._spamInfo?.ratio }));
   const spamCount      = spamSuspects.length;
   if(alertFilter==='high')     rows=rows.filter(r=>r._level==='high');
   if(alertFilter==='usage')    rows=rows.filter(r=>usageAlertLevel(r));
@@ -19170,18 +18924,14 @@ function alertRows() {
   if(alertFilter==='new')      rows=rows.filter(r=>r._isNew);
   if(alertFilter==='spam'){
     // Rank suspects for triage: High tier first, then by how far over the line.
-    // An unprofiled finding carries no z, so it ranks on its multiple of the
-    // client's highest previous reading — without this it sorted as z=0 and sank
-    // below every other Watch row, which is where it would least be noticed.
+    // A no-history finding carries no multiple at all, so it ranks at the top of
+    // its tier — without this it sorted as 0 and sank below every other Watch
+    // row, which is where it would least be noticed.
     const tierOrd = t => t==='high'?2:t==='watch'?1:0;
     const SEV_MAX = 1e9;   // finite stand-in: Infinity−Infinity is NaN, which breaks the sort
     const sev = info => {
       if (!info) return 0;
-      if (Number.isFinite(info.z))     return info.z;
       if (Number.isFinite(info.ratio)) return info.ratio;
-      // An ETA collapse is measured in neither — rank it by urgency, above an
-      // ordinary Watch but below a first-usage finding with no bound at all.
-      if (Number.isFinite(info.eta))   return SEV_MAX / 2;
       return SEV_MAX;
     };
     rows.sort((a,b)=> tierOrd(b._spamInfo?.tier)-tierOrd(a._spamInfo?.tier) || sev(b._spamInfo)-sev(a._spamInfo));
@@ -19257,7 +19007,7 @@ function renderAlerts() {
        </td></tr>`;
     } else if (!rows.length) {
       spamNote = `<tr class="alert-note info"><td colspan="9">
-        ⓘ No unusual usage. A client is flagged when its 30-min usage jumps ≥${SPAM_CFG.kWatch} robust std-devs above its own recent usual (median${SPAM_CFG.sustain>1?`, held ${SPAM_CFG.sustain} slots`:''}) over the last ${SPAM_CFG.recentDays>0?SPAM_CFG.recentDays+' days':'available data'}, and is at least ${SPAM_CFG.hardFloor}. The jump is measured in each client's own noise, so a naturally spiky client needs a bigger jump. Needs ≥${SPAM_CFG.minSamples} prior points per client. Wide-gap catch-up readings are excluded. Jumps ≥${SPAM_CFG.kHigh}σ are High, the rest Watch.
+        ⓘ No unusual usage. A client is flagged when its 30-min usage is more than ${SPAM_CFG.spikeRatio}× its OWN highest 30-min usage of the last ${SPAM_CFG.lookbackDays} days (today not counted), and is at least ${SPAM_CFG.hardFloor}. More than ${SPAM_CFG.highRatio}× that same high is High, the rest Watch. A client with no usage at all in those ${SPAM_CFG.lookbackDays} days has no high to compare with, so it is flagged on amount alone${SPAM_CFG.noHistoryFloor>0?` (at ${SPAM_CFG.noHistoryFloor}+)`:' — currently off'}. Wide-gap catch-up readings are excluded.
        </td></tr>`;
     }
   }
@@ -19268,7 +19018,7 @@ function renderAlerts() {
     const[cls,lbl]=r._removedFromCritical ? ['removed','Removed from Critical'] : alertFilter==='spam' ? spamChipInfo(r) : alertFilter==='usage' ? usageChipInfo(r) : chipInfo(r,r._level);
     const newBadge = r._isNew ? '<span class="badge-isnew">NEW</span>' : '';
     const spamBadge = (r._spam && alertFilter!=='spam')
-      ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's baseline">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
+      ? `<span class="badge-spam${r._spamInfo?.tier==='watch'?' watch':''}" title="Current 30-min usage is far above this client's own recent high">${r._spamInfo?.tier==='watch'?'WATCH':'SPAM?'}</span>`
       : '';
     const spamIgnore = (alertFilter==='spam' && canPostBalance()) ? `<button class="tbtn ui-text-micro" style="margin-left:6px;padding:1px 6px" title="This 30m usage is a recurring charge — disregard it for spam profiling" onclick="event.stopPropagation();ignoreSpamReading('${escAttr(r.carrier_name)}')">Not spam</button>` : '';
     const profileMax = r._spamInfo?.profileMax;
@@ -19280,8 +19030,9 @@ function renderAlerts() {
       ? fmtProfileMaxHit(r._spamInfo?.profileMaxDate, r._spamInfo?.profileMaxSlot)
       : '';
     const overProfileMax = hasProfileMax && amountNumber(r.usage_30min) > amountNumber(profileMax);
+    const refDays = r._spamInfo?.windowDays ?? SPAM_CFG.lookbackDays;
     const spamMaxRef = hasProfileMax
-      ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="Highest 30m usage stored in this client's usage profile${escAttr(maxWhen)}">profile max ${fmt(profileMax)}${maxWhenLabel ? `<span class="spam-max-when">hit ${esc(maxWhenLabel)}</span>` : ''}</span>`
+      ? `<span class="spam-max-ref${overProfileMax?' over':''}" title="This client's highest 30m usage in the last ${refDays} days — the number the flag is a multiple of${escAttr(maxWhen)}">${refDays}-day high ${fmt(profileMax)}${maxWhenLabel ? `<span class="spam-max-when">hit ${esc(maxWhenLabel)}</span>` : ''}</span>`
       : '';
     const etaMins  = r._eta;
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:var(--red);font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
