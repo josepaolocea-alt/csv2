@@ -21179,6 +21179,24 @@ function smsBalancePreviousContext() {
   return { snapshot:smsBalancePriorSnap, ready:smsBalancePriorLoaded };
 }
 function smsBalancePreviousSnapshot() { return smsBalancePreviousContext().snapshot; }
+/* Every snapshot that precedes `snap`, oldest first — the same window
+   smsBalancePreviousContext picks its single previous out of, kept whole. The
+   slot filter mirrors the post path's own (including its blind spot for a night
+   shift crossing midnight) and drops `snap`'s own slot, so re-posting a slot
+   never compares it against the copy it is replacing.
+   Slots are zero-padded 24-hour HH:MM, so a plain string compare gives the same
+   chronological order as shiftSlots('24H').indexOf — and it keeps this callable
+   from the snapshot-only scope the SMS Balance tests evaluate, which has no
+   shiftSlots. */
+function smsBalanceSnapshotsBefore(snap) {
+  const date = String(snap?.session_date || ''), slot = String(snap?.time_slot || '').slice(0, 5);
+  if (!slot) return [smsBalancePriorSnap].filter(Boolean);
+  const slotOf = s => String(s?.time_slot || '').slice(0, 5);
+  const earlierToday = (smsBalanceTodaySnaps || [])
+    .filter(s => String(s?.session_date || '') === date && slotOf(s) && slotOf(s) < slot)
+    .sort((a, b) => slotOf(a).localeCompare(slotOf(b)));
+  return [smsBalancePriorSnap, ...earlierToday].filter(Boolean);
+}
 function smsBalanceIsFreshBaselineView() {
   clearStaleSmsBalanceBaselineLatches();
   if (!smsBalanceLatest || !smsBalanceFreshBaselineKey) return false;
@@ -21237,13 +21255,35 @@ function smsBalanceLeftCriticalUpward(previousRow, currentRow) {
   return smsBalanceNumber(currentRow.balance) > smsBalanceNumber(previousRow.balance)
       || smsBalanceNumber(currentRow.overdraft) > smsBalanceNumber(previousRow.overdraft);
 }
+/* The crossing tests ask "was this client critical the last time we SAW it",
+   not "was it critical in the immediately preceding snapshot". Clients drop in
+   and out of the upstream report between slots, and a single-snapshot diff reads
+   that gap as a recovery: a client already Blocked at 11:00, missing at 11:30 and
+   back at 12:00 returned as a brand-new arrival — re-announced in New Critical
+   and handed a second "Times Hit" in Critical History, with no balance movement
+   and no usage behind it (reported 2026-09-16). Walking back to the client's own
+   last sighting makes "it already hit that level" survive the gap.
+   Snapshots must arrive oldest first; the newest sighting wins. A client with no
+   earlier sighting anywhere is still a genuine first sighting and is still logged
+   once — this suppresses re-announcements, not the first record. */
+function smsBalanceLastSeenRows(snapshots) {
+  const seen = new Map();
+  (snapshots || []).forEach(snap => {
+    smsBalanceHistoryStateMap(snap).forEach((entry, key) => seen.set(key, { ...entry.row, _status:entry.status }));
+  });
+  return seen;
+}
 function smsBalanceTransitionRows() {
   const previousContext = smsBalancePreviousContext();
   if (!previousContext.ready) return { added:[], removed:[] };
   const current = smsBalanceRows(), previous = smsBalanceDecoratedSnapshotRows(previousContext.snapshot);
   const currentMap = new Map(current.map(row => [smsBalanceMetaKey(row), row]));
   const previousMap = new Map(previous.map(row => [smsBalanceMetaKey(row), row]));
-  const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(previousMap.get(smsBalanceMetaKey(row))));
+  // Removed from Critical deliberately keeps answering against the single
+  // previous snapshot: it reports what left since the last post, and widening it
+  // would announce clients that merely stopped appearing in the report.
+  const lastSeen = smsBalanceLastSeenRows([...smsBalanceSnapshotsBefore(smsBalanceLatest), previousContext.snapshot].filter(Boolean));
+  const added = current.filter(row => smsBalanceIsCritical(row) && !smsBalanceIsCritical(lastSeen.get(smsBalanceMetaKey(row))));
   const removed = previous.filter(row => {const currentRow=currentMap.get(smsBalanceMetaKey(row));return smsBalanceIsCritical(row) && !smsBalanceIsCritical(currentRow) && smsBalanceLeftCriticalUpward(row, currentRow);})
     .map(row => ({ ...(currentMap.get(smsBalanceMetaKey(row)) || row), _removedFromCritical:true }));
   return { added, removed };
@@ -22334,16 +22374,25 @@ function smsBalanceInactiveUsageEntries(snap) {
    `criticalNew` is what reaches Critical History and the audio alert. `recovered`
    un-dismisses a client the moment a snapshot shows it out of critical, so its
    next crossing is logged as a fresh hit.
+   "Before" means the last snapshot that actually CONTAINED the client, not the
+   one immediately preceding this post — see smsBalanceLastSeenRows for why a
+   client missing from one slot used to come back as a fresh arrival.
    Inactive clients are excluded, matching smsBalanceAlertRows. */
-function smsBalanceNewHistoryEntries(snap,previous=null) {
-  const current=smsBalanceHistoryStateMap(snap),before=smsBalanceHistoryStateMap(previous||{data:[]});
+function smsBalanceNewHistoryEntries(snap,previous=null,history=null) {
+  const current=smsBalanceHistoryStateMap(snap);
+  // Oldest first with `previous` last, so the client's newest sighting wins. With
+  // no history supplied and no snapshots loaded this collapses to [previous] —
+  // the old single-snapshot diff — so callers that pass a baseline explicitly
+  // (fresh-baseline pin, seed-after-clear) keep behaving exactly as before.
+  const earlier=history||smsBalanceSnapshotsBefore(snap);
+  const before=smsBalanceLastSeenRows(previous?[...earlier,previous]:earlier);
   const critical=[],criticalNew=[],recovered=[],noThreshold=[];
   current.forEach((entry,key)=>{
     const prior=before.get(key);
     const criticalNow=smsBalanceIsCritical({...entry.row,_status:entry.status});
-    const criticalBefore=!!prior&&smsBalanceIsCritical({...prior.row,_status:prior.status});
+    const criticalBefore=!!prior&&smsBalanceIsCritical(prior);
     const noThresholdNow=entry.status.credit===null&&entry.status.critical===null;
-    const noThresholdBefore=!!prior&&prior.status.credit===null&&prior.status.critical===null;
+    const noThresholdBefore=!!prior&&prior._status.credit===null&&prior._status.critical===null;
     const active=smsBalanceMetaFor(entry.row)?.is_active!==false;
     if(criticalNow&&active){
       critical.push({key,...entry});
