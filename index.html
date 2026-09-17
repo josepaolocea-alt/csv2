@@ -1883,6 +1883,18 @@
     }
     .st-hr-focus-clear:hover { color: var(--text); border-color: var(--accent); }
     .st-val-bad { color: var(--red); font-weight: 600; }
+    /* VOS Stopped "Current Status" column — a compact in-row select, sized so a
+       table row keeps its normal height instead of growing to the 34px the
+       filter-bar .win-sel uses. */
+    td.st-status-cell { white-space: nowrap; padding-top: 3px; padding-bottom: 3px; }
+    /* Doubled class: the later neumorphic layer restyles a bare .win-sel to a
+       34px filter-bar control, which would stretch every row of this table. */
+    .win-sel.st-status-sel {
+      height: 26px; min-width: 146px; padding: 0 8px;
+      font-size: 11px; border-radius: 6px;
+    }
+    .win-sel.st-status-sel.set { color: var(--accent); font-weight: 600; border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); }
+    .win-sel.st-status-sel:disabled { opacity: .75; cursor: default; }
     /* Per-client remarks column */
     td.st-remark-cell { text-align: center; user-select: none; width: 48px; }
     .st-remark-btn {
@@ -10752,7 +10764,7 @@
                 <div class="vos-stats-panel" id="vos-stats-panel-watch" role="tabpanel" aria-labelledby="vos-stats-tab-watch"><div class="vos-stats-meta">ASR below 10 with 30 or fewer Total Calls.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-watch"></tbody></table></div></div></div>
                 <div class="vos-stats-panel" id="vos-stats-panel-ok" role="tabpanel" aria-labelledby="vos-stats-tab-ok"><div class="vos-stats-meta">ASR from 10 through 20.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-ok"></tbody></table></div></div></div>
                 <div class="vos-stats-panel" id="vos-stats-panel-good" role="tabpanel" aria-labelledby="vos-stats-tab-good"><div class="vos-stats-meta">ASR of 21 and above.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th class="num">Total Calls</th><th class="num">Fail</th><th class="num">Success</th><th class="num">Answered</th><th class="num">ASR %</th><th class="num">ACD (min)</th><th class="num">Avg Call Duration Sum (sec)</th><th class="num">Total Call Time (sec)</th><th>ASR Class</th><th>ACD Band</th><th class="num">Total Calls vs Past Hr</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-good"></tbody></table></div></div></div>
-                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes present in the immediately preceding saved hour but missing from the selected/latest hour.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th>Last Seen</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
+                <div class="vos-stats-panel" id="vos-stats-panel-stopped" role="tabpanel" aria-labelledby="vos-stats-tab-stopped"><div class="vos-stats-meta">Routes seen in an earlier saved hour today but missing from the selected/latest hour. A route stays listed — with its Hours Stopped climbing — until it carries traffic again. Figures are from the last hour it ran.</div><div class="vos-stats-table-shell"><div class="lv-wrap"><table class="vos-stats-table"><thead><tr><th>Client / Mapping Gateway</th><th>Destination / Area Name</th><th title="The last saved hour this route carried traffic.">Last Seen</th><th class="num" title="Whole hours from Last Seen to the hour on screen.">Hours Stopped</th><th class="num">Previous Total Calls</th><th class="num">Previous Answered</th><th class="num">Previous ASR %</th><th class="num">Previous ACD (min)</th><th class="num">Previous Total Time (sec)</th><th title="Read from the saved hours after the one on screen: still absent, or the hour it came back.">Traffic Status</th><th title="Your own status for this route. Saved per Mapping Gateway + Area Name, so it stays with the route and survives snapshot wipes.">Current Status</th><th title="A note pinned to this Mapping Gateway + Area Name. It stays until someone clears it.">Remarks</th></tr></thead><tbody id="vos-stats-tbody-stopped"></tbody></table></div></div></div>
 
                 <div class="vos-stats-panel" id="vos-stats-panel-logs" role="tabpanel" aria-labelledby="vos-stats-tab-logs"><div class="fbar"><span class="sms-muted">Persistent audit trail of hourly VOS Stats imports, including the authenticated processing user. Deleting here removes log entries only — the saved hourly snapshots are not affected.</span><button type="button" class="tbtn" onclick="refreshVosStatsLogs()">Refresh</button><button type="button" class="tbtn" id="vos-stats-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('vos-stats','VOS Stats')">Delete All Logs</button></div><div class="vos-stats-table-shell"><div class="lv-wrap"><table><thead><tr><th>Date</th><th>Hour</th><th>Processed At</th><th>Processed By</th><th>Filename</th><th>Worksheet</th><th class="num">Grouped Rows</th><th class="num">Source Rows</th></tr></thead><tbody id="vos-stats-logs-body"></tbody></table></div></div><div class="sms-muted" id="vos-stats-logs-count">No VOS Stats logs yet.</div></div>
                 <div class="vos-stats-panel vos-stats-settings" id="vos-stats-panel-settings" role="tabpanel" aria-labelledby="vos-stats-tab-settings"><div class="groupbox"><div class="groupbox-title settings-page-title">VOS Stats Settings</div><div class="settings-note">Hourly snapshots are stored separately from the existing VOIP Stats module, synchronized for signed-in operators, and cached in this browser for refresh/offline recovery.</div><div class="settings-note">Uploading the same hour again replaces that hour after confirmation.</div><div class="settings-danger"><div style="margin-bottom:5px">Delete every saved VOS hourly snapshot. Admin &amp; semi-admin.</div><button type="button" class="tbtn" id="vos-stats-delete-all-btn" style="color:var(--red)" onclick="clearVosStatsHistory()" data-count-collection="vos_stats_snapshots" data-count-label="VOS Stats snapshot">Delete ALL VOS Stats Snapshots</button></div></div></div>
@@ -27144,9 +27156,33 @@ function vosStatsRowsWithComparison() {
   const current=vosStatsCurrentSnap(),previous=vosStatsPreviousSnap(current),previousMap=new Map((previous?.rows||[]).map(row=>[vosStatsKey(row),row]));
   return (current?.rows||[]).map(vosStatsNormalizeRow).map(row=>{const before=previousMap.get(vosStatsKey(row));return {...row,previous_attempts:before?before.total_calls:null,attempt_change:before?row.total_calls-before.total_calls:null};});
 }
+/* Whole hours between two 'HH:00' slots. Only today's snapshots are ever in
+   play here (vosStatsSortedSnaps filters to todayStr), so the pair never spans
+   midnight; the wrap is kept only so a malformed slot can't yield a negative. */
+const vosStatsSlotHour=slot=>{const match=/^(\d{1,2})/.exec(String(slot||''));return match?Number(match[1]):NaN;};
+function vosStatsHourGap(from,to) {
+  const a=vosStatsSlotHour(from),b=vosStatsSlotHour(to);
+  return Number.isFinite(a)&&Number.isFinite(b)?((b-a)%24+24)%24:null;
+}
+/* A route counts as stopped the moment it goes missing from an hour, and it
+   stays listed until it comes back. Scanning every saved hour before the
+   selected one — rather than only the hour immediately before it — is what
+   makes Hours Stopped a real per-row number: a route quiet since 2:00 PM reads
+   "4 hrs" at 6:00 PM instead of dropping off this tab after a single hour.
+   last_seen is the latest hour the route actually appeared in, and resumed_slot
+   looks at the hours AFTER the selected one, so stepping back through the
+   timeline shows which routes have since come back. */
 function vosStatsStoppedRows() {
-  const current=vosStatsCurrentSnap(),previous=vosStatsPreviousSnap(current);if(!previous)return [];
-  const currentKeys=new Set((current.rows||[]).map(vosStatsKey));return (previous.rows||[]).map(vosStatsNormalizeRow).filter(row=>!currentKeys.has(vosStatsKey(row))).map(row=>({...row,last_seen:previous.time_slot}));
+  const current=vosStatsCurrentSnap();if(!current)return [];
+  const snaps=vosStatsSortedSnaps(),index=snaps.findIndex(s=>s.time_slot===current.time_slot);
+  if(index<=0)return [];                                   // first saved hour of the day has nothing to go missing from
+  const currentKeys=new Set((current.rows||[]).map(vosStatsKey)),lastSeen=new Map();
+  snaps.slice(0,index).forEach(snap=>(snap.rows||[]).forEach(row=>{const normalized=vosStatsNormalizeRow(row);lastSeen.set(vosStatsKey(normalized),{...normalized,last_seen:snap.time_slot});}));
+  const later=snaps.slice(index+1);
+  return [...lastSeen].filter(([key])=>!currentKeys.has(key)).map(([key,row])=>{
+    const back=later.find(snap=>(snap.rows||[]).some(r=>vosStatsKey(vosStatsNormalizeRow(r))===key));
+    return {...row,hours_stopped:vosStatsHourGap(row.last_seen,current.time_slot),resumed_slot:back?back.time_slot:''};
+  }).sort((a,b)=>(b.hours_stopped??0)-(a.hours_stopped??0)||b.total_calls-a.total_calls||a.mapping_gateway.localeCompare(b.mapping_gateway));
 }
 function vosStatsAggregate(rows) {
   const total=(rows||[]).reduce((sum,row)=>{sum.total_calls+=vosNumber(row.total_calls);sum.fail+=vosNumber(row.fail);sum.success+=vosNumber(row.success);sum.answered+=vosNumber(row.answered);sum.avg_call_duration_sum_seconds+=vosNumber(row.avg_call_duration_sum_seconds);sum.total_call_time_seconds+=vosNumber(row.total_call_time_seconds);return sum;},{total_calls:0,fail:0,success:0,answered:0,avg_call_duration_sum_seconds:0,total_call_time_seconds:0});
@@ -27173,6 +27209,38 @@ function vosStatsRemarkCell(row) {
                         destination: row?.area_name || '' });
 }
 const vosStatsHasRemark = row => !!statsRemarkText(vosStatsRemarkKey(row));
+/* ── Stopped-route status ─────────────────────────────────────────────────
+   Two different answers to "what is going on with this route", kept in two
+   columns so a fact is never confused with a judgement:
+
+     Traffic Status  – derived. Read from the saved hours AFTER the one you are
+                       looking at: still absent, or back at 5:00 PM.
+     Current Status  – yours. Whatever you pick from the list, stored on the
+                       same 'stats_remarks' document as the route's remark (the
+                       same vos: key), so it survives snapshot wipes and comes
+                       back with the route. Admin & semi-admin, like remarks. */
+const VOS_STOPPED_STATUSES = ['Investigating','Client Notified','Client Stopped','Technical Issue','Resolved'];
+function vosStatsHoursStoppedCell(row) {
+  const hours=row?.hours_stopped;
+  if(!Number.isFinite(hours))return '<td class="num">—</td>';
+  return `<td class="num" title="Last seen at ${stEsc(fmt12(row.last_seen))}">${stN0(hours)} hr${hours===1?'':'s'}</td>`;
+}
+function vosStatsTrafficStatusCell(row) {
+  return row?.resumed_slot
+    ? `<td><span class="stbadge good" title="This route appears again in the ${stEsc(fmt12(row.resumed_slot))} snapshot.">RESUMED ${stEsc(fmt12(row.resumed_slot))}</span></td>`
+    : '<td><span class="stbadge critical" title="This route has not reappeared in any saved hour after the one on screen.">STILL STOPPED</span></td>';
+}
+function vosStatsStatusCell(row) {
+  const key=vosStatsRemarkKey(row),value=statsRemarkStatus(key),editable=canEditStats();
+  // An unrecognised saved value (renamed list, older entry) is kept as its own
+  // option rather than silently reverting the row to "no status".
+  const extra=value&&!VOS_STOPPED_STATUSES.includes(value)?[value]:[];
+  const options=[`<option value=""${value?'':' selected'}>— No status —</option>`]
+    .concat([...VOS_STOPPED_STATUSES,...extra].map(name=>`<option value="${stEsc(name)}"${name===value?' selected':''}>${stEsc(name)}</option>`));
+  return `<td class="st-status-cell"><select class="win-sel st-status-sel${value?' set':''}"${editable?'':' disabled'} data-rk="${stEsc(key)}"`
+    + ` title="${editable?'Set what is being done about this stopped route. Saved with the route, not the hour.':'Status is set by admin & semi-admin accounts.'}"`
+    + ` onclick="event.stopPropagation()" ondblclick="event.stopPropagation()" onchange="setStatsRemarkStatus(this)">${options.join('')}</select></td>`;
+}
 function vosStatsTableRow(row) {
   const delta=row.attempt_change===null||row.attempt_change===undefined?'—':`${row.attempt_change>0?'+':''}${stN0(row.attempt_change)}`;
   return `<tr class="st-row-${row.cls} vos-stats-drill-row${vosStatsHasRemark(row)?' st-has-remark':''}" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.fail)}</td><td class="num">${stN0(row.success)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.avg_call_duration_sum_seconds)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td><td>${vosStatsBadge(row.cls)}</td><td>${vosStatsBadge(row.acdcls,'ACD ')}</td><td class="num">${delta}</td>${vosStatsRemarkCell(row)}</tr>`;
@@ -27190,7 +27258,7 @@ function renderVosStatsTables() {
   VOS_STATS_CLASSES.forEach(cls=>{const body=document.getElementById(`vos-stats-tbody-${cls}`),rows=all.filter(row=>row.cls===cls).sort((a,b)=>b.total_calls-a.total_calls);if(body)body.innerHTML=rows.map(vosStatsTableRow).join('')||'<tr><td colspan="14" style="text-align:center;color:var(--text-3);padding:18px">No matching routes.</td></tr>';});
   // A stopped route keeps its remark too — that hour is usually exactly when
   // someone wants to read (or write) why it went quiet.
-  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row${vosStatsHasRemark(row)?' st-has-remark':''}" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td><td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td>${vosStatsRemarkCell(row)}</tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
+  const stopped=vosStatsStoppedRows(),stoppedBody=document.getElementById('vos-stats-tbody-stopped');if(stoppedBody)stoppedBody.innerHTML=stopped.map(row=>`<tr class="vos-stats-drill-row${vosStatsHasRemark(row)?' st-has-remark':''}" data-vos-route="${stEsc(vosStatsRouteToken(row))}" ondblclick="openVosStatsHourlyForRow(this)" title="Double-click to view this client and destination in Hourly"><td>${stEsc(row.mapping_gateway)}</td><td>${stEsc(row.area_name)}</td><td>${stEsc(fmt12(row.last_seen))}</td>${vosStatsHoursStoppedCell(row)}<td class="num">${stN0(row.total_calls)}</td><td class="num">${stN0(row.answered)}</td><td class="num">${stVal(row.asr,'%')}</td><td class="num">${stVal(row.acd)}</td><td class="num">${stN2(row.total_call_time_seconds)}</td>${vosStatsTrafficStatusCell(row)}${vosStatsStatusCell(row)}${vosStatsRemarkCell(row)}</tr>`).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-3);padding:18px">No stopped routes for this hour.</td></tr>';
 }
 function vosStatsHourlyCell(row,bold=false) {const weight=bold?' style="font-weight:700"':'';if(!row)return '<td class="st-hr-cell empty">—</td>';return `<td class="st-hr-cell ${row.cls}"${weight}><span class="st-hr-line st-hr-att"><span class="st-hr-k">Calls</span>${stN0(row.total_calls)}</span><span class="st-hr-line st-hr-pair"><span class="st-hr-seg"><span class="st-hr-k">ASR</span>${stN2(row.asr)}</span><span class="st-hr-seg"><span class="st-hr-k">ACD min</span>${stN2(row.acd)}</span></span><span class="st-hr-line st-hr-sub"><span class="st-hr-k">Raw Dur</span>${stN2(row.total_call_time_seconds)}</span></td>`;}
 function vosStatsHourlyMatrix() {
@@ -27284,7 +27352,7 @@ window.clearVosStatsHistory=async()=>{
   if(!canPostStats()){toast('Deleting VOS Stats history is restricted for this account.','err');return;}const approved=await confirmPremiumAction({title:'Delete VOS Stats History',html:'Delete <strong>all saved VOS hourly snapshots</strong> for every operator?<br><br>This cannot be undone.',label:'Delete All'});if(!approved)return;
   setLoading(true,'Deleting VOS Stats history…');try{const cloudDeleted=await deleteVosStatsCloudHistory();vosStatsSnapshots=[];vosStatsSelectedSlot='';try{localStorage.removeItem(VOS_STATS_LOCAL_KEY);}catch(e){}const status=document.getElementById('vos-stats-file-status');if(status){delete status.dataset.current;status.textContent='No hourly VOS file uploaded.';}renderVosStats();toast(`VOS Stats history deleted${cloudDeleted?` · ${cloudDeleted} shared snapshot${cloudDeleted===1?'':'s'}`:' from this browser'}.`,'ok');}catch(e){toast('VOS Stats history could not be deleted: '+e.message,'err',8000);}finally{setLoading(false);}
 };
-function vosStatsExportDataset(){const baseHeaders=['Mapping Gateway','Area Name','Total Calls','Fail','Success','Answered','ASR %','ACD (min)','Average Call Duration Sum (sec)','Total Call Time (sec)','ASR Class','ACD Band','Total Calls vs Past Hour'],baseRows=vosStatsRowsWithComparison();if(vosStatsTab==='hourly'){const matrix=vosStatsHourlyMatrix(),headers=['Mapping Gateway','Area Name',...matrix.slots.flatMap(slot=>[`${slot} Total Calls`,`${slot} ASR %`,`${slot} ACD (min)`,`${slot} Total Call Time (sec)`]),'Day Total Calls','Day ASR %','Day ACD (min)','Day Total Call Time (sec)'];return{sheet:'Hourly',headers,rows:matrix.rows.map(item=>[item.identity.mapping_gateway,item.identity.area_name,...matrix.slots.flatMap(slot=>{const row=item.byHour[slot];return row?[row.total_calls,row.asr,row.acd,row.total_call_time_seconds]:['','','',''];}),item.total.total_calls,item.total.asr,item.total.acd,item.total.total_call_time_seconds])};}if(vosStatsTab==='stopped'){return{sheet:'Stopped',headers:['Mapping Gateway','Area Name','Last Seen','Total Calls','Answered','ASR %','ACD (min)','Total Call Time (sec)'],rows:vosStatsStoppedRows().map(r=>[r.mapping_gateway,r.area_name,r.last_seen,r.total_calls,r.answered,r.asr,r.acd,r.total_call_time_seconds])};}const rows=VOS_STATS_CLASSES.includes(vosStatsTab)?baseRows.filter(r=>r.cls===vosStatsTab):baseRows;return{sheet:vosStatsTab==='summary'?'Summary':'All Clients',headers:baseHeaders,rows:rows.map(r=>[r.mapping_gateway,r.area_name,r.total_calls,r.fail,r.success,r.answered,r.asr,r.acd,r.avg_call_duration_sum_seconds,r.total_call_time_seconds,r.cls,r.acdcls,r.attempt_change??''])};}
+function vosStatsExportDataset(){const baseHeaders=['Mapping Gateway','Area Name','Total Calls','Fail','Success','Answered','ASR %','ACD (min)','Average Call Duration Sum (sec)','Total Call Time (sec)','ASR Class','ACD Band','Total Calls vs Past Hour'],baseRows=vosStatsRowsWithComparison();if(vosStatsTab==='hourly'){const matrix=vosStatsHourlyMatrix(),headers=['Mapping Gateway','Area Name',...matrix.slots.flatMap(slot=>[`${slot} Total Calls`,`${slot} ASR %`,`${slot} ACD (min)`,`${slot} Total Call Time (sec)`]),'Day Total Calls','Day ASR %','Day ACD (min)','Day Total Call Time (sec)'];return{sheet:'Hourly',headers,rows:matrix.rows.map(item=>[item.identity.mapping_gateway,item.identity.area_name,...matrix.slots.flatMap(slot=>{const row=item.byHour[slot];return row?[row.total_calls,row.asr,row.acd,row.total_call_time_seconds]:['','','',''];}),item.total.total_calls,item.total.asr,item.total.acd,item.total.total_call_time_seconds])};}if(vosStatsTab==='stopped'){return{sheet:'Stopped',headers:['Mapping Gateway','Area Name','Last Seen','Hours Stopped','Total Calls','Answered','ASR %','ACD (min)','Total Call Time (sec)','Traffic Status','Current Status','Remarks'],rows:vosStatsStoppedRows().map(r=>[r.mapping_gateway,r.area_name,r.last_seen,r.hours_stopped??'',r.total_calls,r.answered,r.asr,r.acd,r.total_call_time_seconds,r.resumed_slot?`Resumed ${fmt12(r.resumed_slot)}`:'Still stopped',statsRemarkStatus(vosStatsRemarkKey(r)),statsRemarkText(vosStatsRemarkKey(r))])};}const rows=VOS_STATS_CLASSES.includes(vosStatsTab)?baseRows.filter(r=>r.cls===vosStatsTab):baseRows;return{sheet:vosStatsTab==='summary'?'Summary':'All Clients',headers:baseHeaders,rows:rows.map(r=>[r.mapping_gateway,r.area_name,r.total_calls,r.fail,r.success,r.answered,r.asr,r.acd,r.avg_call_duration_sum_seconds,r.total_call_time_seconds,r.cls,r.acdcls,r.attempt_change??''])};}
 window.exportVosStatsView=format=>{const data=vosStatsExportDataset();if(!data.rows.length){toast('No VOS Stats rows to export.','err');return;}const safe=`vos_stats_${vosStatsTab}_${todayStr()}_${vosStatsSelectedSlot||'latest'}`.replace(/:/g,'');if(format==='xlsx'&&window.XLSX){const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([data.headers,...data.rows]);XLSX.utils.book_append_sheet(book,sheet,data.sheet.slice(0,31));XLSX.writeFile(book,`${safe}.xlsx`);}else{const csv=[data.headers,...data.rows].map(row=>row.map(value=>`"${String(value??'').replace(/"/g,'""')}"`).join(',')).join('\n'),url=URL.createObjectURL(new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=`${safe}.csv`;link.click();URL.revokeObjectURL(url);}toast(`Exported ${data.rows.length} VOS Stats row(s)`,'ok');};
 loadVosStatsLocal();
 
@@ -27353,6 +27421,12 @@ function renderRemarkTables() {
 function statsRemarkText(key) {
   const e = statsRemarks.get(key);
   return e ? (e.text || '') : '';
+}
+// The same document also carries the VOS Stopped tab's "Current Status", so an
+// entry can legitimately hold a status and no remark text (and vice versa).
+function statsRemarkStatus(key) {
+  const e = statsRemarks.get(key);
+  return e ? (e.status || '') : '';
 }
 function stRemarkIcon(has) {
   return `<span class="st-remark-ico${has ? ' has' : ''}" aria-hidden="true">`
@@ -27434,29 +27508,66 @@ window.saveStatsRemark = async () => {
   if (!key) return;
   const text = (document.getElementById('st-remark-ta').value || '').trim();
   if (!text) { window.clearStatsRemark(); return; }
-  const entry = { key, text, updated_by: operatorName || '', updated_at: new Date() };
+  // setDoc replaces the whole document, so the row's Current Status has to be
+  // carried across here or saving a remark would quietly wipe it.
+  const status = statsRemarkStatus(key);
+  const entry = { key, text, status, updated_by: operatorName || '', updated_at: new Date() };
   statsRemarks.set(key, entry);
   window.closeStatsRemark();
   renderRemarkTables();
   if (fbOk) {
     try {
       await setDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)),
-        { key, text, updated_by: entry.updated_by, updated_at: Timestamp.fromDate(entry.updated_at) });
+        { key, text, status, updated_by: entry.updated_by, updated_at: Timestamp.fromDate(entry.updated_at) });
       toast('✓ Remark saved', 'ok');
     } catch (e) { toast('Firestore error (remark kept locally): ' + e.message, 'err', 6000); }
   } else {
     toast('✓ Remark saved locally', 'ok');
   }
 };
+/* Current Status writes to the same document as the remark. Clearing both the
+   note and the status removes the document, so a route nobody has annotated
+   leaves nothing behind. */
+window.setStatsRemarkStatus = async (select) => {
+  if (!canEditStats()) { toast('Only admins can set a status.', 'err'); renderRemarkTables(); return; }
+  const key = select?.dataset?.rk;
+  if (!key) return;
+  const status = String(select.value || '').trim();
+  const text = statsRemarkText(key);
+  const entry = { key, text, status, updated_by: operatorName || '', updated_at: new Date() };
+  const empty = !text && !status;
+  if (empty) statsRemarks.delete(key); else statsRemarks.set(key, entry);
+  renderRemarkTables();
+  if (fbOk) {
+    try {
+      if (empty) await deleteDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)));
+      else await setDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)),
+        { key, text, status, updated_by: entry.updated_by, updated_at: Timestamp.fromDate(entry.updated_at) });
+      toast(status ? `✓ Status set to ${status}` : '✓ Status cleared', 'ok');
+    } catch (e) { toast('Firestore error (status kept locally): ' + e.message, 'err', 6000); }
+  } else {
+    toast(status ? '✓ Status saved locally' : '✓ Status cleared locally', 'ok');
+  }
+};
 window.clearStatsRemark = async () => {
   if (!canEditStats()) { toast('Only admins can edit remarks.', 'err'); return; }
   const key = statsRemarkEditKey;
   if (!key) return;
-  const had = statsRemarks.delete(key);
+  // Clearing the note must not take the row's Current Status with it — if a
+  // status is set the document stays, with an empty remark.
+  const status = statsRemarkStatus(key);
+  const had = statsRemarks.has(key);
+  if (status) statsRemarks.set(key, { key, text: '', status, updated_by: operatorName || '', updated_at: new Date() });
+  else statsRemarks.delete(key);
   window.closeStatsRemark();
   renderRemarkTables();
   if (had && fbOk) {
-    try { await deleteDoc(doc(db, 'stats_remarks', statsRemarkDocId(key))); toast('✓ Remark cleared', 'ok'); }
+    try {
+      if (status) await setDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)),
+        { key, text: '', status, updated_by: operatorName || '', updated_at: Timestamp.fromDate(new Date()) });
+      else await deleteDoc(doc(db, 'stats_remarks', statsRemarkDocId(key)));
+      toast('✓ Remark cleared', 'ok');
+    }
     catch (e) { toast('Firestore error: ' + e.message, 'err'); }
   }
 };
@@ -27472,8 +27583,10 @@ function subscribeStatsRemarks() {
       snap.docs.forEach(d => {
         const data = d.data() || {};
         const key = data.key || decodeURIComponent(d.id);
-        if (key && data.text) m.set(key, {
-          key, text: data.text,
+        // A row whose Current Status is set but whose remark is empty is a real
+        // entry, so the guard cannot test data.text alone any more.
+        if (key && (data.text || data.status)) m.set(key, {
+          key, text: data.text || '', status: data.status || '',
           updated_by: data.updated_by || '',
           updated_at: data.updated_at?.toDate?.() || null,
         });
