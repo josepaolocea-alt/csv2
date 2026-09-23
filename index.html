@@ -9376,11 +9376,11 @@
       <!-- ═══ LOGS ══════════════════════════════════ -->
       <div class="view" id="view-logs">
         <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
-          <div class="groupbox-title">All Snapshot Logs</div>
+          <div class="groupbox-title">VOIP &amp; Tritel Snapshot Logs</div>
           <div class="fbar">
-            <span class="ui-text-micro" style="color:var(--text-2)">Audit trail of every snapshot posted, across every module — scheduled slot time vs. the time it was actually posted.</span>
-            <label class="ui-text-micro" for="logs-module-filter" style="margin-left:8px;color:var(--text-3)">Module</label>
-            <select class="win-sel" id="logs-module-filter" onchange="setLogsModuleFilter(this.value)" title="Show one module's audit trail, or all of them"></select>
+            <span class="ui-text-micro" style="color:var(--text-2)">Audit trail of every All Clients and Tritel snapshot posted — scheduled slot time vs. the time it was actually posted. Other modules keep their own Logs tab.</span>
+            <label class="ui-text-micro" for="logs-module-filter" style="margin-left:8px;color:var(--text-3)">Feed</label>
+            <select class="win-sel" id="logs-module-filter" onchange="setLogsModuleFilter(this.value)" title="Show one feed's audit trail, or both"></select>
             <span id="logs-admin-tools" style="display:none;margin-left:auto;gap:4px">
               <button class="tbtn" id="logs-del-sel-btn" onclick="openDeleteSelectedLogsConfirm()" disabled>Delete Selected</button>
               <button class="tbtn" style="color:var(--red)" id="logs-del-all-btn" onclick="openDeleteAllLogsConfirm()">Delete All Logs</button>
@@ -13012,7 +13012,10 @@ window.switchView = name => {
   if (name==='alerts')        { stopAlertSound(); renderAlerts(); if (alertFilter === 'usagehistory') renderUsageHistory(); ensureSpamHistory(); }
   if (name==='all-clients')   { window.renderClients(); setTimeout(() => window.renderClients(), 0); }
   if (name==='client-manager'){ renderConfiguredVoipClients(); window.renderWizard(); renderImpHist(); }
-  if (name==='logs')          { subscribeLogs(); if (logsModuleFilter) ensureModuleLogs(logsModuleFilter); renderLogs(); }
+  // Both feeds, not just the filtered one: the shared live window holds the
+  // newest 100 records across every module, so Tritel's one row per slot is
+  // routinely crowded out of it by the other modules' posts.
+  if (name==='logs')          { subscribeLogs(); BM_LOG_MODULES.forEach(m => ensureModuleLogs(m)); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
   if (name==='spam-history')  { ensureSpamFlagHistory(); ensureSpamHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
@@ -17533,6 +17536,19 @@ function logLateness(log){
 const SNAPSHOT_LOG_MODULE_LABELS = {
   voip:'VOIP', tritel:'Tritel', 'sms-balance':'SMS Balance', stats:'Stats', 'vos-stats':'VOS Stats', 'vos-daily-traffic':'VOS Daily Traffic', 'daily-traffic':'Daily Traffic'
 };
+/* What the Balance Monitor Logs tab covers: this module's own two feeds and
+   nothing else. All Clients posts as 'voip', the extra Tritel row as 'tritel'.
+   Every other module has its own Logs tab, so its records belong there — this
+   tab no longer lists them, and Delete All here no longer reaches them. */
+const BM_LOG_MODULES = ['voip','tritel'];
+function isBmLogModule(log) { return BM_LOG_MODULES.includes(snapshotLogModule(log)); }
+/* Records written before the `module` field existed carry no module at all, and
+   this default is what puts them under VOIP in the table — they predate every
+   other feed, so VOIP is what they are. It also means a
+   where('module','==','voip') query CANNOT see them: Firestore skips documents
+   missing the field. Anything that deletes VOIP logs therefore filters in JS
+   over an unscoped read instead, or those rows survive a wipe that claims to
+   have cleared them and keep painting. */
 function snapshotLogModule(log) { return String(log?.module || 'voip'); }
 function snapshotLogModuleLabel(log) { const module=snapshotLogModule(log);return SNAPSHOT_LOG_MODULE_LABELS[module]||module; }
 function snapshotLogPostedBy(log) {
@@ -17610,6 +17626,16 @@ function mergeSnapshotAuditRows(module) {
     .slice()
     .sort((a,b)=>(snapshotLogDate(b.processed_at)?.getTime()||0)-(snapshotLogDate(a.processed_at)?.getTime()||0));
 }
+/* The Balance Monitor tab's unfiltered view: both of its own feeds merged and
+   sorted the way a single module's rows are. Built on mergeSnapshotAuditRows so
+   each feed contributes its top-up too, rather than only the slice of the shared
+   live window that survived the other modules' posts — Tritel posts once per
+   slot against VOIP's whole client list, so it is the one most easily crowded
+   out. A record carries exactly one module, so there is nothing to dedupe. */
+function bmSnapshotAuditRows() {
+  return BM_LOG_MODULES.flatMap(module => mergeSnapshotAuditRows(module))
+    .sort((a,b)=>(snapshotLogDate(b.processed_at)?.getTime()||0)-(snapshotLogDate(a.processed_at)?.getTime()||0));
+}
 async function writeSnapshotLog(snap, rowCount, module='voip', details={}){
   if (!fbOk) return;
   try {
@@ -17672,23 +17698,32 @@ function unsubscribeLogs(){
 
 /* This tab predates every other module: when VOIP was the only writer, "all of
    snapshot_logs" and "the VOIP logs" were the same set, so it never filtered and
-   grew a Module column instead. It stays the all-modules view — the cross-module
-   trail is the thing no other tab offers — but the filter below makes that a
-   choice rather than a surprise, and scopes the destructive buttons to match. */
-let logsModuleFilter = '';   // '' = every module
-function logsVisibleRows(){ return logsModuleFilter ? mergeSnapshotAuditRows(logsModuleFilter) : logsData; }
+   grew a Module column instead. As modules were added it silently became the
+   all-modules view, which is why SMS Balance, Stats and VOS rows turned up in
+   Balance Monitor's own Logs tab — each of those has its own Logs tab, and that
+   is where its trail belongs. It is now scoped to BM_LOG_MODULES: the two feeds
+   this module actually posts. The Module column stays, because it is still what
+   separates All Clients from Tritel, and the filter narrows to one of the two. */
+let logsModuleFilter = '';   // '' = both of this module's feeds
+function logsVisibleRows(){ return logsModuleFilter ? mergeSnapshotAuditRows(logsModuleFilter) : bmSnapshotAuditRows(); }
 function logsFilterLabel(){ return SNAPSHOT_LOG_MODULE_LABELS[logsModuleFilter] || logsModuleFilter; }
 function syncLogsModuleFilter(){
   const sel = document.getElementById('logs-module-filter');
   if (!sel) return;
   if (!sel.options.length){
-    sel.innerHTML = `<option value="">All modules</option>` +
-      Object.entries(SNAPSHOT_LOG_MODULE_LABELS).map(([key,label]) => `<option value="${escAttr(key)}">${esc(label)}</option>`).join('');
+    // Only this tab's own feeds: offering Stats or VOS here would promise a
+    // trail the table no longer holds, and would arm Delete All against a
+    // module that has its own tab for exactly that.
+    sel.innerHTML = `<option value="">Both feeds (VOIP + Tritel)</option>` +
+      BM_LOG_MODULES.map(key => `<option value="${escAttr(key)}">${esc(SNAPSHOT_LOG_MODULE_LABELS[key]||key)}</option>`).join('');
   }
   sel.value = logsModuleFilter;
 }
 window.setLogsModuleFilter = value => {
-  logsModuleFilter = String(value || '');
+  // Clamped to this tab's scope: anything else falls back to both feeds rather
+  // than filtering the table down to a module it is not allowed to show.
+  const picked = String(value || '');
+  logsModuleFilter = BM_LOG_MODULES.includes(picked) ? picked : '';
   // Ticks are addressed by id; keeping them across a filter change would arm a
   // delete for rows the table is no longer showing.
   logsSelected.clear();
@@ -17716,8 +17751,8 @@ function renderLogs(){
   const rows = logsVisibleRows();
   if (!rows.length){
     tbody.innerHTML = `<tr><td colspan="9" style="padding:16px;text-align:center;color:var(--text-3)">${logsModuleFilter
-      ? `No ${esc(logsFilterLabel())} logs yet. Clear the module filter to see the other modules.`
-      : 'No snapshot logs yet. A log is recorded automatically each time a snapshot is processed.'}</td></tr>`;
+      ? `No ${esc(logsFilterLabel())} logs yet. Clear the module filter to see both feeds.`
+      : 'No VOIP or Tritel snapshot logs yet. A log is recorded automatically each time a snapshot is processed. Other modules keep their own Logs tab.'}</td></tr>`;
     countEl.textContent = logsModuleFilter ? `0 ${logsFilterLabel()} logs` : '0 logs';
     updateLogsSelUI();
     return;
@@ -17742,7 +17777,7 @@ function renderLogs(){
     </tr>`;
   }).join('');
   const lateCount = rows.filter(l => { const x=logLateness(l); return x.min!=null && x.min>15; }).length;
-  countEl.textContent = (logsModuleFilter ? `${rows.length} ${logsFilterLabel()} log(s)` : `Latest ${rows.length} log(s) across all modules`)
+  countEl.textContent = (logsModuleFilter ? `${rows.length} ${logsFilterLabel()} log(s)` : `${rows.length} log(s) · VOIP + Tritel`)
     + (lateCount ? ` · ${lateCount} posted late` : '');
   updateLogsSelUI();
 }
@@ -17789,19 +17824,22 @@ window.openDeleteSelectedLogsConfirm = () => {
     `Only the log records are removed — snapshot data is not affected.`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
 };
-/* Follows the module filter, because a table showing one module with a button
-   that silently wipes all seven is a trap. Unfiltered it still means all —
-   that is what this tab is for — and the wording says so either way. Not gated
-   on the row count for the same reason openDeleteModuleLogsConfirm isn't: the
-   view holds a window, and the confirmed action queries Firestore. */
+/* Follows the module filter, because a table showing one feed with a button that
+   silently wipes the other is a trap. Unfiltered it means both of this tab's
+   feeds and only those: it used to mean the whole collection, so clearing what
+   looked like the VOIP trail also wiped SMS Balance, Stats and both VOS trails
+   from under their own tabs. Not gated on the row count for the same reason
+   openDeleteModuleLogsConfirm isn't: the view holds a window, and the confirmed
+   action queries Firestore. */
 window.openDeleteAllLogsConfirm = () => {
   if (!isAdmin()) return;
   if (logsModuleFilter){ window.openDeleteModuleLogsConfirm(logsModuleFilter, logsFilterLabel()); return; }
   pendingLogDelete = { mode:'all' };
   document.getElementById('logs-confirm-text').innerHTML =
-    `<strong>Delete ALL snapshot log entries?</strong><br><br>` +
-    `This clears the audit trail for <strong>every module</strong> — VOIP, Tritel, SMS Balance, Stats, VOS Stats and both Daily Traffic feeds. ` +
-    `Pick a module above to clear just one.<br><br>` +
+    `<strong>Delete ALL VOIP and Tritel log entries?</strong><br><br>` +
+    `This clears the audit trail for <strong>both feeds on this tab</strong> — All Clients and Tritel. ` +
+    `Pick one above to clear just that feed.<br><br>` +
+    `<strong>SMS Balance, Stats, VOS Stats and both Daily Traffic trails are not affected</strong> — each is cleared from its own Logs tab.<br><br>` +
     `Only the log records are removed — snapshot data and New Critical comparisons are not affected.<br><br>` +
     `<span style="color:var(--red)">This cannot be undone.</span>`;
   document.getElementById('logs-confirm-overlay').classList.add('open');
@@ -17867,16 +17905,30 @@ window.confirmDeleteLogs = async () => {
   pendingLogDelete = null;
   setLoading(true, 'Deleting logs…');
   try {
-    // The live Logs view intentionally keeps only the latest records. Fetch the
-    // complete collection only for this explicit destructive admin action.
-    if (mode === 'all') {
+    // The live Logs view intentionally keeps only the latest records. Fetch from
+    // Firestore only for these explicit destructive admin actions.
+    // A VOIP scope cannot be expressed as where('module','==','voip'): records
+    // written before that field existed carry no module, so Firestore skips
+    // them, yet they show as VOIP in the table (see snapshotLogModule). Those
+    // scopes read the collection and filter in JS instead — the same read 'all'
+    // has always paid for — or a wipe reports success while its rows stay put.
+    if (mode === 'all' || ((mode === 'module' || mode === 'date') && scopeModule === 'voip')) {
       const allLogs = await getDocs(collection(db, 'snapshot_logs'));
-      ids = allLogs.docs.map(entry => entry.id);
+      // 'all' means everything THIS tab covers: its own two feeds. It used to
+      // mean the whole collection, so clearing what read as the VOIP trail also
+      // wiped SMS Balance, Stats and both VOS trails from under their own tabs.
+      const inScope = mode === 'all' ? isBmLogModule : log => snapshotLogModule(log) === scopeModule;
+      ids = allLogs.docs
+        .map(entry => ({ id:entry.id, ...entry.data() }))
+        .filter(log => inScope(log) && (mode !== 'date' || String(log.session_date || '') === scopeDate))
+        .map(log => log.id);
     } else if (mode === 'module' || mode === 'date') {
-      // Same reason as 'all', narrowed to one module so Daily Traffic and VOS
-      // can clear their own audit trail without touching anyone else's. The
-      // date is filtered in JS rather than as a second equality clause so this
-      // needs no composite index, matching how deleteStatsDailyReport does it.
+      // Same reason as above, narrowed to one module so Daily Traffic and VOS
+      // can clear their own audit trail without touching anyone else's. Every
+      // module reaching this branch arrived with the `module` field, so the
+      // equality query sees all of its records. The date is filtered in JS
+      // rather than as a second equality clause so this needs no composite
+      // index, matching how deleteStatsDailyReport does it.
       const scoped = await getDocs(query(collection(db, 'snapshot_logs'), where('module', '==', scopeModule)));
       ids = scoped.docs
         .filter(entry => mode === 'module' || String(entry.data()?.session_date || '') === scopeDate)
