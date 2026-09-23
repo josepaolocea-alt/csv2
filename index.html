@@ -329,7 +329,7 @@
     /* Per-row delete action (Critical History / No-Threshold tables) */
     .col-act { width: 40px; text-align: center; white-space: nowrap; }
     #spamhist-tbl .col-act { width: 180px; }
-    .row-del {
+    .row-del, .row-edit {
       display: inline-flex; align-items: center; justify-content: center;
       width: 24px; height: 24px; padding: 0;
       background: transparent; color: var(--text-3);
@@ -338,8 +338,18 @@
       transition: background-color .12s ease-out, color .12s ease-out, border-color .12s ease-out, transform .08s ease-out;
     }
     .row-del:hover { background: var(--red-soft); color: var(--red); border-color: var(--red); }
-    .row-del:active { transform: translateY(1px); }
-    .row-del svg { width: 14px; height: 14px; display: block; }
+    .row-del:active, .row-edit:active { transform: translateY(1px); }
+    .row-del svg, .row-edit svg { width: 14px; height: 14px; display: block; }
+    /* Per-row edit pencil. Sits inside the client-name cell of every row that
+       opens a client popup on double-click — that gesture is invisible to
+       anyone who has not been told about it, so the pencil is the visible way
+       in. Muted at rest so 200 rows of it stay quiet, accent on hover. */
+    .row-edit {
+      width: 22px; height: 22px; margin-left: 6px;
+      vertical-align: middle; flex: none;
+    }
+    .row-edit:hover { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+    .row-edit svg { width: 13px; height: 13px; }
 
     /* ── Body layout ── */
     #app-body { flex: 1; display: flex; overflow: hidden; }
@@ -3156,7 +3166,7 @@
     }
     .tbtn.primary:hover:not(:disabled) { background: var(--accent-strong); }
     .tbtn.danger { box-shadow: 0 5px 14px color-mix(in srgb, var(--red) 20%, transparent); }
-    .row-del { border-radius: 8px; }
+    .row-del, .row-edit { border-radius: 8px; }
 
     /* Premium selects and searchable combo menus */
     .premium-select-trigger { min-height: 32px; border-radius: 9px; }
@@ -4735,7 +4745,7 @@
       box-shadow: 5px 5px 11px var(--neu-lo), -3px -3px 8px var(--neu-hi);
     }
     .tbtn:disabled { box-shadow: var(--neu-inset-sm); opacity: .48; }
-    .row-del {
+    .row-del, .row-edit {
       background: var(--bg);
       border: 0;
       border-radius: 9px;
@@ -5942,8 +5952,9 @@
     }
     .tbtn.danger:hover:not(:disabled) { background: var(--red-deep); border-color: var(--red-deep) !important; }
     .tbtn:disabled { opacity: .45; box-shadow: none; }
-    .row-del { background: transparent; border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none; }
+    .row-del, .row-edit { background: transparent; border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none; }
     .row-del:hover { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+    .row-edit:hover { background: var(--accent-soft); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
     #sms-cancel-edit-btn { background: var(--orange-soft); color: var(--orange); border-color: var(--orange) !important; }
     #sms-cancel-edit-btn:hover { background: var(--orange); color: var(--on-accent); border-color: var(--orange) !important; }
 
@@ -7587,10 +7598,11 @@
     .tbtn.danger:hover:not(:disabled) { background: var(--red-deep); box-shadow: var(--neu-raised); }
     .tbtn:disabled { opacity: .45; box-shadow: var(--neu-inset-sm); }
     .tbtn.icon-only { padding: 0; }
-    .row-del {
+    .row-del, .row-edit {
       background: transparent; border: 0; border-radius: var(--r-sm); box-shadow: none;
     }
     .row-del:hover { color: var(--red); background: var(--red-soft); box-shadow: var(--neu-inset-sm); }
+    .row-edit:hover { color: var(--accent-strong); background: var(--accent-soft); box-shadow: var(--neu-inset-sm); }
     #sms-cancel-edit-btn { color: var(--on-accent); background: var(--orange); border: 0 !important; }
     #sms-cancel-edit-btn:hover { background: var(--orange); box-shadow: var(--neu-raised); }
 
@@ -15029,7 +15041,7 @@ function renderSpamHistory() {
     : '0 clients · 0 flag events';
   tbody.innerHTML = rows.map(row => `
     <tr ondblclick="openClientPopup('${escAttr(row.name)}')" style="cursor:pointer" title="Double-click for client details">
-      <td><strong>${esc(row.name)}</strong></td><td class="num">${row.count}</td>
+      <td><strong>${esc(row.name)}</strong>${rowEditBtn('editClientFromRow', row.name)}</td><td class="num">${row.count}</td>
       <td class="num">${fmt(row.usage)}</td><td class="num">${row.maxUsage > 0 ? fmt(row.maxUsage) : '—'}</td><td class="num">${Number.isFinite(row.ratio) ? `${row.ratio.toFixed(1)}×` : '—'}</td>
       <td><span class="stbadge ${row.tier === 'high' ? 'critical' : 'low'}">${row.tier === 'high' ? 'High' : 'Watch'}</span></td>
       <td>${spamHistReviewCell(row)}</td>
@@ -15500,6 +15512,36 @@ function rowDelCell(handler, name){
     + `${DEL_ICON_SVG}</button></td>`;
 }
 
+/* ── Per-row Edit pencil ──────────────────────────────────────────────────
+   Every Balance Monitor row that opens a client popup on double-click also
+   carries this pencil in its name cell. Double-click is invisible to anyone
+   who has not been told about it, so the pencil is the visible way in, and it
+   opens the popup already in edit mode — one click instead of "double-click,
+   then find Edit". Lives in the name cell rather than its own column so no
+   colspan, Total row, column chooser or export has to change.
+   Gated on canEditClients() the same way the popup's own Edit button is. */
+const EDIT_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+function rowEditBtn(handler, key, label){
+  if (!canEditClients()) return '';
+  // esc() for the display attributes (it escapes the double quote that would
+  // close them), escAttr() for the JS string inside onclick — same split the
+  // row's own ondblclick uses.
+  const who = String(label ?? key ?? '').trim();
+  return `<button type="button" class="row-edit" title="Edit ${esc(who)}" aria-label="Edit ${esc(who)}"`
+    + ` onclick="event.stopPropagation(); ${handler}('${escAttr(key)}')" ondblclick="event.stopPropagation()">`
+    + `${EDIT_ICON_SVG}</button>`;
+}
+// VOIP: open the client popup and drop straight into its edit form.
+window.editClientFromRow = name => {
+  window.openClientPopup(name);
+  window.startEditClient();
+};
+// SMS Balance: same, but only once the popup actually resolved the client key.
+window.editSmsBalanceClientFromRow = key => {
+  window.openSmsBalanceClientPopup(key);
+  if (document.getElementById('sms-bal-client-detail-overlay')?.classList.contains('open')) window.startSmsBalanceClientEdit();
+};
+
 function renderCriticalHistory() {
   const tbody = document.getElementById('crithist-tbody');
   if (!tbody) return;
@@ -15535,7 +15577,7 @@ function renderCriticalHistory() {
   }
   tbody.innerHTML = rows.map(r => `
     <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
-      <td>${esc(r.name)}</td>
+      <td>${esc(r.name)}${rowEditBtn('editClientFromRow', r.name)}</td>
       <td class="num">${r.count}</td>
       <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
       <td class="num" style="color:var(--orange)">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
@@ -15877,7 +15919,7 @@ function renderNoThreshHistory() {
   }
   tbody.innerHTML = rows.map(r => `
     <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
-      <td>${esc(r.name)}</td>
+      <td>${esc(r.name)}${rowEditBtn('editClientFromRow', r.name)}</td>
       <td>${r.resolved
         ? '<span style="color:var(--green);font-weight:600">Threshold set</span>'
         : '<span style="color:var(--orange);font-weight:600">No threshold</span>'}</td>
@@ -19133,7 +19175,7 @@ function renderAlerts() {
     const etaTxt   = r._removedFromCritical ? '—' : etaMins===null ? (r._level==='high'?'<span style="color:var(--red);font-weight:700">AT LIMIT</span>':'—') : `<span style="color:${etaColor(etaMins)};font-weight:${etaMins<120?'700':'400'}">${fmtEta(etaMins)}</span>`;
     const rowClass = [r._isNew?'row-new-crit':'', r._removedFromCritical?'row-removed-crit':'', etaMins!==null&&etaMins<120&&r._level!=='high'?'row-eta-warn':'', isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowClass}" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')" style="cursor:pointer">
-      <td>${esc(r.carrier_name)}</td>
+      <td>${esc(r.carrier_name)}${rowEditBtn('editClientFromRow', r.carrier_name)}</td>
       <td class="num ${debitCreditClass(r.amnt_receivable)}">${fmt(r.amnt_receivable)}</td>
       <td class="num ${r.usage_30min<0?'pos':r.usage_30min>0?'neg':''}">${fmt(r.usage_30min || 0)}${usageTrendArrow(r)}${spamMaxRef}</td>
       <td class="num" style="color:var(--text-2)">${fmt(r.credit_limit)}</td>
@@ -19396,7 +19438,7 @@ function renderConfiguredVoipClients() {
   body.innerHTML=configured.length?configured.map(meta=>{
     const inactive=isClientInactive(meta), live=liveNames.has(meta.carrier_name.toLowerCase());
     const credit=meta.credit_limit===''||meta.credit_limit==null?NaN:Number(meta.credit_limit), critical=meta.critical_balance===''||meta.critical_balance==null?NaN:Number(meta.critical_balance);
-    return `<tr ondblclick="openClientPopup('${escAttr(meta.carrier_name)}')" style="cursor:pointer" title="Double-click to view or edit this client"><td><strong>${esc(meta.carrier_name)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}</td><td>${esc(meta.account_manager||'—')}</td><td><span class="cm-configured-status ${inactive?'inactive':'active'}">${inactive?'Inactive':'Active'}</span></td><td class="num">${Number.isFinite(credit)?fmt(credit):'—'}</td><td class="num">${Number.isFinite(critical)?fmt(critical):'—'}</td><td>${esc(meta.billing_cycle||'—')}</td><td>${esc(meta.notes||'')}</td></tr>`;
+    return `<tr ondblclick="openClientPopup('${escAttr(meta.carrier_name)}')" style="cursor:pointer" title="Double-click to view or edit this client"><td><strong>${esc(meta.carrier_name)}</strong>${live?'':' <span class="sms-bal-badge awaiting">Awaiting Snapshot</span>'}${rowEditBtn('editClientFromRow', meta.carrier_name)}</td><td>${esc(meta.account_manager||'—')}</td><td><span class="cm-configured-status ${inactive?'inactive':'active'}">${inactive?'Inactive':'Active'}</span></td><td class="num">${Number.isFinite(credit)?fmt(credit):'—'}</td><td class="num">${Number.isFinite(critical)?fmt(critical):'—'}</td><td>${esc(meta.billing_cycle||'—')}</td><td>${esc(meta.notes||'')}</td></tr>`;
   }).join(''):'<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text-3)">No configured VOIP clients match this search.</td></tr>';
   if(count)count.textContent=`(${configured.length} of ${Object.keys(clientsMeta).length})`;
 }
@@ -19575,7 +19617,7 @@ function renderClientsLegacy(){
     const rowCls=[isBandCritical(r)?'band-critical':''].filter(Boolean).join(' ');
     return `<tr class="${rowCls}" style="${rowStyle}cursor:pointer;" ondblclick="openClientPopup('${escAttr(r.carrier_name)}')">${vc.map(c=>{
       if(c.key==='idx') return `<td style="color:var(--text-3)">${clientPage*PG+ri+1}</td>`;
-      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}</td>`;
+      if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}${rowEditBtn('editClientFromRow', r.carrier_name)}</td>`;
       if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
       if(c.key==='notes') return `<td style="color:var(--text-2);max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
       if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
@@ -19602,7 +19644,7 @@ function renderClientsLegacy(){
 
 function clientCell(r,c,rowNum){
   if(c.key==='idx') return `<td style="color:var(--text-3)">${rowNum}</td>`;
-  if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}</td>`;
+  if(c.key==='carrier_name') return `<td><strong>${esc(r.carrier_name)}</strong>${r._inactive?' <span class="ui-text-micro" style="color:var(--text-3);font-weight:400">(inactive)</span>':''}${rowEditBtn('editClientFromRow', r.carrier_name)}</td>`;
   if(c.key==='account_manager') return `<td>${esc(r.account_manager||'')}</td>`;
   if(c.key==='notes') return `<td style="color:var(--text-2);max-width:140px;overflow:hidden;text-overflow:ellipsis">${esc(r.notes||'')}</td>`;
   if(c.key==='_level'){const[cl,lb]=chipInfo(r,r._level);return `<td><span class="badge ${cl}">${lb}</span></td>`;}
@@ -21148,10 +21190,12 @@ function smsBalanceTableRow(row, compact=false, showBalanceBar=false) {
   const openDetail = row._historyRecord
     ? 'data-premium-tooltip="Loaded from persistent No Threshold History; no current snapshot row is available."'
     : `ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."`;
-  if (compact) return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
+  // History-only rows have no current client record behind them, so no pencil.
+  const editBtn = row._historyRecord ? '' : rowEditBtn('editSmsBalanceClientFromRow', smsBalanceMetaKey(row), row.client);
+  if (compact) return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong>${editBtn}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(shownStatus)}</td></tr>`;
   const usageClass = Math.abs(smsBalanceNumber(row.usage_30min)) >= 50 ? ' sms-bal-usage-hot' : '';
   const balanceBarCell=showBalanceBar?`<td>${smsBalanceWarningBar(s)}</td>`:'';
-  return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td>${balanceBarCell}<td>${smsBalanceStatusBadge(shownStatus)}</td><td>${esc(meta.notes || '')}</td></tr>`;
+  return `<tr class="${rowClass}" ${openDetail}><td><strong>${esc(row.client)}</strong>${editBtn}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td class="num">${smsBalanceFmt(row.balance)}</td><td class="num${usageClass}">${smsBalanceFmt(row.usage_30min)}</td><td class="num">${smsBalanceFmt(row.overdraft)}</td><td class="num">${smsBalanceFmt(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td>${balanceBarCell}<td>${smsBalanceStatusBadge(shownStatus)}</td><td>${esc(meta.notes || '')}</td></tr>`;
 }
 function normalizeSmsBalanceSnapshot(snap) {
   const reseller = (snap?.reseller || []).map(row => smsBalanceNormalizeRow(row, 'reseller'));
@@ -21603,7 +21647,7 @@ function renderSmsBalanceUsageHistory() {
     :null);
   if(readPivot)items=items.slice().sort((a,b)=>smsBalanceAlertSortCompare(readPivot(a),readPivot(b),pivotSort.dir)||String(a.row.client||'').localeCompare(String(b.row.client||'')));
   thead.innerHTML=`<tr>${smsBalanceAlertSortHeader('type','Type',false)}${smsBalanceAlertSortHeader('client','Client',false)}${usedSlots.map(slot=>smsBalanceAlertSortHeader(`slot:${slot}`,fmt12(slot),true)).join('')}</tr>`;
-  tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong></td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${smsBalanceUsageHistoryCell(v,slot)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
+  tbody.innerHTML=items.length?items.map(item=>`<tr ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(item.row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td>${esc(smsBalanceSourceLabel(item.row.source))}</td><td><strong>${esc(item.row.client)}</strong>${rowEditBtn('editSmsBalanceClientFromRow', smsBalanceMetaKey(item.row), item.row.client)}</td>${usedSlots.map(slot=>{const v=item.bySlot[slot];return `<td class="num${v!==undefined&&Math.abs(v)>=50?' sms-bal-usage-hot':''}">${smsBalanceUsageHistoryCell(v,slot)}</td>`;}).join('')}</tr>`).join(''):smsBalanceEmptyRow(usedSlots.length+2,'No clients with 30-minute usage in today\'s snapshots.');
   if(foot){foot.style.display='';foot.textContent=`${items.length} client(s) · ${snaps.length} snapshot(s)`;}
   const resultCount=document.getElementById('sms-bal-alert-result-count');if(resultCount)resultCount.textContent=`${items.length} client row(s)`;
 }
@@ -21652,7 +21696,7 @@ window.renderSmsBalanceAll = () => {
     const s=row._status;
     const live=row._hasSnapshot!==false;
     const liveValue=value=>live?smsBalanceFmt(value):'—';
-    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong></td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td></tr>`;
+    return `<tr class="sms-bal-row-${s.code}" ondblclick="openSmsBalanceClientPopup('${escAttr(smsBalanceMetaKey(row))}')" style="cursor:pointer" data-premium-tooltip="Double-click for SMS client details."><td><strong>${esc(row.client)}</strong>${rowEditBtn('editSmsBalanceClientFromRow', smsBalanceMetaKey(row), row.client)}</td><td>${esc(smsBalanceSourceLabel(row.source))}</td><td>${esc(row.account_type)}</td><td>${esc(row.email)}</td><td>${esc(row.number)}</td><td>${esc(row.currency)}</td><td class="num">${liveValue(row.balance)}</td><td class="num${live&&Math.abs(smsBalanceNumber(row.usage_30min))>=50?' sms-bal-usage-hot':''}">${liveValue(row.usage_30min)}</td><td class="num">${liveValue(row.total_usage)}</td><td class="num">${liveValue(row.overdraft)}</td><td class="num">${liveValue(Math.max(0,s.odRemaining))}</td><td class="num">${s.credit===null?'—':smsBalanceFmt(s.credit)}</td><td class="num">${s.critical===null?'—':smsBalanceFmt(s.critical)}</td><td>${smsBalanceStatusBadge(s)}</td></tr>`;
   }).join('') : smsBalanceEmptyRow(14,'No SMS balance clients match the filters.');
 };
 function uniqueSmsBalanceClients() {
