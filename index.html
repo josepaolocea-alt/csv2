@@ -9730,7 +9730,7 @@
                   </section>
 
                   <section class="sms-bal-view" id="sms-bal-view-logs">
-                    <div class="fbar"><span class="sms-muted">Audit trail of SMS balance snapshots posted by slot.</span><button class="tbtn" onclick="renderSmsBalanceLogs()">Refresh</button></div>
+                    <div class="fbar"><span class="sms-muted">Audit trail of SMS balance snapshots posted by slot. Clearing here removes log entries only — the snapshots themselves are deleted per row, or in Settings → SMS Danger Zone.</span><button class="tbtn" onclick="renderSmsBalanceLogs()">Refresh</button><button type="button" class="tbtn" id="sms-bal-logs-wipe-btn" style="color:var(--red)" onclick="openDeleteModuleLogsConfirm('sms-balance','SMS Balance')">Clear All Logs</button></div>
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Date</th><th>Slot</th><th>Posted At</th><th>Late By</th><th>Posted By</th><th class="num">Reseller Rows</th><th class="num">Wholesale Rows</th><th>Snapshot</th></tr></thead><tbody id="sms-bal-logs-tbody"></tbody></table></div>
                   </section>
 
@@ -17363,6 +17363,9 @@ function applyModuleAccess(){
   disable('vos-daily-logs-wipe-btn', !admin);
   disable('stats-logs-wipe-btn', !admin);
   disable('vos-stats-logs-wipe-btn', !admin);
+  // SMS Balance Logs is the one audit tab whose ROW action deletes a snapshot,
+  // so its wipe button is named Clear All Logs to keep the two apart.
+  disable('sms-bal-logs-wipe-btn', !admin);
   disable('stats-daily-archive-month', !canArchiveDailyTraffic());
   disable('stats-daily-archive-btn', !canArchiveDailyTraffic());
   disable('vos-daily-archive-month', !canArchiveDailyTraffic());
@@ -17834,7 +17837,10 @@ window.openDeleteLogsForDateConfirm = (module, sessionDate, label = 'this log en
    clearing the Stats trail would describe the wrong thing. */
 const SNAPSHOT_LOG_KEEPS_NOTE = {
   stats:      'The saved hourly snapshots are not affected — those are deleted from Stats → Settings.',
-  'vos-stats':'The saved hourly snapshots are not affected — those are deleted from VOS Stats → Settings.'
+  'vos-stats':'The saved hourly snapshots are not affected — those are deleted from VOS Stats → Settings.',
+  // Said explicitly here because the SMS Balance Logs table also carries a
+  // per-row Delete Snapshot button, and this wipe is not that.
+  'sms-balance':'The saved SMS Balance snapshots are not affected — those are deleted per row here, or from SMS Balance → Settings → SMS Danger Zone. New Critical comparisons keep working.'
 };
 const SNAPSHOT_LOG_KEEPS_DEFAULT = 'The traffic data for those dates is not affected — that is deleted from Settings → Danger Zone.';
 window.openDeleteModuleLogsConfirm = (module, label) => {
