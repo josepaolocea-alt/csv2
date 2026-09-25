@@ -2825,10 +2825,10 @@
     hr { border: none; border-top: 1px solid var(--border) !important; }
 
     /* ── Confirm dialog overlay ── */
-    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #spamhist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay, #sms-source-mismatch-overlay {
+    #confirm-overlay, #undo-confirm-overlay, #rollback-overlay, #delete-today-overlay, #sms-confirm-overlay, #signout-confirm-overlay, #overwrite-confirm-overlay, #logs-confirm-overlay, #wipe-all-overlay, #crithist-wipe-overlay, #recovhist-wipe-overlay, #spamhist-wipe-overlay, #nothresh-wipe-overlay, #rowdel-confirm-overlay, #spamreset-overlay, #gap-confirm-overlay, #source-mismatch-overlay, #sms-source-mismatch-overlay {
       display: none; position: fixed; inset: 0; background: rgba(10, 14, 22, .4); z-index: 900; align-items: center; justify-content: center; }
-    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #spamhist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open, #sms-source-mismatch-overlay.open { display: flex; }
-    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #spamhist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box, #sms-source-mismatch-box {
+    #confirm-overlay.open, #undo-confirm-overlay.open, #rollback-overlay.open, #delete-today-overlay.open, #sms-confirm-overlay.open, #signout-confirm-overlay.open, #overwrite-confirm-overlay.open, #logs-confirm-overlay.open, #wipe-all-overlay.open, #crithist-wipe-overlay.open, #recovhist-wipe-overlay.open, #spamhist-wipe-overlay.open, #nothresh-wipe-overlay.open, #rowdel-confirm-overlay.open, #spamreset-overlay.open, #gap-confirm-overlay.open, #source-mismatch-overlay.open, #sms-source-mismatch-overlay.open { display: flex; }
+    #confirm-box, #undo-confirm-box, #sms-confirm-box, #signout-confirm-box, #overwrite-confirm-box, #logs-confirm-box, #rollback-box, #delete-today-box, #wipe-all-box, #crithist-wipe-box, #recovhist-wipe-box, #spamhist-wipe-box, #nothresh-wipe-box, #rowdel-confirm-box, #spamreset-box, #gap-confirm-box, #source-mismatch-box, #sms-source-mismatch-box {
       background: var(--surface); min-width: 280px; max-width: 360px;
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
@@ -2984,6 +2984,7 @@
     #delete-today-overlay.open #delete-today-box,
     #wipe-all-overlay.open #wipe-all-box,
     #crithist-wipe-overlay.open #crithist-wipe-box,
+    #recovhist-wipe-overlay.open #recovhist-wipe-box,
     #spamhist-wipe-overlay.open #spamhist-wipe-box,
     #nothresh-wipe-overlay.open #nothresh-wipe-box,
     #rowdel-confirm-overlay.open #rowdel-confirm-box,
@@ -8696,6 +8697,7 @@
           <div class="nav-sublabel">Records</div>
           <button type="button" class="nav-leaf" data-module="balance" data-view="logs" data-active-src="tnav-logs">Logs</button>
           <button type="button" class="nav-leaf" data-module="balance" data-view="crit-history" data-active-src="tnav-crit-history">Critical History</button>
+          <button type="button" class="nav-leaf" data-module="balance" data-view="recovery-history" data-active-src="tnav-recovery-history">Removed from Critical</button>
           <button type="button" class="nav-leaf" data-module="balance" data-view="spam-history" data-active-src="tnav-spam-history">Flagged Spam</button>
           <button type="button" class="nav-leaf" data-module="balance" data-view="no-threshold" data-active-src="tnav-no-threshold">No Threshold</button>
           <button type="button" class="nav-leaf" data-module="balance" data-view="settings" data-active-src="tnav-settings">Settings</button>
@@ -8725,6 +8727,7 @@
               <div class="nav-sublabel">Records</div>
               <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="logs" data-active-src="sms-bal-nav-logs">Logs</button>
               <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="critical-history" data-active-src="sms-bal-nav-critical-history">Critical History</button>
+              <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="recovery-history" data-active-src="sms-bal-nav-recovery-history">Removed from Critical</button>
               <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="nothreshold" data-active-src="sms-bal-nav-nothreshold">No Threshold History</button>
               <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="inactive-usage-history" data-active-src="sms-bal-nav-inactive-usage-history">Inactive w/ Usage History</button>
               <button type="button" class="nav-leaf" data-module="sms" data-smstab="balance" data-smsview="settings" data-active-src="sms-bal-nav-settings">SMS Settings</button>
@@ -8954,6 +8957,7 @@
       <div class="app-action-menu-panel" id="voip-action-menu-panel" role="menu">
         <button class="tbtn" id="tnav-logs" onclick="switchView('logs')" role="menuitem">Logs</button>
         <button class="tbtn" id="tnav-crit-history" onclick="switchView('crit-history')" title="Every client that has hit Critical Balance — kept in its own store, survives deleting snapshots" role="menuitem">Critical History</button>
+        <button class="tbtn" id="tnav-recovery-history" onclick="switchView('recovery-history')" title="Every client that came back OUT of Critical Balance — kept in its own store, so a recovery is still listed after you skip the snapshot that showed it in Alerts" role="menuitem">Removed from Critical</button>
         <button class="tbtn" id="tnav-spam-history" onclick="switchView('spam-history')" title="Every client flagged by Possible Spam — retained even after being marked Not Spam" role="menuitem">Flagged Spam</button>
         <button class="tbtn" id="tnav-no-threshold" onclick="switchView('no-threshold')" title="Every client that appeared in a snapshot with no Critical Balance / Credit Limit set — compiled in its own store, survives deleting snapshots" role="menuitem">No Threshold</button>
         <button class="tbtn" id="tnav-settings" onclick="switchView('settings')" role="menuitem">Settings</button>
@@ -9451,6 +9455,41 @@
         </div>
       </div>
 
+      <!-- ═══ REMOVED FROM CRITICAL HISTORY ══════════
+           The mirror image of Critical History: a persistent log of every client
+           that came back OUT of Critical Balance, stamped with the snapshot the
+           recovery happened on. Alerts → Removed from Critical only ever answers
+           for the newest snapshot, so skipping a slot loses the recovery; this
+           tab keeps every one. Lives in its OWN Firestore collection
+           (`recovery_history`) so it survives deleting/wiping the snapshots, and
+           is cleared only via the button in Settings → Danger Zone. -->
+      <div class="view" id="view-recovery-history">
+        <div class="groupbox" style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="groupbox-title">Removed from Critical History</div>
+          <div class="fbar">
+            <span class="ui-text-micro" style="color:var(--text-2)">Every client that recovered out of Critical Balance, kept per snapshot in a separate store — so a recovery is still listed here after you skip the snapshot that showed it in Alerts. Clear it in Settings → Danger Zone.</span>
+            <input class="win-search" id="recovhist-search" type="search" placeholder="Search client..." autocomplete="off" spellcheck="false" oninput="recovHistSearchInput(this.value)" style="margin-left:auto">
+            <button class="tbtn" onclick="exportRecoveryHistory()" title="Export the Removed from Critical History table to CSV">Export</button>
+          </div>
+          <div class="lv-wrap">
+            <table id="recovhist-tbl">
+              <thead><tr>
+                <th onclick="sortRecovHist('name')">Client</th>
+                <th onclick="sortRecovHist('count')" style="text-align:right" title="How many separate times this client came out of Critical Balance">Times Recovered</th>
+                <th onclick="sortRecovHist('prevBal')" style="text-align:right" title="What the client owed on the snapshot before it recovered — while it was still Critical">Balance at Critical</th>
+                <th onclick="sortRecovHist('lastBal')" style="text-align:right" title="The balance on the snapshot that took the client out of Critical">Balance at Recovery</th>
+                <th onclick="sortRecovHist('crit')" style="text-align:right" title="The Critical Balance the client dropped back below">Critical Balance</th>
+                <th onclick="sortRecovHist('first')" title="When this client first recovered — newest on top by default">First Recovery ▼</th>
+                <th onclick="sortRecovHist('last')">Last Recovery</th>
+                <th class="col-act" title="Delete an entry"></th>
+              </tr></thead>
+              <tbody id="recovhist-tbody"></tbody>
+            </table>
+          </div>
+          <div class="history-count" id="recovhist-count" aria-live="polite"></div>
+        </div>
+      </div>
+
       <!-- ═══ FLAGGED SPAM HISTORY ═══════════════════
            Persistent log of every reading detected by Possible Spam. Marking a
            reading Not Spam keeps the event and records its reviewed status. -->
@@ -9543,6 +9582,7 @@
                   <div class="app-action-menu-panel" id="sms-action-menu-panel" role="menu">
                     <button class="tbtn" id="sms-bal-nav-logs" onclick="switchSmsBalanceView('logs')" data-premium-tooltip="Review and delete SMS Balance snapshots by scheduled slot." role="menuitem">Logs</button>
                     <button class="tbtn" id="sms-bal-nav-critical-history" onclick="switchSmsBalanceView('critical-history')" data-premium-tooltip="Persistent history of clients that entered a critical SMS balance state." role="menuitem">Critical History</button>
+                    <button class="tbtn" id="sms-bal-nav-recovery-history" onclick="switchSmsBalanceView('recovery-history')" data-premium-tooltip="Persistent history of clients that recovered out of a critical SMS balance state, so a recovery is still listed after that snapshot is behind you." role="menuitem">Removed from Critical</button>
                     <button class="tbtn" id="sms-bal-nav-nothreshold" onclick="switchSmsBalanceView('nothreshold')" data-premium-tooltip="Persistent history of clients seen without credit and critical thresholds." role="menuitem">No Threshold History</button>
                     <button class="tbtn" id="sms-bal-nav-inactive-usage-history" onclick="switchSmsBalanceView('inactive-usage-history')" data-premium-tooltip="Persistent history of inactive clients that reported positive 30-minute usage." role="menuitem">Inactive w/ Usage History</button>
                     <button class="tbtn" id="sms-bal-nav-settings" onclick="switchSmsBalanceView('settings')" data-premium-tooltip="Configure SMS Balance alerts, retention, and themed data controls." role="menuitem">SMS Settings</button>
@@ -9751,6 +9791,15 @@
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Hit</th><th>Last Hit</th><th class="num">Times Hit</th><th class="num">Last Balance</th><th class="num">OD Remaining</th><th>Last Status</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-critical-history-tbody"></tbody></table></div>
                   </section>
 
+                  <!-- The mirror of Critical History: the snapshot each client came
+                       back OUT of Critical / Blocked on, kept in its own store
+                       (sms_balance_recovery) so skipping the slot Alerts showed it
+                       on does not lose the recovery. -->
+                  <section class="sms-bal-view" id="sms-bal-view-recovery-history">
+                    <div class="fbar"><span class="sms-muted">Every client that recovered out of Critical Balance or Blocked, logged on the snapshot it happened — so a recovery is still listed here after that snapshot is behind you. Kept in a separate store that survives deleting snapshots; clear it in Settings → Danger Zone.</span><input class="win-search" id="sms-bal-recovery-history-search" type="search" placeholder="Search history…" oninput="renderSmsBalanceRecoveryHistory()" style="margin-left:auto"><button class="tbtn" onclick="exportSmsBalanceRecoveryHistoryCsv()">Export</button></div>
+                    <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Recovery</th><th>Last Recovery</th><th class="num">Times Recovered</th><th class="num">Balance at Critical</th><th class="num">Balance at Recovery</th><th class="num">OD Remaining</th><th>Left State</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-recovery-history-tbody"></tbody></table></div>
+                  </section>
+
                   <section class="sms-bal-view" id="sms-bal-view-nothreshold">
                     <div class="fbar"><span class="sms-muted">Clients seen without Credit Limit or Critical Balance. Overdraft and auto-block rules still apply.</span></div>
                     <div class="sms-bal-table-wrap"><table class="sms-bal-table"><thead><tr><th>Client</th><th>Type</th><th>First Seen</th><th>Last Seen</th><th class="num">Times Seen</th><th class="num">Latest Balance</th><th class="col-act" aria-label="Actions"></th></tr></thead><tbody id="sms-bal-nothreshold-tbody"></tbody></table></div>
@@ -9782,6 +9831,7 @@
                       <div class="sms-bal-note" style="margin-top:9px">Clear a persistent SMS history log. Each survives snapshot deletion and is rebuilt from future readings. Snapshots are not affected. Admin only.</div>
                       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
                         <button class="tbtn danger" id="sms-bal-clear-history-btn" onclick="clearSmsBalanceHistory()" data-count-collection="sms_balance_history" data-count-label="SMS critical-history record">Clear SMS Critical History</button>
+                        <button class="tbtn danger" id="sms-bal-clear-recovery-history-btn" onclick="clearSmsBalanceRecoveryHistory()" data-count-collection="sms_balance_recovery" data-count-label="SMS recovery record">Clear Removed from Critical History</button>
                         <button class="tbtn danger" id="sms-bal-clear-nothreshold-btn" onclick="clearSmsBalanceNoThreshold()" data-count-collection="sms_balance_no_threshold" data-count-label="SMS no-threshold record">Clear SMS No-Threshold List</button>
                         <button class="tbtn danger" id="sms-bal-clear-inactive-usage-history-btn" onclick="clearSmsBalanceInactiveUsageHistory()" data-count-collection="sms_balance_inactive_usage" data-count-label="SMS inactive-usage history record">Clear Inactive Usage History</button>
                       </div>
@@ -11122,6 +11172,10 @@
           <div class="danger-btns">
             <button class="tbtn" id="voip-delete-critical-history-btn" style="color:var(--red)" onclick="openCritHistWipeConfirm()" data-count-collection="critical_history" data-count-label="critical-history record">Delete ALL Critical History</button>
           </div>
+          <div style="margin:8px 0 5px">Clear the <strong>Removed from Critical</strong> tab — the separate record of every client that recovered out of Critical Balance. Snapshots and Critical History are not affected. Admin only.</div>
+          <div class="danger-btns">
+            <button class="tbtn" id="voip-delete-recovery-history-btn" style="color:var(--red)" onclick="openRecovHistWipeConfirm()" data-count-collection="recovery_history" data-count-label="recovery record">Delete ALL Removed from Critical History</button>
+          </div>
           <div style="margin:8px 0 5px">Clear the <strong>Flagged Spam History</strong> tab. Possible Spam detection and its baseline are not affected. Admin only.</div>
           <div class="danger-btns">
             <button class="tbtn" id="voip-delete-spam-history-btn" style="color:var(--red)" onclick="openSpamHistWipeConfirm()" data-count-collection="spam_history" data-count-label="flagged-spam client record">Delete ALL Flagged Spam History</button>
@@ -11351,6 +11405,25 @@
     <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
       <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeCritHistory()">Delete All</button>
       <button class="tbtn" style="min-width:72px" onclick="closeCritHistWipeConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete ALL Removed from Critical History Dialog -->
+<div id="recovhist-wipe-overlay">
+  <div id="recovhist-wipe-box" style="width:390px">
+    <div class="dlg-tb"><span>Delete All Removed from Critical History</span></div>
+    <div class="dlg-body">
+      <div class="dlg-ico">!</div>
+      <div class="dlg-text">
+        <strong>Permanently delete ALL Removed from Critical History?</strong><br><br>
+        This wipes the entire <strong>recovery_history</strong> collection — every record of a client coming back out of Critical Balance. Your stored snapshots and Critical History are <strong>not</strong> affected.<br><br>
+        <span style="color:var(--red)">This cannot be undone.</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;padding:0 12px 12px">
+      <button class="tbtn danger" style="min-width:110px" onclick="confirmWipeRecoveryHistory()">Delete All</button>
+      <button class="tbtn" style="min-width:72px" onclick="closeRecovHistWipeConfirm()">Cancel</button>
     </div>
   </div>
 </div>
@@ -11935,6 +12008,13 @@ const smsSubscribedTabs = new Set();
 let smsBalanceTodaySnaps = [], smsBalanceLatest = null;
 let smsBalancePriorSnap = null, smsBalancePriorLoaded = false, smsBalancePriorUnsubscribe = null;
 let smsBalanceMeta = {}, smsBalanceHistory = [], smsBalanceNoThreshold = [], smsBalanceInactiveUsageHistory = [];
+/* Removed from Critical History — the mirror of smsBalanceHistory. That log
+   records the snapshot a client crosses INTO Critical / Blocked; this one records
+   the snapshot it crosses back OUT, so a recovery is still listed after the slot
+   Alerts → Removed from Critical showed it on has been left behind. Own
+   collection (sms_balance_recovery) and own localStorage mirror, so it survives
+   snapshot wipes exactly like the other persistent histories. */
+let smsBalanceRecoveryHistory = [];
 /* Clients removed from SMS Critical History with the per-row trash button while
    they were still critical. Mirrors the VOIP dismissal list: a dismissed client
    is not re-logged while it stays critical, and is un-dismissed automatically
@@ -11983,11 +12063,11 @@ if (!['','reseller','wholesale'].includes(smsBalanceManagerSource)) smsBalanceMa
 let smsBalanceSelectedMetaKey = '';
 let smsBalanceDetailMetaKey = '';
 let smsBalanceSubscriptionsStarted = false;
-const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','nothreshold','inactive-usage-history','settings']);
+const SMS_BALANCE_VIEWS = new Set(['summary','alerts','all','manager','export','logs','critical-history','recovery-history','nothreshold','inactive-usage-history','settings']);
 const SMS_BALANCE_ALERT_FILTERS = new Set(['all','critical','warning','safe','nothreshold','usage','new','removed','inactiveusage','usagehistory']);
 const SMS_BALANCE_LOCAL = {
   snapshots:'bm_sms_balance_snapshots', meta:'bm_sms_balance_meta', history:'bm_sms_balance_history', noThreshold:'bm_sms_balance_no_threshold', inactiveUsage:'bm_sms_balance_inactive_usage_history',
-  historySuppressed:'bm_sms_balance_history_suppressed'
+  historySuppressed:'bm_sms_balance_history_suppressed', recovery:'bm_sms_balance_recovery_history'
 };
 let SBS = { nearPct:10, retentionDays:30, soundAlert:true, requireClientThresholds:false };
 
@@ -13029,6 +13109,7 @@ window.switchView = name => {
   // routinely crowded out of it by the other modules' posts.
   if (name==='logs')          { subscribeLogs(); BM_LOG_MODULES.forEach(m => ensureModuleLogs(m)); renderLogs(); }
   if (name==='crit-history')  { ensureCritHistory(); renderCriticalHistory(); }
+  if (name==='recovery-history') { ensureRecoveryHistory(); renderRecoveryHistory(); }
   if (name==='spam-history')  { ensureSpamFlagHistory(); ensureSpamHistory(); renderSpamHistory(); }
   if (name==='no-threshold')  { ensureNoThreshHistory(); renderNoThreshHistory(); }
 };
@@ -15722,6 +15803,327 @@ window.restoreDismissedCritHist = () => {
 };
 
 /* ════════════════════════════════════════════════
+   REMOVED FROM CRITICAL HISTORY  (recoveries)
+   The mirror image of Critical History. That tab answers "who hit Critical";
+   this one answers "who came back out of it", using the SAME predicate on both
+   sides of the comparison (alertsCriticalHit, i.e. the Alerts → Critical
+   definition) so the two tabs can never disagree about what Critical means.
+   A recovery is a CROSSING, logged once on the snapshot where it happened: the
+   client was Critical on the snapshot this one is diffed against, and this
+   snapshot shows it out of Critical. Alerts → Removed from Critical only ever
+   answers for the newest snapshot, so skipping a slot loses that recovery for
+   good — which is the whole reason this store exists. Lives in its OWN Firestore
+   collection (`recovery_history`), so it survives deleting/wiping the snapshots;
+   cleared only via the Danger Zone.
+   Two deliberate differences from Alerts → Removed from Critical:
+   • the client must actually APPEAR in the new snapshot. Dropping out of the
+     report is not a recovery, and recording it as one would leave a permanent
+     false entry behind — Alerts can afford to assume the best because it redraws
+     from scratch on the next post; a persistent log cannot.
+   • a client that merely went Inactive is never logged. alertsCriticalHit()
+     ignores inactive clients and is what builds BOTH sides of the comparison, so
+     flipping the Active switch off empties the baseline rather than reading as a
+     balance that cleared. Alerts, which tests alertLevel() directly, would list
+     it as removed while "Show inactive" is on; a permanent log should not.
+   No dismissal list, unlike Critical History: a row is only ever written on a
+   crossing, so a deleted one cannot come back until the client genuinely goes
+   Critical and then recovers again.
+   One doc per client:
+   { carrier_name, count, first_*, last_*, events:[{d,s,bal,prev,crit,ts}] }.
+   Reuses Critical History's own helpers (critKey / sortEventsInPlace / critWhen /
+   critHistDocId / CRIT_HIST_CAP) so both logs key and cap events identically.
+════════════════════════════════════════════════ */
+let _recovHits = null;                 // Map<name, { events: Array<{d,s,bal,prev,crit,ts}> }>
+let _recovHistLoaded = false;
+let _recovHistLoading = null;
+let _recovKicked = false;
+let _recovHistUnsubscribe = null;
+let recovHistSortCol = 'first', recovHistSortDir = -1, recovHistSearch = ''; // default: newest recovery on top
+
+function recovHistoryMapFromDocs(docs) {
+  const map = new Map();
+  (docs || []).forEach(entry => {
+    const data = entry.data();
+    const name = data.carrier_name;
+    if (!name || !Array.isArray(data.events)) return;
+    const events = data.events.map(event => ({
+      d:event.d || '', s:event.s || '',
+      bal:amountNumber(event.bal),
+      prev:(event.prev === null || event.prev === undefined) ? null : amountNumber(event.prev),
+      crit:(event.crit === null || event.crit === undefined) ? null : amountNumber(event.crit),
+      ts:event.ts?.toDate?.() || (event.ts instanceof Date ? event.ts : null)
+    })).filter(event => event.d);
+    if (!events.length) return;
+    sortEventsInPlace(events);
+    map.set(name, { events });
+  });
+  return map;
+}
+
+// Same reason Critical History watches its collection: an admin deletion has to
+// disappear from already-open sessions without a page refresh, and a recovery
+// recorded by whoever posted the snapshot has to arrive on everyone else's tab.
+function subscribeRecovHistoryRealtime() {
+  if (!fbOk || _recovHistUnsubscribe) return;
+  _recovHistUnsubscribe = onSnapshot(collection(db, 'recovery_history'), snapshot => {
+    _recovHits = recovHistoryMapFromDocs(snapshot.docs);
+    _recovHistLoaded = true;
+    _recovKicked = true;
+    if (document.getElementById('view-recovery-history')?.classList.contains('active')) renderRecoveryHistory();
+  }, error => {
+    console.warn('recovery history subscribe:', error);
+    _recovHistUnsubscribe = null;
+  });
+}
+
+async function loadRecoveryHistory() {
+  if (_recovHistLoaded) return;
+  if (_recovHistLoading) return _recovHistLoading;
+  _recovHistLoading = (async () => {
+    try {
+      if (fbOk) {
+        const s = await getDocs(collection(db, 'recovery_history'));
+        _recovHits = recovHistoryMapFromDocs(s.docs);
+      } else {
+        _recovHits = _recovHits || new Map();
+      }
+      _recovHistLoaded = true;
+      // Forward-only, and no backfill: a recovery is a transition between two
+      // snapshots, so it can only be recognised as the second one is processed.
+    } finally { _recovHistLoading = null; }
+  })();
+  return _recovHistLoading;
+}
+
+/* Fold a processed snapshot's recoveries into the store. `prevSnap` is the same
+   snapshot the post diffs everything else against (usage, New Critical), so this
+   tab and Alerts → Removed from Critical always read the same comparison.
+   Deduped by date+slot, so re-processing / overwriting a slot replaces its
+   recovery rather than counting a second one. */
+async function recordCriticalRecoveries(date, slot, ts, rows, prevSnap) {
+  await loadRecoveryHistory();
+  if (!_recovHits) _recovHits = new Map();
+  const key = critKey(date, slot);
+  const when = (ts instanceof Date) ? ts : new Date();
+  // What was Critical on the baseline, judged by today's thresholds and client
+  // records — exactly how the Alerts tab re-evaluates the previous snapshot.
+  const wasCritical = new Map();
+  (prevSnap?.data || []).forEach(r => {
+    const name = r?.carrier_name; if (!name) return;
+    const hit = alertsCriticalHit(r);
+    if (hit) wasCritical.set(name, hit);
+  });
+  const changed = new Set();
+  (rows || []).forEach(r => {
+    const name = r?.carrier_name; if (!name) return;
+    let rec = _recovHits.get(name);
+    if (rec) { // drop any prior recovery for this exact date+slot (overwrite case)
+      const i = rec.events.findIndex(e => critKey(e.d, e.s) === key);
+      if (i >= 0) { rec.events.splice(i, 1); changed.add(name); }
+    }
+    const before = wasCritical.get(name);
+    // Recovered = was Critical on the baseline, is present in THESE rows, and is
+    // not Critical any more. Inactive clients need no separate guard: they are
+    // absent from wasCritical too (see the header note).
+    if (before && !alertsCriticalHit(r)) {
+      if (!rec) { rec = { events: [] }; _recovHits.set(name, rec); }
+      rec.events.push({ d: date, s: slot, bal: amountNumber(r.amnt_receivable), prev: before.bal, crit: (before.crit ?? null), ts: when });
+      sortEventsInPlace(rec.events);
+      if (rec.events.length > CRIT_HIST_CAP) rec.events.splice(0, rec.events.length - CRIT_HIST_CAP);
+      changed.add(name);
+    }
+    if (rec && rec.events.length === 0) { _recovHits.delete(name); changed.add(name); }
+  });
+  if (changed.size) {
+    await persistRecovHistDocs([...changed]);
+    if (document.getElementById('view-recovery-history')?.classList.contains('active')) renderRecoveryHistory();
+  }
+}
+
+async function persistRecovHistDocs(names) {
+  if (!fbOk || !names || !names.length) return;
+  const toTs = t => Timestamp.fromDate(t instanceof Date ? t : new Date());
+  try {
+    let batch = writeBatch(db), count = 0;
+    for (const name of names) {
+      const ref = doc(db, 'recovery_history', critHistDocId(name));
+      const rec = _recovHits && _recovHits.get(name);
+      if (rec && rec.events.length) {
+        const first = rec.events[0], last = rec.events[rec.events.length - 1];
+        batch.set(ref, {
+          carrier_name: name,
+          count: rec.events.length,
+          first_d: first.d, first_s: first.s, first_ts: toTs(first.ts),
+          last_d: last.d, last_s: last.s, last_ts: toTs(last.ts),
+          last_balance: last.bal,
+          balance_at_critical: (last.prev ?? null),
+          last_critical: (last.crit ?? null),
+          events: rec.events.map(e => ({ d: e.d, s: e.s, bal: e.bal, prev: (e.prev ?? null), crit: (e.crit ?? null), ts: toTs(e.ts) })),
+          updated_at: Timestamp.now()
+        });
+      } else {
+        batch.delete(ref);
+      }
+      if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+    }
+    if (count > 0) await batch.commit();
+  } catch (e) { /* non-fatal: the log still lives in memory for this session */ }
+}
+
+// Load the persistent log once (lazily), then re-render. Mirrors ensureCritHistory.
+function ensureRecoveryHistory() {
+  subscribeRecovHistoryRealtime();
+  if (_recovHistLoaded || _recovKicked) return;
+  _recovKicked = true;
+  const countEl = document.getElementById('recovhist-count');
+  if (countEl) countEl.textContent = 'Loading…';
+  loadRecoveryHistory()
+    .then(() => { if (document.getElementById('view-recovery-history')?.classList.contains('active')) renderRecoveryHistory(); })
+    .catch(() => { _recovKicked = false; });
+}
+
+window.recovHistSearchInput = v => { recovHistSearch = String(v || '').toLowerCase().trim(); renderRecoveryHistory(); };
+window.sortRecovHist = col => {
+  // Default direction: name ascending, everything else descending (most/latest first).
+  recovHistSortDir = (recovHistSortCol === col) ? -recovHistSortDir : (col === 'name' ? 1 : -1);
+  recovHistSortCol = col;
+  renderRecoveryHistory();
+};
+
+function recovHistRows() {
+  const out = [];
+  (_recovHits || new Map()).forEach((rec, name) => {
+    if (!rec || !rec.events || !rec.events.length) return;
+    const first = rec.events[0], last = rec.events[rec.events.length - 1];
+    out.push({
+      name, count: rec.events.length,
+      lastBal: last.bal, prevBal: last.prev, lastCrit: last.crit,
+      firstD: first.d, firstS: first.s, lastD: last.d, lastS: last.s,
+      _first: critKey(first.d, first.s), _last: critKey(last.d, last.s)
+    });
+  });
+  return out;
+}
+
+function renderRecoveryHistory() {
+  const tbody = document.getElementById('recovhist-tbody');
+  if (!tbody) return;
+  const countEl = document.getElementById('recovhist-count');
+  let rows = recovHistRows();
+  if (recovHistSearch) rows = rows.filter(r => r.name.toLowerCase().includes(recovHistSearch));
+  const dir = recovHistSortDir;
+  rows.sort((a, b) => {
+    let av, bv;
+    switch (recovHistSortCol) {
+      case 'name':    av = a.name.toLowerCase(); bv = b.name.toLowerCase(); break;
+      case 'count':   av = a.count; bv = b.count; break;
+      case 'prevBal': av = (a.prevBal ?? -Infinity); bv = (b.prevBal ?? -Infinity); break;
+      case 'lastBal': av = a.lastBal; bv = b.lastBal; break;
+      case 'crit':    av = (a.lastCrit ?? -Infinity); bv = (b.lastCrit ?? -Infinity); break;
+      case 'first':   av = a._first; bv = b._first; break;
+      case 'last':
+      default:        av = a._last; bv = b._last; break;
+    }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return  1 * dir;
+    return a.name.localeCompare(b.name);
+  });
+  if (countEl) {
+    countEl.textContent = !_recovHistLoaded ? 'Loading…'
+      : rows.length ? `${rows.length} client(s) have recovered out of Critical Balance`
+      : '0 clients';
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr ondblclick="openClientPopup('${escAttr(r.name)}')" style="cursor:pointer" title="Double-click for client details">
+      <td>${esc(r.name)}${rowEditBtn('editClientFromRow', r.name)}</td>
+      <td class="num">${r.count}</td>
+      <td class="num ${r.prevBal == null ? '' : debitCreditClass(r.prevBal)}">${r.prevBal == null ? '—' : fmt(r.prevBal)}</td>
+      <td class="num ${debitCreditClass(r.lastBal)}">${fmt(r.lastBal)}</td>
+      <td class="num" style="color:var(--orange)">${r.lastCrit == null ? '—' : fmt(r.lastCrit)}</td>
+      <td style="white-space:nowrap">${critWhen(r.firstD, r.firstS)}</td>
+      <td style="white-space:nowrap">${critWhen(r.lastD, r.lastS)}</td>
+      ${rowDelCell('deleteRecovHistEntry', r.name)}
+    </tr>`).join('') ||
+    `<tr><td colspan="8" style="text-align:center;padding:16px;color:var(--text-2)">${recovHistSearch ? 'No clients match your search.' : 'No clients have come out of Critical Balance yet.'}</td></tr>`;
+}
+
+window.exportRecoveryHistory = () => {
+  let rows = recovHistRows();
+  if (recovHistSearch) rows = rows.filter(r => r.name.toLowerCase().includes(recovHistSearch));
+  if (!rows.length) { toast('Nothing to export.', 'err'); return; }
+  rows.sort((a, b) => (a._last < b._last ? 1 : a._last > b._last ? -1 : a.name.localeCompare(b.name)));
+  const head = ['Client', 'Times Recovered', 'Balance at Critical', 'Balance at Recovery', 'Critical Balance', 'First Recovery', 'Last Recovery'];
+  const csvCell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const whenPlain = (d, s) => (d || '') + (s ? ` ${fmt12(s)}` : '');
+  const lines = [head.map(csvCell).join(',')];
+  rows.forEach(r => lines.push([
+    r.name, r.count, (r.prevBal == null ? '' : fmt(r.prevBal)), fmt(r.lastBal),
+    (r.lastCrit == null ? '' : fmt(r.lastCrit)),
+    whenPlain(r.firstD, r.firstS), whenPlain(r.lastD, r.lastS)
+  ].map(csvCell).join(',')));
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `removed_from_critical_history_${todayStr()}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+};
+
+window.openRecovHistWipeConfirm = () => {
+  if (!isAdmin()){ toast('Only admins can delete this history.','err'); return; }
+  document.getElementById('recovhist-wipe-overlay')?.classList.add('open');
+};
+window.closeRecovHistWipeConfirm = () => document.getElementById('recovhist-wipe-overlay')?.classList.remove('open');
+window.confirmWipeRecoveryHistory = async () => {
+  if (!isAdmin()){ toast('Only admins can delete this history.','err'); window.closeRecovHistWipeConfirm(); return; }
+  window.closeRecovHistWipeConfirm();
+  setLoading(true, 'Deleting recovery history…');
+  try {
+    let deleted = 0;
+    if (fbOk) {
+      const s = await getDocs(collection(db, 'recovery_history'));
+      let batch = writeBatch(db), count = 0;
+      for (const d of s.docs) {
+        batch.delete(doc(db, 'recovery_history', d.id));
+        deleted++;
+        if (++count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
+      }
+      if (count > 0) await batch.commit();
+    }
+    _recovHits = new Map();
+    _recovHistLoaded = true;
+    renderRecoveryHistory();
+    toast(`✓ Deleted ${deleted} recovery record(s)`, 'ok');
+  } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+  finally { setLoading(false); }
+};
+
+// Delete a single client's recovery record (row trash button). Nothing to
+// suppress: only a genuinely new crossing can put the client back on the tab.
+window.deleteRecovHistEntry = (name) => {
+  if (!isAdmin()){ toast('Only admins can delete this history.','err'); return; }
+  if (!name) return;
+  if (!(_recovHits instanceof Map) || !_recovHits.has(name)) { renderRecoveryHistory(); return; }
+  openRowDelConfirm({
+    title: 'Remove Recovery Record',
+    html: `<strong>Remove "${esc(name)}" from Removed from Critical History?</strong><br><br>`
+        + `This deletes every recovery recorded for the client. It reappears the next time it goes `
+        + `Critical and then comes back out.`,
+    confirmLabel: 'Remove',
+    run: async () => {
+      setLoading(true, 'Deleting entry…');
+      try {
+        if (fbOk) await deleteDoc(doc(db, 'recovery_history', critHistDocId(name)));
+        _recovHits.delete(name);
+        renderRecoveryHistory();
+        toast(`✓ Removed "${name}" from the recovery history`, 'ok');
+      } catch (e) { toast('Delete failed: ' + e.message, 'err', 6000); }
+      finally { setLoading(false); }
+    }
+  });
+};
+
+/* ════════════════════════════════════════════════
    NO-THRESHOLD HISTORY — a persistent, forward-only log of every client
    that appeared in a snapshot with no Critical Balance / Credit Limit set
    (i.e. lands in Alerts → No threshold). New clients paste in blank, so this
@@ -16652,6 +17054,10 @@ async function doProcessSnapshot(inputRows, timeSlot){
   // collection (survives snapshot deletion). Async so it can load prior history
   // first; errors are non-fatal to snapshot processing.
   recordCriticalHits(snap.session_date, snap.time_slot, snap.timestamp, data).catch(e => console.error('Critical history record failed:', e));
+  // The mirror log: clients this snapshot took back OUT of Critical, diffed
+  // against the same prevSnap everything else on this post is diffed against
+  // (see the Removed from Critical History module). Also non-fatal.
+  recordCriticalRecoveries(snap.session_date, snap.time_slot, snap.timestamp, data, prevSnap).catch(e => console.error('Recovery history record failed:', e));
   // Compile any clients with no threshold set into the persistent
   // no_threshold_history collection (survives snapshot deletion). Forward-only
   // and never auto-removed; errors are non-fatal to snapshot processing.
@@ -17325,6 +17731,7 @@ function canDeleteSnapshots(){ return isAdmin() || isSemiAdmin(); }
 function canDeleteDailyTrafficDate(){ return isAdmin() || isSemiAdmin(); }
 const VOIP_ADMIN_DANGER_BUTTONS = [
   'voip-delete-critical-history-btn',
+  'voip-delete-recovery-history-btn',
   'voip-delete-spam-history-btn',
   'voip-clear-no-threshold-btn',
   'voip-reset-spam-baseline-btn'
@@ -17376,6 +17783,7 @@ function applyModuleAccess(){
   show('sms-bal-delete-today-btn', canDeleteSnapshots());
   show('sms-bal-delete-all-btn', canDeleteSnapshots());
   show('sms-bal-clear-history-btn', admin);
+  show('sms-bal-clear-recovery-history-btn', admin);
   show('sms-bal-clear-nothreshold-btn', admin);
   // Same admin-only handler as the two history clears above, so it hides with them.
   show('sms-bal-clear-inactive-usage-history-btn', admin);
@@ -17443,11 +17851,13 @@ function localSettingsDataCount(collectionName, filterName = '', button = null) 
     snapshots: () => todayOnly(todaySnaps),
     tritel_snapshots: () => todayOnly(tritelSnaps),
     critical_history: () => _critHits instanceof Map ? _critHits.size : 0,
+    recovery_history: () => _recovHits instanceof Map ? _recovHits.size : 0,
     spam_history: () => _spamFlagHistory instanceof Map ? _spamFlagHistory.size : 0,
     no_threshold_history: () => _noThreshSeen instanceof Map ? _noThreshSeen.size : 0,
     usage_profiles: () => _profileSamples instanceof Map ? _profileSamples.size : 0,
     sms_balance_snapshots: () => todayOnly(smsBalanceTodaySnaps),
     sms_balance_history: () => (smsBalanceHistory || []).length,
+    sms_balance_recovery: () => (smsBalanceRecoveryHistory || []).length,
     sms_balance_no_threshold: () => (smsBalanceNoThreshold || []).length,
     sms_balance_inactive_usage: () => (smsBalanceInactiveUsageHistory || []).length,
     stats_snapshots: () => filterName === 'previous-stats-day' ? (statsPreviousDaySnaps || []).length : (statsTodaySnaps || []).length,
@@ -18711,6 +19121,7 @@ function refreshClientDataViews() {
   if (document.getElementById('view-crit-history')?.classList.contains('active')) renderCriticalHistory();
   if (document.getElementById('view-spam-history')?.classList.contains('active')) renderSpamHistory();
   if (document.getElementById('view-no-threshold')?.classList.contains('active')) renderNoThreshHistory();
+  if (document.getElementById('view-recovery-history')?.classList.contains('active')) renderRecoveryHistory();
   const detailOpen = document.getElementById('client-detail-overlay')?.classList.contains('open');
   const detailEditing = document.getElementById('btn-save-client')?.style.display !== 'none';
   if (detailOpen && !detailEditing && _editingClient) renderClientDetailBody(false);
@@ -21258,6 +21669,7 @@ function loadSmsBalanceLocal() {
   try { smsBalanceHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.history) || '[]') || []; } catch(e) { smsBalanceHistory = []; }
   try { smsBalanceNoThreshold = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.noThreshold) || '[]') || []; } catch(e) { smsBalanceNoThreshold = []; }
   try { smsBalanceInactiveUsageHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.inactiveUsage) || '[]') || []; } catch(e) { smsBalanceInactiveUsageHistory = []; }
+  try { smsBalanceRecoveryHistory = JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.recovery) || '[]') || []; } catch(e) { smsBalanceRecoveryHistory = []; }
   try { smsBalanceHistorySuppressed = new Set(JSON.parse(localStorage.getItem(SMS_BALANCE_LOCAL.historySuppressed) || '[]') || []); } catch(e) { smsBalanceHistorySuppressed = new Set(); }
   try { SBS = { ...SBS, ...JSON.parse(localStorage.getItem('bm_sms_balance_settings') || '{}') }; } catch(e) {}
   smsBalanceLatest = smsBalanceTodaySnaps.at(-1) || null;
@@ -21269,6 +21681,7 @@ function saveSmsBalanceLocal() {
     localStorage.setItem(SMS_BALANCE_LOCAL.history, JSON.stringify(smsBalanceHistory));
     localStorage.setItem(SMS_BALANCE_LOCAL.noThreshold, JSON.stringify(smsBalanceNoThreshold));
     localStorage.setItem(SMS_BALANCE_LOCAL.inactiveUsage, JSON.stringify(smsBalanceInactiveUsageHistory));
+    localStorage.setItem(SMS_BALANCE_LOCAL.recovery, JSON.stringify(smsBalanceRecoveryHistory));
     localStorage.setItem(SMS_BALANCE_LOCAL.historySuppressed, JSON.stringify([...smsBalanceHistorySuppressed]));
   } catch(e) {}
 }
@@ -22132,6 +22545,12 @@ function renderSmsBalanceHistory() {
   const body=document.getElementById('sms-bal-critical-history-tbody');if(!body)return;
   body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_hit||'')}</td><td>${esc(r.last_hit||'')}</td><td class="num">${r.count||0}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td class="num">${smsBalanceFmt(Math.max(0,r.od_remaining||0))}</td><td><span class="sms-bal-badge ${escAttr(r.last_status||'critical')}">${esc(r.last_status||'critical')}</span></td>${rowDelCell('deleteSmsBalanceHistoryEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(9,'No SMS critical or overdraft history yet.');
 }
+function renderSmsBalanceRecoveryHistory() {
+  const body=document.getElementById('sms-bal-recovery-history-tbody');if(!body)return;
+  const q=String(document.getElementById('sms-bal-recovery-history-search')?.value||'').toLowerCase();
+  const rows=smsBalanceRecoveryHistory.filter(r=>!q||[r.client,r.source,r.left_status].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>String(b.last_recovery||'').localeCompare(String(a.last_recovery||'')));
+  body.innerHTML=rows.length?rows.map(r=>{const key=r.meta_key||smsBalanceMetaKey(r);return `<tr><td><strong>${esc(r.client)}</strong></td><td>${esc(smsBalanceSourceLabel(r.source))}</td><td>${esc(r.first_recovery||'')}</td><td>${esc(r.last_recovery||'')}</td><td class="num">${r.count||0}</td><td class="num">${r.balance_at_critical==null?'—':smsBalanceFmt(r.balance_at_critical)}</td><td class="num">${smsBalanceFmt(r.last_balance)}</td><td class="num">${smsBalanceFmt(Math.max(0,r.od_remaining||0))}</td><td><span class="sms-bal-badge ${escAttr(r.left_status||'critical')}">${esc(r.left_status||'critical')}</span></td>${rowDelCell('deleteSmsBalanceRecoveryHistoryEntry',key)}</tr>`;}).join(''):smsBalanceEmptyRow(10,'No clients have come out of Critical or Blocked yet.');
+}
 function renderSmsBalanceNoThreshold() {
   const body=document.getElementById('sms-bal-nothreshold-tbody');if(!body)return;
   const rows=smsBalanceNoThreshold.slice().sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||'')));
@@ -22148,11 +22567,12 @@ function renderSmsBalanceInactiveUsageHistory() {
 // these by bare name and threw ReferenceError until they were published here.
 window.renderSmsBalanceInactiveUsageHistory=renderSmsBalanceInactiveUsageHistory;
 window.renderSmsBalanceHistory=renderSmsBalanceHistory;
+window.renderSmsBalanceRecoveryHistory=renderSmsBalanceRecoveryHistory;
 window.renderSmsBalanceNoThreshold=renderSmsBalanceNoThreshold;
 window.renderSmsBalanceLogs=renderSmsBalanceLogs;
 function renderSmsBalanceModule() {
   populateSmsBalanceSlots(); loadSmsBalanceSettingsUi(); renderSmsBalanceSnapshotList(); renderSmsBalanceSummary();
-  window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceNoThreshold(); renderSmsBalanceInactiveUsageHistory();
+  window.renderSmsBalanceAlerts(); window.renderSmsBalanceAll(); window.renderSmsBalanceManager(); renderSmsBalanceLogs(); renderSmsBalanceHistory(); renderSmsBalanceRecoveryHistory(); renderSmsBalanceNoThreshold(); renderSmsBalanceInactiveUsageHistory();
   const sync=document.getElementById('sms-bal-sync-label');
   if(sync)sync.textContent=smsBalanceLatest?`Last: ${fmt12(smsBalanceLatest.time_slot)} · ${(smsBalanceLatest.data||[]).length} rows`:'No SMS balance snapshot';
   updateSmsBalanceStatusBar();
@@ -22172,7 +22592,7 @@ window.switchSmsBalanceView = (view, persist=true) => {
   if(view==='manager')window.renderSmsBalanceManager();
   if(view==='logs'){subscribeLogs();ensureModuleLogs('sms-balance');renderSmsBalanceLogs();}
   else if(document.body.classList.contains('sms-mode'))unsubscribeLogs();
-  if(view==='critical-history')renderSmsBalanceHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
+  if(view==='critical-history')renderSmsBalanceHistory(); if(view==='recovery-history')renderSmsBalanceRecoveryHistory(); if(view==='nothreshold')renderSmsBalanceNoThreshold();
   if(view==='inactive-usage-history')renderSmsBalanceInactiveUsageHistory();
 };
 
@@ -22264,6 +22684,14 @@ function smsBalanceInactiveUsageEntries(snap) {
    `criticalNew` is what reaches Critical History and the audio alert. `recovered`
    un-dismisses a client the moment a snapshot shows it out of critical, so its
    next crossing is logged as a fresh hit.
+   `recoveredNew` is the opposite crossing and feeds Removed from Critical
+   History: critical at its last sighting, not critical here, and it left upward
+   (smsBalanceLeftCriticalUpward — sliding from a positive threshold onto the
+   overdraft is a client getting WORSE and is not a recovery). It is narrower than
+   `recovered`, which fires for every non-critical client on every post because
+   its only job is lifting dismissals. Unlike Alerts → Removed from Critical, a
+   client absent from this snapshot is never counted: the last-sighting walk-back
+   means a gap in the report would otherwise write a permanent false recovery.
    "Before" means the last snapshot that actually CONTAINED the client, not the
    one immediately preceding this post — see smsBalanceLastSeenRows for why a
    client missing from one slot used to come back as a fresh arrival.
@@ -22276,10 +22704,11 @@ function smsBalanceNewHistoryEntries(snap,previous=null,history=null) {
   // (fresh-baseline pin, seed-after-clear) keep behaving exactly as before.
   const earlier=history||smsBalanceSnapshotsBefore(snap);
   const before=smsBalanceLastSeenRows(previous?[...earlier,previous]:earlier);
-  const critical=[],criticalNew=[],recovered=[],noThreshold=[];
+  const critical=[],criticalNew=[],recovered=[],recoveredNew=[],noThreshold=[];
   current.forEach((entry,key)=>{
     const prior=before.get(key);
-    const criticalNow=smsBalanceIsCritical({...entry.row,_status:entry.status});
+    const shownRow={...entry.row,_status:entry.status};
+    const criticalNow=smsBalanceIsCritical(shownRow);
     const criticalBefore=!!prior&&smsBalanceIsCritical(prior);
     const noThresholdNow=entry.status.credit===null&&entry.status.critical===null;
     const noThresholdBefore=!!prior&&prior._status.credit===null&&prior._status.critical===null;
@@ -22288,10 +22717,13 @@ function smsBalanceNewHistoryEntries(snap,previous=null,history=null) {
       critical.push({key,...entry});
       if(!criticalBefore)criticalNew.push({key,...entry});
     }
-    if(!criticalNow)recovered.push(key);
+    if(!criticalNow){
+      recovered.push(key);
+      if(criticalBefore&&active&&smsBalanceLeftCriticalUpward(prior,shownRow))recoveredNew.push({key,...entry,prior});
+    }
     if(noThresholdNow&&!noThresholdBefore)noThreshold.push({key,...entry});
   });
-  return {critical,criticalNew,recovered,noThreshold,inactiveUsage:smsBalanceInactiveUsageEntries(snap)};
+  return {critical,criticalNew,recovered,recoveredNew,noThreshold,inactiveUsage:smsBalanceInactiveUsageEntries(snap)};
 }
 async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   entries=entries||smsBalanceNewHistoryEntries(snap,previous);
@@ -22304,6 +22736,7 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
   const histMap=new Map(smsBalanceHistory.map(r=>[r.meta_key,r]));
   const noMap=new Map(smsBalanceNoThreshold.map(r=>[r.meta_key,r]));
   const inactiveUsageMap=new Map(smsBalanceInactiveUsageHistory.map(r=>[r.meta_key,r]));
+  const recoveryMap=new Map(smsBalanceRecoveryHistory.map(r=>[r.meta_key,r]));
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const remote=[];
   // Crossings only — a client that merely stays critical is already on the tab
@@ -22312,13 +22745,28 @@ async function recordSmsBalanceHistories(snap,previous=null,entries=null) {
     if(smsBalanceHistorySuppressed.has(key))return;   // dismissed while still critical
     const prior=histMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_hit:prior?.first_hit||hitAt,last_hit:hitAt,count:prior?.last_hit===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance,od_remaining:status.odRemaining,last_status:status.code};histMap.set(key,record);remote.push(['sms_balance_history',record]);
   });
+  // Crossings out, same shape as the crossings in above: the snapshot a client
+  // LEFT Critical / Blocked on, never its continued good health. `prior` is the
+  // sighting it was critical on, so the row can show what it owed then as well as
+  // the balance that cleared it.
+  (entries.recoveredNew||[]).forEach(({key,row,status,prior})=>{
+    const before=recoveryMap.get(key);
+    const record={meta_key:key,source:row.source,client:row.client,
+      first_recovery:before?.first_recovery||hitAt,last_recovery:hitAt,
+      count:before?.last_recovery===hitAt?(before.count||1):(before?.count||0)+1,
+      last_balance:row.balance,od_remaining:status.odRemaining,
+      balance_at_critical:prior?smsBalanceNumber(prior.balance):null,
+      left_status:prior?._status?.code||'critical',
+      critical_balance:status.critical??null};
+    recoveryMap.set(key,record);remote.push(['sms_balance_recovery',record]);
+  });
   entries.noThreshold.forEach(({key,row})=>{
     const prior=noMap.get(key);const record={meta_key:key,source:row.source,client:row.client,first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_balance:row.balance};noMap.set(key,record);remote.push(['sms_balance_no_threshold',record]);
   });
   (entries.inactiveUsage||[]).forEach(({key,row,meta})=>{
     const prior=inactiveUsageMap.get(key);const record={meta_key:key,source:row.source,client:row.client,account_manager:meta?.account_manager||prior?.account_manager||'',first_seen:prior?.first_seen||hitAt,last_seen:hitAt,count:prior?.last_seen===hitAt?(prior.count||1):(prior?.count||0)+1,last_usage:row.usage_30min,last_balance:row.balance,last_overdraft:row.overdraft};inactiveUsageMap.set(key,record);remote.push(['sms_balance_inactive_usage',record]);
   });
-  smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];smsBalanceInactiveUsageHistory=[...inactiveUsageMap.values()];saveSmsBalanceLocal();
+  smsBalanceHistory=[...histMap.values()];smsBalanceNoThreshold=[...noMap.values()];smsBalanceInactiveUsageHistory=[...inactiveUsageMap.values()];smsBalanceRecoveryHistory=[...recoveryMap.values()];saveSmsBalanceLocal();
   if(suppChanged)await persistSmsBalanceHistorySuppressed();
   if(fbOk)await Promise.all(remote.map(([collectionName,record])=>setDoc(doc(db,collectionName,smsBalanceDocId(record.meta_key)),{...record,updated_at:Timestamp.now()})));
 }
@@ -22435,7 +22883,7 @@ window.processSmsBalanceSnapshot = async () => {
   // every client would look newly detected and each list would replay the whole
   // report. `recovered` is kept so a baseline post can still lift dismissals.
   const historyEntries=seedsFreshBaseline
-    ?{critical:allEntries.critical,criticalNew:[],recovered:allEntries.recovered,noThreshold:[],inactiveUsage:[]}
+    ?{critical:allEntries.critical,criticalNew:[],recovered:allEntries.recovered,recoveredNew:[],noThreshold:[],inactiveUsage:[]}
     :allEntries;
   const hitAt=`${snap.session_date} ${snap.time_slot}`;
   const freshCriticalCount=historyEntries.criticalNew.filter(({key})=>smsBalanceHistory.find(record=>record.meta_key===key)?.last_hit!==hitAt).length;
@@ -22572,6 +23020,14 @@ window.clearSmsBalanceHistory = async () => {
   try{await wipeSmsBalanceCollection('sms_balance_history');toast('SMS Critical History cleared — it refills from the next client that crosses into Critical','ok',7000);}
   catch(error){smsBalanceHistory=backup;smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Could not clear SMS Critical History: '+error.message,'err',7000);}
 };
+window.clearSmsBalanceRecoveryHistory = async () => {
+  if(!isAdmin()){toast('Only admins can clear SMS history.','err');return;}
+  if(!await confirmSmsBalanceAction({title:'Clear Removed from Critical History',label:'Clear History',html:'Clear the complete <strong>Removed from Critical History</strong>?<br><br>The tab logs recoveries, so it stays empty until a client next comes back OUT of Critical / Blocked. SMS snapshots and SMS Critical History are not affected.'}))return;
+  const backup=smsBalanceRecoveryHistory.slice();
+  smsBalanceRecoveryHistory=[];saveSmsBalanceLocal();renderSmsBalanceRecoveryHistory();
+  try{await wipeSmsBalanceCollection('sms_balance_recovery');toast('Removed from Critical History cleared — it refills from the next client that leaves Critical','ok',7000);}
+  catch(error){smsBalanceRecoveryHistory=backup;saveSmsBalanceLocal();renderSmsBalanceRecoveryHistory();toast('Could not clear Removed from Critical History: '+error.message,'err',7000);}
+};
 window.clearSmsBalanceNoThreshold = async () => {
   if(!isAdmin()){toast('Only admins can clear the list.','err');return;}
   if(!await confirmSmsBalanceAction({title:'Clear SMS No-Threshold History',label:'Clear History',html:'Clear every client in the persistent <strong>SMS No-Threshold History</strong>?<br><br>Clients that still have no thresholds will stay cleared. Only newly detected no-threshold clients will be recorded.'}))return;
@@ -22612,6 +23068,18 @@ window.restoreDismissedSmsBalanceHistory = async () => {
   try{await persistSmsBalanceHistorySuppressed();renderSmsBalanceHistory();toast('Restored dismissed clients','ok');}
   catch(error){smsBalanceHistorySuppressed=suppBackup;saveSmsBalanceLocal();renderSmsBalanceHistory();toast('Restore failed: '+error.message,'err',7000);}
 };
+// No dismissal list here, unlike SMS Critical History: a row is only ever written
+// on a crossing OUT of critical, so a deleted one cannot come back until the
+// client genuinely goes Critical and then recovers again.
+window.deleteSmsBalanceRecoveryHistoryEntry = async key => {
+  if(!isAdmin()){toast('Only admins can delete this history.','err');return;}
+  const row=smsBalanceRecoveryHistory.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
+  if(!await confirmSmsBalanceAction({title:'Remove Recovery History Entry',label:'Remove Entry',html:`Remove <strong>${esc(row.client||'this client')}</strong> from Removed from Critical History?<br><br>This deletes every recovery recorded for the client. It reappears the next time it goes Critical and then comes back out. SMS snapshots and all other history entries are not affected.`}))return;
+  const backup=smsBalanceRecoveryHistory.slice();
+  smsBalanceRecoveryHistory=smsBalanceRecoveryHistory.filter(r=>(r.meta_key||smsBalanceMetaKey(r))!==key);saveSmsBalanceLocal();renderSmsBalanceRecoveryHistory();
+  try{if(fbOk)await deleteDoc(doc(db,'sms_balance_recovery',smsBalanceDocId(key)));toast(`Removed ${row.client} from Removed from Critical History`,'ok');}
+  catch(error){smsBalanceRecoveryHistory=backup;saveSmsBalanceLocal();renderSmsBalanceRecoveryHistory();toast('Could not remove Removed from Critical History entry: '+error.message,'err',7000);}
+};
 window.deleteSmsBalanceNoThresholdEntry = async key => {
   if(!isAdmin()){toast('Only admins can delete SMS No-Threshold History.','err');return;}
   const row=smsBalanceNoThreshold.find(r=>(r.meta_key||smsBalanceMetaKey(r))===key);if(!row)return;
@@ -22651,6 +23119,7 @@ window.exportSmsBalanceManagerCurrentView = () => {
   toast(`Downloaded ${list.length} Client Manager row(s).`,'ok');
 };
 window.exportSmsBalanceHistoryCsv = () => {if(!smsBalanceHistory.length){toast('No SMS history to export.','err');return;}smsBalanceCsvDownload(['Client','Type','First Hit','Last Hit','Times Hit','Last Balance','OD Remaining','Last Status'],smsBalanceHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.first_hit,r.last_hit,r.count,r.last_balance,r.od_remaining,r.last_status]),`sms_balance_critical_history_${todayStr()}.csv`);};
+window.exportSmsBalanceRecoveryHistoryCsv = () => {if(!smsBalanceRecoveryHistory.length){toast('No recovery history to export.','err');return;}smsBalanceCsvDownload(['Client','Type','First Recovery','Last Recovery','Times Recovered','Balance at Critical','Balance at Recovery','OD Remaining','Left State'],smsBalanceRecoveryHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.first_recovery,r.last_recovery,r.count,r.balance_at_critical??'',r.last_balance,r.od_remaining,r.left_status]),`sms_balance_removed_from_critical_history_${todayStr()}.csv`);};
 window.exportSmsBalanceInactiveUsageHistoryCsv = () => {if(!smsBalanceInactiveUsageHistory.length){toast('No inactive usage history to export.','err');return;}smsBalanceCsvDownload(['Client','Type','Account Manager','First Seen','Last Seen','Times Seen','Latest 30m Usage','Last Balance'],smsBalanceInactiveUsageHistory.map(r=>[r.client,smsBalanceSourceLabel(r.source),r.account_manager,r.first_seen,r.last_seen,r.count,r.last_usage,r.last_balance]),`sms_balance_inactive_usage_history_${todayStr()}.csv`);};
 function smsBalanceDateAdd(date,days) {const d=new Date(`${date}T00:00:00`);d.setDate(d.getDate()+days);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function smsBalanceSheetSlots(shift) { return shiftSlots(shift); }
@@ -22874,6 +23343,12 @@ function subscribeSmsBalanceData() {
       smsBalanceHistorySuppressed=smsBalanceHistorySuppSetFromDoc(s);
       smsBalanceHistorySuppLoaded=true;saveSmsBalanceLocal();renderSmsBalanceHistory();
     },e=>console.warn('SMS balance history dismissals:',e));
+  } catch(e){console.warn(e);}
+  try {
+    onSnapshot(collection(db,'sms_balance_recovery'),async s=>{
+      if(s.metadata?.fromCache&&!s.docs.length)return;
+      smsBalanceRecoveryHistory=s.docs.map(d=>d.data());saveSmsBalanceLocal();renderSmsBalanceRecoveryHistory();
+    },e=>console.warn('SMS balance recovery history:',e));
   } catch(e){console.warn(e);}
   try {
     onSnapshot(collection(db,'sms_balance_no_threshold'),async s=>{
@@ -30907,6 +31382,7 @@ async function init(){
   subscribeSpamFlagHistoryRealtime();
   subscribeSpamHistSuppressedRealtime();
   subscribeNoThreshHistoryRealtime();
+  subscribeRecovHistoryRealtime();
   // User roles: register/refresh my own record (drives the online list + lets the
   // admin assign a role), watch my role live, and — for the admin — the whole list.
   subscribeMyRole();
